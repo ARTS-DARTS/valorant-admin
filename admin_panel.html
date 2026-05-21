@@ -1,0 +1,1992 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Valorant Lineups — Admin</title>
+  <style>
+    :root {
+      --bg: #0F1923;
+      --surface: #1B2838;
+      --surface2: #1e2d3d;
+      --primary: #FF4655;
+      --text: #e8f0fe;
+      --text2: #7a9bb5;
+      --border: #2d4a63;
+      --green: #22c55e;
+      --orange: #f97316;
+      --red: #ef4444;
+      --r: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; font-size: 14px; }
+
+    /* ── Header ── */
+    .header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 54px; display: flex; align-items: center;
+      justify-content: space-between; position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-size: 17px; font-weight: 800; letter-spacing: 2px; color: var(--primary); }
+    .logo span { color: var(--text); }
+    .header-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text2); }
+    .btn-out { background: transparent; border: 1px solid var(--border); color: var(--text2); padding: 5px 13px; border-radius: var(--r); cursor: pointer; font-size: 12px; transition: .15s; }
+    .btn-out:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* ── Login / Denied ── */
+    .center-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+    .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 48px 40px; max-width: 360px; width: 100%; text-align: center; }
+    .auth-title { font-size: 26px; font-weight: 800; color: var(--primary); letter-spacing: 3px; margin-bottom: 4px; }
+    .auth-sub { color: var(--text2); font-size: 12px; letter-spacing: 1px; margin-bottom: 36px; }
+    .btn-google { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; background: #fff; color: #1a1a1a; border: none; padding: 12px 20px; border-radius: var(--r); font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn-google:hover { opacity: .88; }
+    .btn-google:disabled { opacity: .45; cursor: default; }
+    .g-icon { font-size: 15px; font-weight: 900; color: #4285F4; }
+    .auth-err { color: var(--red); font-size: 12px; margin-top: 14px; display: none; }
+
+    /* ── Main ── */
+    .main { max-width: 1160px; margin: 0 auto; padding: 22px 20px; }
+
+    /* ── Tabs ── */
+    .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; margin-bottom: 18px; }
+    .tab { padding: 7px 18px; border-radius: 7px; cursor: pointer; font-weight: 700; font-size: 12px; letter-spacing: 1px; color: var(--primary); background: transparent; border: none; transition: .15s; }
+    .tab.active { background: var(--primary); color: #fff; }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+    .filter-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .15s; }
+    .filter-btn:hover, .filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .filter-btn.f-pending.active  { background: var(--orange); border-color: var(--orange); }
+    .filter-btn.f-approved.active { background: var(--green);  border-color: var(--green); }
+    .filter-btn.f-rejected.active { background: var(--red);    border-color: var(--red); }
+
+    /* ── Search ── */
+    .search { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); padding: 8px 13px; font-size: 14px; margin-bottom: 14px; outline: none; }
+    .search:focus { border-color: var(--primary); }
+
+    /* ── Lineup cards ── */
+    .lineup-list { display: flex; flex-direction: column; gap: 9px; }
+    .lcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; transition: border-color .15s; }
+    .lcard:hover { border-color: rgba(255,70,85,.45); }
+    .lcard-head { padding: 13px 15px; display: flex; align-items: center; gap: 11px; cursor: pointer; user-select: none; }
+    .badge { padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .4px; white-space: nowrap; flex-shrink: 0; }
+    .b-pending  { background: rgba(249,115,22,.12); color: var(--orange); border: 1px solid var(--orange); }
+    .b-approved { background: rgba(34,197,94,.12);  color: var(--green);  border: 1px solid var(--green); }
+    .b-rejected { background: rgba(239,68,68,.12);  color: var(--red);    border: 1px solid var(--red); }
+    .b-removed  { background: rgba(100,100,100,.1); color: #777;          border: 1px solid #555; }
+    .linfo { flex: 1; min-width: 0; }
+    .ltitle { font-weight: 700; font-size: 14px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lmeta  { color: var(--text2); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .expand-btn { background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 17px; padding: 2px 6px; transition: transform .18s; }
+    .expand-btn.open { transform: rotate(180deg); }
+
+    /* ── Card detail ── */
+    .ldetail { display: none; border-top: 1px solid var(--border); padding: 15px; }
+    .ldetail.open { display: block; }
+    .section { margin-bottom: 13px; }
+    .dlabel { font-size: 11px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 5px; }
+    .dval   { color: var(--text); font-size: 13px; line-height: 1.5; }
+    .dgrid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 13px; }
+    .dfield { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; }
+
+    /* ── Buttons ── */
+    .row   { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 11px; }
+    .btn   { padding: 8px 15px; border-radius: var(--r); border: none; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: opacity .13s; }
+    .btn:hover    { opacity: .82; }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn-approve { background: var(--green);  color: #fff; }
+    .btn-reject  { background: var(--orange); color: #fff; }
+    .btn-delete  { background: transparent; border: 1px solid var(--red);    color: var(--red); }
+    .btn-ban     { background: transparent; border: 1px solid var(--red);    color: var(--red); font-size: 12px; }
+    .btn-save    { background: var(--primary); color: #fff; }
+
+    /* ── YouTube ── */
+    .yt-player  { width: 100%; aspect-ratio: 16/9; border-radius: var(--r); overflow: hidden; margin-bottom: 9px; background: #000; }
+    .yt-player iframe { width: 100%; height: 100%; border: none; }
+    .yt-row     { display: flex; gap: 8px; align-items: flex-start; }
+
+    /* ── Screenshots ── */
+    .ss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+    .ss-thumb { aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface2); cursor: zoom-in; }
+    .ss-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s; }
+    .ss-thumb:hover img { transform: scale(1.06); }
+
+    /* ── Form ── */
+    .form-wrap  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; max-width: 800px; }
+    .form-title { color: var(--primary); font-size: 15px; font-weight: 700; letter-spacing: 1px; margin-bottom: 18px; }
+    .fgrid      { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    @media (max-width: 600px) { .fgrid { grid-template-columns: 1fr; } }
+    .fg         { display: flex; flex-direction: column; gap: 5px; }
+    .fg.full    { grid-column: 1/-1; }
+    .flabel     { font-size: 11px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
+    .finput, .fselect, .ftextarea {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--text); padding: 9px 13px; font-size: 14px; outline: none;
+      transition: border-color .15s; width: 100%; font-family: inherit;
+    }
+    .finput:focus, .fselect:focus, .ftextarea:focus { border-color: var(--primary); }
+    .fselect option { background: var(--surface2); }
+    .ftextarea  { resize: vertical; min-height: 78px; }
+    .fcheck-row { display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; }
+    .fcheck-row input { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
+    .yt-hint    { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text2); font-size: 12px; line-height: 1.6; margin-bottom: 7px; }
+
+    /* ── Agent / Ability picker ── */
+    .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; }
+    .agent-card { border-radius: 7px; border: 2px solid var(--border); background: var(--surface2); cursor: pointer; transition: border-color .13s, background .13s; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+    .agent-card:hover  { border-color: var(--primary); }
+    .agent-card.sel    { border-color: var(--primary); background: rgba(255,70,85,.12); }
+    .agent-card img    { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; pointer-events: none; }
+    .agent-card .ac-fallback { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .agent-card .ac-name { font-size: 9px; font-weight: 700; color: var(--text2); text-align: center; padding: 3px 3px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .agent-card.sel .ac-name { color: var(--primary); }
+    .ability-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .abil-btn   { padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .13s; }
+    .abil-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .abil-btn.sel   { background: var(--primary); border-color: var(--primary); color: #fff; }
+    /* ── Map picker ── */
+    .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 9/16; width: min(100%, 320px); }
+    .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
+    .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+    .map-marker { position: absolute; width: 22px; height: 22px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .map-marker img { object-fit: cover; }
+    .map-marker.dot { background: var(--primary); border-color: #fff; box-shadow: 0 0 8px rgba(255,70,85,.85); }
+    .map-ph { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text2); font-size: 13px; padding: 16px; text-align: center; }
+    .coords-row { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--text2); align-items: center; }
+    .coord-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 3px 10px; font-family: monospace; letter-spacing: .5px; }
+
+    /* ── Upload zone ── */
+    .upload-zone { border: 2px dashed var(--border); border-radius: var(--r); padding: 22px 16px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--primary); background: rgba(255,70,85,.05); }
+    .uz-icon { font-size: 26px; margin-bottom: 5px; }
+    .uz-text { color: var(--text2); font-size: 13px; }
+    .uz-hint { color: var(--text2); font-size: 11px; margin-top: 3px; opacity: .65; }
+    .upload-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 7px; margin-top: 9px; }
+    .up-thumb { position: relative; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface2); }
+    .up-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .up-overlay { position: absolute; inset: 0; pointer-events: none; }
+    .up-overlay-err { background: rgba(239,68,68,.55); display: flex; align-items: center; justify-content: center; }
+    .up-err-icon { color: #fff; font-size: 18px; font-weight: 900; }
+    .up-size { position: absolute; bottom: 8px; left: 5px; z-index: 1; background: rgba(0,0,0,.72); color: rgba(255,255,255,.9); font-size: 9px; font-family: monospace; border-radius: 3px; padding: 1px 5px; pointer-events: none; line-height: 1.5; white-space: nowrap; }
+    .up-prog-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: rgba(0,0,0,.4); }
+    .up-prog-bar  { height: 100%; background: var(--primary); transition: width .1s linear; min-width: 4px; border-radius: 0 2px 2px 0; }
+    .up-remove { position: absolute; top: 4px; right: 4px; z-index: 2; background: rgba(0,0,0,.72); border: none; color: #fff; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; transition: background .13s; }
+    .up-remove:hover { background: var(--red); }
+
+    /* ── State messages ── */
+    .state { text-align: center; padding: 48px 24px; color: var(--text2); }
+    .reload-btn { margin-top: 14px; padding: 8px 20px; background: var(--primary); color: #fff; border: none; border-radius: var(--r); cursor: pointer; font-weight: 600; }
+
+    /* ── Lightbox ── */
+    .lb { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 999; align-items: center; justify-content: center; cursor: zoom-out; }
+    .lb.open { display: flex; }
+    .lb img { max-width: 95vw; max-height: 95vh; border-radius: 4px; }
+
+    /* ── Toasts ── */
+    .toasts { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 7px; z-index: 1000; }
+    .toast  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 11px 16px; font-size: 13px; max-width: 310px; animation: tin .2s ease; }
+    .toast.s { border-color: var(--green);  color: var(--green); }
+    .toast.e { border-color: var(--red);    color: var(--red); }
+    .toast.i { border-color: var(--primary); color: var(--primary); }
+    @keyframes tin { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
+
+    /* ── Inline edit form in card ── */
+    .edit-sep { border-top: 1px dashed var(--border); margin: 13px 0 16px; }
+    .edit-form-title { font-size: 11px; font-weight: 700; color: var(--primary); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 13px; }
+    .btn-edit-toggle { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-edit-toggle:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-edit-toggle.open { background: rgba(255,70,85,.1); border-color: var(--primary); color: var(--primary); }
+
+    /* ── Auth divider ── */
+    .auth-divider { display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--text2); font-size:12px; letter-spacing:.5px; }
+    .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── Admin user cards ── */
+    .adm-list { display:flex; flex-direction:column; gap:8px; max-width:700px; }
+    .adm-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:13px 15px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .adm-name { font-weight:700; font-size:14px; margin-bottom:3px; }
+    .adm-meta { color:var(--text2); font-size:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .b-admin     { background:rgba(255,70,85,.12);  color:var(--primary); border:1px solid var(--primary); }
+    .b-moderator { background:rgba(249,115,22,.12); color:var(--orange);  border:1px solid var(--orange); }
+  </style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="screen-login" class="center-screen">
+  <div class="auth-card">
+    <div class="auth-title">VALORANT</div>
+    <div class="auth-sub">ADMIN PANEL</div>
+    <div style="color:var(--text2);font-size:13px;margin-bottom:28px;">Доступ только для администраторов</div>
+    <button class="btn-google" id="btn-login">
+      <span class="g-icon">G</span> Войти через Google
+    </button>
+    <div class="auth-divider"><span>или</span></div>
+    <div class="fg" style="text-align:left;">
+      <label class="flabel">Email</label>
+      <input class="finput" id="ep-email" type="email" placeholder="admin@example.com" autocomplete="username">
+    </div>
+    <div class="fg" style="text-align:left;margin-top:8px;">
+      <label class="flabel">Пароль</label>
+      <input class="finput" id="ep-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-save" id="btn-ep-login" style="width:100%;justify-content:center;padding:11px;margin-top:10px;font-size:14px;">Войти</button>
+    <div class="auth-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- Access denied -->
+<div id="screen-denied" class="center-screen" style="display:none;">
+  <div class="auth-card">
+    <div style="font-size:46px;margin-bottom:14px;">🚫</div>
+    <div class="auth-title" style="color:var(--red);">ДОСТУП ЗАПРЕЩЁН</div>
+    <div style="color:var(--text2);font-size:13px;margin:10px 0 24px;">Аккаунт не имеет прав администратора.</div>
+    <button class="btn-google" style="background:var(--surface2);color:var(--text2);border:1px solid var(--border);" id="btn-denied-out">
+      Выйти
+    </button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="screen-app" style="display:none;">
+  <header class="header">
+    <div class="logo">VALORANT <span>LINEUPS</span></div>
+    <div class="header-right">
+      <span id="user-provider-icon" style="font-size:16px;"></span><span id="user-name">—</span>
+      <button class="btn-out" id="btn-signout">Выйти</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="tabs">
+      <button class="tab active" id="tab-btn-list">ЛАЙНАПЫ</button>
+      <button class="tab"        id="tab-btn-add">ДОБАВИТЬ</button>
+      <button class="tab"        id="tab-btn-admins">АДМИНИСТРАТОРЫ</button>
+    </div>
+
+    <!-- List tab -->
+    <div id="tab-list">
+      <div class="filters">
+        <button class="filter-btn active"     data-filter="all">Все</button>
+        <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
+        <button class="filter-btn f-approved" data-filter="approved">Одобренные</button>
+        <button class="filter-btn f-rejected" data-filter="rejected">Отклонённые</button>
+      </div>
+      <input class="search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
+      <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-save" id="btn-migrate" style="font-size:12px;padding:7px 14px;">⚡ Мигрировать способности EN→RU</button>
+        <span id="migrate-status" style="font-size:12px;color:var(--text2);"></span>
+      </div>
+      <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
+    </div>
+
+    <!-- Add tab -->
+    <div id="tab-add" style="display:none;">
+      <div class="form-wrap">
+        <div class="form-title">ДОБАВИТЬ ЛАЙНАП</div>
+        <div class="fgrid">
+
+          <div class="fg">
+            <label class="flabel">Карта</label>
+            <select class="fselect" id="f-map">
+              <option value="">— Выбери карту —</option>
+              <option>Haven</option><option>Bind</option><option>Ascent</option>
+              <option>Split</option><option>Icebox</option><option>Breeze</option>
+              <option>Fracture</option><option>Pearl</option><option>Lotus</option>
+              <option>Sunset</option><option>Abyss</option><option>Corrode</option>
+            </select>
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">Агент</label>
+            <div class="agent-grid" id="agent-grid"></div>
+          </div>
+
+          <div class="fg full" id="ability-wrap" style="display:none;">
+            <label class="flabel">Способность</label>
+            <div class="ability-row" id="ability-row"></div>
+          </div>
+
+          <div class="fg">
+            <label class="flabel">Категория</label>
+            <select class="fselect" id="f-category">
+              <option value="">— Выбери категорию —</option>
+              <option value="lineup">lineup</option>
+              <option value="combo">combo</option>
+              <option value="smoke">smoke</option>
+              <option value="defense">defense</option>
+            </select>
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">Название</label>
+            <input class="finput" id="f-title" placeholder="Название лайнапа">
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">Описание</label>
+            <textarea class="ftextarea" id="f-desc" placeholder="Подробное описание…"></textarea>
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">YouTube ссылка (необязательно)</label>
+            <div class="yt-hint">🎬 Поддерживается: youtube.com/watch?v=… · youtu.be/… · /shorts/…</div>
+            <input class="finput" id="f-video" type="url" placeholder="https://youtu.be/…">
+            <div id="form-yt-preview" class="yt-player" style="margin-top:8px;display:none;">
+              <iframe id="form-yt-iframe" allowfullscreen></iframe>
+            </div>
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">Скриншоты</label>
+            <div class="upload-zone" id="upload-zone">
+              <div class="uz-icon">📷</div>
+              <div class="uz-text">Нажми или перетащи фото сюда</div>
+              <div class="uz-hint">Сжатие до 500 KB · JPEG · можно несколько</div>
+            </div>
+            <input type="file" id="f-screenshots" accept="image/*" multiple style="display:none;">
+            <div class="upload-previews" id="upload-previews"></div>
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">Точка на карте — кликни чтобы поставить метку</label>
+            <div id="map-picker-wrap" class="map-picker-wrap">
+              <div class="map-ph">Сначала выбери карту ↑</div>
+            </div>
+            <div class="coords-row">
+              X: <span class="coord-pill" id="coord-x">—</span>
+              Y: <span class="coord-pill" id="coord-y">—</span>
+              <span id="coord-hint" style="font-size:11px;opacity:.6;">Кликни на карту</span>
+            </div>
+          </div>
+
+          <div class="fg">
+            <label class="flabel">Статус</label>
+            <select class="fselect" id="f-status">
+              <option value="approved">approved</option>
+              <option value="pending">pending</option>
+            </select>
+          </div>
+
+          <div class="fg" style="align-self:end;">
+            <label class="fcheck-row">
+              <input type="checkbox" id="f-exclusive">
+              <span>Эксклюзивный доступ 👑</span>
+            </label>
+          </div>
+
+          <div class="fg full" style="margin-top:6px;">
+            <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">
+              Добавить лайнап
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Admins tab -->
+    <div id="tab-admins" style="display:none;">
+      <div class="form-wrap" style="max-width:700px;margin-bottom:22px;">
+        <div class="form-title">ДОБАВИТЬ АДМИНИСТРАТОРА</div>
+        <div class="fgrid">
+          <div class="fg">
+            <label class="flabel">Email</label>
+            <input class="finput" id="adm-email" type="email" placeholder="admin@example.com">
+          </div>
+          <div class="fg">
+            <label class="flabel">Пароль</label>
+            <input class="finput" id="adm-pass" type="password" placeholder="Минимум 6 символов">
+          </div>
+          <div class="fg">
+            <label class="flabel">Имя</label>
+            <input class="finput" id="adm-name" placeholder="Имя администратора">
+          </div>
+          <div class="fg">
+            <label class="flabel">Роль</label>
+            <select class="fselect" id="adm-role">
+              <option value="admin">admin</option>
+              <option value="moderator">moderator</option>
+            </select>
+          </div>
+          <div class="fg full" style="margin-top:4px;">
+            <button class="btn btn-save" id="btn-add-admin" style="width:100%;justify-content:center;padding:11px;">
+              Создать аккаунт и выдать доступ
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-title" style="margin-bottom:12px;">ТЕКУЩИЕ АДМИНИСТРАТОРЫ</div>
+      <div class="adm-list" id="admins-list"><div class="state">Загрузка…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lb" id="lb"><img id="lb-img" src="" alt=""></div>
+
+<!-- Toasts -->
+<div class="toasts" id="toasts"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getAuth, signInWithPopup, GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  signOut, onAuthStateChanged
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {
+  getFirestore, collection, getDocs, getDoc, doc, setDoc,
+  updateDoc, deleteDoc, addDoc, query, orderBy, where,
+  serverTimestamp, increment
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import {
+  getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+
+// ── Firebase config ─────────────────────────────────────────────────────────
+// ВАЖНО: добавь Web App в Firebase Console → Project settings → Your apps → </> Web,
+// скопируй appId и вставь ниже.
+const cfg = {
+  apiKey:            'AIzaSyA1ya7fO5ZSeeokEfRHikWwpBXeXYhm9ww',
+  authDomain:        'valorant-linemaps.firebaseapp.com',
+  projectId:         'valorant-linemaps',
+  storageBucket:     'valorant-linemaps.firebasestorage.app',
+  messagingSenderId: '288103111419',
+  appId:             '1:288103111419:web:daca10a760282d40996e5e',
+};
+
+const app     = initializeApp(cfg);
+const auth    = getAuth(app);
+const db      = getFirestore(app);
+const storage = getStorage(app);
+
+// ── State ───────────────────────────────────────────────────────────────────
+let lineups       = [];
+let currentFilter = 'all';
+let currentUser   = null;
+
+// uploadedScreenshots: array of { localUrl, storageUrl|null, status: 'uploading'|'done'|'error' }
+let uploadedScreenshots = [];
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (!user) { show('login'); return; }
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    const role = snap.exists() ? (snap.data().role ?? 'user') : 'user';
+    if (role !== 'admin') { show('denied'); return; }
+  } catch (e) {
+    loginErr('Ошибка проверки прав: ' + e.message);
+    await signOut(auth);
+    return;
+  }
+  currentUser = user;
+  document.getElementById('user-name').textContent = user.displayName || user.email;
+  const _prov = user.providerData[0]?.providerId ?? '';
+  document.getElementById('user-provider-icon').textContent = _prov === 'google.com' ? '🇬 ' : '📧 ';
+  show('app');
+  loadLineups();
+  loadAdmins();
+});
+
+document.getElementById('btn-login').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = 'Входим…';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e) {
+    loginErr(e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<span class="g-icon">G</span> Войти через Google';
+  }
+});
+
+document.getElementById('btn-ep-login').addEventListener('click', _epLogin);
+document.getElementById('ep-pass').addEventListener('keydown', e => { if (e.key === 'Enter') _epLogin(); });
+
+async function _epLogin() {
+  const email = document.getElementById('ep-email').value.trim();
+  const pass  = document.getElementById('ep-pass').value;
+  if (!email || !pass) { loginErr('Введи email и пароль'); return; }
+  const btn = document.getElementById('btn-ep-login');
+  btn.disabled = true; btn.textContent = 'Входим…';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    const msgs = {
+      'auth/invalid-credential': 'Неверный email или пароль',
+      'auth/user-not-found':     'Пользователь не найден',
+      'auth/wrong-password':     'Неверный пароль',
+      'auth/too-many-requests':  'Слишком много попыток, попробуй позже',
+      'auth/invalid-email':      'Неверный формат email',
+    };
+    loginErr(msgs[e.code] ?? e.message);
+    btn.disabled = false; btn.textContent = 'Войти';
+  }
+}
+
+document.getElementById('btn-signout').addEventListener('click', () => signOut(auth));
+document.getElementById('btn-denied-out').addEventListener('click', () => signOut(auth));
+
+function show(s) {
+  ['login','denied','app'].forEach(id =>
+    document.getElementById('screen-' + id).style.display = s === id ? (id === 'app' ? 'block' : 'flex') : 'none'
+  );
+}
+function loginErr(msg) {
+  const el = document.getElementById('login-err');
+  el.style.display = 'block'; el.textContent = msg;
+}
+
+// ── Tabs ────────────────────────────────────────────────────────────────────
+function switchTab(t) {
+  document.getElementById('tab-list').style.display   = t === 'list'   ? 'block' : 'none';
+  document.getElementById('tab-add').style.display    = t === 'add'    ? 'block' : 'none';
+  document.getElementById('tab-admins').style.display = t === 'admins' ? 'block' : 'none';
+  document.getElementById('tab-btn-list').classList.toggle('active',   t === 'list');
+  document.getElementById('tab-btn-add').classList.toggle('active',    t === 'add');
+  document.getElementById('tab-btn-admins').classList.toggle('active', t === 'admins');
+}
+document.getElementById('tab-btn-list').addEventListener('click',   () => switchTab('list'));
+document.getElementById('tab-btn-add').addEventListener('click',    () => switchTab('add'));
+document.getElementById('tab-btn-admins').addEventListener('click', () => switchTab('admins'));
+
+// ── Filters ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderList();
+  });
+});
+
+document.getElementById('search').addEventListener('input', renderList);
+
+// ── Load ────────────────────────────────────────────────────────────────────
+async function loadLineups() {
+  document.getElementById('lineup-list').innerHTML = '<div class="state">Загрузка…</div>';
+  try {
+    const q    = query(collection(db, 'lineups'), orderBy('submitted_at', 'desc'));
+    const snap = await getDocs(q);
+    lineups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderList();
+  } catch (e) {
+    document.getElementById('lineup-list').innerHTML =
+      `<div class="state" style="color:var(--red)">Ошибка загрузки: ${esc(e.message)}<br>
+       <button class="reload-btn" onclick="loadLineups()">Повторить</button></div>`;
+  }
+}
+window.loadLineups = loadLineups;
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderList() {
+  const q  = document.getElementById('search').value.toLowerCase();
+  const fl = lineups.filter(l => {
+    if (currentFilter !== 'all' && l.status !== currentFilter) return false;
+    if (q) {
+      const hay = `${l.title} ${l.agent} ${l.map} ${l.ability} ${l.submitted_by ?? ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (!fl.length) {
+    document.getElementById('lineup-list').innerHTML = '<div class="state">Лайнапы не найдены</div>';
+    return;
+  }
+  document.getElementById('lineup-list').innerHTML = fl.map(cardHtml).join('');
+  bindCardEvents();
+}
+
+function cardHtml(l) {
+  const badgeMap = {
+    pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
+    approved: ['b-approved', 'ОДОБРЕН'],
+    rejected: ['b-rejected', 'ОТКЛОНЁН'],
+    removed:  ['b-removed',  'УДАЛЁН'],
+  };
+  const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
+  const date   = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
+  const shots  = Array.isArray(l.screenshots) ? l.screenshots : [];
+  const ytUrl  = l.video_url ?? '';
+  const ytEmb  = ytEmbedUrl(ytUrl);
+
+  return `
+<div class="lcard" id="lcard-${l.id}">
+  <div class="lcard-head" data-id="${l.id}">
+    <span class="badge ${bc}">${bl}</span>
+    <div class="linfo">
+      <div class="ltitle">${esc(l.title ?? '—')}</div>
+      <div class="lmeta">
+        <span>🗺 ${esc(l.map ?? '')}</span>
+        <span>🎭 ${esc(l.agent ?? '')}</span>
+        <span>⚡ ${esc(l.ability ?? '')}</span>
+        ${l.submitted_by ? `<span>👤 ${esc(l.submitted_by)}</span>` : ''}
+        ${date ? `<span>📅 ${date}</span>` : ''}
+        ${l.is_exclusive ? '<span style="color:#f59e0b;">👑 Эксклюзив</span>' : ''}
+      </div>
+    </div>
+    <button class="expand-btn" data-id="${l.id}">▾</button>
+  </div>
+
+  <div class="ldetail" id="ldetail-${l.id}">
+    <div class="row">
+      ${l.status !== 'approved' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
+      ${l.status !== 'rejected' ? `<button class="btn btn-reject"  data-action="reject"  data-id="${l.id}">✕ Отклонить</button>` : ''}
+      <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
+      ${l.user_id && l.submitted_by
+        ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
+        : ''}
+      <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
+    </div>
+
+    ${l.description ? `
+    <div class="section">
+      <div class="dlabel">Описание</div>
+      <div class="dval">${esc(l.description)}</div>
+    </div>` : ''}
+
+    <div class="dgrid">
+      <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(l.category ?? '—')}</div></div>
+      <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
+      <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
+      <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
+    </div>
+
+    <div class="section">
+      <div class="dlabel">YouTube ссылка</div>
+      ${ytEmb ? `<div class="yt-player"><iframe src="${ytEmb}" allowfullscreen></iframe></div>` : ''}
+      <div class="yt-row">
+        <input class="finput" id="yt-inp-${l.id}" value="${esc(ytUrl)}" placeholder="https://youtu.be/…" type="url" style="flex:1;">
+        <button class="btn btn-save" data-action="save-url" data-id="${l.id}">Сохранить</button>
+      </div>
+    </div>
+
+    ${shots.length ? `
+    <div class="section">
+      <div class="dlabel">Скриншоты (${shots.length})</div>
+      <div class="ss-grid">
+        ${shots.map(u => `
+        <div class="ss-thumb" data-lightbox="${esc(u)}">
+          <img src="${esc(u)}" alt="" loading="lazy"
+               onerror="this.parentElement.innerHTML='<div style=\\'padding:12px;color:var(--text2);font-size:12px;text-align:center;\\'>⚠ Ошибка</div>'">
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+    <div id="cedit-${l.id}" style="display:none;"></div>
+  </div>
+</div>`;
+}
+
+function bindCardEvents() {
+  // Toggle expand
+  document.querySelectorAll('.lcard-head, .expand-btn').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const id     = el.dataset.id;
+      const detail = document.getElementById('ldetail-' + id);
+      const btn    = document.querySelector(`.expand-btn[data-id="${id}"]`);
+      if (!detail) return;
+      const open = detail.classList.toggle('open');
+      if (btn) btn.classList.toggle('open', open);
+    });
+  });
+
+  // Action buttons
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const { action, id, uid, name } = btn.dataset;
+      if (action === 'approve')     approveLineup(id, uid);
+      if (action === 'reject')      rejectLineup(id);
+      if (action === 'delete')      deleteLineup(id);
+      if (action === 'ban')         banUser(uid, name);
+      if (action === 'save-url')    saveVideoUrl(id);
+      if (action === 'edit-toggle') openEditForm(id);
+    });
+  });
+
+  // Lightbox
+  document.querySelectorAll('[data-lightbox]').forEach(el => {
+    el.addEventListener('click', () => openLb(el.dataset.lightbox));
+  });
+}
+
+// ── Actions ─────────────────────────────────────────────────────────────────
+async function approveLineup(id, userId) {
+  if (!confirm('Одобрить лайнап?')) return;
+  try {
+    await updateDoc(doc(db, 'lineups', id), { status: 'approved' });
+    if (userId) await updateDoc(doc(db, 'users', userId), { approved_lineups: increment(1) });
+    patchStatus(id, 'approved');
+    toast('Лайнап одобрен ✅', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function rejectLineup(id) {
+  if (!confirm('Отклонить лайнап?')) return;
+  try {
+    await updateDoc(doc(db, 'lineups', id), { status: 'rejected' });
+    patchStatus(id, 'rejected');
+    toast('Лайнап отклонён', 'i');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function deleteLineup(id) {
+  if (!confirm('Удалить лайнап? Это необратимо.')) return;
+  try {
+    await deleteDoc(doc(db, 'lineups', id));
+    lineups = lineups.filter(l => l.id !== id);
+    renderList();
+    toast('Лайнап удалён', 'e');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function banUser(userId, username) {
+  if (!confirm(`Заблокировать ${username}?`)) return;
+  try {
+    await updateDoc(doc(db, 'users', userId), { is_banned: true });
+    toast(`${username} заблокирован 🚫`, 'e');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function saveVideoUrl(id) {
+  const input = document.getElementById('yt-inp-' + id);
+  if (!input) return;
+  const url = input.value.trim();
+  try {
+    await updateDoc(doc(db, 'lineups', id), { video_url: url });
+    const idx = lineups.findIndex(l => l.id === id);
+    if (idx !== -1) lineups[idx].video_url = url;
+    renderList();
+    toast('URL сохранён ✓', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+function patchStatus(id, status) {
+  const idx = lineups.findIndex(l => l.id === id);
+  if (idx !== -1) lineups[idx].status = status;
+  renderList();
+}
+
+// ── Add lineup ───────────────────────────────────────────────────────────────
+document.getElementById('btn-add-lineup').addEventListener('click', async () => {
+  const map      = document.getElementById('f-map').value;
+  const agent    = pickedAgent;
+  const ability  = pickedAbility;
+  const category = document.getElementById('f-category').value;
+  const title    = document.getElementById('f-title').value.trim();
+  const desc     = document.getElementById('f-desc').value.trim();
+  const videoUrl = document.getElementById('f-video').value.trim();
+  const posX     = markerX ?? 0;
+  const posY     = markerY ?? 0;
+  const status   = document.getElementById('f-status').value;
+  const excl     = document.getElementById('f-exclusive').checked;
+
+  if (!map)     { toast('Выбери карту', 'e'); return; }
+  if (!agent)   { toast('Выбери агента', 'e'); return; }
+  if (!ability) { toast('Выбери способность', 'e'); return; }
+  if (!category || !title) { toast('Заполни все обязательные поля', 'e'); return; }
+  if (markerX === null) { toast('Поставь точку на карте', 'e'); return; }
+
+  const uploading = uploadedScreenshots.some(s => s.status === 'uploading');
+  if (uploading) { toast('Подожди — фото ещё загружаются…', 'i'); return; }
+  const screenshots = uploadedScreenshots.filter(s => s.status === 'done').map(s => s.storageUrl);
+  const btn = document.getElementById('btn-add-lineup');
+  btn.disabled = true; btn.textContent = 'Сохранение…';
+
+  try {
+    const ref = await addDoc(collection(db, 'lineups'), {
+      map, agent, ability, category, title,
+      description:  desc,
+      video_url:    videoUrl,
+      screenshots,
+      position_x:   posX,
+      position_y:   posY,
+      status,
+      is_exclusive: excl,
+      submitted_at: serverTimestamp(),
+      user_id:      currentUser?.uid ?? '',
+      submitted_by: currentUser?.displayName ?? 'Admin',
+    });
+
+    toast('Лайнап добавлен ✅', 's');
+    resetForm();
+    lineups.unshift({
+      id: ref.id, map, agent, ability, category, title,
+      description: desc, video_url: videoUrl, screenshots,
+      position_x: posX, position_y: posY, status, is_exclusive: excl,
+      submitted_by: currentUser?.displayName ?? 'Admin',
+    });
+    renderList();
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Добавить лайнап';
+  }
+});
+
+function resetForm() {
+  ['f-map','f-category','f-status'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = id === 'f-status' ? 'approved' : '';
+  });
+  ['f-title','f-desc','f-video'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('f-exclusive').checked = false;
+  document.getElementById('form-yt-preview').style.display = 'none';
+  document.getElementById('form-yt-iframe').src = '';
+  uploadedScreenshots.forEach(s => { if (s.uploadTask) s.uploadTask.cancel(); URL.revokeObjectURL(s.localUrl); });
+  uploadedScreenshots = [];
+  document.getElementById('upload-previews').innerHTML = '';
+  // Reset agent/ability
+  pickedAgent = ''; pickedAbility = '';
+  document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
+  document.getElementById('ability-wrap').style.display = 'none';
+  document.getElementById('ability-row').innerHTML = '';
+  // Reset map picker
+  markerX = null; markerY = null;
+  mapScale = 1; mapTx = 0; mapTy = 0;
+  updateMapPicker('');
+}
+
+// YouTube preview in form
+document.getElementById('f-video').addEventListener('input', () => {
+  const url  = document.getElementById('f-video').value.trim();
+  const emb  = ytEmbedUrl(url);
+  const wrap = document.getElementById('form-yt-preview');
+  const ifr  = document.getElementById('form-yt-iframe');
+  if (emb) { ifr.src = emb; wrap.style.display = 'block'; }
+  else      { ifr.src = ''; wrap.style.display = 'none'; }
+});
+
+// ── Agent / Ability / Map data ───────────────────────────────────────────────
+
+const AGENTS = {
+  'Brimstone': ['Incendiary', 'Stim Beacon', 'Sky Smoke', 'Orbital Strike'],
+  'Viper':     ['Snake Bite', 'Poison Cloud', 'Toxic Screen', "Viper's Pit"],
+  'Omen':      ['Shrouded Step', 'Paranoia', 'Dark Cover', 'From the Shadows'],
+  'Killjoy':   ['Alarmbot', 'Nanoswarm', 'Turret', 'Lockdown'],
+  'Cypher':    ['Spycam', 'Trapwire', 'Cyber Cage', 'Neural Theft'],
+  'Sova':      ['Shock Bolt', 'Owl Drone', 'Recon Bolt', "Hunter's Fury"],
+  'Sage':      ['Barrier Orb', 'Slow Orb', 'Heal Orb', 'Resurrection'],
+  'Phoenix':   ['Blaze', 'Curveball', 'Hot Hands', 'Run It Back'],
+  'Jett':      ['Updraft', 'Tailwind', 'Cloudburst', 'Blade Storm'],
+  'Reyna':     ['Devour', 'Dismiss', 'Leer', 'Empress'],
+  'Raze':      ['Blast Pack', 'Paint Shells', 'Boom Bot', 'Showstopper'],
+  'Breach':    ['Aftershock', 'Flashpoint', 'Fault Line', 'Rolling Thunder'],
+  'Skye':      ['Regrowth', 'Trailblazer', 'Guiding Light', 'Seekers'],
+  'Yoru':      ['Fakeout', 'Blindside', 'Gatecrash', 'Dimensional Drift'],
+  'Astra':     ['Gravity Well', 'Nova Pulse', 'Nebula', 'Cosmic Divide'],
+  'KAY/O':     ['ZERO/point', 'FLASH/drive', 'FRAG/ment', 'NULL/cmd'],
+  'Chamber':   ['Trademark', 'Headhunter', 'Rendezvous', 'Tour De Force'],
+  'Neon':      ['Fast Lane', 'Relay Bolt', 'High Gear', 'Overdrive'],
+  'Fade':      ['Haunt', 'Seize', 'Prowler', 'Nightfall'],
+  'Harbor':    ['Cove', 'High Tide', 'Cascade', 'Reckoning'],
+  'Gekko':     ['Wingman', 'Dizzy', 'Mosh Pit', 'Thrash'],
+  'Deadlock':  ['GravNet', 'Sonic Sensor', 'Barrier Mesh', 'Annihilation'],
+  'Iso':       ['Undercut', 'Double Tap', 'Kill Contract', 'Total Eclipse'],
+  'Clove':     ['Pick-me-up', 'Meddle', 'Ruse', 'Not Dead Yet'],
+  'Vyse':      ['Razorvine', 'Shear', 'Arc Rose', 'Steel Garden'],
+  'Tejo':      ['Stealth Drone', 'Special Delivery', 'Guided Salvo', 'Armageddon'],
+};
+
+// Local minimap images (assets/maps/ — served from project root)
+const MAP_IMAGES = {
+  'Haven':    'assets/maps/Haven_minimap.png',
+  'Bind':     'assets/maps/Bind_minimap.png',
+  'Ascent':   'assets/maps/Ascent_minimap.png',
+  'Split':    'assets/maps/Split_minimap.png',
+  'Icebox':   'assets/maps/Icebox_minimap.png',
+  'Breeze':   'assets/maps/Breeze_minimap.png',
+  'Fracture': 'assets/maps/Fracture_minimap.png',
+  'Pearl':    'assets/maps/Pearl_minimap.png',
+  'Lotus':    'assets/maps/Lotus_minimap.png',
+  'Sunset':   'assets/maps/Sunset_minimap.png',
+  'Abyss':    'assets/maps/Abyss_minimap.png',
+  'Corrode':  'assets/maps/Corrode_minimap.png',
+};
+
+// State
+let pickedAgent   = '';
+let pickedAbility = '';
+let markerX       = null;
+let markerY       = null;
+
+// Map transform state
+let mapScale = 1, mapTx = 0, mapTy = 0;
+let _mapDragging = false;
+
+// Agent icons — filled from valorant-api.com
+const AGENT_ICONS = {};
+const AGENT_ABILITY_ICONS = {};
+// Ability displayNames per agent from API (language=ru-RU to match Flutter)
+const AGENT_ABILITIES = {};
+
+// ── Agent grid (cards with icons) ─────────────────────────────────────────────
+async function loadAgentIcons() {
+  try {
+    // language=ru-RU must match the Flutter app (ValorantApi.getAgents uses the same URL)
+    // so ability displayName values stored in Firestore are consistent on both sides
+    const res  = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
+    const json = await res.json();
+    for (const ag of json.data ?? []) {
+      if (!ag.displayName) continue;
+      if (ag.displayIcon) AGENT_ICONS[ag.displayName] = ag.displayIcon;
+      AGENT_ABILITY_ICONS[ag.displayName] = {};
+      AGENT_ABILITIES[ag.displayName] = [];
+      for (const ab of ag.abilities ?? []) {
+        if (ab.displayName && ab.displayIcon) {
+          AGENT_ABILITY_ICONS[ag.displayName][ab.displayName] = ab.displayIcon;
+          AGENT_ABILITIES[ag.displayName].push(ab.displayName);
+        }
+      }
+    }
+  } catch (_) {}
+  initAgentGrid();
+}
+
+function initAgentGrid() {
+  const grid = document.getElementById('agent-grid');
+  grid.innerHTML = Object.keys(AGENTS).map(name => {
+    const icon = AGENT_ICONS[name];
+    return `<div class="agent-card" data-agent="${name}" title="${name}">
+      ${icon ? `<img src="${icon}" alt="${name}" loading="lazy">` : `<div class="ac-fallback">🎭</div>`}
+      <div class="ac-name">${name}</div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.agent-card').forEach(card => {
+    card.addEventListener('click', () => {
+      pickedAgent   = card.dataset.agent;
+      pickedAbility = '';
+      grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
+      card.classList.add('sel');
+      renderAbilityRow();
+    });
+  });
+}
+
+function renderAbilityRow() {
+  const wrap = document.getElementById('ability-wrap');
+  const row  = document.getElementById('ability-row');
+  // Prefer API-fetched Russian names; fall back to hardcoded English only if API hasn't loaded
+  const abilList = AGENT_ABILITIES[pickedAgent] ?? AGENTS[pickedAgent];
+  if (!pickedAgent || !abilList?.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  row.innerHTML = abilList.map(ab => `
+    <button class="abil-btn${ab === pickedAbility ? ' sel' : ''}" data-ab="${ab}">${ab}</button>
+  `).join('');
+  row.querySelectorAll('.abil-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      pickedAbility = btn.dataset.ab;
+      row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      renderMarker();
+    });
+  });
+}
+
+// ── Map picker (zoom + pan) ───────────────────────────────────────────────────
+function _mapCanvas() { return document.querySelector('#map-picker-wrap .map-canvas'); }
+
+function _mapApply() {
+  const c = _mapCanvas();
+  if (!c) return;
+  c.style.transform = `translate(${mapTx}px,${mapTy}px) scale(${mapScale})`;
+  const m = c.querySelector('.map-marker');
+  if (m) m.style.transform = `translate(-50%,-50%) scale(${1 / mapScale})`;
+}
+
+function _mapClamp() {
+  const w = document.getElementById('map-picker-wrap');
+  if (!w || !_mapCanvas()) return;
+  const cw = w.clientWidth, ch = w.clientHeight;
+  mapTx = Math.max(cw * (1 - mapScale), Math.min(0, mapTx));
+  mapTy = Math.max(ch * (1 - mapScale), Math.min(0, mapTy));
+}
+
+function _getImageRect() {
+  const wrap = document.getElementById('map-picker-wrap');
+  const img  = wrap.querySelector('.map-canvas img');
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  if (!img || !img.naturalWidth) return { left: 0, top: 0, width: cw, height: ch };
+  const s = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
+  const w = img.naturalWidth * s, h = img.naturalHeight * s;
+  return { left: (cw - w) / 2, top: (ch - h) / 2, width: w, height: h };
+}
+
+function _currentAbilityIcon() {
+  return (AGENT_ABILITY_ICONS[pickedAgent] ?? {})[pickedAbility] ?? null;
+}
+
+function updateMapPicker(mapName) {
+  const wrap = document.getElementById('map-picker-wrap');
+  mapScale = 1; mapTx = 0; mapTy = 0;
+  markerX  = null; markerY = null;
+  updateCoordDisplay();
+
+  const imgUrl = MAP_IMAGES[mapName];
+  if (!imgUrl) {
+    wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "' + mapName + '" — изображение недоступно' : 'Сначала выбери карту ↑'}</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
+}
+
+function renderMarker() {
+  const c = _mapCanvas();
+  if (!c) return;
+  c.querySelectorAll('.map-marker').forEach(m => m.remove());
+  if (markerX === null) return;
+  const dot     = document.createElement('div');
+  const iconUrl = _currentAbilityIcon();
+  dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
+  dot.style.left = (markerX * 100) + '%';
+  dot.style.top  = (markerY * 100) + '%';
+  if (iconUrl) {
+    const ico = document.createElement('img');
+    ico.src = iconUrl; ico.alt = '';
+    dot.appendChild(ico);
+  }
+  c.appendChild(dot);
+}
+
+function updateCoordDisplay() {
+  document.getElementById('coord-x').textContent    = markerX !== null ? markerX.toFixed(4) : '—';
+  document.getElementById('coord-y').textContent    = markerY !== null ? markerY.toFixed(4) : '—';
+  document.getElementById('coord-hint').textContent = markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+}
+
+function initMapPicker() {
+  const wrap = document.getElementById('map-picker-wrap');
+
+  // Wheel zoom — zoom around cursor
+  wrap.addEventListener('wheel', e => {
+    if (!_mapCanvas()) return;
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const my   = e.clientY - rect.top;
+    const f    = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const ns   = Math.max(1, Math.min(8, mapScale * f));
+    const af   = ns / mapScale;
+    mapTx = mx * (1 - af) + mapTx * af;
+    mapTy = my * (1 - af) + mapTy * af;
+    mapScale = ns;
+    _mapClamp();
+    _mapApply();
+  }, { passive: false });
+
+  // Drag to pan, click to place marker
+  wrap.addEventListener('mousedown', e => {
+    if (e.button !== 0 || !_mapCanvas()) return;
+    e.preventDefault();
+    _mapDragging = false;
+    const sx = e.clientX, sy = e.clientY;
+    const tx0 = mapTx, ty0 = mapTy;
+    wrap.style.cursor = 'grabbing';
+
+    const onMove = mv => {
+      const dx = mv.clientX - sx, dy = mv.clientY - sy;
+      if (!_mapDragging && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) _mapDragging = true;
+      if (_mapDragging) {
+        mapTx = tx0 + dx; mapTy = ty0 + dy;
+        _mapClamp(); _mapApply();
+      }
+    };
+    const onUp = up => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      wrap.style.cursor = 'crosshair';
+      if (!_mapDragging) {
+        const rect = wrap.getBoundingClientRect();
+        const cx = up.clientX - rect.left;
+        const cy = up.clientY - rect.top;
+        const ir  = _getImageRect();
+        const cx2 = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale));
+        const cy2 = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale));
+        markerX = cx2 / wrap.clientWidth;
+        markerY = cy2 / wrap.clientHeight;
+        renderMarker();
+        updateCoordDisplay();
+      }
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
+}
+
+// Wire up map select
+document.getElementById('f-map').addEventListener('change', e => updateMapPicker(e.target.value));
+
+// Init
+loadAgentIcons();   // loads icons → then calls initAgentGrid()
+initMapPicker();
+
+// ── Screenshot upload ────────────────────────────────────────────────────────
+
+// Compress file via canvas to max 200 KB
+function compressImage(file, maxBytes = 200 * 1024) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement('canvas');
+      canvas.width  = img.width;
+      canvas.height = img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      let quality = 0.92;
+      const attempt = () => {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(null); return; }
+          if (blob.size <= maxBytes || quality <= 0.10) { resolve(blob); }
+          else { quality = Math.max(0.10, quality - 0.08); attempt(); }
+        }, 'image/jpeg', quality);
+      };
+      attempt();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
+function _sizeLabel(item) {
+  const ok = item.origSize != null;
+  const ck = item.compSize != null;
+  if (!ok) return '';
+  const okb = Math.round(item.origSize / 1024);
+  if (!ck) return `${okb} KB`;
+  const ckb  = Math.round(item.compSize / 1024);
+  const save = Math.round((1 - item.compSize / item.origSize) * 100);
+  return save > 5 ? `${ckb} KB  −${save}%` : `${ckb} KB`;
+}
+
+function _thumbHtml(item) {
+  const isUploading = item.status === 'uploading';
+  const isError     = item.status === 'error';
+  const pct         = item.progress ?? 0;
+  const sizeHtml    = _sizeLabel(item);
+  return `
+    <div class="up-thumb" data-uid="${item.uid}">
+      <img src="${item.localUrl}" alt="">
+      <button class="up-remove" data-uid="${item.uid}" title="${isUploading ? 'Отменить' : 'Удалить'}">✕</button>
+      ${sizeHtml ? `<div class="up-size">${sizeHtml}</div>` : ''}
+      ${isUploading ? `<div class="up-overlay">
+        <div class="up-prog-wrap"><div class="up-prog-bar" id="up-prog-${item.uid}" style="width:${pct}%"></div></div>
+      </div>` : ''}
+      ${isError ? `<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>` : ''}
+    </div>`;
+}
+
+function renderUploadPreviews() {
+  const grid = document.getElementById('upload-previews');
+  grid.innerHTML = uploadedScreenshots.map(_thumbHtml).join('');
+  grid.querySelectorAll('.up-remove').forEach(btn => {
+    btn.addEventListener('click', () => _removeByUid(btn.dataset.uid));
+  });
+}
+
+function updateThumb(uid) {
+  const item = uploadedScreenshots.find(s => s.uid === uid);
+  const wrap = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
+  if (!item || !wrap) return;
+  wrap.outerHTML = _thumbHtml(item);
+  // Re-bind remove button on the newly created element
+  const newWrap = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
+  if (newWrap) newWrap.querySelector('.up-remove')
+    ?.addEventListener('click', () => _removeByUid(uid));
+}
+
+function _removeByUid(uid) {
+  const idx = uploadedScreenshots.findIndex(s => s.uid === uid);
+  if (idx === -1) return;
+  const item = uploadedScreenshots[idx];
+  if (item.uploadTask) item.uploadTask.cancel();
+  URL.revokeObjectURL(item.localUrl);
+  uploadedScreenshots.splice(idx, 1);
+  renderUploadPreviews();
+}
+
+function handleFiles(files) {
+  const toProcess = Array.from(files).filter(f => f.type.startsWith('image/'));
+  if (!toProcess.length) return;
+
+  // Добавляем все превью сразу, потом рендерим один раз
+  const entries = toProcess.map(file => {
+    const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const item = { uid, localUrl: URL.createObjectURL(file), storageUrl: null,
+                   status: 'uploading', progress: 0, uploadTask: null,
+                   origSize: file.size, compSize: null };
+    uploadedScreenshots.push(item);
+    return { file, item };
+  });
+  renderUploadPreviews();
+
+  // Параллельная загрузка
+  entries.forEach(({ file, item }) => _processFile(file, item));
+}
+
+async function _processFile(file, item) {
+  const uid = item.uid;
+
+  // Сжатие до 200 KB
+  let blob;
+  try { blob = await compressImage(file); } catch (_) {}
+  if (!blob) {
+    const cur = uploadedScreenshots.find(s => s.uid === uid);
+    if (cur) { cur.status = 'error'; updateThumb(uid); }
+    toast('Ошибка сжатия', 'e');
+    return;
+  }
+
+  // Удалён пока сжимался?
+  const cur = uploadedScreenshots.find(s => s.uid === uid);
+  if (!cur) return;
+
+  cur.compSize = blob.size;
+  updateThumb(uid);   // показываем размер до начала загрузки
+
+  // Загрузка с прогрессом
+  const path = `lineups_screenshots/${uid}.jpg`;
+  const task = uploadBytesResumable(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
+  cur.uploadTask = task;
+
+  task.on('state_changed',
+    snap => {
+      const itm = uploadedScreenshots.find(s => s.uid === uid);
+      if (!itm) return;
+      itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+      const bar = document.getElementById(`up-prog-${uid}`);
+      if (bar) bar.style.width = itm.progress + '%';
+    },
+    err => {
+      if (err.code === 'storage/canceled') return;
+      const itm = uploadedScreenshots.find(s => s.uid === uid);
+      if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
+      toast('Ошибка загрузки: ' + err.message, 'e');
+    },
+    async () => {
+      try {
+        const url = await getDownloadURL(task.snapshot.ref);
+        const itm = uploadedScreenshots.find(s => s.uid === uid);
+        if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.uploadTask = null; updateThumb(uid); }
+      } catch (e) {
+        const itm = uploadedScreenshots.find(s => s.uid === uid);
+        if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
+      }
+    }
+  );
+}
+
+// Wire up upload zone
+const uploadZone  = document.getElementById('upload-zone');
+const fileInput   = document.getElementById('f-screenshots');
+
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { handleFiles(fileInput.files); fileInput.value = ''; });
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+});
+
+// ── Inline edit in card ───────────────────────────────────────────────────────
+const editSessions = {};
+
+function _getEditSession(id, l) {
+  if (!editSessions[id]) {
+    editSessions[id] = {
+      agent:       l.agent   ?? '',
+      ability:     l.ability ?? '',
+      markerX:     typeof l.position_x === 'number' ? l.position_x : null,
+      markerY:     typeof l.position_y === 'number' ? l.position_y : null,
+      mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
+      screenshots: (Array.isArray(l.screenshots) ? l.screenshots : [])
+                     .map(url => ({ type: 'existing', url })),
+    };
+  }
+  return editSessions[id];
+}
+
+function buildEditForm(id, l) {
+  const maps       = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode'];
+  const categories = ['lineup','combo','smoke','defense'];
+  const mapOpts = maps.map(m => `<option value="${m}"${m === (l.map ?? '') ? ' selected' : ''}>${m}</option>`).join('');
+  const catOpts = categories.map(c => `<option value="${c}"${c === (l.category ?? '') ? ' selected' : ''}>${c}</option>`).join('');
+  return `
+<div class="edit-sep"></div>
+<div class="edit-form-title">✏️ РЕДАКТИРОВАНИЕ</div>
+<div class="fgrid" style="max-width:760px;">
+
+  <div class="fg full">
+    <label class="flabel">Название</label>
+    <input class="finput" id="ce-title-${id}" value="${esc(l.title ?? '')}" placeholder="Название лайнапа">
+  </div>
+
+  <div class="fg full">
+    <label class="flabel">Описание</label>
+    <textarea class="ftextarea" id="ce-desc-${id}" placeholder="Подробное описание…">${esc(l.description ?? '')}</textarea>
+  </div>
+
+  <div class="fg">
+    <label class="flabel">Карта</label>
+    <select class="fselect" id="ce-map-${id}">
+      <option value="">— Выбери карту —</option>
+      ${mapOpts}
+    </select>
+  </div>
+
+  <div class="fg">
+    <label class="flabel">Категория</label>
+    <select class="fselect" id="ce-cat-${id}">
+      <option value="">— Выбери категорию —</option>
+      ${catOpts}
+    </select>
+  </div>
+
+  <div class="fg full">
+    <label class="flabel">Агент</label>
+    <div class="agent-grid" id="ce-agent-grid-${id}"></div>
+  </div>
+
+  <div class="fg full" id="ce-ability-wrap-${id}" style="display:none;">
+    <label class="flabel">Способность</label>
+    <div class="ability-row" id="ce-ability-row-${id}"></div>
+  </div>
+
+  <div class="fg full">
+    <label class="flabel">Эксклюзивный доступ 👑</label>
+    <label class="fcheck-row">
+      <input type="checkbox" id="ce-excl-${id}"${l.is_exclusive ? ' checked' : ''}>
+      <span>Эксклюзивный лайнап</span>
+    </label>
+  </div>
+
+  <div class="fg full">
+    <label class="flabel">Точка на карте — кликни чтобы изменить позицию</label>
+    <div id="ce-map-wrap-${id}" class="map-picker-wrap">
+      <div class="map-ph">Выбери карту выше</div>
+    </div>
+    <div class="coords-row">
+      X: <span class="coord-pill" id="ce-coord-x-${id}">—</span>
+      Y: <span class="coord-pill" id="ce-coord-y-${id}">—</span>
+      <span id="ce-coord-hint-${id}" style="font-size:11px;opacity:.6;">Кликни на карту</span>
+    </div>
+  </div>
+
+  <div class="fg full">
+    <label class="flabel">Скриншоты</label>
+    <div id="ce-ss-list-${id}" class="upload-previews" style="margin-bottom:8px;"></div>
+    <div class="upload-zone" id="ce-uz-${id}">
+      <div class="uz-icon">📷</div>
+      <div class="uz-text">Нажми или перетащи фото для добавления</div>
+      <div class="uz-hint">Сжатие до 200 KB · JPEG</div>
+    </div>
+    <input type="file" id="ce-file-${id}" accept="image/*" multiple style="display:none;">
+  </div>
+
+  <div class="fg full" style="margin-top:6px;">
+    <button class="btn btn-save" id="ce-save-${id}" style="width:100%;justify-content:center;padding:12px;font-size:14px;">
+      💾 Сохранить изменения
+    </button>
+  </div>
+
+</div>`;
+}
+
+function initEditAgentGrid(id) {
+  const sess = editSessions[id]; if (!sess) return;
+  const grid = document.getElementById('ce-agent-grid-' + id); if (!grid) return;
+  grid.innerHTML = Object.keys(AGENTS).map(name => {
+    const icon = AGENT_ICONS[name];
+    return `<div class="agent-card${sess.agent === name ? ' sel' : ''}" data-agent="${name}" title="${name}">
+      ${icon ? `<img src="${icon}" alt="${name}" loading="lazy">` : `<div class="ac-fallback">🎭</div>`}
+      <div class="ac-name">${name}</div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.agent-card').forEach(card => {
+    card.addEventListener('click', () => {
+      sess.agent = card.dataset.agent;
+      sess.ability = '';
+      grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
+      card.classList.add('sel');
+      renderEditAbilityRow(id);
+    });
+  });
+}
+
+function renderEditAbilityRow(id) {
+  const sess = editSessions[id]; if (!sess) return;
+  const wrap = document.getElementById('ce-ability-wrap-' + id);
+  const row  = document.getElementById('ce-ability-row-' + id);
+  if (!wrap || !row) return;
+  const abilList = AGENT_ABILITIES[sess.agent] ?? AGENTS[sess.agent];
+  if (!sess.agent || !abilList?.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  row.innerHTML = abilList.map(ab =>
+    `<button class="abil-btn${ab === sess.ability ? ' sel' : ''}" data-ab="${ab}">${ab}</button>`
+  ).join('');
+  row.querySelectorAll('.abil-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sess.ability = btn.dataset.ab;
+      row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      renderEditMarker(id);
+    });
+  });
+}
+
+function _eCanvas(id)  { const w = document.getElementById('ce-map-wrap-' + id); return w ? w.querySelector('.map-canvas') : null; }
+function _eApply(id)   {
+  const s = editSessions[id]; if (!s) return;
+  const c = _eCanvas(id); if (!c) return;
+  c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
+  const m = c.querySelector('.map-marker'); if (m) m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`;
+}
+function _eClamp(id)   {
+  const s = editSessions[id]; if (!s) return;
+  const w = document.getElementById('ce-map-wrap-' + id); if (!w || !_eCanvas(id)) return;
+  s.mapTx = Math.max(w.clientWidth  * (1 - s.mapScale), Math.min(0, s.mapTx));
+  s.mapTy = Math.max(w.clientHeight * (1 - s.mapScale), Math.min(0, s.mapTy));
+}
+function _eImgRect(id) {
+  const w = document.getElementById('ce-map-wrap-' + id); if (!w) return {left:0,top:0,width:100,height:100};
+  const img = w.querySelector('.map-canvas img');
+  const cw = w.clientWidth, ch = w.clientHeight;
+  if (!img || !img.naturalWidth) return {left:0,top:0,width:cw,height:ch};
+  const sc = Math.min(cw/img.naturalWidth, ch/img.naturalHeight);
+  return {left:(cw-img.naturalWidth*sc)/2, top:(ch-img.naturalHeight*sc)/2, width:img.naturalWidth*sc, height:img.naturalHeight*sc};
+}
+function _eAbilIcon(id) {
+  const s = editSessions[id]; if (!s) return null;
+  return (AGENT_ABILITY_ICONS[s.agent] ?? {})[s.ability] ?? null;
+}
+
+function updateEditMapPicker(id, mapName) {
+  const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
+  const imgUrl = MAP_IMAGES[mapName];
+  if (!imgUrl) {
+    wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "'+mapName+'" — изображение недоступно' : 'Выбери карту выше'}</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
+  const img = wrap.querySelector('img');
+  if (img) {
+    img.addEventListener('load', () => renderEditMarker(id));
+    if (img.complete && img.naturalWidth) renderEditMarker(id);
+  }
+}
+
+function renderEditMarker(id) {
+  const s = editSessions[id]; if (!s) return;
+  const c = _eCanvas(id); if (!c) return;
+  c.querySelectorAll('.map-marker').forEach(m => m.remove());
+  if (s.markerX === null) return;
+  const dot = document.createElement('div');
+  const iconUrl = _eAbilIcon(id);
+  dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
+  dot.style.left = (s.markerX * 100) + '%';
+  dot.style.top  = (s.markerY * 100) + '%';
+  if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
+  c.appendChild(dot);
+  _eApply(id);
+}
+
+function updateEditCoords(id) {
+  const s = editSessions[id]; if (!s) return;
+  const xe = document.getElementById('ce-coord-x-' + id);
+  const ye = document.getElementById('ce-coord-y-' + id);
+  const he = document.getElementById('ce-coord-hint-' + id);
+  if (xe) xe.textContent = s.markerX !== null ? s.markerX.toFixed(4) : '—';
+  if (ye) ye.textContent = s.markerY !== null ? s.markerY.toFixed(4) : '—';
+  if (he) he.textContent = s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+}
+
+function initEditMapInteraction(id, initialMap) {
+  const s = editSessions[id]; if (!s) return;
+  updateEditMapPicker(id, initialMap);
+  updateEditCoords(id);
+  const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
+
+  wrap.addEventListener('wheel', e => {
+    if (!_eCanvas(id)) return;
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const f  = e.deltaY < 0 ? 1.15 : 1/1.15;
+    const ns = Math.max(1, Math.min(8, s.mapScale * f));
+    const af = ns / s.mapScale;
+    s.mapTx = mx*(1-af) + s.mapTx*af;
+    s.mapTy = my*(1-af) + s.mapTy*af;
+    s.mapScale = ns; _eClamp(id); _eApply(id);
+  }, { passive: false });
+
+  wrap.addEventListener('mousedown', e => {
+    if (e.button !== 0 || !_eCanvas(id)) return;
+    e.preventDefault();
+    s.mapDragging = false;
+    const sx = e.clientX, sy = e.clientY, tx0 = s.mapTx, ty0 = s.mapTy;
+    wrap.style.cursor = 'grabbing';
+    const onMove = mv => {
+      const dx = mv.clientX - sx, dy = mv.clientY - sy;
+      if (!s.mapDragging && (Math.abs(dx)>3||Math.abs(dy)>3)) s.mapDragging = true;
+      if (s.mapDragging) { s.mapTx = tx0+dx; s.mapTy = ty0+dy; _eClamp(id); _eApply(id); }
+    };
+    const onUp = up => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      wrap.style.cursor = 'crosshair';
+      if (!s.mapDragging) {
+        const rect = wrap.getBoundingClientRect();
+        const cx = up.clientX - rect.left, cy = up.clientY - rect.top;
+        const ir = _eImgRect(id);
+        s.markerX = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
+        s.markerY = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
+        renderEditMarker(id); updateEditCoords(id);
+      }
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
+    s.mapScale = 1; s.mapTx = 0; s.mapTy = 0;
+    s.markerX = null; s.markerY = null;
+    updateEditMapPicker(id, e.target.value);
+    updateEditCoords(id);
+  });
+}
+
+function renderEditScreenshots(id) {
+  const sess = editSessions[id]; if (!sess) return;
+  const grid = document.getElementById('ce-ss-list-' + id); if (!grid) return;
+  grid.innerHTML = sess.screenshots.map((item, idx) => {
+    if (item.type === 'existing') {
+      return `<div class="up-thumb" style="cursor:default;">
+        <img src="${esc(item.url)}" alt="" loading="lazy"
+             onerror="this.style.display='none'">
+        <button class="up-remove" data-eidx="${idx}" title="Удалить">✕</button>
+      </div>`;
+    }
+    const pct = item.progress ?? 0;
+    return `<div class="up-thumb" data-euid="${item.uid}">
+      <img src="${item.localUrl}" alt="">
+      <button class="up-remove" data-euid="${item.uid}" title="${item.status==='uploading'?'Отменить':'Удалить'}">✕</button>
+      ${item.status==='uploading'?`<div class="up-overlay"><div class="up-prog-wrap"><div class="up-prog-bar" id="eup-prog-${item.uid}" style="width:${pct}%"></div></div></div>`:''}
+      ${item.status==='error'?`<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>`:''}
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.up-remove[data-eidx]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      sess.screenshots.splice(parseInt(btn.dataset.eidx), 1);
+      renderEditScreenshots(id);
+    });
+  });
+  grid.querySelectorAll('.up-remove[data-euid]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const uid = btn.dataset.euid;
+      const idx = sess.screenshots.findIndex(s => s.uid === uid);
+      if (idx === -1) return;
+      const item = sess.screenshots[idx];
+      if (item.uploadTask) item.uploadTask.cancel();
+      URL.revokeObjectURL(item.localUrl);
+      sess.screenshots.splice(idx, 1);
+      renderEditScreenshots(id);
+    });
+  });
+}
+
+function initEditScreenshots(id) {
+  const uz = document.getElementById('ce-uz-' + id);
+  const fi = document.getElementById('ce-file-' + id);
+  if (!uz || !fi) return;
+  uz.addEventListener('click', () => fi.click());
+  fi.addEventListener('change', () => { handleEditFiles(id, fi.files); fi.value = ''; });
+  uz.addEventListener('dragover',  e => { e.preventDefault(); uz.classList.add('drag'); });
+  uz.addEventListener('dragleave', () => uz.classList.remove('drag'));
+  uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('drag'); handleEditFiles(id, e.dataTransfer.files); });
+}
+
+function handleEditFiles(id, files) {
+  const sess = editSessions[id]; if (!sess) return;
+  const toProcess = Array.from(files).filter(f => f.type.startsWith('image/'));
+  if (!toProcess.length) return;
+  const entries = toProcess.map(file => {
+    const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const item = { type:'new', uid, localUrl: URL.createObjectURL(file), storageUrl:null, status:'uploading', progress:0, uploadTask:null };
+    sess.screenshots.push(item);
+    return { file, item };
+  });
+  renderEditScreenshots(id);
+  entries.forEach(({ file, item }) => _processEditFile(id, file, item));
+}
+
+async function _processEditFile(id, file, item) {
+  const uid = item.uid;
+  let blob;
+  try { blob = await compressImage(file); } catch (_) {}
+  const sess = editSessions[id];
+  if (!blob) {
+    const cur = sess?.screenshots.find(s => s.uid === uid);
+    if (cur) { cur.status = 'error'; renderEditScreenshots(id); }
+    toast('Ошибка сжатия', 'e'); return;
+  }
+  if (!sess) return;
+  const cur = sess.screenshots.find(s => s.uid === uid); if (!cur) return;
+  const path = `lineups_screenshots/${uid}.jpg`;
+  const task = uploadBytesResumable(storageRef(storage, path), blob, { contentType:'image/jpeg' });
+  cur.uploadTask = task;
+  task.on('state_changed',
+    snap => {
+      const itm = sess.screenshots.find(s => s.uid === uid); if (!itm) return;
+      itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+      const bar = document.getElementById('eup-prog-' + uid);
+      if (bar) bar.style.width = itm.progress + '%';
+    },
+    err => {
+      if (err.code === 'storage/canceled') return;
+      const itm = sess.screenshots.find(s => s.uid === uid);
+      if (itm) { itm.status = 'error'; itm.uploadTask = null; renderEditScreenshots(id); }
+      toast('Ошибка загрузки: ' + err.message, 'e');
+    },
+    async () => {
+      try {
+        const url = await getDownloadURL(task.snapshot.ref);
+        const itm = sess.screenshots.find(s => s.uid === uid);
+        if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.uploadTask = null; renderEditScreenshots(id); }
+      } catch (e) {
+        const itm = sess.screenshots.find(s => s.uid === uid);
+        if (itm) { itm.status = 'error'; itm.uploadTask = null; renderEditScreenshots(id); }
+      }
+    }
+  );
+}
+
+function openEditForm(id) {
+  const container = document.getElementById('cedit-' + id); if (!container) return;
+  const toggleBtn = document.querySelector(`.btn-edit-toggle[data-id="${id}"]`);
+
+  if (container.style.display !== 'none') {
+    const sess = editSessions[id];
+    if (sess) {
+      sess.screenshots.forEach(s => {
+        if (s.type === 'new') { if (s.uploadTask) s.uploadTask.cancel(); URL.revokeObjectURL(s.localUrl); }
+      });
+      delete editSessions[id];
+    }
+    container.style.display = 'none';
+    container.innerHTML = '';
+    if (toggleBtn) toggleBtn.classList.remove('open');
+    return;
+  }
+
+  const l = lineups.find(l => l.id === id); if (!l) return;
+  delete editSessions[id];
+  _getEditSession(id, l);
+
+  container.innerHTML = buildEditForm(id, l);
+  container.style.display = 'block';
+  if (toggleBtn) toggleBtn.classList.add('open');
+
+  initEditAgentGrid(id);
+  renderEditAbilityRow(id);
+  initEditMapInteraction(id, l.map ?? '');
+  renderEditScreenshots(id);
+  initEditScreenshots(id);
+  document.getElementById('ce-save-' + id)?.addEventListener('click', () => saveEditedLineup(id));
+}
+
+async function saveEditedLineup(id) {
+  const sess = editSessions[id]; if (!sess) return;
+  const l    = lineups.find(l => l.id === id); if (!l) return;
+  const title    = (document.getElementById('ce-title-' + id)?.value ?? '').trim();
+  const desc     = (document.getElementById('ce-desc-'  + id)?.value ?? '').trim();
+  const map      = document.getElementById('ce-map-'    + id)?.value ?? '';
+  const category = document.getElementById('ce-cat-'    + id)?.value ?? '';
+  const excl     = document.getElementById('ce-excl-'   + id)?.checked ?? false;
+  if (!title)        { toast('Введи название',      'e'); return; }
+  if (!map)          { toast('Выбери карту',         'e'); return; }
+  if (!sess.agent)   { toast('Выбери агента',        'e'); return; }
+  if (!sess.ability) { toast('Выбери способность',   'e'); return; }
+  if (!category)     { toast('Выбери категорию',     'e'); return; }
+  if (sess.screenshots.some(s => s.type === 'new' && s.status === 'uploading'))
+    { toast('Подожди — фото ещё загружаются…', 'i'); return; }
+
+  const screenshots = sess.screenshots
+    .filter(s => s.type === 'existing' || (s.type === 'new' && s.status === 'done'))
+    .map(s => s.type === 'existing' ? s.url : s.storageUrl);
+
+  const saveBtn = document.getElementById('ce-save-' + id);
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Сохранение…'; }
+
+  try {
+    const updates = {
+      title, description: desc, map, agent: sess.agent, ability: sess.ability,
+      category, is_exclusive: excl, screenshots,
+      position_x: sess.markerX ?? l.position_x ?? 0,
+      position_y: sess.markerY ?? l.position_y ?? 0,
+    };
+    await updateDoc(doc(db, 'lineups', id), updates);
+    const idx = lineups.findIndex(l => l.id === id);
+    if (idx !== -1) Object.assign(lineups[idx], updates);
+    toast('Изменения сохранены ✅', 's');
+    delete editSessions[id];
+    renderList();
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Сохранить изменения'; }
+  }
+}
+
+// ── YouTube helpers ──────────────────────────────────────────────────────────
+function ytVideoId(url) {
+  try {
+    const u = new URL(url);
+    const h = u.hostname.replace('www.', '');
+    if (h === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null;
+    if (h === 'youtube.com') {
+      const v = u.searchParams.get('v');
+      if (v) return v;
+      const segs = u.pathname.split('/').filter(Boolean);
+      if (segs[0] === 'shorts' && segs[1]) return segs[1];
+    }
+  } catch {}
+  return null;
+}
+function ytEmbedUrl(url) {
+  const id = ytVideoId(url);
+  return id ? `https://www.youtube.com/embed/${id}` : null;
+}
+
+// ── Lightbox ─────────────────────────────────────────────────────────────────
+function openLb(url) {
+  document.getElementById('lb-img').src = url;
+  document.getElementById('lb').classList.add('open');
+}
+document.getElementById('lb').addEventListener('click', () => {
+  document.getElementById('lb').classList.remove('open');
+});
+
+// ── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'i') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ── Utils ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmtNum(v) { return typeof v === 'number' ? v.toFixed(4) : '—'; }
+
+// ── Admins tab ────────────────────────────────────────────────────────────────
+let admins = [];
+
+async function loadAdmins() {
+  const el = document.getElementById('admins-list');
+  if (!el) return;
+  el.innerHTML = '<div class="state">Загрузка…</div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'users'),
+      where('role', 'in', ['admin', 'moderator'])
+    ));
+    admins = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    renderAdmins();
+  } catch (e) {
+    el.innerHTML = `<div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderAdmins() {
+  const el = document.getElementById('admins-list');
+  if (!el) return;
+  if (!admins.length) { el.innerHTML = '<div class="state">Нет администраторов</div>'; return; }
+  el.innerHTML = admins.map(a => {
+    const date      = a.created_at?.toDate ? a.created_at.toDate().toLocaleDateString('ru') : '';
+    const roleClass = a.role === 'admin' ? 'b-admin' : 'b-moderator';
+    const isSelf    = a.uid === currentUser?.uid;
+    return `
+<div class="adm-card">
+  <div>
+    <div class="adm-name">${esc(a.displayName ?? '—')}</div>
+    <div class="adm-meta">
+      <span>${esc(a.email ?? '')}</span>
+      <span class="badge ${roleClass}">${esc(a.role)}</span>
+      ${date   ? `<span>📅 ${date}</span>` : ''}
+      ${isSelf ? `<span style="color:var(--text2);font-size:11px;">(вы)</span>` : ''}
+    </div>
+  </div>
+  ${!isSelf
+    ? `<button class="btn btn-delete" style="flex-shrink:0;"
+         data-adm-uid="${esc(a.uid)}"
+         data-adm-name="${esc(a.displayName ?? a.email ?? '')}">Удалить доступ</button>`
+    : ''}
+</div>`;
+  }).join('');
+  el.querySelectorAll('[data-adm-uid]').forEach(btn => {
+    btn.addEventListener('click', () => removeAdminAccess(btn.dataset.admUid, btn.dataset.admName));
+  });
+}
+
+async function removeAdminAccess(uid, name) {
+  if (!confirm(`Удалить доступ для ${name}?\nFirebase Auth аккаунт останется — только запись в users будет удалена.`)) return;
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+    admins = admins.filter(a => a.uid !== uid);
+    renderAdmins();
+    toast(`Доступ для ${name} удалён`, 'i');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+document.getElementById('btn-add-admin').addEventListener('click', async () => {
+  const email = document.getElementById('adm-email').value.trim();
+  const pass  = document.getElementById('adm-pass').value;
+  const name  = document.getElementById('adm-name').value.trim();
+  const role  = document.getElementById('adm-role').value;
+  if (!email || !pass || !name) { toast('Заполни все поля', 'e'); return; }
+  if (pass.length < 6)          { toast('Пароль минимум 6 символов', 'e'); return; }
+
+  const btn = document.getElementById('btn-add-admin');
+  btn.disabled = true; btn.textContent = 'Создание…';
+  try {
+    const res = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${cfg.apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass, displayName: name }),
+      }
+    );
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    await setDoc(doc(db, 'users', data.localId), {
+      email, displayName: name, role,
+      created_at: serverTimestamp(),
+    });
+
+    admins.push({ uid: data.localId, email, displayName: name, role });
+    renderAdmins();
+    toast(`Аккаунт ${email} создан с ролью ${role} ✅`, 's');
+    document.getElementById('adm-email').value = '';
+    document.getElementById('adm-pass').value  = '';
+    document.getElementById('adm-name').value  = '';
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Создать аккаунт и выдать доступ';
+  }
+});
+
+// ── Migration: EN abilities → RU abilities ────────────────────────────────────
+document.getElementById('btn-migrate').addEventListener('click', migrateAbilities);
+
+async function migrateAbilities() {
+  const btn    = document.getElementById('btn-migrate');
+  const status = document.getElementById('migrate-status');
+  if (!confirm('Обновить поле ability с английских названий на русские для всех лайнапов?\nЭто изменит данные в Firestore.')) return;
+
+  btn.disabled = true;
+  status.textContent = 'Загрузка данных API…';
+
+  try {
+    const [enRes, ruRes] = await Promise.all([
+      fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=en-US'),
+      fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU'),
+    ]);
+    const [enJson, ruJson] = await Promise.all([enRes.json(), ruRes.json()]);
+
+    // icon URL → Russian ability displayName
+    const iconToRu = {};
+    for (const ag of ruJson.data ?? []) {
+      for (const ab of ag.abilities ?? []) {
+        if (ab.displayIcon && ab.displayName) iconToRu[ab.displayIcon] = ab.displayName;
+      }
+    }
+
+    // English agent name → { English ability name → icon URL }
+    const enAbilityIcon = {};
+    for (const ag of enJson.data ?? []) {
+      if (!ag.displayName) continue;
+      enAbilityIcon[ag.displayName] = {};
+      for (const ab of ag.abilities ?? []) {
+        if (ab.displayName && ab.displayIcon) {
+          enAbilityIcon[ag.displayName][ab.displayName] = ab.displayIcon;
+        }
+      }
+    }
+
+    status.textContent = 'Загрузка лайнапов…';
+    const snap = await getDocs(collection(db, 'lineups'));
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    let updated = 0, skipped = 0, errors = 0;
+
+    for (let i = 0; i < docs.length; i++) {
+      status.textContent = `Обработка ${i + 1} / ${docs.length}…`;
+      const l = docs[i];
+
+      const agentMap = enAbilityIcon[l.agent];
+      if (!agentMap) { skipped++; continue; }
+
+      const icon = agentMap[l.ability];
+      if (!icon) { skipped++; continue; } // уже русское или неизвестное
+
+      const ruName = iconToRu[icon];
+      if (!ruName || ruName === l.ability) { skipped++; continue; }
+
+      try {
+        await updateDoc(doc(db, 'lineups', l.id), { ability: ruName });
+        // sync in-memory cache too
+        const idx = lineups.findIndex(x => x.id === l.id);
+        if (idx !== -1) lineups[idx].ability = ruName;
+        updated++;
+      } catch (e) {
+        errors++;
+        console.error('migrate error', l.id, e);
+      }
+    }
+
+    const msg = `Готово: обновлено ${updated}, пропущено ${skipped}${errors ? `, ошибок ${errors}` : ''}`;
+    status.textContent = msg;
+    toast(msg, 's');
+    if (updated > 0) renderList();
+  } catch (e) {
+    status.textContent = 'Ошибка: ' + e.message;
+    toast('Ошибка миграции: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+<!--
+  ── Firestore Security Rules (справка) ──────────────────────────────────────
+
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+
+      match /users/{uid} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      }
+
+      // остальные коллекции — по аналогии
+    }
+  }
+-->
+</body>
+</html>
