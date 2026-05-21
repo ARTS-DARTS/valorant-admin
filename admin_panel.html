@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -2089,17 +2089,22 @@ function _wireEditVideoZone(id) {
 
 async function _searchUsers(q) {
   const t = q.trim();
-  if (!t) return [];
+  if (t.length < 2) return [];
+  const end = t + '';
   try {
-    const snap = await getDocs(query(
-      collection(db, 'users'),
-      where('username', '>=', t),
-      where('username', '<=', t + ''),
-      limit(8)
-    ));
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
-  } catch { return []; }
+    const [byUsername, byDisplayName] = await Promise.all([
+      getDocs(query(collection(db, 'users'), where('username',    '>=', t), where('username',    '<=', end), limit(8))),
+      getDocs(query(collection(db, 'users'), where('displayName', '>=', t), where('displayName', '<=', end), limit(8))),
+    ]);
+    const seen = new Set();
+    const results = [];
+    for (const d of [...byUsername.docs, ...byDisplayName.docs]) {
+      if (!seen.has(d.id)) { seen.add(d.id); results.push({ uid: d.id, ...d.data() }); }
+    }
+    return results;
+  } catch (e) { console.error('_searchUsers error:', e); return []; }
 }
+
 
 let _authorTimer = null;
 function initAuthorSearch() {
@@ -2112,6 +2117,7 @@ function initAuthorSearch() {
     clearTimeout(_authorTimer);
     const q = input.value.trim();
     if (!q) { dropdown.style.display='none'; selectedAuthor=null; if(selectedEl) selectedEl.textContent=''; return; }
+    if (q.length < 2) { dropdown.style.display='none'; return; }
     _authorTimer = setTimeout(async () => {
       const users = await _searchUsers(q);
       if (!users.length) { dropdown.style.display='none'; return; }
