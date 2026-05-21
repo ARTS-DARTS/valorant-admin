@@ -6,7 +6,7 @@
   <title>Valorant Lineups — Admin</title>
   <style>
     :root {
-      --bg: #0F1923; 
+      --bg: #0F1923;
       --surface: #1B2838;
       --surface2: #1e2d3d;
       --primary: #FF4655;
@@ -1127,28 +1127,29 @@ initMapPicker();
 
 // ── Screenshot upload ────────────────────────────────────────────────────────
 
-// Compress file via canvas to max 200 KB
-function compressImage(file, maxBytes = 200 * 1024) {
-  return new Promise(resolve => {
+function compressImage(file) {
+  if (file.size < 200 * 1024) return Promise.resolve(file);
+  return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
+      const MAX = 1280;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > MAX || h > MAX) {
+        const s = MAX / Math.max(w, h);
+        w = Math.round(w * s);
+        h = Math.round(h * s);
+      }
       const canvas = document.createElement('canvas');
-      canvas.width  = img.width;
-      canvas.height = img.height;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      let quality = 0.92;
-      const attempt = () => {
-        canvas.toBlob(blob => {
-          if (!blob) { resolve(null); return; }
-          if (blob.size <= maxBytes || quality <= 0.10) { resolve(blob); }
-          else { quality = Math.max(0.10, quality - 0.08); attempt(); }
-        }, 'image/jpeg', quality);
-      };
-      attempt();
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('toBlob вернул null'));
+      }, 'image/jpeg', 0.75);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Ошибка загрузки изображения')); };
     img.src = url;
   });
 }
@@ -1166,6 +1167,7 @@ function _sizeLabel(item) {
 
 function _thumbHtml(item) {
   const isUploading = item.status === 'uploading';
+  const isDone      = item.status === 'done';
   const isError     = item.status === 'error';
   const pct         = item.progress ?? 0;
   const sizeHtml    = _sizeLabel(item);
@@ -1177,6 +1179,7 @@ function _thumbHtml(item) {
       ${isUploading ? `<div class="up-overlay">
         <div class="up-prog-wrap"><div class="up-prog-bar" id="up-prog-${item.uid}" style="width:${pct}%"></div></div>
       </div>` : ''}
+      ${isDone  ? `<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>` : ''}
       ${isError ? `<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>` : ''}
     </div>`;
 }
@@ -1192,12 +1195,12 @@ function renderUploadPreviews() {
 function updateThumb(uid) {
   const item = uploadedScreenshots.find(s => s.uid === uid);
   const wrap = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
-  if (!item || !wrap) return;
+  if (!item || !wrap) { _syncAddBtn(); return; }
   wrap.outerHTML = _thumbHtml(item);
-  // Re-bind remove button on the newly created element
   const newWrap = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
   if (newWrap) newWrap.querySelector('.up-remove')
     ?.addEventListener('click', () => _removeByUid(uid));
+  _syncAddBtn();
 }
 
 function _removeByUid(uid) {
@@ -1208,13 +1211,27 @@ function _removeByUid(uid) {
   URL.revokeObjectURL(item.localUrl);
   uploadedScreenshots.splice(idx, 1);
   renderUploadPreviews();
+  _syncAddBtn();
+}
+
+function _syncAddBtn() {
+  const btn       = document.getElementById('btn-add-lineup');
+  const uploading = uploadedScreenshots.filter(s => s.status === 'uploading').length;
+  const done      = uploadedScreenshots.filter(s => s.status === 'done').length;
+  const total     = uploadedScreenshots.length;
+  if (uploading > 0) {
+    btn.disabled = true;
+    btn.textContent = `Загрузка фото ${done + 1} из ${total}…`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = 'Добавить лайнап';
+  }
 }
 
 function handleFiles(files) {
   const toProcess = Array.from(files).filter(f => f.type.startsWith('image/'));
   if (!toProcess.length) return;
 
-  // Добавляем все превью сразу, потом рендерим один раз
   const entries = toProcess.map(file => {
     const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const item = { uid, localUrl: URL.createObjectURL(file), storageUrl: null,
@@ -1224,61 +1241,63 @@ function handleFiles(files) {
     return { file, item };
   });
   renderUploadPreviews();
+  _syncAddBtn();
 
-  // Параллельная загрузка
-  entries.forEach(({ file, item }) => _processFile(file, item));
+  Promise.all(entries.map(({ file, item }) => _processFile(file, item)))
+    .then(() => _syncAddBtn());
 }
 
-async function _processFile(file, item) {
-  const uid = item.uid;
+function _processFile(file, item) {
+  return new Promise(resolve => {
+    const uid = item.uid;
 
-  // Сжатие до 200 KB
-  let blob;
-  try { blob = await compressImage(file); } catch (_) {}
-  if (!blob) {
-    const cur = uploadedScreenshots.find(s => s.uid === uid);
-    if (cur) { cur.status = 'error'; updateThumb(uid); }
-    toast('Ошибка сжатия', 'e');
-    return;
-  }
+    compressImage(file).then(blob => {
+      const cur = uploadedScreenshots.find(s => s.uid === uid);
+      if (!cur) { resolve(); return; }
 
-  // Удалён пока сжимался?
-  const cur = uploadedScreenshots.find(s => s.uid === uid);
-  if (!cur) return;
+      cur.compSize = blob.size;
+      updateThumb(uid);
 
-  cur.compSize = blob.size;
-  updateThumb(uid);   // показываем размер до начала загрузки
+      const path = `lineups_screenshots/${uid}.jpg`;
+      const task = uploadBytesResumable(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
+      cur.uploadTask = task;
 
-  // Загрузка с прогрессом
-  const path = `lineups_screenshots/${uid}.jpg`;
-  const task = uploadBytesResumable(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
-  cur.uploadTask = task;
-
-  task.on('state_changed',
-    snap => {
-      const itm = uploadedScreenshots.find(s => s.uid === uid);
-      if (!itm) return;
-      itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-      const bar = document.getElementById(`up-prog-${uid}`);
-      if (bar) bar.style.width = itm.progress + '%';
-    },
-    err => {
-      if (err.code === 'storage/canceled') return;
-      const itm = uploadedScreenshots.find(s => s.uid === uid);
-      if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
-      toast('Ошибка загрузки: ' + err.message, 'e');
-    },
-    async () => {
-      try {
-        const url = await getDownloadURL(task.snapshot.ref);
-        const itm = uploadedScreenshots.find(s => s.uid === uid);
-        if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.uploadTask = null; updateThumb(uid); }
-      } catch (e) {
-        const itm = uploadedScreenshots.find(s => s.uid === uid);
-        if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
-      }
-    }
-  );
+      task.on('state_changed',
+        snap => {
+          const itm = uploadedScreenshots.find(s => s.uid === uid);
+          if (!itm) return;
+          itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+          const bar = document.getElementById(`up-prog-${uid}`);
+          if (bar) bar.style.width = itm.progress + '%';
+          _syncAddBtn();
+        },
+        err => {
+          if (err.code !== 'storage/canceled') {
+            const itm = uploadedScreenshots.find(s => s.uid === uid);
+            if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
+            toast('Ошибка загрузки: ' + err.message, 'e');
+          }
+          resolve();
+        },
+        async () => {
+          try {
+            const url = await getDownloadURL(task.snapshot.ref);
+            const itm = uploadedScreenshots.find(s => s.uid === uid);
+            if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.uploadTask = null; updateThumb(uid); }
+          } catch (e) {
+            const itm = uploadedScreenshots.find(s => s.uid === uid);
+            if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
+          }
+          resolve();
+        }
+      );
+    }).catch(() => {
+      const cur = uploadedScreenshots.find(s => s.uid === uid);
+      if (cur) { cur.status = 'error'; updateThumb(uid); }
+      toast('Ошибка сжатия', 'e');
+      resolve();
+    });
+  });
 }
 
 // Wire up upload zone
