@@ -390,6 +390,14 @@
             <div id="map-picker-wrap" class="map-picker-wrap">
               <div class="map-ph">Сначала выбери карту ↑</div>
             </div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button id="mode-position"   class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+              <button id="mode-trajectory" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
+            </div>
+            <div id="traj-actions" style="display:none;gap:8px;margin-top:6px;">
+              <button id="traj-undo"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
+              <button id="traj-clear" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
+            </div>
             <div class="coords-row">
               X: <span class="coord-pill" id="coord-x">—</span>
               Y: <span class="coord-pill" id="coord-y">—</span>
@@ -873,6 +881,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       screenshots,
       position_x:   posX,
       position_y:   posY,
+      trajectory:   trajectoryPoints,
       status,
       is_exclusive: excl,
       submitted_at: serverTimestamp(),
@@ -925,6 +934,8 @@ function resetForm() {
   // Reset map picker
   markerX = null; markerY = null;
   mapScale = 1; mapTx = 0; mapTy = 0;
+  trajectoryPoints = [];
+  _setMapMode('position');
   updateMapPicker('');
 }
 
@@ -987,8 +998,10 @@ async function loadMapImages() {
 // State
 let pickedAgent   = '';
 let pickedAbility = '';
-let markerX       = null;
-let markerY       = null;
+let markerX          = null;
+let markerY          = null;
+let mapMode          = 'position'; // 'position' | 'trajectory'
+let trajectoryPoints = [];
 
 // Map transform state
 let mapScale = 1, mapTx = 0, mapTy = 0;
@@ -1100,6 +1113,7 @@ function updateMapPicker(mapName) {
   const wrap = document.getElementById('map-picker-wrap');
   mapScale = 1; mapTx = 0; mapTy = 0;
   markerX  = null; markerY = null;
+  trajectoryPoints = [];
   updateCoordDisplay();
 
   const imgUrl = _resolveMapUrl(mapName);
@@ -1132,6 +1146,76 @@ function updateCoordDisplay() {
   document.getElementById('coord-x').textContent    = markerX !== null ? markerX.toFixed(4) : '—';
   document.getElementById('coord-y').textContent    = markerY !== null ? markerY.toFixed(4) : '—';
   document.getElementById('coord-hint').textContent = markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+}
+
+// ── Trajectory drawing ────────────────────────────────────────────────────────
+
+function _buildTrajSvg(points, w, h, markerId) {
+  const ns  = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('class', 'traj-svg');
+  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;';
+
+  // Arrowhead marker
+  const defs = document.createElementNS(ns, 'defs');
+  const mkr  = document.createElementNS(ns, 'marker');
+  mkr.setAttribute('id', markerId);
+  mkr.setAttribute('markerWidth',  '6');
+  mkr.setAttribute('markerHeight', '4');
+  mkr.setAttribute('refX', '6');
+  mkr.setAttribute('refY', '2');
+  mkr.setAttribute('orient', 'auto');
+  const tri = document.createElementNS(ns, 'polygon');
+  tri.setAttribute('points', '0 0, 6 2, 0 4');
+  tri.setAttribute('fill', '#FF4655');
+  mkr.appendChild(tri);
+  defs.appendChild(mkr);
+  svg.appendChild(defs);
+
+  // Lines (arrow only on last segment)
+  for (let i = 0; i < points.length - 1; i++) {
+    const ln = document.createElementNS(ns, 'line');
+    ln.setAttribute('x1', points[i].x   * w); ln.setAttribute('y1', points[i].y   * h);
+    ln.setAttribute('x2', points[i+1].x * w); ln.setAttribute('y2', points[i+1].y * h);
+    ln.setAttribute('stroke', '#FF4655');
+    ln.setAttribute('stroke-width', '2');
+    ln.setAttribute('opacity', '0.8');
+    if (i === points.length - 2) ln.setAttribute('marker-end', `url(#${markerId})`);
+    svg.appendChild(ln);
+  }
+
+  // Dots at each point
+  for (const p of points) {
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', p.x * w); c.setAttribute('cy', p.y * h);
+    c.setAttribute('r', '4');
+    c.setAttribute('fill', '#FF4655');
+    c.setAttribute('opacity', '0.8');
+    svg.appendChild(c);
+  }
+
+  return svg;
+}
+
+function renderTrajectory() {
+  const c = _mapCanvas(); if (!c) return;
+  c.querySelector('.traj-svg')?.remove();
+  if (trajectoryPoints.length === 0) return;
+  const wrap = document.getElementById('map-picker-wrap');
+  c.appendChild(_buildTrajSvg(trajectoryPoints, wrap.clientWidth, wrap.clientHeight, 'traj-arrow-add'));
+}
+
+function _setMapMode(mode) {
+  mapMode = mode;
+  const posBtn  = document.getElementById('mode-position');
+  const trajBtn = document.getElementById('mode-trajectory');
+  const trajAct = document.getElementById('traj-actions');
+  if (!posBtn || !trajBtn) return;
+  posBtn.className      = mode === 'position'   ? 'btn btn-save' : 'btn';
+  posBtn.style.cssText  = mode === 'position'   ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
+  trajBtn.className     = mode === 'trajectory' ? 'btn btn-save' : 'btn';
+  trajBtn.style.cssText = mode === 'trajectory' ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
+  if (trajAct) trajAct.style.display = mode === 'trajectory' ? 'flex' : 'none';
 }
 
 function initMapPicker() {
@@ -1182,10 +1266,15 @@ function initMapPicker() {
         const ir  = _getImageRect();
         const cx2 = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale));
         const cy2 = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale));
-        markerX = cx2 / wrap.clientWidth;
-        markerY = cy2 / wrap.clientHeight;
-        renderMarker();
-        updateCoordDisplay();
+        const nx = cx2 / wrap.clientWidth;
+        const ny = cy2 / wrap.clientHeight;
+        if (mapMode === 'position') {
+          markerX = nx; markerY = ny;
+          renderMarker(); updateCoordDisplay();
+        } else {
+          trajectoryPoints.push({ x: nx, y: ny });
+          renderTrajectory();
+        }
       }
     };
     document.addEventListener('mousemove', onMove);
@@ -1200,6 +1289,12 @@ document.getElementById('f-map').addEventListener('change', e => updateMapPicker
 loadAgentIcons();   // loads icons → then calls initAgentGrid()
 loadMapImages();    // populates MAP_IMAGES from valorant-api.com CDN
 initMapPicker();
+
+// Mode toggle buttons (add form)
+document.getElementById('mode-position').addEventListener('click',   () => _setMapMode('position'));
+document.getElementById('mode-trajectory').addEventListener('click', () => _setMapMode('trajectory'));
+document.getElementById('traj-undo').addEventListener('click',  () => { trajectoryPoints.pop(); renderTrajectory(); });
+document.getElementById('traj-clear').addEventListener('click', () => { trajectoryPoints = []; renderTrajectory(); });
 
 // Video upload zone — "add" form
 (function () {
@@ -1478,8 +1573,10 @@ function _getEditSession(id, l) {
       mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
       screenshots: (Array.isArray(l.screenshots) ? l.screenshots : [])
                      .map(url => ({ type: 'existing', url })),
-      videoUrl: l.video_url ?? null,
-      videoXhr: null,
+      videoUrl:   l.video_url ?? null,
+      videoXhr:   null,
+      trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
+      mapMode:    'position',
     };
   }
   return editSessions[id];
@@ -1543,6 +1640,14 @@ function buildEditForm(id, l) {
     <label class="flabel">Точка на карте — кликни чтобы изменить позицию</label>
     <div id="ce-map-wrap-${id}" class="map-picker-wrap">
       <div class="map-ph">Выбери карту выше</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button id="ce-mode-pos-${id}"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+      <button id="ce-mode-traj-${id}" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
+    </div>
+    <div id="ce-traj-actions-${id}" style="display:none;gap:8px;margin-top:6px;">
+      <button id="ce-traj-undo-${id}"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
+      <button id="ce-traj-clear-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
     </div>
     <div class="coords-row">
       X: <span class="coord-pill" id="ce-coord-x-${id}">—</span>
@@ -1701,6 +1806,28 @@ function updateEditCoords(id) {
   if (he) he.textContent = s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
 }
 
+function renderEditTrajectory(id) {
+  const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
+  const c    = wrap.querySelector('.map-canvas');            if (!c)    return;
+  c.querySelector('.traj-svg')?.remove();
+  const sess = editSessions[id]; if (!sess || sess.trajectory.length === 0) return;
+  c.appendChild(_buildTrajSvg(sess.trajectory, wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
+}
+
+function _setEditMapMode(id, mode) {
+  const sess = editSessions[id]; if (!sess) return;
+  sess.mapMode = mode;
+  const posBtn  = document.getElementById('ce-mode-pos-'      + id);
+  const trajBtn = document.getElementById('ce-mode-traj-'     + id);
+  const trajAct = document.getElementById('ce-traj-actions-'  + id);
+  if (!posBtn || !trajBtn) return;
+  posBtn.className      = mode === 'position'   ? 'btn btn-save' : 'btn';
+  posBtn.style.cssText  = mode === 'position'   ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
+  trajBtn.className     = mode === 'trajectory' ? 'btn btn-save' : 'btn';
+  trajBtn.style.cssText = mode === 'trajectory' ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
+  if (trajAct) trajAct.style.display = mode === 'trajectory' ? 'flex' : 'none';
+}
+
 function initEditMapInteraction(id, initialMap) {
   const s = editSessions[id]; if (!s) return;
   updateEditMapPicker(id, initialMap);
@@ -1739,9 +1866,15 @@ function initEditMapInteraction(id, initialMap) {
         const rect = wrap.getBoundingClientRect();
         const cx = up.clientX - rect.left, cy = up.clientY - rect.top;
         const ir = _eImgRect(id);
-        s.markerX = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
-        s.markerY = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
-        renderEditMarker(id); updateEditCoords(id);
+        const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
+        const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
+        if (s.mapMode === 'position') {
+          s.markerX = nx; s.markerY = ny;
+          renderEditMarker(id); updateEditCoords(id);
+        } else {
+          s.trajectory.push({ x: nx, y: ny });
+          renderEditTrajectory(id);
+        }
       }
     };
     document.addEventListener('mousemove', onMove);
@@ -1751,9 +1884,26 @@ function initEditMapInteraction(id, initialMap) {
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
     s.mapScale = 1; s.mapTx = 0; s.mapTy = 0;
     s.markerX = null; s.markerY = null;
+    s.trajectory = [];
     updateEditMapPicker(id, e.target.value);
     updateEditCoords(id);
+    _setEditMapMode(id, 'position');
   });
+
+  // Mode toggle & trajectory actions
+  document.getElementById('ce-mode-pos-'  + id)?.addEventListener('click', () => _setEditMapMode(id, 'position'));
+  document.getElementById('ce-mode-traj-' + id)?.addEventListener('click', () => _setEditMapMode(id, 'trajectory'));
+  document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => {
+    const sess = editSessions[id]; if (!sess) return;
+    sess.trajectory.pop(); renderEditTrajectory(id);
+  });
+  document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => {
+    const sess = editSessions[id]; if (!sess) return;
+    sess.trajectory = []; renderEditTrajectory(id);
+  });
+
+  // Render existing trajectory
+  renderEditTrajectory(id);
 }
 
 function renderEditScreenshots(id) {
@@ -1965,6 +2115,7 @@ async function saveEditedLineup(id) {
       video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
       position_x: sess.markerX ?? l.position_x ?? 0,
       position_y: sess.markerY ?? l.position_y ?? 0,
+      trajectory: sess.trajectory,
     };
     await updateDoc(doc(db, 'lineups', id), updates);
     const idx = lineups.findIndex(l => l.id === id);
