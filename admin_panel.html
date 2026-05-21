@@ -208,6 +208,41 @@
     .adm-meta { color:var(--text2); font-size:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .b-admin     { background:rgba(255,70,85,.12);  color:var(--primary); border:1px solid var(--primary); }
     .b-moderator { background:rgba(249,115,22,.12); color:var(--orange);  border:1px solid var(--orange); }
+
+    /* ── Video upload ── */
+    .video-upload-zone { border:2px dashed var(--border); border-radius:var(--r); padding:18px 16px; text-align:center; cursor:pointer; transition:border-color .15s,background .15s; }
+    .video-upload-zone:hover,.video-upload-zone.drag { border-color:var(--primary); background:rgba(255,70,85,.05); }
+    .video-preview-wrap { position:relative; border-radius:var(--r); overflow:hidden; background:#000; margin-top:9px; }
+    .video-preview-wrap video { width:100%; display:block; max-height:270px; }
+    .video-remove-btn { position:absolute; top:6px; right:6px; z-index:2; background:rgba(0,0,0,.72); border:none; color:#fff; border-radius:50%; width:24px; height:24px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .video-remove-btn:hover { background:var(--red); }
+    .video-prog-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:11px 14px; margin-top:9px; display:flex; align-items:center; gap:10px; }
+    .video-prog-track { flex:1; height:4px; background:rgba(255,255,255,.15); border-radius:2px; overflow:hidden; }
+    .video-prog-fill { height:100%; background:var(--primary); border-radius:2px; transition:width .1s linear; }
+    .video-prog-pct { font-size:12px; color:var(--text2); min-width:34px; text-align:right; }
+
+    /* ── Author autocomplete ── */
+    .author-wrap { position:relative; }
+    .author-dropdown { position:absolute; top:100%; left:0; right:0; z-index:60; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-top:2px; box-shadow:0 6px 20px rgba(0,0,0,.4); }
+    .author-item { padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:9px; }
+    .author-item:hover { background:var(--surface2); }
+    .author-ava { width:28px; height:28px; border-radius:50%; background:var(--surface2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:1px solid var(--border); overflow:hidden; }
+    .author-info { flex:1; min-width:0; }
+    .author-uname { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .author-lvl { font-size:11px; color:var(--text2); }
+
+    /* ── Profile modal ── */
+    .profile-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
+    .profile-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:400px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
+    .pm-close { position:absolute; top:10px; right:12px; background:transparent; border:none; color:var(--text2); font-size:20px; cursor:pointer; line-height:1; padding:4px 6px; }
+    .pm-close:hover { color:var(--text); }
+    .pm-avatar { width:68px; height:68px; border-radius:50%; overflow:hidden; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:32px; margin:0 auto 12px; border:2px solid var(--border); }
+    .pm-name { font-size:17px; font-weight:800; text-align:center; margin-bottom:4px; }
+    .pm-sub  { font-size:12px; color:var(--text2); text-align:center; margin-bottom:16px; }
+    .pm-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+    .pm-stat { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:9px 11px; }
+    .pm-stat-lbl { font-size:10px; color:var(--text2); letter-spacing:.5px; text-transform:uppercase; margin-bottom:3px; }
+    .pm-stat-val { font-size:15px; font-weight:700; }
   </style>
 </head>
 <body>
@@ -223,8 +258,8 @@
     </button>
     <div class="auth-divider"><span>или</span></div>
     <div class="fg" style="text-align:left;">
-      <label class="flabel">Email</label>
-      <input class="finput" id="ep-email" type="email" placeholder="admin@example.com" autocomplete="username">
+      <label class="flabel">Email или никнейм</label>
+      <input class="finput" id="ep-email" type="text" placeholder="Email или никнейм" autocomplete="username">
     </div>
     <div class="fg" style="text-align:left;margin-top:8px;">
       <label class="flabel">Пароль</label>
@@ -329,12 +364,14 @@
           </div>
 
           <div class="fg full">
-            <label class="flabel">YouTube ссылка (необязательно)</label>
-            <div class="yt-hint">🎬 Поддерживается: youtube.com/watch?v=… · youtu.be/… · /shorts/…</div>
-            <input class="finput" id="f-video" type="url" placeholder="https://youtu.be/…">
-            <div id="form-yt-preview" class="yt-player" style="margin-top:8px;display:none;">
-              <iframe id="form-yt-iframe" allowfullscreen></iframe>
+            <label class="flabel">Видео (необязательно)</label>
+            <div class="video-upload-zone" id="add-video-zone">
+              <div class="uz-icon">🎬</div>
+              <div class="uz-text">Нажми или перетащи видео сюда</div>
+              <div class="uz-hint">MP4 · максимум 50 MB</div>
             </div>
+            <input type="file" id="add-video-file" accept="video/*" style="display:none;">
+            <div id="add-video-preview"></div>
           </div>
 
           <div class="fg full">
@@ -373,6 +410,15 @@
               <input type="checkbox" id="f-exclusive">
               <span>Эксклюзивный доступ 👑</span>
             </label>
+          </div>
+
+          <div class="fg full">
+            <label class="flabel">Автор (оставь пустым — будет твой аккаунт)</label>
+            <div class="author-wrap">
+              <input class="finput" id="f-author-input" placeholder="Поиск по username…" autocomplete="off">
+              <div class="author-dropdown" id="author-dropdown" style="display:none;"></div>
+            </div>
+            <div id="author-selected" style="font-size:12px;color:var(--text2);margin-top:5px;"></div>
           </div>
 
           <div class="fg full" style="margin-top:6px;">
@@ -423,6 +469,14 @@
   </div>
 </div>
 
+<!-- Profile modal -->
+<div id="profile-modal" class="profile-overlay" style="display:none;">
+  <div class="profile-modal" id="profile-modal-body">
+    <button class="pm-close" id="pm-close-btn">✕</button>
+    <div class="state">Загрузка…</div>
+  </div>
+</div>
+
 <!-- Lightbox -->
 <div class="lb" id="lb"><img id="lb-img" src="" alt=""></div>
 
@@ -438,7 +492,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
   getFirestore, collection, getDocs, getDoc, doc, setDoc,
-  updateDoc, deleteDoc, addDoc, query, orderBy, where,
+  updateDoc, deleteDoc, addDoc, query, orderBy, where, limit,
   serverTimestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -465,6 +519,12 @@ let currentUser   = null;
 
 // uploadedScreenshots: array of { localUrl, storageUrl|null, status: 'uploading'|'done'|'error' }
 let uploadedScreenshots = [];
+
+// Video upload state for "add" form
+let addVideoState = { status: 'idle', url: null, localUrl: null, progress: 0, xhr: null };
+
+// Author override for "add" form
+let selectedAuthor = null; // null = currentUser, else { uid, username }
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
@@ -503,11 +563,38 @@ document.getElementById('btn-ep-login').addEventListener('click', _epLogin);
 document.getElementById('ep-pass').addEventListener('keydown', e => { if (e.key === 'Enter') _epLogin(); });
 
 async function _epLogin() {
-  const email = document.getElementById('ep-email').value.trim();
-  const pass  = document.getElementById('ep-pass').value;
-  if (!email || !pass) { loginErr('Введи email и пароль'); return; }
+  const raw  = document.getElementById('ep-email').value.trim();
+  const pass = document.getElementById('ep-pass').value;
+  if (!raw || !pass) { loginErr('Введи email / никнейм и пароль'); return; }
   const btn = document.getElementById('btn-ep-login');
   btn.disabled = true; btn.textContent = 'Входим…';
+
+  let email = raw;
+
+  // Никнейм — ищем email в Firestore
+  if (!raw.includes('@')) {
+    try {
+      const [byUsername, byDisplayName] = await Promise.all([
+        getDocs(query(collection(db, 'users'), where('username',    '==', raw), limit(1))),
+        getDocs(query(collection(db, 'users'), where('displayName', '==', raw), limit(1))),
+      ]);
+      const found = [...byUsername.docs, ...byDisplayName.docs].find(d => d.data().email);
+      if (!found) {
+        const anyDoc = byUsername.docs[0] ?? byDisplayName.docs[0];
+        loginErr(anyDoc
+          ? 'Для этого аккаунта не задан email. Обратись к главному администратору.'
+          : 'Пользователь с таким никнеймом не найден');
+        btn.disabled = false; btn.textContent = 'Войти';
+        return;
+      }
+      email = found.data().email;
+    } catch (e) {
+      loginErr('Ошибка поиска: ' + e.message);
+      btn.disabled = false; btn.textContent = 'Войти';
+      return;
+    }
+  }
+
   try {
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
@@ -607,8 +694,6 @@ function cardHtml(l) {
   const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
   const date   = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
   const shots  = Array.isArray(l.screenshots) ? l.screenshots : [];
-  const ytUrl  = l.video_url ?? '';
-  const ytEmb  = ytEmbedUrl(ytUrl);
 
   return `
 <div class="lcard" id="lcard-${l.id}">
@@ -620,7 +705,7 @@ function cardHtml(l) {
         <span>🗺 ${esc(l.map ?? '')}</span>
         <span>🎭 ${esc(l.agent ?? '')}</span>
         <span>⚡ ${esc(l.ability ?? '')}</span>
-        ${l.submitted_by ? `<span>👤 ${esc(l.submitted_by)}</span>` : ''}
+        ${l.submitted_by ? `<span style="cursor:pointer;color:var(--primary);text-decoration:underline;" data-action="open-profile" data-uid="${esc(l.user_id??'')}" data-name="${esc(l.submitted_by)}">👤 ${esc(l.submitted_by)}</span>` : ''}
         ${date ? `<span>📅 ${date}</span>` : ''}
         ${l.is_exclusive ? '<span style="color:#f59e0b;">👑 Эксклюзив</span>' : ''}
       </div>
@@ -652,14 +737,11 @@ function cardHtml(l) {
       <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
     </div>
 
+    ${l.video_url ? `
     <div class="section">
-      <div class="dlabel">YouTube ссылка</div>
-      ${ytEmb ? `<div class="yt-player"><iframe src="${ytEmb}" allowfullscreen></iframe></div>` : ''}
-      <div class="yt-row">
-        <input class="finput" id="yt-inp-${l.id}" value="${esc(ytUrl)}" placeholder="https://youtu.be/…" type="url" style="flex:1;">
-        <button class="btn btn-save" data-action="save-url" data-id="${l.id}">Сохранить</button>
-      </div>
-    </div>
+      <div class="dlabel">Видео</div>
+      <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
+    </div>` : ''}
 
     ${shots.length ? `
     <div class="section">
@@ -696,12 +778,12 @@ function bindCardEvents() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const { action, id, uid, name } = btn.dataset;
-      if (action === 'approve')     approveLineup(id, uid);
-      if (action === 'reject')      rejectLineup(id);
-      if (action === 'delete')      deleteLineup(id);
-      if (action === 'ban')         banUser(uid, name);
-      if (action === 'save-url')    saveVideoUrl(id);
-      if (action === 'edit-toggle') openEditForm(id);
+      if (action === 'approve')      approveLineup(id, uid);
+      if (action === 'reject')       rejectLineup(id);
+      if (action === 'delete')       deleteLineup(id);
+      if (action === 'ban')          banUser(uid, name);
+      if (action === 'edit-toggle')  openEditForm(id);
+      if (action === 'open-profile') openUserProfile(uid, name);
     });
   });
 
@@ -749,18 +831,6 @@ async function banUser(userId, username) {
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
-async function saveVideoUrl(id) {
-  const input = document.getElementById('yt-inp-' + id);
-  if (!input) return;
-  const url = input.value.trim();
-  try {
-    await updateDoc(doc(db, 'lineups', id), { video_url: url });
-    const idx = lineups.findIndex(l => l.id === id);
-    if (idx !== -1) lineups[idx].video_url = url;
-    renderList();
-    toast('URL сохранён ✓', 's');
-  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
-}
 
 function patchStatus(id, status) {
   const idx = lineups.findIndex(l => l.id === id);
@@ -776,7 +846,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const category = document.getElementById('f-category').value;
   const title    = document.getElementById('f-title').value.trim();
   const desc     = document.getElementById('f-desc').value.trim();
-  const videoUrl = document.getElementById('f-video').value.trim();
+  const videoUrl = addVideoState.status === 'done' ? (addVideoState.url ?? '') : '';
   const posX     = markerX ?? 0;
   const posY     = markerY ?? 0;
   const status   = document.getElementById('f-status').value;
@@ -788,6 +858,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   if (!category || !title) { toast('Заполни все обязательные поля', 'e'); return; }
   if (markerX === null) { toast('Поставь точку на карте', 'e'); return; }
 
+  if (addVideoState.status === 'uploading') { toast('Подожди — видео ещё загружается…', 'i'); return; }
   const uploading = uploadedScreenshots.some(s => s.status === 'uploading');
   if (uploading) { toast('Подожди — фото ещё загружаются…', 'i'); return; }
   const screenshots = uploadedScreenshots.filter(s => s.status === 'done').map(s => s.storageUrl);
@@ -805,8 +876,8 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       status,
       is_exclusive: excl,
       submitted_at: serverTimestamp(),
-      user_id:      currentUser?.uid ?? '',
-      submitted_by: currentUser?.displayName ?? 'Admin',
+      user_id:      selectedAuthor?.uid      ?? currentUser?.uid ?? '',
+      submitted_by: selectedAuthor?.username ?? currentUser?.displayName ?? 'Admin',
     });
 
     toast('Лайнап добавлен ✅', 's');
@@ -815,7 +886,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       id: ref.id, map, agent, ability, category, title,
       description: desc, video_url: videoUrl, screenshots,
       position_x: posX, position_y: posY, status, is_exclusive: excl,
-      submitted_by: currentUser?.displayName ?? 'Admin',
+      submitted_by: selectedAuthor?.username ?? currentUser?.displayName ?? 'Admin',
     });
     renderList();
   } catch (e) {
@@ -830,13 +901,22 @@ function resetForm() {
     const el = document.getElementById(id);
     el.value = id === 'f-status' ? 'approved' : '';
   });
-  ['f-title','f-desc','f-video'].forEach(id => { document.getElementById(id).value = ''; });
+  ['f-title','f-desc'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('f-exclusive').checked = false;
-  document.getElementById('form-yt-preview').style.display = 'none';
-  document.getElementById('form-yt-iframe').src = '';
+  // Reset video
+  if (addVideoState.xhr) addVideoState.xhr.abort();
+  if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
+  addVideoState = { status:'idle', url:null, localUrl:null, progress:0, xhr:null };
+  renderAddVideoPreview();
+  // Reset screenshots
   uploadedScreenshots.forEach(s => { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); });
   uploadedScreenshots = [];
   document.getElementById('upload-previews').innerHTML = '';
+  // Reset author
+  selectedAuthor = null;
+  document.getElementById('f-author-input').value = '';
+  document.getElementById('author-selected').textContent = '';
+  document.getElementById('author-dropdown').style.display = 'none';
   // Reset agent/ability
   pickedAgent = ''; pickedAbility = '';
   document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
@@ -848,15 +928,6 @@ function resetForm() {
   updateMapPicker('');
 }
 
-// YouTube preview in form
-document.getElementById('f-video').addEventListener('input', () => {
-  const url  = document.getElementById('f-video').value.trim();
-  const emb  = ytEmbedUrl(url);
-  const wrap = document.getElementById('form-yt-preview');
-  const ifr  = document.getElementById('form-yt-iframe');
-  if (emb) { ifr.src = emb; wrap.style.display = 'block'; }
-  else      { ifr.src = ''; wrap.style.display = 'none'; }
-});
 
 // ── Agent / Ability / Map data ───────────────────────────────────────────────
 
@@ -1130,6 +1201,21 @@ loadAgentIcons();   // loads icons → then calls initAgentGrid()
 loadMapImages();    // populates MAP_IMAGES from valorant-api.com CDN
 initMapPicker();
 
+// Video upload zone — "add" form
+(function () {
+  const zone  = document.getElementById('add-video-zone');
+  const input = document.getElementById('add-video-file');
+  if (!zone || !input) return;
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { if (input.files[0]) _handleAddVideoFile(input.files[0]); input.value=''; });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) _handleAddVideoFile(e.dataTransfer.files[0]); });
+})();
+
+// Author autocomplete
+initAuthorSearch();
+
 // ── Screenshot upload ────────────────────────────────────────────────────────
 
 function compressImage(file) {
@@ -1251,11 +1337,15 @@ function _removeByUid(uid) {
 }
 
 function _syncAddBtn() {
-  const btn       = document.getElementById('btn-add-lineup');
-  const uploading = uploadedScreenshots.filter(s => s.status === 'uploading').length;
-  const done      = uploadedScreenshots.filter(s => s.status === 'done').length;
-  const total     = uploadedScreenshots.length;
-  if (uploading > 0) {
+  const btn            = document.getElementById('btn-add-lineup');
+  const videoUploading = addVideoState.status === 'uploading';
+  const uploading      = uploadedScreenshots.filter(s => s.status === 'uploading').length;
+  const done           = uploadedScreenshots.filter(s => s.status === 'done').length;
+  const total          = uploadedScreenshots.length;
+  if (videoUploading) {
+    btn.disabled = true;
+    btn.textContent = 'Загрузка видео…';
+  } else if (uploading > 0) {
     btn.disabled = true;
     btn.textContent = `Загрузка фото ${done + 1} из ${total}…`;
   } else {
@@ -1356,6 +1446,8 @@ function _getEditSession(id, l) {
       mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
       screenshots: (Array.isArray(l.screenshots) ? l.screenshots : [])
                      .map(url => ({ type: 'existing', url })),
+      videoUrl: l.video_url ?? null,
+      videoXhr: null,
     };
   }
   return editSessions[id];
@@ -1436,6 +1528,24 @@ function buildEditForm(id, l) {
       <div class="uz-hint">Сжатие до 200 KB · JPEG</div>
     </div>
     <input type="file" id="ce-file-${id}" accept="image/*" multiple style="display:none;">
+  </div>
+
+  <div class="fg full">
+    <label class="flabel">Видео</label>
+    <div id="ce-video-wrap-${id}">
+      ${l.video_url ? `
+      <div class="video-preview-wrap">
+        <video src="${esc(l.video_url)}" controls preload="metadata"></video>
+        <button class="video-remove-btn" id="ce-vrem-${id}">✕</button>
+      </div>` : `
+      <div class="video-upload-zone" id="ce-vzone-${id}">
+        <div class="uz-icon">🎬</div>
+        <div class="uz-text">Нажми или перетащи видео сюда</div>
+        <div class="uz-hint">MP4 · максимум 50 MB</div>
+      </div>
+      <input type="file" id="ce-vfile-${id}" accept="video/*" style="display:none;">
+      <div id="ce-vprog-${id}"></div>`}
+    </div>
   </div>
 
   <div class="fg full" style="margin-top:6px;">
@@ -1729,6 +1839,7 @@ function openEditForm(id) {
   if (container.style.display !== 'none') {
     const sess = editSessions[id];
     if (sess) {
+      if (sess.videoXhr) sess.videoXhr.abort();
       sess.screenshots.forEach(s => {
         if (s.type === 'new') { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); }
       });
@@ -1753,6 +1864,7 @@ function openEditForm(id) {
   initEditMapInteraction(id, l.map ?? '');
   renderEditScreenshots(id);
   initEditScreenshots(id);
+  initEditVideo(id);
   document.getElementById('ce-save-' + id)?.addEventListener('click', () => saveEditedLineup(id));
 }
 
@@ -1769,6 +1881,7 @@ async function saveEditedLineup(id) {
   if (!sess.agent)   { toast('Выбери агента',        'e'); return; }
   if (!sess.ability) { toast('Выбери способность',   'e'); return; }
   if (!category)     { toast('Выбери категорию',     'e'); return; }
+  if (sess.videoXhr) { toast('Подожди — видео ещё загружается…', 'i'); return; }
   if (sess.screenshots.some(s => s.type === 'new' && s.status === 'uploading'))
     { toast('Подожди — фото ещё загружаются…', 'i'); return; }
 
@@ -1783,6 +1896,7 @@ async function saveEditedLineup(id) {
     const updates = {
       title, description: desc, map, agent: sess.agent, ability: sess.ability,
       category, is_exclusive: excl, screenshots,
+      video_url: sess.videoUrl ?? '',
       position_x: sess.markerX ?? l.position_x ?? 0,
       position_y: sess.markerY ?? l.position_y ?? 0,
     };
@@ -1798,24 +1912,282 @@ async function saveEditedLineup(id) {
   }
 }
 
-// ── YouTube helpers ──────────────────────────────────────────────────────────
-function ytVideoId(url) {
-  try {
-    const u = new URL(url);
-    const h = u.hostname.replace('www.', '');
-    if (h === 'youtu.be') return u.pathname.slice(1).split('?')[0] || null;
-    if (h === 'youtube.com') {
-      const v = u.searchParams.get('v');
-      if (v) return v;
-      const segs = u.pathname.split('/').filter(Boolean);
-      if (segs[0] === 'shorts' && segs[1]) return segs[1];
-    }
-  } catch {}
-  return null;
+// ── Video upload (Cloudinary) ────────────────────────────────────────────────
+
+function uploadVideoToCloudinary(file, onProgress) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', 'ml_default');
+  fd.append('folder', 'lineups_videos');
+  let xhr;
+  const promise = new Promise((resolve, reject) => {
+    xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/dtz0ouvk0/video/upload');
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText).secure_url); }
+        catch { reject(new Error('Неверный ответ Cloudinary')); }
+      } else { reject(new Error('Cloudinary ' + xhr.status)); }
+    };
+    xhr.onerror  = () => reject(new Error('Сетевая ошибка'));
+    xhr.onabort  = () => reject(new Error('canceled'));
+    xhr.send(fd);
+  });
+  promise.abort = () => xhr?.abort();
+  return promise;
 }
-function ytEmbedUrl(url) {
-  const id = ytVideoId(url);
-  return id ? `https://www.youtube.com/embed/${id}` : null;
+
+function renderAddVideoPreview() {
+  const wrap = document.getElementById('add-video-preview');
+  const zone = document.getElementById('add-video-zone');
+  if (!wrap) return;
+  const s = addVideoState;
+  if (s.status === 'idle') {
+    wrap.innerHTML = '';
+    if (zone) zone.style.display = '';
+    _syncAddBtn(); return;
+  }
+  if (zone) zone.style.display = 'none';
+  if (s.status === 'uploading') {
+    wrap.innerHTML = `<div class="video-prog-wrap">
+      <div class="video-prog-track"><div class="video-prog-fill" id="add-vpb" style="width:${Math.round(s.progress*100)}%"></div></div>
+      <div class="video-prog-pct" id="add-vpp">${Math.round(s.progress*100)}%</div>
+      <button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="add-vcnl">✕ Отмена</button>
+    </div>`;
+    document.getElementById('add-vcnl')?.addEventListener('click', () => {
+      addVideoState.xhr?.abort();
+      if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
+      addVideoState = { status:'idle', url:null, localUrl:null, progress:0, xhr:null };
+      renderAddVideoPreview();
+    });
+  } else if (s.status === 'done') {
+    wrap.innerHTML = `<div class="video-preview-wrap">
+      <video src="${esc(s.url)}" controls preload="metadata"></video>
+      <button class="video-remove-btn" id="add-vrem">✕</button>
+    </div>`;
+    document.getElementById('add-vrem')?.addEventListener('click', () => {
+      addVideoState = { status:'idle', url:null, localUrl:null, progress:0, xhr:null };
+      renderAddVideoPreview();
+    });
+  } else {
+    wrap.innerHTML = `<div style="color:var(--red);font-size:13px;padding:8px 0;">⚠ Ошибка загрузки
+      <button class="btn btn-delete" style="margin-left:8px;padding:4px 10px;font-size:12px;" id="add-vclr">Попробовать снова</button></div>`;
+    document.getElementById('add-vclr')?.addEventListener('click', () => {
+      addVideoState = { status:'idle', url:null, localUrl:null, progress:0, xhr:null };
+      renderAddVideoPreview();
+    });
+  }
+  _syncAddBtn();
+}
+
+function _handleAddVideoFile(file) {
+  if (!file || !file.type.startsWith('video/')) { toast('Выбери видеофайл', 'e'); return; }
+  if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
+  if (addVideoState.xhr) addVideoState.xhr.abort();
+  if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
+  addVideoState = { status:'uploading', url:null, localUrl:URL.createObjectURL(file), progress:0, xhr:null };
+  renderAddVideoPreview();
+  const upload = uploadVideoToCloudinary(file, pct => {
+    addVideoState.progress = pct;
+    const bar = document.getElementById('add-vpb');
+    const lbl = document.getElementById('add-vpp');
+    if (bar) bar.style.width = Math.round(pct*100) + '%';
+    if (lbl) lbl.textContent = Math.round(pct*100) + '%';
+    _syncAddBtn();
+  });
+  addVideoState.xhr = upload;
+  upload.then(url => {
+    addVideoState = { status:'done', url, localUrl:null, progress:1, xhr:null };
+    renderAddVideoPreview();
+  }).catch(err => {
+    if (err.message === 'canceled') return;
+    addVideoState = { status:'error', url:null, localUrl:null, progress:0, xhr:null };
+    renderAddVideoPreview();
+    toast('Ошибка загрузки видео: ' + err.message, 'e');
+  });
+}
+
+function initEditVideo(id) {
+  const sess = editSessions[id]; if (!sess) return;
+  document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => {
+    sess.videoUrl = null;
+    _resetEditVideoWrap(id);
+  });
+  _wireEditVideoZone(id);
+}
+
+function _resetEditVideoWrap(id) {
+  const sess = editSessions[id]; if (!sess) return;
+  const wrap = document.getElementById('ce-video-wrap-'+id); if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="video-upload-zone" id="ce-vzone-${id}">
+      <div class="uz-icon">🎬</div>
+      <div class="uz-text">Нажми или перетащи видео сюда</div>
+      <div class="uz-hint">MP4 · максимум 50 MB</div>
+    </div>
+    <input type="file" id="ce-vfile-${id}" accept="video/*" style="display:none;">
+    <div id="ce-vprog-${id}"></div>`;
+  _wireEditVideoZone(id);
+}
+
+function _wireEditVideoZone(id) {
+  const zone  = document.getElementById('ce-vzone-'+id);
+  const input = document.getElementById('ce-vfile-'+id);
+  if (!zone || !input) return;
+  const sess = editSessions[id]; if (!sess) return;
+
+  function handle(file) {
+    if (!file || !file.type.startsWith('video/')) { toast('Выбери видеофайл', 'e'); return; }
+    if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
+    if (sess.videoXhr) sess.videoXhr.abort();
+    zone.style.display = 'none';
+    const prog = document.getElementById('ce-vprog-'+id);
+    if (prog) prog.innerHTML = `<div class="video-prog-wrap">
+      <div class="video-prog-track"><div class="video-prog-fill" id="ce-vpb-${id}" style="width:0%"></div></div>
+      <div class="video-prog-pct" id="ce-vpp-${id}">0%</div>
+      <button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="ce-vcnl-${id}">✕ Отмена</button>
+    </div>`;
+    document.getElementById('ce-vcnl-'+id)?.addEventListener('click', () => {
+      sess.videoXhr?.abort(); sess.videoXhr = null;
+      _resetEditVideoWrap(id);
+    });
+    const upload = uploadVideoToCloudinary(file, pct => {
+      const bar = document.getElementById('ce-vpb-'+id);
+      const lbl = document.getElementById('ce-vpp-'+id);
+      if (bar) bar.style.width = Math.round(pct*100) + '%';
+      if (lbl) lbl.textContent = Math.round(pct*100) + '%';
+    });
+    sess.videoXhr = upload;
+    upload.then(url => {
+      sess.videoUrl = url; sess.videoXhr = null;
+      const wrap = document.getElementById('ce-video-wrap-'+id);
+      if (wrap) wrap.innerHTML = `<div class="video-preview-wrap">
+        <video src="${esc(url)}" controls preload="metadata"></video>
+        <button class="video-remove-btn" id="ce-vrem-${id}">✕</button>
+      </div>`;
+      document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => {
+        sess.videoUrl = null; _resetEditVideoWrap(id);
+      });
+    }).catch(err => {
+      sess.videoXhr = null;
+      if (err.message === 'canceled') return;
+      toast('Ошибка загрузки видео: ' + err.message, 'e');
+      _resetEditVideoWrap(id);
+    });
+  }
+
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { if (input.files[0]) handle(input.files[0]); input.value=''; });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+}
+
+// ── Author search ─────────────────────────────────────────────────────────────
+
+async function _searchUsers(q) {
+  const t = q.trim();
+  if (!t) return [];
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'users'),
+      where('username', '>=', t),
+      where('username', '<=', t + ''),
+      limit(8)
+    ));
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  } catch { return []; }
+}
+
+let _authorTimer = null;
+function initAuthorSearch() {
+  const input = document.getElementById('f-author-input');
+  const dropdown = document.getElementById('author-dropdown');
+  const selectedEl = document.getElementById('author-selected');
+  if (!input || !dropdown) return;
+
+  input.addEventListener('input', () => {
+    clearTimeout(_authorTimer);
+    const q = input.value.trim();
+    if (!q) { dropdown.style.display='none'; selectedAuthor=null; if(selectedEl) selectedEl.textContent=''; return; }
+    _authorTimer = setTimeout(async () => {
+      const users = await _searchUsers(q);
+      if (!users.length) { dropdown.style.display='none'; return; }
+      dropdown.innerHTML = users.map(u => {
+        const name = u.username ?? u.displayName ?? u.email ?? '—';
+        const lvl  = u.level ?? u.xp_level ?? '';
+        const ava  = u.avatar_url ?? u.photo_url ?? '';
+        return `<div class="author-item" data-uid="${esc(u.uid)}" data-name="${esc(name)}">
+          <div class="author-ava">${ava ? `<img src="${esc(ava)}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}</div>
+          <div class="author-info">
+            <div class="author-uname">${esc(name)}</div>
+            ${lvl ? `<div class="author-lvl">Ур. ${esc(String(lvl))}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      dropdown.style.display = 'block';
+      dropdown.querySelectorAll('.author-item').forEach(item => {
+        item.addEventListener('mousedown', e => {
+          e.preventDefault();
+          selectedAuthor = { uid: item.dataset.uid, username: item.dataset.name };
+          input.value = item.dataset.name;
+          dropdown.style.display = 'none';
+          if (selectedEl) selectedEl.textContent = `✓ Будет добавлен от имени ${item.dataset.name}`;
+        });
+      });
+    }, 280);
+  });
+  input.addEventListener('blur', () => { setTimeout(() => { dropdown.style.display='none'; }, 150); });
+}
+
+// ── Profile modal ─────────────────────────────────────────────────────────────
+
+function closeProfileModal() {
+  document.getElementById('profile-modal').style.display = 'none';
+}
+
+async function openUserProfile(uid, name) {
+  const modal = document.getElementById('profile-modal');
+  const body  = document.getElementById('profile-modal-body');
+  if (!modal || !body) return;
+  body.innerHTML = `<button class="pm-close" id="pm-cb">✕</button><div class="state">Загрузка…</div>`;
+  modal.style.display = 'flex';
+  document.getElementById('pm-cb')?.addEventListener('click', closeProfileModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeProfileModal(); }, { once: true });
+
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    const u = snap.exists() ? snap.data() : {};
+    const displayName = u.username ?? u.displayName ?? name ?? '—';
+    const ava      = u.avatar_url ?? u.photo_url ?? '';
+    const date     = u.created_at?.toDate ? u.created_at.toDate().toLocaleDateString('ru') : '';
+    const level    = u.level ?? u.xp_level ?? '—';
+    const approved = u.approved_lineups ?? 0;
+    const likes    = u.total_likes ?? '—';
+    const banned   = u.is_banned === true;
+
+    body.innerHTML = `
+      <button class="pm-close" id="pm-cb">✕</button>
+      <div class="pm-avatar">${ava ? `<img src="${esc(ava)}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}</div>
+      <div class="pm-name">${esc(displayName)}</div>
+      <div class="pm-sub">${esc(u.email ?? '')}</div>
+      ${banned ? `<div style="color:var(--red);font-weight:700;text-align:center;margin-bottom:12px;font-size:13px;">🚫 ЗАБАНЕН</div>` : ''}
+      <div class="pm-grid">
+        <div class="pm-stat"><div class="pm-stat-lbl">Уровень</div><div class="pm-stat-val">${esc(String(level))}</div></div>
+        <div class="pm-stat"><div class="pm-stat-lbl">Лайнапов одобрено</div><div class="pm-stat-val">${esc(String(approved))}</div></div>
+        <div class="pm-stat"><div class="pm-stat-lbl">Лайков</div><div class="pm-stat-val">${esc(String(likes))}</div></div>
+        ${date ? `<div class="pm-stat"><div class="pm-stat-lbl">Регистрация</div><div class="pm-stat-val" style="font-size:12px;">${esc(date)}</div></div>` : ''}
+      </div>`;
+    document.getElementById('pm-cb')?.addEventListener('click', closeProfileModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeProfileModal(); }, { once: true });
+  } catch (e) {
+    body.innerHTML = `<button class="pm-close" id="pm-cb">✕</button>
+      <div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
+    document.getElementById('pm-cb')?.addEventListener('click', closeProfileModal);
+  }
 }
 
 // ── Lightbox ─────────────────────────────────────────────────────────────────
