@@ -633,7 +633,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-admins').classList.toggle('active', t === 'admins');
 }
 document.getElementById('tab-btn-list').addEventListener('click',   () => switchTab('list'));
-document.getElementById('tab-btn-add').addEventListener('click',    () => switchTab('add'));
+document.getElementById('tab-btn-add').addEventListener('click',    () => { switchTab('add'); initAuthorSearch(); });
 document.getElementById('tab-btn-admins').addEventListener('click', () => switchTab('admins'));
 
 // ── Filters ─────────────────────────────────────────────────────────────────
@@ -1213,8 +1213,7 @@ initMapPicker();
   zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) _handleAddVideoFile(e.dataTransfer.files[0]); });
 })();
 
-// Author autocomplete
-initAuthorSearch();
+// Author autocomplete — initialised lazily on first tab switch (see tab-btn-add listener)
 
 // ── Screenshot upload ────────────────────────────────────────────────────────
 
@@ -2109,9 +2108,11 @@ async function _searchUsers(q) {
 let _authorTimer = null;
 function initAuthorSearch() {
   const input = document.getElementById('f-author-input');
+  if (!input || input._authorSearchInited) return;
+  input._authorSearchInited = true;
   const dropdown = document.getElementById('author-dropdown');
   const selectedEl = document.getElementById('author-selected');
-  if (!input || !dropdown) return;
+  if (!dropdown) return;
 
   input.addEventListener('input', () => {
     clearTimeout(_authorTimer);
