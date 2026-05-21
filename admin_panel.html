@@ -1161,7 +1161,7 @@ function uploadToCloudinary(blob, onProgress) {
     xhr = new XMLHttpRequest();
     xhr.open('POST', 'https://api.cloudinary.com/v1_1/djxgwkbqn/image/upload');
     xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -1201,9 +1201,11 @@ function _thumbHtml(item) {
       <img src="${item.localUrl}" alt="">
       <button class="up-remove" data-uid="${item.uid}" title="${isUploading ? 'Отменить' : 'Удалить'}">✕</button>
       ${sizeHtml ? `<div class="up-size">${sizeHtml}</div>` : ''}
-      ${isUploading ? `<div class="up-overlay">
-        <div class="up-prog-wrap"><div class="up-prog-bar" style="width:${pct}%"></div></div>
-      </div>` : ''}
+      <div class="up-overlay">
+        <div class="up-prog-wrap" style="display:${isUploading ? 'block' : 'none'}">
+          <div class="up-prog-bar" style="width:${Math.round(pct * 100)}%"></div>
+        </div>
+      </div>
       ${isDone  ? `<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>` : ''}
       ${isError ? `<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>` : ''}
     </div>`;
@@ -1287,9 +1289,11 @@ function _processFile(file, item) {
         const itm = uploadedScreenshots.find(s => s.uid === uid);
         if (!itm) return;
         itm.progress = pct;
-        const card = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
-        const bar  = card?.querySelector('.up-prog-bar');
-        if (bar) bar.style.width = pct + '%';
+        const card     = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
+        const progWrap = card?.querySelector('.up-prog-wrap');
+        const bar      = card?.querySelector('.up-prog-bar');
+        if (progWrap) progWrap.style.display = 'block';
+        if (bar) bar.style.width = Math.round(pct * 100) + '%';
         _syncAddBtn();
       });
       cur.xhr = upload;
@@ -1613,11 +1617,16 @@ function renderEditScreenshots(id) {
         <button class="up-remove" data-eidx="${idx}" title="Удалить">✕</button>
       </div>`;
     }
-    const pct = item.progress ?? 0;
+    const pct      = item.progress ?? 0;
+    const isUpload = item.status === 'uploading';
     return `<div class="up-thumb" data-euid="${item.uid}">
       <img src="${item.localUrl}" alt="">
-      <button class="up-remove" data-euid="${item.uid}" title="${item.status==='uploading'?'Отменить':'Удалить'}">✕</button>
-      ${item.status==='uploading'?`<div class="up-overlay"><div class="up-prog-wrap"><div class="up-prog-bar" style="width:${pct}%"></div></div></div>`:''}
+      <button class="up-remove" data-euid="${item.uid}" title="${isUpload?'Отменить':'Удалить'}">✕</button>
+      <div class="up-overlay">
+        <div class="up-prog-wrap" style="display:${isUpload ? 'block' : 'none'}">
+          <div class="up-prog-bar" style="width:${Math.round(pct * 100)}%"></div>
+        </div>
+      </div>
       ${item.status==='done' ?`<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>`:''}
       ${item.status==='error'?`<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>`:''}
     </div>`;
@@ -1685,9 +1694,11 @@ async function _processEditFile(id, file, item) {
   const upload = uploadToCloudinary(blob, pct => {
     const itm = sess.screenshots.find(s => s.uid === uid); if (!itm) return;
     itm.progress = pct;
-    const ecard = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
-    const bar   = ecard?.querySelector('.up-prog-bar');
-    if (bar) bar.style.width = pct + '%';
+    const ecard    = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
+    const progWrap = ecard?.querySelector('.up-prog-wrap');
+    const bar      = ecard?.querySelector('.up-prog-bar');
+    if (progWrap) progWrap.style.display = 'block';
+    if (bar) bar.style.width = Math.round(pct * 100) + '%';
   });
   cur.xhr = upload;
 
