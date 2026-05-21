@@ -223,7 +223,7 @@
 
     /* ── Author autocomplete ── */
     .author-wrap { position:relative; }
-    .author-dropdown { position:absolute; top:100%; left:0; right:0; z-index:60; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; margin-top:2px; box-shadow:0 6px 20px rgba(0,0,0,.4); }
+    .author-dropdown { position:absolute; top:100%; left:0; right:0; z-index:200; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow-y:auto; max-height:240px; margin-top:2px; box-shadow:0 6px 20px rgba(0,0,0,.4); }
     .author-item { padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:9px; }
     .author-item:hover { background:var(--surface2); }
     .author-ava { width:28px; height:28px; border-radius:50%; background:var(--surface2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:1px solid var(--border); overflow:hidden; }
@@ -633,7 +633,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-admins').classList.toggle('active', t === 'admins');
 }
 document.getElementById('tab-btn-list').addEventListener('click',   () => switchTab('list'));
-document.getElementById('tab-btn-add').addEventListener('click',    () => { switchTab('add'); initAuthorSearch(); });
+document.getElementById('tab-btn-add').addEventListener('click',    () => switchTab('add'));
 document.getElementById('tab-btn-admins').addEventListener('click', () => switchTab('admins'));
 
 // ── Filters ─────────────────────────────────────────────────────────────────
@@ -1212,8 +1212,6 @@ initMapPicker();
   zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
   zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) _handleAddVideoFile(e.dataTransfer.files[0]); });
 })();
-
-// Author autocomplete — initialised lazily on first tab switch (see tab-btn-add listener)
 
 // ── Screenshot upload ────────────────────────────────────────────────────────
 
@@ -2106,48 +2104,58 @@ async function _searchUsers(q) {
 
 
 let _authorTimer = null;
-function initAuthorSearch() {
-  const input = document.getElementById('f-author-input');
-  if (!input || input._authorSearchInited) return;
-  input._authorSearchInited = true;
+
+async function _searchAndShowUsers(q) {
+  const dropdown = document.getElementById('author-dropdown');
+  if (!dropdown) return;
+  const users = await _searchUsers(q);
+  if (!users.length) { dropdown.style.display = 'none'; return; }
+  dropdown.innerHTML = users.map(u => {
+    const name = u.username ?? u.displayName ?? u.email ?? '—';
+    const lvl  = u.level ?? u.xp_level ?? '';
+    const ava  = u.avatar_url ?? u.photo_url ?? '';
+    return `<div class="author-item" data-uid="${esc(u.uid)}" data-name="${esc(name)}">
+      <div class="author-ava">${ava ? `<img src="${esc(ava)}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}</div>
+      <div class="author-info">
+        <div class="author-uname">${esc(name)}</div>
+        ${lvl ? `<div class="author-lvl">Ур. ${esc(String(lvl))}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  dropdown.style.display = 'block';
+}
+
+document.addEventListener('input', e => {
+  if (e.target.id !== 'f-author-input') return;
+  clearTimeout(_authorTimer);
+  const q = e.target.value.trim();
   const dropdown = document.getElementById('author-dropdown');
   const selectedEl = document.getElementById('author-selected');
-  if (!dropdown) return;
+  if (!q) {
+    if (dropdown) dropdown.style.display = 'none';
+    selectedAuthor = null;
+    if (selectedEl) selectedEl.textContent = '';
+    return;
+  }
+  if (q.length < 2) { if (dropdown) dropdown.style.display = 'none'; return; }
+  _authorTimer = setTimeout(() => _searchAndShowUsers(q), 280);
+});
 
-  input.addEventListener('input', () => {
-    clearTimeout(_authorTimer);
-    const q = input.value.trim();
-    if (!q) { dropdown.style.display='none'; selectedAuthor=null; if(selectedEl) selectedEl.textContent=''; return; }
-    if (q.length < 2) { dropdown.style.display='none'; return; }
-    _authorTimer = setTimeout(async () => {
-      const users = await _searchUsers(q);
-      if (!users.length) { dropdown.style.display='none'; return; }
-      dropdown.innerHTML = users.map(u => {
-        const name = u.username ?? u.displayName ?? u.email ?? '—';
-        const lvl  = u.level ?? u.xp_level ?? '';
-        const ava  = u.avatar_url ?? u.photo_url ?? '';
-        return `<div class="author-item" data-uid="${esc(u.uid)}" data-name="${esc(name)}">
-          <div class="author-ava">${ava ? `<img src="${esc(ava)}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}</div>
-          <div class="author-info">
-            <div class="author-uname">${esc(name)}</div>
-            ${lvl ? `<div class="author-lvl">Ур. ${esc(String(lvl))}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-      dropdown.style.display = 'block';
-      dropdown.querySelectorAll('.author-item').forEach(item => {
-        item.addEventListener('mousedown', e => {
-          e.preventDefault();
-          selectedAuthor = { uid: item.dataset.uid, username: item.dataset.name };
-          input.value = item.dataset.name;
-          dropdown.style.display = 'none';
-          if (selectedEl) selectedEl.textContent = `✓ Будет добавлен от имени ${item.dataset.name}`;
-        });
-      });
-    }, 280);
-  });
-  input.addEventListener('blur', () => { setTimeout(() => { dropdown.style.display='none'; }, 150); });
-}
+document.addEventListener('click', e => {
+  const dropdown = document.getElementById('author-dropdown');
+  if (dropdown && !dropdown.contains(e.target) && e.target.id !== 'f-author-input') {
+    dropdown.style.display = 'none';
+  }
+  const item = e.target.closest('.author-item');
+  if (!item) return;
+  const input = document.getElementById('f-author-input');
+  const dropdown2 = document.getElementById('author-dropdown');
+  const selectedEl = document.getElementById('author-selected');
+  selectedAuthor = { uid: item.dataset.uid, username: item.dataset.name };
+  if (input) input.value = item.dataset.name;
+  if (dropdown2) dropdown2.style.display = 'none';
+  if (selectedEl) selectedEl.textContent = `✓ Будет добавлен от имени ${item.dataset.name}`;
+});
 
 // ── Profile modal ─────────────────────────────────────────────────────────────
 
