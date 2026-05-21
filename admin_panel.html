@@ -889,21 +889,29 @@ const AGENTS = {
   'Tejo':      ['Stealth Drone', 'Special Delivery', 'Guided Salvo', 'Armageddon'],
 };
 
-// Local minimap images (assets/maps/ — served from project root)
-const MAP_IMAGES = {
-  'Haven':    'assets/maps/Haven_minimap.png',
-  'Bind':     'assets/maps/Bind_minimap.png',
-  'Ascent':   'assets/maps/Ascent_minimap.png',
-  'Split':    'assets/maps/Split_minimap.png',
-  'Icebox':   'assets/maps/Icebox_minimap.png',
-  'Breeze':   'assets/maps/Breeze_minimap.png',
-  'Fracture': 'assets/maps/Fracture_minimap.png',
-  'Pearl':    'assets/maps/Pearl_minimap.png',
-  'Lotus':    'assets/maps/Lotus_minimap.png',
-  'Sunset':   'assets/maps/Sunset_minimap.png',
-  'Abyss':    'assets/maps/Abyss_minimap.png',
-  'Corrode':  'assets/maps/Corrode_minimap.png',
-};
+// Map images — populated from valorant-api.com/v1/maps at startup
+const MAP_IMAGES = {};
+
+function _resolveMapUrl(key) {
+  if (!key) return null;
+  if (MAP_IMAGES[key]) return MAP_IMAGES[key];
+  const lo = key.toLowerCase();
+  const found = Object.keys(MAP_IMAGES).find(k => k.toLowerCase() === lo);
+  return found ? MAP_IMAGES[found] : null;
+}
+
+async function loadMapImages() {
+  try {
+    const res  = await fetch('https://valorant-api.com/v1/maps');
+    const json = await res.json();
+    for (const m of json.data ?? []) {
+      if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
+    }
+  } catch (_) {}
+  // Re-render "add" form map picker if a map is already selected
+  const sel = document.getElementById('f-map')?.value;
+  if (sel) updateMapPicker(sel);
+}
 
 // State
 let pickedAgent   = '';
@@ -1023,7 +1031,7 @@ function updateMapPicker(mapName) {
   markerX  = null; markerY = null;
   updateCoordDisplay();
 
-  const imgUrl = MAP_IMAGES[mapName];
+  const imgUrl = _resolveMapUrl(mapName);
   if (!imgUrl) {
     wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "' + mapName + '" — изображение недоступно' : 'Сначала выбери карту ↑'}</div>`;
     return;
@@ -1119,6 +1127,7 @@ document.getElementById('f-map').addEventListener('change', e => updateMapPicker
 
 // Init
 loadAgentIcons();   // loads icons → then calls initAgentGrid()
+loadMapImages();    // populates MAP_IMAGES from valorant-api.com CDN
 initMapPicker();
 
 // ── Screenshot upload ────────────────────────────────────────────────────────
@@ -1509,7 +1518,7 @@ function _eAbilIcon(id) {
 function updateEditMapPicker(id, mapName) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
   const key    = (mapName ?? '').trim();
-  const imgUrl = MAP_IMAGES[key];
+  const imgUrl = _resolveMapUrl(key);
   if (!imgUrl) {
     wrap.innerHTML = `<div class="map-ph">${key ? 'Карта "'+esc(key)+'" — изображение недоступно' : 'Выбери карту выше'}</div>`;
     return;
