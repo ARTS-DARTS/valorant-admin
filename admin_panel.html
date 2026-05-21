@@ -1534,10 +1534,9 @@ function buildEditForm(id, l) {
     <label class="flabel">Видео</label>
     <div id="ce-video-wrap-${id}">
       ${l.video_url ? `
-      <div class="video-preview-wrap">
-        <video src="${esc(l.video_url)}" controls preload="metadata"></video>
-        <button class="video-remove-btn" id="ce-vrem-${id}">✕</button>
-      </div>` : `
+      <video src="${esc(l.video_url)}" controls preload="metadata"
+             style="width:100%;border-radius:var(--r);background:#000;max-height:270px;display:block;margin-bottom:8px;"></video>
+      <button class="btn btn-delete" id="ce-vrem-${id}" style="width:100%;justify-content:center;">🗑 Удалить видео</button>` : `
       <div class="video-upload-zone" id="ce-vzone-${id}">
         <div class="uz-icon">🎬</div>
         <div class="uz-text">Нажми или перетащи видео сюда</div>
@@ -1896,7 +1895,7 @@ async function saveEditedLineup(id) {
     const updates = {
       title, description: desc, map, agent: sess.agent, ability: sess.ability,
       category, is_exclusive: excl, screenshots,
-      video_url: sess.videoUrl ?? '',
+      video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
       position_x: sess.markerX ?? l.position_x ?? 0,
       position_y: sess.markerY ?? l.position_y ?? 0,
     };
@@ -2013,7 +2012,7 @@ function _handleAddVideoFile(file) {
 function initEditVideo(id) {
   const sess = editSessions[id]; if (!sess) return;
   document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => {
-    sess.videoUrl = null;
+    sess.videoUrl = '';
     _resetEditVideoWrap(id);
   });
   _wireEditVideoZone(id);
@@ -2069,7 +2068,7 @@ function _wireEditVideoZone(id) {
         <button class="video-remove-btn" id="ce-vrem-${id}">✕</button>
       </div>`;
       document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => {
-        sess.videoUrl = null; _resetEditVideoWrap(id);
+        sess.videoUrl = ''; _resetEditVideoWrap(id);
       });
     }).catch(err => {
       sess.videoXhr = null;
