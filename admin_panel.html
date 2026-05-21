@@ -1289,8 +1289,8 @@ function _thumbHtml(item) {
   const pct         = item.progress ?? 0;
   const sizeHtml    = _sizeLabel(item);
   return `
-    <div class="up-thumb" data-uid="${item.uid}">
-      <img src="${item.localUrl}" alt="">
+    <div class="up-thumb" draggable="true" data-uid="${item.uid}">
+      <img src="${item.localUrl}" alt="" draggable="false">
       <button class="up-remove" data-uid="${item.uid}" title="${isUploading ? 'Отменить' : 'Удалить'}">✕</button>
       ${sizeHtml ? `<div class="up-size">${sizeHtml}</div>` : ''}
       <div class="up-overlay">
@@ -1429,6 +1429,41 @@ uploadZone.addEventListener('drop', e => {
   uploadZone.classList.remove('drag');
   handleFiles(e.dataTransfer.files);
 });
+
+// Drag-to-reorder for add form
+let _addDragSrc = null;
+(function() {
+  const grid = document.getElementById('upload-previews');
+  grid.addEventListener('dragstart', e => {
+    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
+    _addDragSrc = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
+    thumb.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  grid.addEventListener('dragend', () => {
+    grid.querySelectorAll('.up-thumb').forEach(t => { t.style.opacity = ''; t.style.boxShadow = ''; });
+    _addDragSrc = null;
+  });
+  grid.addEventListener('dragover', e => {
+    e.preventDefault();
+    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
+    grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
+    thumb.style.boxShadow = '0 0 0 2px var(--primary)';
+  });
+  grid.addEventListener('dragleave', e => {
+    if (!grid.contains(e.relatedTarget)) grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
+  });
+  grid.addEventListener('drop', e => {
+    e.preventDefault();
+    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
+    const dstIdx = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
+    if (_addDragSrc === null || _addDragSrc === dstIdx) { _addDragSrc = null; return; }
+    const [moved] = uploadedScreenshots.splice(_addDragSrc, 1);
+    uploadedScreenshots.splice(dstIdx, 0, moved);
+    _addDragSrc = null;
+    renderUploadPreviews();
+  });
+})();
 
 // ── Inline edit in card ───────────────────────────────────────────────────────
 const editSessions = {};
@@ -1726,16 +1761,16 @@ function renderEditScreenshots(id) {
   const grid = document.getElementById('ce-ss-list-' + id); if (!grid) return;
   grid.innerHTML = sess.screenshots.map((item, idx) => {
     if (item.type === 'existing') {
-      return `<div class="up-thumb" style="cursor:default;">
-        <img src="${esc(item.url)}" alt="" loading="lazy"
+      return `<div class="up-thumb" draggable="true">
+        <img src="${esc(item.url)}" alt="" loading="lazy" draggable="false"
              onerror="this.style.display='none'">
         <button class="up-remove" data-eidx="${idx}" title="Удалить">✕</button>
       </div>`;
     }
     const pct      = item.progress ?? 0;
     const isUpload = item.status === 'uploading';
-    return `<div class="up-thumb" data-euid="${item.uid}">
-      <img src="${item.localUrl}" alt="">
+    return `<div class="up-thumb" draggable="true" data-euid="${item.uid}">
+      <img src="${item.localUrl}" alt="" draggable="false">
       <button class="up-remove" data-euid="${item.uid}" title="${isUpload?'Отменить':'Удалить'}">✕</button>
       <div class="up-overlay">
         <div class="up-prog-wrap" style="display:${isUpload ? 'block' : 'none'}">
@@ -1768,6 +1803,8 @@ function renderEditScreenshots(id) {
   });
 }
 
+const _editDragSrc = {};
+
 function initEditScreenshots(id) {
   const uz = document.getElementById('ce-uz-' + id);
   const fi = document.getElementById('ce-file-' + id);
@@ -1777,6 +1814,39 @@ function initEditScreenshots(id) {
   uz.addEventListener('dragover',  e => { e.preventDefault(); uz.classList.add('drag'); });
   uz.addEventListener('dragleave', () => uz.classList.remove('drag'));
   uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('drag'); handleEditFiles(id, e.dataTransfer.files); });
+
+  const grid = document.getElementById('ce-ss-list-' + id); if (!grid) return;
+  grid.addEventListener('dragstart', e => {
+    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
+    _editDragSrc[id] = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
+    thumb.style.opacity = '0.4';
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  grid.addEventListener('dragend', () => {
+    grid.querySelectorAll('.up-thumb').forEach(t => { t.style.opacity = ''; t.style.boxShadow = ''; });
+    _editDragSrc[id] = undefined;
+  });
+  grid.addEventListener('dragover', e => {
+    e.preventDefault();
+    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
+    grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
+    thumb.style.boxShadow = '0 0 0 2px var(--primary)';
+  });
+  grid.addEventListener('dragleave', e => {
+    if (!grid.contains(e.relatedTarget)) grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
+  });
+  grid.addEventListener('drop', e => {
+    e.preventDefault();
+    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
+    const sess = editSessions[id]; if (!sess) return;
+    const dstIdx = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
+    const srcIdx = _editDragSrc[id];
+    if (srcIdx === undefined || srcIdx === dstIdx) { _editDragSrc[id] = undefined; return; }
+    const [moved] = sess.screenshots.splice(srcIdx, 1);
+    sess.screenshots.splice(dstIdx, 0, moved);
+    _editDragSrc[id] = undefined;
+    renderEditScreenshots(id);
+  });
 }
 
 function handleEditFiles(id, files) {
@@ -2085,17 +2155,23 @@ function _wireEditVideoZone(id) {
 // ── Author search ─────────────────────────────────────────────────────────────
 
 async function _searchUsers(q) {
-  const t = q.trim().toLowerCase();
+  const t = q.trim();
   if (t.length < 2) return [];
-  const end = t + '';
+  const qCap = t.charAt(0).toUpperCase() + t.slice(1);
+  const mkQuery = s => getDocs(query(
+    collection(db, 'users'),
+    where('name', '>=', s),
+    where('name', '<=', s + ''),
+    limit(8)
+  ));
   try {
-    const snap = await getDocs(query(
-      collection(db, 'users'),
-      where('name_lower', '>=', t),
-      where('name_lower', '<=', end),
-      limit(8)
-    ));
-    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    const [snapLow, snapCap] = await Promise.all([mkQuery(t), mkQuery(qCap)]);
+    const seen = new Set();
+    const results = [];
+    for (const d of [...snapLow.docs, ...snapCap.docs]) {
+      if (!seen.has(d.id)) { seen.add(d.id); results.push({ uid: d.id, ...d.data() }); }
+    }
+    return results;
   } catch (e) { console.error('_searchUsers error:', e); return []; }
 }
 
