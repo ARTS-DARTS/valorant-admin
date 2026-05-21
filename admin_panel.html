@@ -1177,7 +1177,7 @@ function _thumbHtml(item) {
       <button class="up-remove" data-uid="${item.uid}" title="${isUploading ? 'Отменить' : 'Удалить'}">✕</button>
       ${sizeHtml ? `<div class="up-size">${sizeHtml}</div>` : ''}
       ${isUploading ? `<div class="up-overlay">
-        <div class="up-prog-wrap"><div class="up-prog-bar" id="up-prog-${item.uid}" style="width:${pct}%"></div></div>
+        <div class="up-prog-wrap"><div class="up-prog-bar" style="width:${pct}%"></div></div>
       </div>` : ''}
       ${isDone  ? `<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>` : ''}
       ${isError ? `<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>` : ''}
@@ -1267,7 +1267,8 @@ function _processFile(file, item) {
           const itm = uploadedScreenshots.find(s => s.uid === uid);
           if (!itm) return;
           itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-          const bar = document.getElementById(`up-prog-${uid}`);
+          const card = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
+          const bar  = card?.querySelector('.up-prog-bar');
           if (bar) bar.style.width = itm.progress + '%';
           _syncAddBtn();
         },
@@ -1489,17 +1490,22 @@ function _eAbilIcon(id) {
 
 function updateEditMapPicker(id, mapName) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
-  const imgUrl = MAP_IMAGES[mapName];
+  const key    = (mapName ?? '').trim();
+  const imgUrl = MAP_IMAGES[key];
   if (!imgUrl) {
-    wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "'+mapName+'" — изображение недоступно' : 'Выбери карту выше'}</div>`;
+    wrap.innerHTML = `<div class="map-ph">${key ? 'Карта "'+esc(key)+'" — изображение недоступно' : 'Выбери карту выше'}</div>`;
     return;
   }
-  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
-  const img = wrap.querySelector('img');
-  if (img) {
-    img.addEventListener('load', () => renderEditMarker(id));
-    if (img.complete && img.naturalWidth) renderEditMarker(id);
-  }
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${esc(key)}" draggable="false"></div>`;
+  const img = wrap.querySelector('.map-canvas img');
+  if (!img) return;
+  const tryRender = () => { if (_eCanvas(id)) renderEditMarker(id); };
+  img.addEventListener('load',  tryRender);
+  img.addEventListener('error', () => {
+    wrap.innerHTML = `<div class="map-ph">⚠ Не удалось загрузить карту "${esc(key)}"</div>`;
+  });
+  // Cached image: load event won't fire again — defer one frame so layout is ready
+  if (img.complete) requestAnimationFrame(tryRender);
 }
 
 function renderEditMarker(id) {
@@ -1597,7 +1603,8 @@ function renderEditScreenshots(id) {
     return `<div class="up-thumb" data-euid="${item.uid}">
       <img src="${item.localUrl}" alt="">
       <button class="up-remove" data-euid="${item.uid}" title="${item.status==='uploading'?'Отменить':'Удалить'}">✕</button>
-      ${item.status==='uploading'?`<div class="up-overlay"><div class="up-prog-wrap"><div class="up-prog-bar" id="eup-prog-${item.uid}" style="width:${pct}%"></div></div></div>`:''}
+      ${item.status==='uploading'?`<div class="up-overlay"><div class="up-prog-wrap"><div class="up-prog-bar" style="width:${pct}%"></div></div></div>`:''}
+      ${item.status==='done' ?`<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>`:''}
       ${item.status==='error'?`<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>`:''}
     </div>`;
   }).join('');
@@ -1667,7 +1674,8 @@ async function _processEditFile(id, file, item) {
     snap => {
       const itm = sess.screenshots.find(s => s.uid === uid); if (!itm) return;
       itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-      const bar = document.getElementById('eup-prog-' + uid);
+      const ecard = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
+      const bar   = ecard?.querySelector('.up-prog-bar');
       if (bar) bar.style.width = itm.progress + '%';
     },
     err => {
@@ -1836,10 +1844,12 @@ function renderAdmins() {
     const date      = a.created_at?.toDate ? a.created_at.toDate().toLocaleDateString('ru') : '';
     const roleClass = a.role === 'admin' ? 'b-admin' : 'b-moderator';
     const isSelf    = a.uid === currentUser?.uid;
+    // Firestore documents may use different field names for the display name
+    const nameVal   = a.displayName ?? a.display_name ?? a.name ?? a.username ?? a.email ?? '—';
     return `
 <div class="adm-card">
   <div>
-    <div class="adm-name">${esc(a.displayName ?? '—')}</div>
+    <div class="adm-name">${esc(nameVal)}</div>
     <div class="adm-meta">
       <span>${esc(a.email ?? '')}</span>
       <span class="badge ${roleClass}">${esc(a.role)}</span>
@@ -1850,7 +1860,7 @@ function renderAdmins() {
   ${!isSelf
     ? `<button class="btn btn-delete" style="flex-shrink:0;"
          data-adm-uid="${esc(a.uid)}"
-         data-adm-name="${esc(a.displayName ?? a.email ?? '')}">Удалить доступ</button>`
+         data-adm-name="${esc(nameVal)}">Удалить доступ</button>`
     : ''}
 </div>`;
   }).join('');
