@@ -2106,6 +2106,7 @@ async function _searchUsers(q) {
 let _authorTimer = null;
 
 async function _searchAndShowUsers(q) {
+  console.log('_searchAndShowUsers called', q);
   const dropdown = document.getElementById('author-dropdown');
   if (!dropdown) return;
   const users = await _searchUsers(q);
