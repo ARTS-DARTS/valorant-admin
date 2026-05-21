@@ -441,9 +441,6 @@ import {
   updateDoc, deleteDoc, addDoc, query, orderBy, where,
   serverTimestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import {
-  getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
 
 // ── Firebase config ─────────────────────────────────────────────────────────
 // ВАЖНО: добавь Web App в Firebase Console → Project settings → Your apps → </> Web,
@@ -457,10 +454,9 @@ const cfg = {
   appId:             '1:288103111419:web:daca10a760282d40996e5e',
 };
 
-const app     = initializeApp(cfg);
-const auth    = getAuth(app);
-const db      = getFirestore(app);
-const storage = getStorage(app);
+const app  = initializeApp(cfg);
+const auth = getAuth(app);
+const db   = getFirestore(app);
 
 // ── State ───────────────────────────────────────────────────────────────────
 let lineups       = [];
@@ -838,7 +834,7 @@ function resetForm() {
   document.getElementById('f-exclusive').checked = false;
   document.getElementById('form-yt-preview').style.display = 'none';
   document.getElementById('form-yt-iframe').src = '';
-  uploadedScreenshots.forEach(s => { if (s.uploadTask) s.uploadTask.cancel(); URL.revokeObjectURL(s.localUrl); });
+  uploadedScreenshots.forEach(s => { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); });
   uploadedScreenshots = [];
   document.getElementById('upload-previews').innerHTML = '';
   // Reset agent/ability
@@ -1128,7 +1124,7 @@ initMapPicker();
 // ── Screenshot upload ────────────────────────────────────────────────────────
 
 function compressImage(file) {
-  if (file.size < 200 * 1024) return Promise.resolve(file);
+  if (file.size < 300 * 1024) return Promise.resolve(file);
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
@@ -1147,11 +1143,40 @@ function compressImage(file) {
       canvas.toBlob(blob => {
         if (blob) resolve(blob);
         else reject(new Error('toBlob вернул null'));
-      }, 'image/jpeg', 0.75);
+      }, 'image/jpeg', 0.82);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Ошибка загрузки изображения')); };
     img.src = url;
   });
+}
+
+function uploadToCloudinary(blob, onProgress) {
+  const fd = new FormData();
+  fd.append('file', blob, 'screenshot.jpg');
+  fd.append('upload_preset', '4343242');
+  fd.append('folder', 'lineups_screenshots');
+
+  let xhr;
+  const promise = new Promise((resolve, reject) => {
+    xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://api.cloudinary.com/v1_1/djxgwkbqn/image/upload');
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText).secure_url); }
+        catch { reject(new Error('Неверный ответ Cloudinary')); }
+      } else {
+        reject(new Error('Cloudinary ' + xhr.status));
+      }
+    };
+    xhr.onerror  = () => reject(new Error('Сетевая ошибка'));
+    xhr.onabort  = () => reject(new Error('canceled'));
+    xhr.send(fd);
+  });
+  promise.abort = () => xhr?.abort();
+  return promise;
 }
 
 function _sizeLabel(item) {
@@ -1207,7 +1232,7 @@ function _removeByUid(uid) {
   const idx = uploadedScreenshots.findIndex(s => s.uid === uid);
   if (idx === -1) return;
   const item = uploadedScreenshots[idx];
-  if (item.uploadTask) item.uploadTask.cancel();
+  if (item.xhr) item.xhr.abort();
   URL.revokeObjectURL(item.localUrl);
   uploadedScreenshots.splice(idx, 1);
   renderUploadPreviews();
@@ -1235,7 +1260,7 @@ function handleFiles(files) {
   const entries = toProcess.map(file => {
     const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const item = { uid, localUrl: URL.createObjectURL(file), storageUrl: null,
-                   status: 'uploading', progress: 0, uploadTask: null,
+                   status: 'uploading', progress: 0, xhr: null,
                    origSize: file.size, compSize: null };
     uploadedScreenshots.push(item);
     return { file, item };
@@ -1258,40 +1283,29 @@ function _processFile(file, item) {
       cur.compSize = blob.size;
       updateThumb(uid);
 
-      const path = `lineups_screenshots/${uid}.jpg`;
-      const task = uploadBytesResumable(storageRef(storage, path), blob, { contentType: 'image/jpeg' });
-      cur.uploadTask = task;
+      const upload = uploadToCloudinary(blob, pct => {
+        const itm = uploadedScreenshots.find(s => s.uid === uid);
+        if (!itm) return;
+        itm.progress = pct;
+        const card = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
+        const bar  = card?.querySelector('.up-prog-bar');
+        if (bar) bar.style.width = pct + '%';
+        _syncAddBtn();
+      });
+      cur.xhr = upload;
 
-      task.on('state_changed',
-        snap => {
+      upload.then(url => {
+        const itm = uploadedScreenshots.find(s => s.uid === uid);
+        if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.xhr = null; updateThumb(uid); }
+        resolve();
+      }).catch(err => {
+        if (err.message !== 'canceled') {
           const itm = uploadedScreenshots.find(s => s.uid === uid);
-          if (!itm) return;
-          itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-          const card = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
-          const bar  = card?.querySelector('.up-prog-bar');
-          if (bar) bar.style.width = itm.progress + '%';
-          _syncAddBtn();
-        },
-        err => {
-          if (err.code !== 'storage/canceled') {
-            const itm = uploadedScreenshots.find(s => s.uid === uid);
-            if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
-            toast('Ошибка загрузки: ' + err.message, 'e');
-          }
-          resolve();
-        },
-        async () => {
-          try {
-            const url = await getDownloadURL(task.snapshot.ref);
-            const itm = uploadedScreenshots.find(s => s.uid === uid);
-            if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.uploadTask = null; updateThumb(uid); }
-          } catch (e) {
-            const itm = uploadedScreenshots.find(s => s.uid === uid);
-            if (itm) { itm.status = 'error'; itm.uploadTask = null; updateThumb(uid); }
-          }
-          resolve();
+          if (itm) { itm.status = 'error'; itm.xhr = null; updateThumb(uid); }
+          toast('Ошибка загрузки: ' + err.message, 'e');
         }
-      );
+        resolve();
+      });
     }).catch(() => {
       const cur = uploadedScreenshots.find(s => s.uid === uid);
       if (cur) { cur.status = 'error'; updateThumb(uid); }
@@ -1622,7 +1636,7 @@ function renderEditScreenshots(id) {
       const idx = sess.screenshots.findIndex(s => s.uid === uid);
       if (idx === -1) return;
       const item = sess.screenshots[idx];
-      if (item.uploadTask) item.uploadTask.cancel();
+      if (item.xhr) item.xhr.abort();
       URL.revokeObjectURL(item.localUrl);
       sess.screenshots.splice(idx, 1);
       renderEditScreenshots(id);
@@ -1647,7 +1661,7 @@ function handleEditFiles(id, files) {
   if (!toProcess.length) return;
   const entries = toProcess.map(file => {
     const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const item = { type:'new', uid, localUrl: URL.createObjectURL(file), storageUrl:null, status:'uploading', progress:0, uploadTask:null };
+    const item = { type:'new', uid, localUrl: URL.createObjectURL(file), storageUrl:null, status:'uploading', progress:0, xhr:null };
     sess.screenshots.push(item);
     return { file, item };
   });
@@ -1667,34 +1681,25 @@ async function _processEditFile(id, file, item) {
   }
   if (!sess) return;
   const cur = sess.screenshots.find(s => s.uid === uid); if (!cur) return;
-  const path = `lineups_screenshots/${uid}.jpg`;
-  const task = uploadBytesResumable(storageRef(storage, path), blob, { contentType:'image/jpeg' });
-  cur.uploadTask = task;
-  task.on('state_changed',
-    snap => {
-      const itm = sess.screenshots.find(s => s.uid === uid); if (!itm) return;
-      itm.progress = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
-      const ecard = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
-      const bar   = ecard?.querySelector('.up-prog-bar');
-      if (bar) bar.style.width = itm.progress + '%';
-    },
-    err => {
-      if (err.code === 'storage/canceled') return;
-      const itm = sess.screenshots.find(s => s.uid === uid);
-      if (itm) { itm.status = 'error'; itm.uploadTask = null; renderEditScreenshots(id); }
-      toast('Ошибка загрузки: ' + err.message, 'e');
-    },
-    async () => {
-      try {
-        const url = await getDownloadURL(task.snapshot.ref);
-        const itm = sess.screenshots.find(s => s.uid === uid);
-        if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.uploadTask = null; renderEditScreenshots(id); }
-      } catch (e) {
-        const itm = sess.screenshots.find(s => s.uid === uid);
-        if (itm) { itm.status = 'error'; itm.uploadTask = null; renderEditScreenshots(id); }
-      }
-    }
-  );
+
+  const upload = uploadToCloudinary(blob, pct => {
+    const itm = sess.screenshots.find(s => s.uid === uid); if (!itm) return;
+    itm.progress = pct;
+    const ecard = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
+    const bar   = ecard?.querySelector('.up-prog-bar');
+    if (bar) bar.style.width = pct + '%';
+  });
+  cur.xhr = upload;
+
+  upload.then(url => {
+    const itm = sess.screenshots.find(s => s.uid === uid);
+    if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.xhr = null; renderEditScreenshots(id); }
+  }).catch(err => {
+    if (err.message === 'canceled') return;
+    const itm = sess.screenshots.find(s => s.uid === uid);
+    if (itm) { itm.status = 'error'; itm.xhr = null; renderEditScreenshots(id); }
+    toast('Ошибка загрузки: ' + err.message, 'e');
+  });
 }
 
 function openEditForm(id) {
@@ -1705,7 +1710,7 @@ function openEditForm(id) {
     const sess = editSessions[id];
     if (sess) {
       sess.screenshots.forEach(s => {
-        if (s.type === 'new') { if (s.uploadTask) s.uploadTask.cancel(); URL.revokeObjectURL(s.localUrl); }
+        if (s.type === 'new') { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); }
       });
       delete editSessions[id];
     }
