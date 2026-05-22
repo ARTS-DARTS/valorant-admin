@@ -208,6 +208,10 @@
     .adm-meta { color:var(--text2); font-size:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .b-admin     { background:rgba(255,70,85,.12);  color:var(--primary); border:1px solid var(--primary); }
     .b-moderator { background:rgba(249,115,22,.12); color:var(--orange);  border:1px solid var(--orange); }
+    .b-pioneer   { background:linear-gradient(135deg,rgba(108,63,232,.18),rgba(0,212,255,.12)); color:#00D4FF; border:1px solid rgba(108,63,232,.55); }
+    .btn-pioneer { background:transparent; border:1px solid rgba(108,63,232,.5); color:#6C3FE8; font-size:12px; padding:5px 11px; border-radius:var(--r); cursor:pointer; transition:.15s; white-space:nowrap; }
+    .btn-pioneer:hover { background:rgba(108,63,232,.1); border-color:#6C3FE8; }
+    .btn-pioneer.active { background:linear-gradient(135deg,rgba(108,63,232,.2),rgba(0,212,255,.12)); border-color:rgba(108,63,232,.7); color:#00D4FF; }
 
     /* ── Video upload ── */
     .video-upload-zone { border:2px dashed var(--border); border-radius:var(--r); padding:18px 16px; text-align:center; cursor:pointer; transition:border-color .15s,background .15s; }
@@ -2482,27 +2486,59 @@ function renderAdmins() {
     const isSelf    = a.uid === currentUser?.uid;
     // Firestore documents may use different field names for the display name
     const nameVal   = a.displayName ?? a.display_name ?? a.name ?? a.username ?? a.email ?? '—';
+    const isPioneer = a.is_beta === true;
     return `
-<div class="adm-card">
-  <div>
+<div class="adm-card" style="flex-wrap:wrap;gap:10px;">
+  <div style="flex:1;min-width:0;">
     <div class="adm-name">${esc(nameVal)}</div>
     <div class="adm-meta">
       <span>${esc(a.email ?? '')}</span>
       <span class="badge ${roleClass}">${esc(a.role)}</span>
+      ${isPioneer ? `<span class="badge b-pioneer">⚡ PIONEER</span>` : ''}
       ${date   ? `<span>📅 ${date}</span>` : ''}
       ${isSelf ? `<span style="color:var(--text2);font-size:11px;">(вы)</span>` : ''}
     </div>
   </div>
-  ${!isSelf
-    ? `<button class="btn btn-delete" style="flex-shrink:0;"
-         data-adm-uid="${esc(a.uid)}"
-         data-adm-name="${esc(nameVal)}">Удалить доступ</button>`
-    : ''}
+  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap;">
+    <button class="btn-pioneer ${isPioneer ? 'active' : ''}"
+        data-pioneer-uid="${esc(a.uid)}"
+        data-pioneer-name="${esc(nameVal)}"
+        data-pioneer-current="${isPioneer}">
+      ${isPioneer ? '⚡ Снять Pioneer' : '⚡ Выдать Pioneer'}
+    </button>
+    ${!isSelf
+      ? `<button class="btn btn-delete" style="flex-shrink:0;"
+           data-adm-uid="${esc(a.uid)}"
+           data-adm-name="${esc(nameVal)}">Удалить доступ</button>`
+      : ''}
+  </div>
 </div>`;
   }).join('');
   el.querySelectorAll('[data-adm-uid]').forEach(btn => {
     btn.addEventListener('click', () => removeAdminAccess(btn.dataset.admUid, btn.dataset.admName));
   });
+  el.querySelectorAll('[data-pioneer-uid]').forEach(btn => {
+    btn.addEventListener('click', () => togglePioneer(
+      btn.dataset.pioneerUid,
+      btn.dataset.pioneerCurrent === 'true',
+      btn.dataset.pioneerName
+    ));
+  });
+}
+
+async function togglePioneer(uid, currentIsBeta, name) {
+  const newVal = !currentIsBeta;
+  const action = newVal ? 'Выдать бейдж Pioneer' : 'Снять бейдж Pioneer';
+  if (!confirm(`${action} для ${name}?`)) return;
+  try {
+    await updateDoc(doc(db, 'users', uid), { is_beta: newVal });
+    const idx = admins.findIndex(a => a.uid === uid);
+    if (idx !== -1) admins[idx].is_beta = newVal;
+    renderAdmins();
+    toast(`${newVal ? '⚡ Pioneer выдан' : 'Pioneer снят'} для ${name}`, 's');
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  }
 }
 
 async function removeAdminAccess(uid, name) {
