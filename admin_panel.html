@@ -583,23 +583,21 @@ async function _epLogin() {
 
   let email = raw;
 
-  // Никнейм — ищем email в Firestore
+  // Никнейм — ищем user_email в Firestore по полю name_lower
   if (!raw.includes('@')) {
     try {
-      const [byUsername, byDisplayName] = await Promise.all([
-        getDocs(query(collection(db, 'users'), where('username',    '==', raw), limit(1))),
-        getDocs(query(collection(db, 'users'), where('displayName', '==', raw), limit(1))),
-      ]);
-      const found = [...byUsername.docs, ...byDisplayName.docs].find(d => d.data().email);
+      const snap = await getDocs(
+        query(collection(db, 'users'), where('name_lower', '==', raw.toLowerCase().trim()), limit(1))
+      );
+      const found = snap.docs.find(d => d.data().user_email);
       if (!found) {
-        const anyDoc = byUsername.docs[0] ?? byDisplayName.docs[0];
-        loginErr(anyDoc
+        loginErr(snap.docs.length
           ? 'Для этого аккаунта не задан email. Обратись к главному администратору.'
           : 'Пользователь с таким никнеймом не найден');
         btn.disabled = false; btn.textContent = 'Войти';
         return;
       }
-      email = found.data().email;
+      email = found.data().user_email;
     } catch (e) {
       loginErr('Ошибка поиска: ' + e.message);
       btn.disabled = false; btn.textContent = 'Войти';
