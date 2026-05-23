@@ -2574,7 +2574,6 @@ async function migrateAbilities() {
 // ── Changelog ─────────────────────────────────────────────────────────────────
 let clType = 'update';
 
-// Type button toggle
 document.getElementById('cl-type-btns')?.querySelectorAll('.cl-type-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.cl-type-btn').forEach(b => b.classList.remove('active'));
@@ -2583,107 +2582,69 @@ document.getElementById('cl-type-btns')?.querySelectorAll('.cl-type-btn').forEac
   });
 });
 
-// ── Text enhancer (local, no AI API) ─────────────────────────────────────────
 const CL_TEMPLATES = {
   update: {
-    emoji: '🔄', label: 'Обновление',
-    titles: ['Новое обновление', 'Что нового', 'Обновление приложения'],
-    intro: ['Мы продолжаем улучшать приложение!', 'Новая версия уже доступна.', 'Обновление вышло — смотри что изменилось.'],
+    emoji: '\uD83D\uDD04', label: '\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435',
+    titles: ['\u041d\u043e\u0432\u043e\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435', '\u0427\u0442\u043e \u043d\u043e\u0432\u043e\u0433\u043e', '\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u044f'],
+    intro: ['\u041c\u044b \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u0435\u043c \u0443\u043b\u0443\u0447\u0448\u0430\u0442\u044c \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435!', '\u041d\u043e\u0432\u0430\u044f \u0432\u0435\u0440\u0441\u0438\u044f \u0443\u0436\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430.', '\u041e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u0435 \u0432\u044b\u0448\u043b\u043e \u2014 \u0441\u043c\u043e\u0442\u0440\u0438 \u0447\u0442\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c.'],
   },
   new: {
-    emoji: '✨', label: 'Новое',
-    titles: ['Новый контент', 'Свежие лайнапы', 'Пополнение базы'],
-    intro: ['База лайнапов пополнилась!', 'Новый контент уже в приложении.', 'Приятное пополнение!'],
+    emoji: '\u2728', label: '\u041d\u043e\u0432\u043e\u0435',
+    titles: ['\u041d\u043e\u0432\u044b\u0439 \u043a\u043e\u043d\u0442\u0435\u043d\u0442', '\u0421\u0432\u0435\u0436\u0438\u0435 \u043b\u0430\u0439\u043d\u0430\u043f\u044b', '\u041f\u043e\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0431\u0430\u0437\u044b'],
+    intro: ['\u0411\u0430\u0437\u0430 \u043b\u0430\u0439\u043d\u0430\u043f\u043e\u0432 \u043f\u043e\u043f\u043e\u043b\u043d\u0438\u043b\u0430\u0441\u044c!', '\u041d\u043e\u0432\u044b\u0439 \u043a\u043e\u043d\u0442\u0435\u043d\u0442 \u0443\u0436\u0435 \u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0438.', '\u041f\u0440\u0438\u044f\u0442\u043d\u043e\u0435 \u043f\u043e\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435!'],
   },
   fix: {
-    emoji: '🔧', label: 'Исправление',
-    titles: ['Исправления и улучшения', 'Фикс багов', 'Технические исправления'],
-    intro: ['Исправили несколько проблем о которых вы сообщали.', 'Починили баги и улучшили стабильность.', 'Небольшой, но важный патч.'],
+    emoji: '\uD83D\uDD27', label: '\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435',
+    titles: ['\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0438 \u0443\u043b\u0443\u0447\u0448\u0435\u043d\u0438\u044f', '\u0424\u0438\u043a\u0441 \u0431\u0430\u0433\u043e\u0432', '\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f'],
+    intro: ['\u0418\u0441\u043f\u0440\u0430\u0432\u0438\u043b\u0438 \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u0440\u043e\u0431\u043b\u0435\u043c \u043e \u043a\u043e\u0442\u043e\u0440\u044b\u0445 \u0432\u044b \u0441\u043e\u043e\u0431\u0449\u0430\u043b\u0438.', '\u041f\u043e\u0447\u0438\u043d\u0438\u043b\u0438 \u0431\u0430\u0433\u0438 \u0438 \u0443\u043b\u0443\u0447\u0448\u0438\u043b\u0438 \u0441\u0442\u0430\u0431\u0438\u043b\u044c\u043d\u043e\u0441\u0442\u044c.', '\u041d\u0435\u0431\u043e\u043b\u044c\u0448\u043e\u0439, \u043d\u043e \u0432\u0430\u0436\u043d\u044b\u0439 \u043f\u0430\u0442\u0447.'],
   },
   event: {
-    emoji: '🎯', label: 'Ивент',
-    titles: ['Специальное событие', 'Ивент в приложении', 'Не пропусти!'],
-    intro: ['Запускаем специальное событие!', 'Ивент уже активен — успей принять участие.', 'Особое событие для нашего сообщества!'],
+    emoji: '\uD83C\uDFAF', label: '\u0418\u0432\u0435\u043d\u0442',
+    titles: ['\u0421\u043f\u0435\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435', '\u0418\u0432\u0435\u043d\u0442 \u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0438', '\u041d\u0435 \u043f\u0440\u043e\u043f\u0443\u0441\u0442\u0438!'],
+    intro: ['\u0417\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u043c \u0441\u043f\u0435\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435!', '\u0418\u0432\u0435\u043d\u0442 \u0443\u0436\u0435 \u0430\u043a\u0442\u0438\u0432\u0435\u043d.', '\u041e\u0441\u043e\u0431\u043e\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435 \u0434\u043b\u044f \u043d\u0430\u0448\u0435\u0433\u043e \u0441\u043e\u043e\u0431\u0449\u0435\u0441\u0442\u0432\u0430!'],
   },
   alert: {
-    emoji: '⚠️', label: 'Важно',
-    titles: ['Важное сообщение', 'Обратите внимание', 'Информация для пользователей'],
-    intro: ['Важная информация для всех пользователей.', 'Пожалуйста, прочитайте это сообщение.', 'Обратите внимание на следующее.'],
+    emoji: '\u26A0\uFE0F', label: '\u0412\u0430\u0436\u043d\u043e',
+    titles: ['\u0412\u0430\u0436\u043d\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435', '\u041e\u0431\u0440\u0430\u0442\u0438\u0442\u0435 \u0432\u043d\u0438\u043c\u0430\u043d\u0438\u0435', '\u0418\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u0434\u043b\u044f \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439'],
+    intro: ['\u0412\u0430\u0436\u043d\u0430\u044f \u0438\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f \u0434\u043b\u044f \u0432\u0441\u0435\u0445 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439.', '\u041f\u043e\u0436\u0430\u043b\u0443\u0439\u0441\u0442\u0430, \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0439\u0442\u0435 \u044d\u0442\u043e \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435.'],
   },
 };
 
-// Parse raw text into bullet points
 function clParseBullets(raw) {
-  // Split by comma, semicolon, "и", newline
-  const parts = raw
-    .split(/[,;
-]|(?:\s+и\s+)/)
-    .map(s => s.trim())
-    .filter(s => s.length > 2);
-  return parts;
+  return raw.split(/[,;\n]|(?:\s+\u0438\s+)/).map(s => s.trim()).filter(s => s.length > 2);
 }
-
-// Capitalize first letter
-function clCap(s) {
-  if (!s) return s;
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
-// Fix punctuation at end
-function clPunct(s) {
-  s = s.trim();
-  if (!s) return s;
-  if (!/[.!?…]$/.test(s)) s += '.';
-  return s;
-}
+function clCap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+function clPunct(s) { s = s.trim(); if (!s) return s; if (!/[.!?\u2026]$/.test(s)) s += '.'; return s; }
 
 function clEnhance(raw, type) {
-  const tpl   = CL_TEMPLATES[type] || CL_TEMPLATES.update;
-  const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
-  const title = pick(tpl.titles);
-  const intro = pick(tpl.intro);
+  const tpl    = CL_TEMPLATES[type] || CL_TEMPLATES.update;
+  const pick   = arr => arr[Math.floor(Math.random() * arr.length)];
+  const title  = pick(tpl.titles);
+  const intro  = pick(tpl.intro);
   const bullets = clParseBullets(raw);
-
-  let body = '';
-  if (bullets.length <= 1) {
-    // Single thought — just format as paragraph
-    body = clPunct(clCap(raw.trim()));
-  } else {
-    body = bullets.map(b => `• ${clPunct(clCap(b))}`).join('
-');
-  }
-
-  const outro = type === 'fix'    ? '
-Спасибо за обратную связь — вы помогаете нам становиться лучше! 🙏'
-              : type === 'new'    ? '
-Приятной игры и удачных раундов! 🎮'
-              : type === 'event'  ? '
-Удачи и приятных впечатлений! 🏆'
-              : type === 'alert'  ? ''
-              : '
-Следите за обновлениями! 🚀';
-
-  return `${tpl.emoji} ${title}
-
-${intro}
-
-${body}${outro}`;
+  let body = bullets.length <= 1
+    ? clPunct(clCap(raw.trim()))
+    : bullets.map(b => '\u2022 ' + clPunct(clCap(b))).join('\n');
+  const outroMap = {
+    fix:   '\n\u0421\u043f\u0430\u0441\u0438\u0431\u043e \u0437\u0430 \u043e\u0431\u0440\u0430\u0442\u043d\u0443\u044e \u0441\u0432\u044f\u0437\u044c \u2014 \u0432\u044b \u043f\u043e\u043c\u043e\u0433\u0430\u0435\u0442\u0435 \u043d\u0430\u043c \u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c\u0441\u044f \u043b\u0443\u0447\u0448\u0435! \uD83D\uDE4F',
+    new:   '\n\u041f\u0440\u0438\u044f\u0442\u043d\u043e\u0439 \u0438\u0433\u0440\u044b \u0438 \u0443\u0434\u0430\u0447\u043d\u044b\u0445 \u0440\u0430\u0443\u043d\u0434\u043e\u0432! \uD83C\uDFAE',
+    event: '\n\u0423\u0434\u0430\u0447\u0438 \u0438 \u043f\u0440\u0438\u044f\u0442\u043d\u044b\u0445 \u0432\u043f\u0435\u0447\u0430\u0442\u043b\u0435\u043d\u0438\u0439! \uD83C\uDFC6',
+    alert: '',
+  };
+  const outro = outroMap[type] || '\n\u0421\u043b\u0435\u0434\u0438\u0442\u0435 \u0437\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f\u043c\u0438! \uD83D\uDE80';
+  return tpl.emoji + ' ' + title + '\n\n' + intro + '\n\n' + body + outro;
 }
 
 document.getElementById('cl-enhance-btn')?.addEventListener('click', () => {
   const raw = document.getElementById('cl-raw')?.value.trim();
-  if (!raw) { toast('Напиши хотя бы пару слов', 'e'); return; }
+  if (!raw) { toast('\u041d\u0430\u043f\u0438\u0448\u0438 \u0445\u043e\u0442\u044f \u0431\u044b \u043f\u0430\u0440\u0443 \u0441\u043b\u043e\u0432', 'e'); return; }
   const result = clEnhance(raw, clType);
   const resultEl = document.getElementById('cl-result');
-  if (resultEl) {
-    resultEl.value = result;
-    resultEl.dispatchEvent(new Event('input'));
-  }
+  if (resultEl) { resultEl.value = result; resultEl.dispatchEvent(new Event('input')); }
   const pubBtn = document.getElementById('cl-publish-btn');
   if (pubBtn) pubBtn.disabled = false;
 });
 
-// Enable publish when result edited manually too
 document.getElementById('cl-result')?.addEventListener('input', () => {
   const pubBtn = document.getElementById('cl-publish-btn');
   if (pubBtn) pubBtn.disabled = !document.getElementById('cl-result').value.trim();
@@ -2698,92 +2659,75 @@ document.getElementById('cl-clear-btn')?.addEventListener('click', () => {
   clType = 'update';
 });
 
-// ── Publish ────────────────────────────────────────────────────────────────────
 document.getElementById('cl-publish-btn')?.addEventListener('click', async () => {
   const text = document.getElementById('cl-result')?.value.trim();
-  if (!text) { toast('Пост пустой', 'e'); return; }
-
-  // Extract title from first line (after emoji)
-  const lines      = text.split('
-');
-  const firstLine  = lines[0] || '';
-  const titleMatch = firstLine.match(/^[^\w]*(.+)$/);
+  if (!text) { toast('\u041f\u043e\u0441\u0442 \u043f\u0443\u0441\u0442\u043e\u0439', 'e'); return; }
+  const lines     = text.split('\n');
+  const firstLine = lines[0] || '';
+  const titleMatch = firstLine.match(/^[^\w\u0400-\u04FF]*([\w\u0400-\u04FF].+)$/);
   const title      = titleMatch ? titleMatch[1].trim() : firstLine;
-  const body       = lines.slice(2).join('
-').trim(); // skip title + empty line
-
   const tpl = CL_TEMPLATES[clType] || CL_TEMPLATES.update;
-
   const btn = document.getElementById('cl-publish-btn');
-  btn.disabled = true; btn.textContent = 'Публикация…';
-
+  btn.disabled = true; btn.textContent = '\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u044f\u2026';
   try {
     await addDoc(collection(db, 'changelog'), {
-      title,
-      body:       text,
-      type:       clType,
-      emoji:      tpl.emoji,
-      label:      tpl.label,
+      title, body: text, type: clType, emoji: tpl.emoji, label: tpl.label,
       published_at: serverTimestamp(),
-      author:     currentUser?.displayName || currentUser?.email || 'Admin',
+      author: currentUser?.displayName || currentUser?.email || 'Admin',
     });
-    toast('Новость опубликована ✅', 's');
+    toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u2705', 's');
     document.getElementById('cl-raw').value    = '';
     document.getElementById('cl-result').value = '';
-    btn.textContent = '📢 Опубликовать';
+    btn.textContent = '\uD83D\uDCE2 \u041e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c';
     loadChangelogPosts();
   } catch (e) {
-    toast('Ошибка: ' + e.message, 'e');
-    btn.disabled = false; btn.textContent = '📢 Опубликовать';
+    toast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + e.message, 'e');
+    btn.disabled = false; btn.textContent = '\uD83D\uDCE2 \u041e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c';
   }
 });
 
-// ── Load & render posts ────────────────────────────────────────────────────────
 async function loadChangelogPosts() {
   const el = document.getElementById('cl-posts-list'); if (!el) return;
-  el.innerHTML = '<div class="state">Загрузка…</div>';
+  el.innerHTML = '<div class="state">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430\u2026</div>';
   try {
     const snap = await getDocs(query(collection(db, 'changelog'), orderBy('published_at', 'desc')));
-    if (!snap.docs.length) { el.innerHTML = '<div class="state">Новостей пока нет</div>'; return; }
+    if (!snap.docs.length) { el.innerHTML = '<div class="state">\u041d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442</div>'; return; }
     el.innerHTML = snap.docs.map(d => clPostHtml(d.id, d.data())).join('');
     el.querySelectorAll('.cl-post-del').forEach(btn => {
       btn.addEventListener('click', () => clDeletePost(btn.dataset.id));
     });
   } catch (e) {
-    el.innerHTML = `<div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
+    el.innerHTML = '<div class="state" style="color:var(--red)">\u041e\u0448\u0438\u0431\u043a\u0430: ' + esc(e.message) + '</div>';
   }
 }
 
 function clPostHtml(id, d) {
   const date = d.published_at?.toDate
     ? d.published_at.toDate().toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
-    : '—';
-  const badgeClass = `cl-badge cl-badge-${d.type || 'update'}`;
-  return `<div class="cl-post-card">
-    <div class="cl-post-head">
-      <div style="flex:1;min-width:0;">
-        <div class="cl-post-title">${esc(d.title || '—')}</div>
-      </div>
-      <button class="cl-post-del" data-id="${id}" title="Удалить">🗑</button>
-    </div>
-    <div class="cl-post-meta">
-      <span class="${badgeClass}">${esc(d.emoji || '')} ${esc(d.label || d.type || '')}</span>
-      <span>📅 ${date}</span>
-      <span>👤 ${esc(d.author || 'Admin')}</span>
-    </div>
-    <div class="cl-post-body">${esc(d.body || '')}</div>
-  </div>`;
+    : '\u2014';
+  const badgeClass = 'cl-badge cl-badge-' + (d.type || 'update');
+  return '<div class="cl-post-card">'
+    + '<div class="cl-post-head">'
+    + '<div style="flex:1;min-width:0;"><div class="cl-post-title">' + esc(d.title || '\u2014') + '</div></div>'
+    + '<button class="cl-post-del" data-id="' + id + '" title="\u0423\u0434\u0430\u043b\u0438\u0442\u044c">\uD83D\uDDD1</button>'
+    + '</div>'
+    + '<div class="cl-post-meta">'
+    + '<span class="' + badgeClass + '">' + esc(d.emoji || '') + ' ' + esc(d.label || d.type || '') + '</span>'
+    + '<span>\uD83D\uDCC5 ' + date + '</span>'
+    + '<span>\uD83D\uDC64 ' + esc(d.author || 'Admin') + '</span>'
+    + '</div>'
+    + '<div class="cl-post-body">' + esc(d.body || '') + '</div>'
+    + '</div>';
 }
 
 async function clDeletePost(id) {
-  if (!confirm('Удалить новость?')) return;
+  if (!confirm('\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043d\u043e\u0432\u043e\u0441\u0442\u044c?')) return;
   try {
     await deleteDoc(doc(db, 'changelog', id));
-    toast('Новость удалена', 'i');
+    toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u0443\u0434\u0430\u043b\u0435\u043d\u0430', 'i');
     loadChangelogPosts();
-  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+  } catch (e) { toast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + e.message, 'e'); }
 }
-
 </script>
 </body>
 </html>
