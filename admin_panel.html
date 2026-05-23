@@ -333,6 +333,44 @@
     .pm-stat { background:var(--surface2); border:1px solid var(--border); border-radius:var(--r); padding:9px 11px; }
     .pm-stat-lbl { font-size:10px; color:var(--text2); letter-spacing:.5px; text-transform:uppercase; margin-bottom:3px; }
     .pm-stat-val { font-size:15px; font-weight:700; }
+
+    /* ── Changelog tab ── */
+    .cl-type-btn {
+      padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--text2); cursor: pointer;
+      font-size: 12px; font-weight: 600; transition: .15s;
+    }
+    .cl-type-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .cl-type-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .cl-post-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 14px 15px; margin-bottom: 9px;
+      transition: border-color .15s;
+    }
+    .cl-post-card:hover { border-color: rgba(255,70,85,.4); }
+    .cl-post-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 10px; margin-bottom: 8px;
+    }
+    .cl-post-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
+    .cl-post-meta  { font-size: 11px; color: var(--text2); margin-bottom: 7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .cl-post-body  { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+    .cl-post-del   {
+      background: transparent; border: none; color: var(--text2);
+      cursor: pointer; font-size: 15px; padding: 2px 4px; flex-shrink:0;
+      transition: color .13s; line-height:1;
+    }
+    .cl-post-del:hover { color: var(--red); }
+    .cl-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;
+    }
+    .cl-badge-update { background:rgba(59,130,246,.15); color:#60a5fa; border:1px solid rgba(59,130,246,.4); }
+    .cl-badge-new    { background:rgba(34,197,94,.12);  color:var(--green); border:1px solid var(--green); }
+    .cl-badge-fix    { background:rgba(249,115,22,.12); color:var(--orange); border:1px solid var(--orange); }
+    .cl-badge-event  { background:rgba(168,85,247,.15); color:#c084fc; border:1px solid rgba(168,85,247,.4); }
+    .cl-badge-alert  { background:rgba(239,68,68,.12);  color:var(--red); border:1px solid var(--red); }
   </style>
 </head>
 <body>
@@ -387,6 +425,7 @@
       <button class="tab active" id="tab-btn-list">ЛАЙНАПЫ</button>
       <button class="tab"        id="tab-btn-add">ДОБАВИТЬ</button>
       <button class="tab"        id="tab-btn-admins">АДМИНИСТРАТОРЫ</button>
+      <button class="tab"        id="tab-btn-changelog">НОВОСТИ</button>
     </div>
 
     <!-- List tab -->
@@ -565,6 +604,63 @@
       <div class="form-title" style="margin-bottom:12px;">ТЕКУЩИЕ АДМИНИСТРАТОРЫ</div>
       <div class="adm-list" id="admins-list"><div class="state">Загрузка…</div></div>
     </div>
+
+    <!-- Changelog tab -->
+    <div id="tab-changelog" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:1100px;">
+
+        <!-- LEFT: editor -->
+        <div>
+          <div class="form-wrap" style="max-width:100%;">
+            <div class="form-title">✍️ НАПИСАТЬ НОВОСТЬ</div>
+
+            <div class="fg" style="margin-bottom:12px;">
+              <label class="flabel">Тип</label>
+              <div style="display:flex;gap:7px;flex-wrap:wrap;" id="cl-type-btns">
+                <button class="cl-type-btn active" data-type="update">🔄 Обновление</button>
+                <button class="cl-type-btn" data-type="new">✨ Новое</button>
+                <button class="cl-type-btn" data-type="fix">🔧 Фикс</button>
+                <button class="cl-type-btn" data-type="event">🎯 Ивент</button>
+                <button class="cl-type-btn" data-type="alert">⚠️ Важно</button>
+              </div>
+            </div>
+
+            <div class="fg" style="margin-bottom:12px;">
+              <label class="flabel">Твоя мысль (кратко)</label>
+              <textarea class="ftextarea" id="cl-raw" placeholder="Например: добавили новые лайнапы на Bind для Viper, починили баг с траекторией…" style="min-height:90px;"></textarea>
+            </div>
+
+            <button class="btn btn-save" id="cl-enhance-btn" style="width:100%;justify-content:center;padding:10px;margin-bottom:14px;">
+              ✨ Превратить в пост
+            </button>
+
+            <div class="fg" style="margin-bottom:12px;">
+              <label class="flabel">Готовый пост (можешь редактировать)</label>
+              <textarea class="ftextarea" id="cl-result" placeholder="Здесь появится готовый пост…" style="min-height:160px;"></textarea>
+            </div>
+
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-save" id="cl-publish-btn" style="flex:1;justify-content:center;padding:10px;" disabled>
+                📢 Опубликовать
+              </button>
+              <button class="btn" id="cl-clear-btn" style="border:1px solid var(--border);color:var(--text2);padding:10px 16px;">
+                🗑
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: published posts -->
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;">
+            ОПУБЛИКОВАННЫЕ НОВОСТИ
+          </div>
+          <div id="cl-posts-list"><div class="state">Загрузка…</div></div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -732,16 +828,20 @@ function loginErr(msg) {
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(t) {
-  document.getElementById('tab-list').style.display   = t === 'list'   ? 'block' : 'none';
-  document.getElementById('tab-add').style.display    = t === 'add'    ? 'block' : 'none';
-  document.getElementById('tab-admins').style.display = t === 'admins' ? 'block' : 'none';
-  document.getElementById('tab-btn-list').classList.toggle('active',   t === 'list');
-  document.getElementById('tab-btn-add').classList.toggle('active',    t === 'add');
-  document.getElementById('tab-btn-admins').classList.toggle('active', t === 'admins');
+  document.getElementById('tab-list').style.display      = t === 'list'      ? 'block' : 'none';
+  document.getElementById('tab-add').style.display       = t === 'add'       ? 'block' : 'none';
+  document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
+  document.getElementById('tab-changelog').style.display = t === 'changelog' ? 'block' : 'none';
+  document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
+  document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
+  document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
+  document.getElementById('tab-btn-changelog').classList.toggle('active', t === 'changelog');
+  if (t === 'changelog') loadChangelogPosts();
 }
-document.getElementById('tab-btn-list').addEventListener('click',   () => switchTab('list'));
-document.getElementById('tab-btn-add').addEventListener('click',    () => switchTab('add'));
-document.getElementById('tab-btn-admins').addEventListener('click', () => switchTab('admins'));
+document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
+document.getElementById('tab-btn-add').addEventListener('click',       () => switchTab('add'));
+document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
+document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -2470,6 +2570,220 @@ async function migrateAbilities() {
     toast('Ошибка миграции: ' + e.message, 'e');
   } finally { btn.disabled = false; }
 }
+
+// ── Changelog ─────────────────────────────────────────────────────────────────
+let clType = 'update';
+
+// Type button toggle
+document.getElementById('cl-type-btns')?.querySelectorAll('.cl-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cl-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    clType = btn.dataset.type;
+  });
+});
+
+// ── Text enhancer (local, no AI API) ─────────────────────────────────────────
+const CL_TEMPLATES = {
+  update: {
+    emoji: '🔄', label: 'Обновление',
+    titles: ['Новое обновление', 'Что нового', 'Обновление приложения'],
+    intro: ['Мы продолжаем улучшать приложение!', 'Новая версия уже доступна.', 'Обновление вышло — смотри что изменилось.'],
+  },
+  new: {
+    emoji: '✨', label: 'Новое',
+    titles: ['Новый контент', 'Свежие лайнапы', 'Пополнение базы'],
+    intro: ['База лайнапов пополнилась!', 'Новый контент уже в приложении.', 'Приятное пополнение!'],
+  },
+  fix: {
+    emoji: '🔧', label: 'Исправление',
+    titles: ['Исправления и улучшения', 'Фикс багов', 'Технические исправления'],
+    intro: ['Исправили несколько проблем о которых вы сообщали.', 'Починили баги и улучшили стабильность.', 'Небольшой, но важный патч.'],
+  },
+  event: {
+    emoji: '🎯', label: 'Ивент',
+    titles: ['Специальное событие', 'Ивент в приложении', 'Не пропусти!'],
+    intro: ['Запускаем специальное событие!', 'Ивент уже активен — успей принять участие.', 'Особое событие для нашего сообщества!'],
+  },
+  alert: {
+    emoji: '⚠️', label: 'Важно',
+    titles: ['Важное сообщение', 'Обратите внимание', 'Информация для пользователей'],
+    intro: ['Важная информация для всех пользователей.', 'Пожалуйста, прочитайте это сообщение.', 'Обратите внимание на следующее.'],
+  },
+};
+
+// Parse raw text into bullet points
+function clParseBullets(raw) {
+  // Split by comma, semicolon, "и", newline
+  const parts = raw
+    .split(/[,;
+]|(?:\s+и\s+)/)
+    .map(s => s.trim())
+    .filter(s => s.length > 2);
+  return parts;
+}
+
+// Capitalize first letter
+function clCap(s) {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Fix punctuation at end
+function clPunct(s) {
+  s = s.trim();
+  if (!s) return s;
+  if (!/[.!?…]$/.test(s)) s += '.';
+  return s;
+}
+
+function clEnhance(raw, type) {
+  const tpl   = CL_TEMPLATES[type] || CL_TEMPLATES.update;
+  const pick  = arr => arr[Math.floor(Math.random() * arr.length)];
+  const title = pick(tpl.titles);
+  const intro = pick(tpl.intro);
+  const bullets = clParseBullets(raw);
+
+  let body = '';
+  if (bullets.length <= 1) {
+    // Single thought — just format as paragraph
+    body = clPunct(clCap(raw.trim()));
+  } else {
+    body = bullets.map(b => `• ${clPunct(clCap(b))}`).join('
+');
+  }
+
+  const outro = type === 'fix'    ? '
+Спасибо за обратную связь — вы помогаете нам становиться лучше! 🙏'
+              : type === 'new'    ? '
+Приятной игры и удачных раундов! 🎮'
+              : type === 'event'  ? '
+Удачи и приятных впечатлений! 🏆'
+              : type === 'alert'  ? ''
+              : '
+Следите за обновлениями! 🚀';
+
+  return `${tpl.emoji} ${title}
+
+${intro}
+
+${body}${outro}`;
+}
+
+document.getElementById('cl-enhance-btn')?.addEventListener('click', () => {
+  const raw = document.getElementById('cl-raw')?.value.trim();
+  if (!raw) { toast('Напиши хотя бы пару слов', 'e'); return; }
+  const result = clEnhance(raw, clType);
+  const resultEl = document.getElementById('cl-result');
+  if (resultEl) {
+    resultEl.value = result;
+    resultEl.dispatchEvent(new Event('input'));
+  }
+  const pubBtn = document.getElementById('cl-publish-btn');
+  if (pubBtn) pubBtn.disabled = false;
+});
+
+// Enable publish when result edited manually too
+document.getElementById('cl-result')?.addEventListener('input', () => {
+  const pubBtn = document.getElementById('cl-publish-btn');
+  if (pubBtn) pubBtn.disabled = !document.getElementById('cl-result').value.trim();
+});
+
+document.getElementById('cl-clear-btn')?.addEventListener('click', () => {
+  document.getElementById('cl-raw').value    = '';
+  document.getElementById('cl-result').value = '';
+  document.getElementById('cl-publish-btn').disabled = true;
+  document.querySelectorAll('.cl-type-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.cl-type-btn[data-type="update"]')?.classList.add('active');
+  clType = 'update';
+});
+
+// ── Publish ────────────────────────────────────────────────────────────────────
+document.getElementById('cl-publish-btn')?.addEventListener('click', async () => {
+  const text = document.getElementById('cl-result')?.value.trim();
+  if (!text) { toast('Пост пустой', 'e'); return; }
+
+  // Extract title from first line (after emoji)
+  const lines      = text.split('
+');
+  const firstLine  = lines[0] || '';
+  const titleMatch = firstLine.match(/^[^\w]*(.+)$/);
+  const title      = titleMatch ? titleMatch[1].trim() : firstLine;
+  const body       = lines.slice(2).join('
+').trim(); // skip title + empty line
+
+  const tpl = CL_TEMPLATES[clType] || CL_TEMPLATES.update;
+
+  const btn = document.getElementById('cl-publish-btn');
+  btn.disabled = true; btn.textContent = 'Публикация…';
+
+  try {
+    await addDoc(collection(db, 'changelog'), {
+      title,
+      body:       text,
+      type:       clType,
+      emoji:      tpl.emoji,
+      label:      tpl.label,
+      published_at: serverTimestamp(),
+      author:     currentUser?.displayName || currentUser?.email || 'Admin',
+    });
+    toast('Новость опубликована ✅', 's');
+    document.getElementById('cl-raw').value    = '';
+    document.getElementById('cl-result').value = '';
+    btn.textContent = '📢 Опубликовать';
+    loadChangelogPosts();
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+    btn.disabled = false; btn.textContent = '📢 Опубликовать';
+  }
+});
+
+// ── Load & render posts ────────────────────────────────────────────────────────
+async function loadChangelogPosts() {
+  const el = document.getElementById('cl-posts-list'); if (!el) return;
+  el.innerHTML = '<div class="state">Загрузка…</div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'changelog'), orderBy('published_at', 'desc')));
+    if (!snap.docs.length) { el.innerHTML = '<div class="state">Новостей пока нет</div>'; return; }
+    el.innerHTML = snap.docs.map(d => clPostHtml(d.id, d.data())).join('');
+    el.querySelectorAll('.cl-post-del').forEach(btn => {
+      btn.addEventListener('click', () => clDeletePost(btn.dataset.id));
+    });
+  } catch (e) {
+    el.innerHTML = `<div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+function clPostHtml(id, d) {
+  const date = d.published_at?.toDate
+    ? d.published_at.toDate().toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
+    : '—';
+  const badgeClass = `cl-badge cl-badge-${d.type || 'update'}`;
+  return `<div class="cl-post-card">
+    <div class="cl-post-head">
+      <div style="flex:1;min-width:0;">
+        <div class="cl-post-title">${esc(d.title || '—')}</div>
+      </div>
+      <button class="cl-post-del" data-id="${id}" title="Удалить">🗑</button>
+    </div>
+    <div class="cl-post-meta">
+      <span class="${badgeClass}">${esc(d.emoji || '')} ${esc(d.label || d.type || '')}</span>
+      <span>📅 ${date}</span>
+      <span>👤 ${esc(d.author || 'Admin')}</span>
+    </div>
+    <div class="cl-post-body">${esc(d.body || '')}</div>
+  </div>`;
+}
+
+async function clDeletePost(id) {
+  if (!confirm('Удалить новость?')) return;
+  try {
+    await deleteDoc(doc(db, 'changelog', id));
+    toast('Новость удалена', 'i');
+    loadChangelogPosts();
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
 </script>
 </body>
 </html>
