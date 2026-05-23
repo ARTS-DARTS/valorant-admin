@@ -307,7 +307,9 @@
     .ap-sub { font-size: 11px; color: var(--text2); }
 
     /* Алфавитный список */
-    .ap-alpha-list { overflow-y: auto; flex: 1; padding-bottom: 10px; }
+    .ap-alpha-list { overflow-y: auto; flex: 1; padding-bottom: 10px; overscroll-behavior: contain; }
+    /* Вся панель тоже перехватывает скролл */
+    .author-panel { overscroll-behavior: contain; }
     .ap-alpha-letter {
       padding: 9px 15px 3px;
       font-size: 10px; font-weight: 700; color: var(--primary);
@@ -2121,7 +2123,7 @@ async function loadAuthorPanelUsers() {
     apUsers = snap.docs
       .map(d => ({ uid: d.id, ...d.data() }))
       .map(u => ({ ...u, _dn: (u.name ?? u.username ?? u.displayName ?? '').trim() }))
-      .filter(u => u._dn)
+      .filter(u => u._dn && u._dn.length > 0)
       .sort((a, b) => a._dn.localeCompare(b._dn, 'ru', { sensitivity: 'base' }));
     apLoaded = true;
     if (apOpen) apRenderAlpha('');
