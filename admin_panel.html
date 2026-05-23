@@ -21,7 +21,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; font-size: 14px; }
 
-    /* ── Header ── */
     .header {
       background: var(--surface); border-bottom: 1px solid var(--border);
       padding: 0 24px; height: 54px; display: flex; align-items: center;
@@ -33,7 +32,6 @@
     .btn-out { background: transparent; border: 1px solid var(--border); color: var(--text2); padding: 5px 13px; border-radius: var(--r); cursor: pointer; font-size: 12px; transition: .15s; }
     .btn-out:hover { border-color: var(--primary); color: var(--primary); }
 
-    /* ── Login / Denied ── */
     .center-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
     .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 48px 40px; max-width: 360px; width: 100%; text-align: center; }
     .auth-title { font-size: 26px; font-weight: 800; color: var(--primary); letter-spacing: 3px; margin-bottom: 4px; }
@@ -44,15 +42,12 @@
     .g-icon { font-size: 15px; font-weight: 900; color: #4285F4; }
     .auth-err { color: var(--red); font-size: 12px; margin-top: 14px; display: none; }
 
-    /* ── Main ── */
     .main { max-width: 1160px; margin: 0 auto; padding: 22px 20px; }
 
-    /* ── Tabs ── */
     .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; width: fit-content; margin-bottom: 18px; }
     .tab { padding: 7px 18px; border-radius: 7px; cursor: pointer; font-weight: 700; font-size: 12px; letter-spacing: 1px; color: var(--primary); background: transparent; border: none; transition: .15s; }
     .tab.active { background: var(--primary); color: #fff; }
 
-    /* ── Filters ── */
     .filters { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
     .filter-btn { padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .15s; }
     .filter-btn:hover, .filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
@@ -60,11 +55,9 @@
     .filter-btn.f-approved.active { background: var(--green);  border-color: var(--green); }
     .filter-btn.f-rejected.active { background: var(--red);    border-color: var(--red); }
 
-    /* ── Search ── */
     .search { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); padding: 8px 13px; font-size: 14px; margin-bottom: 14px; outline: none; }
     .search:focus { border-color: var(--primary); }
 
-    /* ── Lineup cards ── */
     .lineup-list { display: flex; flex-direction: column; gap: 9px; }
     .lcard { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; transition: border-color .15s; }
     .lcard:hover { border-color: rgba(255,70,85,.45); }
@@ -80,7 +73,6 @@
     .expand-btn { background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 17px; padding: 2px 6px; transition: transform .18s; }
     .expand-btn.open { transform: rotate(180deg); }
 
-    /* ── Card detail ── */
     .ldetail { display: none; border-top: 1px solid var(--border); padding: 15px; }
     .ldetail.open { display: block; }
     .section { margin-bottom: 13px; }
@@ -89,7 +81,6 @@
     .dgrid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 13px; }
     .dfield { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; }
 
-    /* ── Buttons ── */
     .row   { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 11px; }
     .btn   { padding: 8px 15px; border-radius: var(--r); border: none; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: opacity .13s; }
     .btn:hover    { opacity: .82; }
@@ -100,18 +91,15 @@
     .btn-ban     { background: transparent; border: 1px solid var(--red);    color: var(--red); font-size: 12px; }
     .btn-save    { background: var(--primary); color: #fff; }
 
-    /* ── YouTube ── */
     .yt-player  { width: 100%; aspect-ratio: 16/9; border-radius: var(--r); overflow: hidden; margin-bottom: 9px; background: #000; }
     .yt-player iframe { width: 100%; height: 100%; border: none; }
     .yt-row     { display: flex; gap: 8px; align-items: flex-start; }
 
-    /* ── Screenshots ── */
     .ss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
     .ss-thumb { aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface2); cursor: zoom-in; }
     .ss-thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s; }
     .ss-thumb:hover img { transform: scale(1.06); }
 
-    /* ── Form ── */
     .form-wrap  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; max-width: 800px; }
     .form-title { color: var(--primary); font-size: 15px; font-weight: 700; letter-spacing: 1px; margin-bottom: 18px; }
     .fgrid      { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
@@ -131,7 +119,6 @@
     .fcheck-row input { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
     .yt-hint    { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text2); font-size: 12px; line-height: 1.6; margin-bottom: 7px; }
 
-    /* ── Agent / Ability picker ── */
     .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; }
     .agent-card { border-radius: 7px; border: 2px solid var(--border); background: var(--surface2); cursor: pointer; transition: border-color .13s, background .13s; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
     .agent-card:hover  { border-color: var(--primary); }
@@ -144,7 +131,6 @@
     .abil-btn   { padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .13s; }
     .abil-btn:hover { border-color: var(--primary); color: var(--primary); }
     .abil-btn.sel   { background: var(--primary); border-color: var(--primary); color: #fff; }
-    /* ── Map picker ── */
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 9/16; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
@@ -155,7 +141,6 @@
     .coords-row { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--text2); align-items: center; }
     .coord-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 3px 10px; font-family: monospace; letter-spacing: .5px; }
 
-    /* ── Upload zone ── */
     .upload-zone { border: 2px dashed var(--border); border-radius: var(--r); padding: 22px 16px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
     .upload-zone:hover, .upload-zone.drag { border-color: var(--primary); background: rgba(255,70,85,.05); }
     .uz-icon { font-size: 26px; margin-bottom: 5px; }
@@ -173,16 +158,13 @@
     .up-remove { position: absolute; top: 4px; right: 4px; z-index: 2; background: rgba(0,0,0,.72); border: none; color: #fff; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; transition: background .13s; }
     .up-remove:hover { background: var(--red); }
 
-    /* ── State messages ── */
     .state { text-align: center; padding: 48px 24px; color: var(--text2); }
     .reload-btn { margin-top: 14px; padding: 8px 20px; background: var(--primary); color: #fff; border: none; border-radius: var(--r); cursor: pointer; font-weight: 600; }
 
-    /* ── Lightbox ── */
     .lb { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 999; align-items: center; justify-content: center; cursor: zoom-out; }
     .lb.open { display: flex; }
     .lb img { max-width: 95vw; max-height: 95vh; border-radius: 4px; }
 
-    /* ── Toasts ── */
     .toasts { position: fixed; bottom: 22px; right: 22px; display: flex; flex-direction: column; gap: 7px; z-index: 1000; }
     .toast  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 11px 16px; font-size: 13px; max-width: 310px; animation: tin .2s ease; }
     .toast.s { border-color: var(--green);  color: var(--green); }
@@ -190,18 +172,15 @@
     .toast.i { border-color: var(--primary); color: var(--primary); }
     @keyframes tin { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
 
-    /* ── Inline edit form in card ── */
     .edit-sep { border-top: 1px dashed var(--border); margin: 13px 0 16px; }
     .edit-form-title { font-size: 11px; font-weight: 700; color: var(--primary); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 13px; }
     .btn-edit-toggle { background: transparent; border: 1px solid var(--border); color: var(--text2); }
     .btn-edit-toggle:hover { border-color: var(--primary); color: var(--primary); }
     .btn-edit-toggle.open { background: rgba(255,70,85,.1); border-color: var(--primary); color: var(--primary); }
 
-    /* ── Auth divider ── */
     .auth-divider { display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--text2); font-size:12px; letter-spacing:.5px; }
     .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 
-    /* ── Admin user cards ── */
     .adm-list { display:flex; flex-direction:column; gap:8px; max-width:700px; }
     .adm-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:13px 15px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
     .adm-name { font-weight:700; font-size:14px; margin-bottom:3px; }
@@ -213,7 +192,6 @@
     .btn-pioneer:hover { background:rgba(108,63,232,.1); border-color:#6C3FE8; }
     .btn-pioneer.active { background:linear-gradient(135deg,rgba(108,63,232,.2),rgba(0,212,255,.12)); border-color:rgba(108,63,232,.7); color:#00D4FF; }
 
-    /* ── Video upload ── */
     .video-upload-zone { border:2px dashed var(--border); border-radius:var(--r); padding:18px 16px; text-align:center; cursor:pointer; transition:border-color .15s,background .15s; }
     .video-upload-zone:hover,.video-upload-zone.drag { border-color:var(--primary); background:rgba(255,70,85,.05); }
     .video-preview-wrap { position:relative; border-radius:var(--r); overflow:hidden; background:#000; margin-top:9px; }
@@ -225,15 +203,121 @@
     .video-prog-fill { height:100%; background:var(--primary); border-radius:2px; transition:width .1s linear; }
     .video-prog-pct { font-size:12px; color:var(--text2); min-width:34px; text-align:right; }
 
-    /* ── Author autocomplete ── */
-    .author-wrap { position:relative; }
-    .author-dropdown { position:absolute; top:100%; left:0; right:0; z-index:200; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow-y:auto; max-height:240px; margin-top:2px; box-shadow:0 6px 20px rgba(0,0,0,.4); }
-    .author-item { padding:8px 12px; cursor:pointer; display:flex; align-items:center; gap:9px; }
-    .author-item:hover { background:var(--surface2); }
-    .author-ava { width:28px; height:28px; border-radius:50%; background:var(--surface2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; border:1px solid var(--border); overflow:hidden; }
-    .author-info { flex:1; min-width:0; }
-    .author-uname { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .author-lvl { font-size:11px; color:var(--text2); }
+    /* ── Author field + dictionary panel ── */
+    .author-wrap { position: relative; }
+
+    /* Скрываем старый dropdown — заменён панелью */
+    .author-dropdown { display: none !important; }
+
+    .author-panel-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      opacity: 0; pointer-events: none;
+      transition: opacity .32s ease;
+      z-index: 490;
+    }
+    .author-panel-overlay.visible {
+      opacity: 1; pointer-events: all;
+    }
+
+    .author-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 300px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      /* Плавная анимация — ease-out spring, без рывков */
+      transition: transform .4s cubic-bezier(.16,1,.3,1);
+      will-change: transform;
+      z-index: 491;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .author-panel.open { transform: translateX(0); }
+
+    .ap-header {
+      padding: 16px 15px 11px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .ap-header-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .ap-title {
+      font-size: 10px; font-weight: 700; color: var(--text2);
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .ap-close {
+      background: transparent; border: none; color: var(--text2);
+      cursor: pointer; font-size: 18px; padding: 0; line-height: 1;
+      transition: color .13s; display: flex; align-items: center;
+    }
+    .ap-close:hover { color: var(--primary); }
+
+    .ap-search-wrap { position: relative; }
+    .ap-search-icon {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      color: var(--text2); font-size: 14px; pointer-events: none;
+    }
+    .ap-search {
+      width: 100%;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--r); color: var(--text);
+      padding: 8px 11px 8px 32px;
+      font-size: 13px; outline: none;
+      transition: border-color .15s; font-family: inherit;
+    }
+    .ap-search:focus { border-color: var(--primary); }
+
+    /* Блок 5 совпадений */
+    .ap-suggestions { flex-shrink: 0; }
+    .ap-sec-label {
+      padding: 9px 15px 4px;
+      font-size: 10px; font-weight: 700; color: var(--text2);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .ap-divider {
+      height: 1px; background: var(--border); margin: 5px 12px 3px;
+    }
+
+    /* Элемент пользователя */
+    .ap-user-item {
+      padding: 8px 15px; cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      transition: background .12s;
+    }
+    .ap-user-item:hover { background: rgba(255,70,85,.07); }
+    .ap-user-item.sugg  { background: rgba(255,70,85,.04); }
+    .ap-ava {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; flex-shrink: 0;
+      overflow: hidden; color: var(--text2);
+    }
+    .ap-info { flex: 1; min-width: 0; }
+    .ap-name {
+      font-weight: 600; font-size: 13px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ap-name mark {
+      background: rgba(255,70,85,.22); color: var(--primary);
+      border-radius: 2px; padding: 0 1px;
+    }
+    .ap-sub { font-size: 11px; color: var(--text2); }
+
+    /* Алфавитный список */
+    .ap-alpha-list { overflow-y: auto; flex: 1; padding-bottom: 10px; }
+    .ap-alpha-letter {
+      padding: 9px 15px 3px;
+      font-size: 10px; font-weight: 700; color: var(--primary);
+      letter-spacing: 2px; text-transform: uppercase;
+      position: sticky; top: 0; background: var(--surface); z-index: 1;
+    }
+    .ap-empty {
+      padding: 24px 15px; color: var(--text2);
+      font-size: 12px; text-align: center;
+    }
 
     /* ── Profile modal ── */
     .profile-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -428,6 +512,7 @@
             <label class="flabel">Автор (оставь пустым — будет твой аккаунт)</label>
             <div class="author-wrap">
               <input class="finput" id="f-author-input" placeholder="Поиск по username…" autocomplete="off">
+              <!-- dropdown скрыт, используется панель -->
               <div class="author-dropdown" id="author-dropdown" style="display:none;"></div>
             </div>
             <div id="author-selected" style="font-size:12px;color:var(--text2);margin-top:5px;"></div>
@@ -481,6 +566,29 @@
   </div>
 </div>
 
+<!-- Author dictionary panel -->
+<div class="author-panel-overlay" id="ap-overlay"></div>
+<div class="author-panel" id="author-panel">
+  <div class="ap-header">
+    <div class="ap-header-row">
+      <div class="ap-title">Все пользователи</div>
+      <button class="ap-close" id="ap-close" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="ap-search-wrap">
+      <span class="ap-search-icon">🔍</span>
+      <input class="ap-search" id="ap-search" placeholder="Быстрый поиск по нику…" autocomplete="off" spellcheck="false">
+    </div>
+  </div>
+  <div class="ap-suggestions" id="ap-suggestions" style="display:none;">
+    <div class="ap-sec-label">⚡ Совпадения</div>
+    <div id="ap-sugg-list"></div>
+    <div class="ap-divider"></div>
+  </div>
+  <div class="ap-alpha-list" id="ap-alpha-list">
+    <div class="ap-empty">Загрузка…</div>
+  </div>
+</div>
+
 <!-- Profile modal -->
 <div id="profile-modal" class="profile-overlay" style="display:none;">
   <div class="profile-modal" id="profile-modal-body">
@@ -508,9 +616,6 @@ import {
   serverTimestamp, increment
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// ── Firebase config ─────────────────────────────────────────────────────────
-// ВАЖНО: добавь Web App в Firebase Console → Project settings → Your apps → </> Web,
-// скопируй appId и вставь ниже.
 const cfg = {
   apiKey:            'AIzaSyA1ya7fO5ZSeeokEfRHikWwpBXeXYhm9ww',
   authDomain:        'valorant-linemaps.firebaseapp.com',
@@ -524,21 +629,14 @@ const app  = initializeApp(cfg);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── State ───────────────────────────────────────────────────────────────────
 let lineups       = [];
 let currentFilter = 'all';
 let currentUser   = null;
-
-// uploadedScreenshots: array of { localUrl, storageUrl|null, status: 'uploading'|'done'|'error' }
 let uploadedScreenshots = [];
-
-// Video upload state for "add" form
 let addVideoState = { status: 'idle', url: null, localUrl: null, progress: 0, xhr: null };
+let selectedAuthor = null;
 
-// Author override for "add" form
-let selectedAuthor = null; // null = currentUser, else { uid, username }
-
-// ── Auth ────────────────────────────────────────────────────────────────────
+// ── Auth ─────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if (!user) { show('login'); return; }
   try {
@@ -557,6 +655,7 @@ onAuthStateChanged(auth, async user => {
   show('app');
   loadLineups();
   loadAdmins();
+  loadAuthorPanelUsers();
 });
 
 document.getElementById('btn-login').addEventListener('click', async () => {
@@ -580,10 +679,7 @@ async function _epLogin() {
   if (!raw || !pass) { loginErr('Введи email / никнейм и пароль'); return; }
   const btn = document.getElementById('btn-ep-login');
   btn.disabled = true; btn.textContent = 'Входим…';
-
   let email = raw;
-
-  // Никнейм — ищем user_email в Firestore по полю name_lower
   if (!raw.includes('@')) {
     try {
       const snap = await getDocs(
@@ -592,7 +688,7 @@ async function _epLogin() {
       const found = snap.docs.find(d => d.data().user_email);
       if (!found) {
         loginErr(snap.docs.length
-          ? 'Для этого аккаунта не задан email. Обратись к главному администратору.'
+          ? 'Для этого аккаунта не задан email.'
           : 'Пользователь с таким никнеймом не найден');
         btn.disabled = false; btn.textContent = 'Войти';
         return;
@@ -604,7 +700,6 @@ async function _epLogin() {
       return;
     }
   }
-
   try {
     await signInWithEmailAndPassword(auth, email, pass);
   } catch (e) {
@@ -633,7 +728,7 @@ function loginErr(msg) {
   el.style.display = 'block'; el.textContent = msg;
 }
 
-// ── Tabs ────────────────────────────────────────────────────────────────────
+// ── Tabs ──────────────────────────────────────────────────────────────────────
 function switchTab(t) {
   document.getElementById('tab-list').style.display   = t === 'list'   ? 'block' : 'none';
   document.getElementById('tab-add').style.display    = t === 'add'    ? 'block' : 'none';
@@ -646,7 +741,7 @@ document.getElementById('tab-btn-list').addEventListener('click',   () => switch
 document.getElementById('tab-btn-add').addEventListener('click',    () => switchTab('add'));
 document.getElementById('tab-btn-admins').addEventListener('click', () => switchTab('admins'));
 
-// ── Filters ─────────────────────────────────────────────────────────────────
+// ── Filters ───────────────────────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -655,10 +750,9 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     renderList();
   });
 });
-
 document.getElementById('search').addEventListener('input', renderList);
 
-// ── Load ────────────────────────────────────────────────────────────────────
+// ── Load ──────────────────────────────────────────────────────────────────────
 async function loadLineups() {
   document.getElementById('lineup-list').innerHTML = '<div class="state">Загрузка…</div>';
   try {
@@ -674,7 +768,7 @@ async function loadLineups() {
 }
 window.loadLineups = loadLineups;
 
-// ── Render ───────────────────────────────────────────────────────────────────
+// ── Render ────────────────────────────────────────────────────────────────────
 function renderList() {
   const q  = document.getElementById('search').value.toLowerCase();
   const fl = lineups.filter(l => {
@@ -685,7 +779,6 @@ function renderList() {
     }
     return true;
   });
-
   if (!fl.length) {
     document.getElementById('lineup-list').innerHTML = '<div class="state">Лайнапы не найдены</div>';
     return;
@@ -704,7 +797,6 @@ function cardHtml(l) {
   const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
   const date   = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
   const shots  = Array.isArray(l.screenshots) ? l.screenshots : [];
-
   return `
 <div class="lcard" id="lcard-${l.id}">
   <div class="lcard-head" data-id="${l.id}">
@@ -722,7 +814,6 @@ function cardHtml(l) {
     </div>
     <button class="expand-btn" data-id="${l.id}">▾</button>
   </div>
-
   <div class="ldetail" id="ldetail-${l.id}">
     <div class="row">
       ${l.status !== 'approved' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
@@ -733,31 +824,18 @@ function cardHtml(l) {
         : ''}
       <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
     </div>
-
-    ${l.description ? `
-    <div class="section">
-      <div class="dlabel">Описание</div>
-      <div class="dval">${esc(l.description)}</div>
-    </div>` : ''}
-
+    ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
     <div class="dgrid">
       <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(l.category ?? '—')}</div></div>
       <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
       <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
       <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
     </div>
-
-    ${l.video_url ? `
-    <div class="section">
-      <div class="dlabel">Видео</div>
+    ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
       <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
     </div>` : ''}
-
-    ${shots.length ? `
-    <div class="section">
-      <div class="dlabel">Скриншоты (${shots.length})</div>
-      <div class="ss-grid">
-        ${shots.map(u => `
+    ${shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
+      <div class="ss-grid">${shots.map(u => `
         <div class="ss-thumb" data-lightbox="${esc(u)}">
           <img src="${esc(u)}" alt="" loading="lazy"
                onerror="this.parentElement.innerHTML='<div style=\\'padding:12px;color:var(--text2);font-size:12px;text-align:center;\\'>⚠ Ошибка</div>'">
@@ -770,7 +848,6 @@ function cardHtml(l) {
 }
 
 function bindCardEvents() {
-  // Toggle expand
   document.querySelectorAll('.lcard-head, .expand-btn').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
@@ -782,8 +859,6 @@ function bindCardEvents() {
       if (btn) btn.classList.toggle('open', open);
     });
   });
-
-  // Action buttons
   document.querySelectorAll('[data-action]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -796,14 +871,12 @@ function bindCardEvents() {
       if (action === 'open-profile') openUserProfile(uid, name);
     });
   });
-
-  // Lightbox
   document.querySelectorAll('[data-lightbox]').forEach(el => {
     el.addEventListener('click', () => openLb(el.dataset.lightbox));
   });
 }
 
-// ── Actions ─────────────────────────────────────────────────────────────────
+// ── Actions ───────────────────────────────────────────────────────────────────
 async function approveLineup(id, userId) {
   if (!confirm('Одобрить лайнап?')) return;
   try {
@@ -813,7 +886,6 @@ async function approveLineup(id, userId) {
     toast('Лайнап одобрен ✅', 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
-
 async function rejectLineup(id) {
   if (!confirm('Отклонить лайнап?')) return;
   try {
@@ -822,7 +894,6 @@ async function rejectLineup(id) {
     toast('Лайнап отклонён', 'i');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
-
 async function deleteLineup(id) {
   if (!confirm('Удалить лайнап? Это необратимо.')) return;
   try {
@@ -832,7 +903,6 @@ async function deleteLineup(id) {
     toast('Лайнап удалён', 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
-
 async function banUser(userId, username) {
   if (!confirm(`Заблокировать ${username}?`)) return;
   try {
@@ -840,15 +910,13 @@ async function banUser(userId, username) {
     toast(`${username} заблокирован 🚫`, 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
-
-
 function patchStatus(id, status) {
   const idx = lineups.findIndex(l => l.id === id);
   if (idx !== -1) lineups[idx].status = status;
   renderList();
 }
 
-// ── Add lineup ───────────────────────────────────────────────────────────────
+// ── Add lineup ────────────────────────────────────────────────────────────────
 document.getElementById('btn-add-lineup').addEventListener('click', async () => {
   const map      = document.getElementById('f-map').value;
   const agent    = pickedAgent;
@@ -861,20 +929,17 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const posY     = markerY ?? 0;
   const status   = document.getElementById('f-status').value;
   const excl     = document.getElementById('f-exclusive').checked;
-
   if (!map)     { toast('Выбери карту', 'e'); return; }
   if (!agent)   { toast('Выбери агента', 'e'); return; }
   if (!ability) { toast('Выбери способность', 'e'); return; }
   if (!category || !title) { toast('Заполни все обязательные поля', 'e'); return; }
   if (markerX === null) { toast('Поставь точку на карте', 'e'); return; }
-
   if (addVideoState.status === 'uploading') { toast('Подожди — видео ещё загружается…', 'i'); return; }
   const uploading = uploadedScreenshots.some(s => s.status === 'uploading');
   if (uploading) { toast('Подожди — фото ещё загружаются…', 'i'); return; }
   const screenshots = uploadedScreenshots.filter(s => s.status === 'done').map(s => s.storageUrl);
   const btn = document.getElementById('btn-add-lineup');
   btn.disabled = true; btn.textContent = 'Сохранение…';
-
   try {
     const ref = await addDoc(collection(db, 'lineups'), {
       map, agent, ability, category, title,
@@ -890,7 +955,6 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       user_id:      selectedAuthor?.uid      ?? currentUser?.uid ?? '',
       submitted_by: selectedAuthor?.name ?? currentUser?.displayName ?? 'Admin',
     });
-
     toast('Лайнап добавлен ✅', 's');
     resetForm();
     lineups.unshift({
@@ -914,26 +978,20 @@ function resetForm() {
   });
   ['f-title','f-desc'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('f-exclusive').checked = false;
-  // Reset video
   if (addVideoState.xhr) addVideoState.xhr.abort();
   if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
   addVideoState = { status:'idle', url:null, localUrl:null, progress:0, xhr:null };
   renderAddVideoPreview();
-  // Reset screenshots
   uploadedScreenshots.forEach(s => { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); });
   uploadedScreenshots = [];
   document.getElementById('upload-previews').innerHTML = '';
-  // Reset author
   selectedAuthor = null;
   document.getElementById('f-author-input').value = '';
   document.getElementById('author-selected').textContent = '';
-  document.getElementById('author-dropdown').style.display = 'none';
-  // Reset agent/ability
   pickedAgent = ''; pickedAbility = '';
   document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
   document.getElementById('ability-wrap').style.display = 'none';
   document.getElementById('ability-row').innerHTML = '';
-  // Reset map picker
   markerX = null; markerY = null;
   mapScale = 1; mapTx = 0; mapTy = 0;
   trajectoryPoints = [];
@@ -941,9 +999,7 @@ function resetForm() {
   updateMapPicker('');
 }
 
-
-// ── Agent / Ability / Map data ───────────────────────────────────────────────
-
+// ── Agents / Abilities / Maps ─────────────────────────────────────────────────
 const AGENTS = {
   'Brimstone': ['Incendiary', 'Stim Beacon', 'Sky Smoke', 'Orbital Strike'],
   'Viper':     ['Snake Bite', 'Poison Cloud', 'Toxic Screen', "Viper's Pit"],
@@ -972,9 +1028,10 @@ const AGENTS = {
   'Vyse':      ['Razorvine', 'Shear', 'Arc Rose', 'Steel Garden'],
   'Tejo':      ['Stealth Drone', 'Special Delivery', 'Guided Salvo', 'Armageddon'],
 };
-
-// Map images — populated from valorant-api.com/v1/maps at startup
 const MAP_IMAGES = {};
+const AGENT_ICONS = {};
+const AGENT_ABILITY_ICONS = {};
+const AGENT_ABILITIES = {};
 
 function _resolveMapUrl(key) {
   if (!key) return null;
@@ -992,34 +1049,20 @@ async function loadMapImages() {
       if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
     }
   } catch (_) {}
-  // Re-render "add" form map picker if a map is already selected
   const sel = document.getElementById('f-map')?.value;
   if (sel) updateMapPicker(sel);
 }
 
-// State
 let pickedAgent   = '';
 let pickedAbility = '';
-let markerX          = null;
-let markerY          = null;
-let mapMode          = 'position'; // 'position' | 'trajectory'
+let markerX = null, markerY = null;
+let mapMode = 'position';
 let trajectoryPoints = [];
-
-// Map transform state
 let mapScale = 1, mapTx = 0, mapTy = 0;
 let _mapDragging = false;
 
-// Agent icons — filled from valorant-api.com
-const AGENT_ICONS = {};
-const AGENT_ABILITY_ICONS = {};
-// Ability displayNames per agent from API (language=ru-RU to match Flutter)
-const AGENT_ABILITIES = {};
-
-// ── Agent grid (cards with icons) ─────────────────────────────────────────────
 async function loadAgentIcons() {
   try {
-    // language=ru-RU must match the Flutter app (ValorantApi.getAgents uses the same URL)
-    // so ability displayName values stored in Firestore are consistent on both sides
     const res  = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
     const json = await res.json();
     for (const ag of json.data ?? []) {
@@ -1049,8 +1092,7 @@ function initAgentGrid() {
   }).join('');
   grid.querySelectorAll('.agent-card').forEach(card => {
     card.addEventListener('click', () => {
-      pickedAgent   = card.dataset.agent;
-      pickedAbility = '';
+      pickedAgent = card.dataset.agent; pickedAbility = '';
       grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
       card.classList.add('sel');
       renderAbilityRow();
@@ -1061,13 +1103,12 @@ function initAgentGrid() {
 function renderAbilityRow() {
   const wrap = document.getElementById('ability-wrap');
   const row  = document.getElementById('ability-row');
-  // Prefer API-fetched Russian names; fall back to hardcoded English only if API hasn't loaded
   const abilList = AGENT_ABILITIES[pickedAgent] ?? AGENTS[pickedAgent];
   if (!pickedAgent || !abilList?.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
-  row.innerHTML = abilList.map(ab => `
-    <button class="abil-btn${ab === pickedAbility ? ' sel' : ''}" data-ab="${ab}">${ab}</button>
-  `).join('');
+  row.innerHTML = abilList.map(ab =>
+    `<button class="abil-btn${ab === pickedAbility ? ' sel' : ''}" data-ab="${ab}">${ab}</button>`
+  ).join('');
   row.querySelectorAll('.abil-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       pickedAbility = btn.dataset.ab;
@@ -1078,17 +1119,13 @@ function renderAbilityRow() {
   });
 }
 
-// ── Map picker (zoom + pan) ───────────────────────────────────────────────────
 function _mapCanvas() { return document.querySelector('#map-picker-wrap .map-canvas'); }
-
 function _mapApply() {
-  const c = _mapCanvas();
-  if (!c) return;
+  const c = _mapCanvas(); if (!c) return;
   c.style.transform = `translate(${mapTx}px,${mapTy}px) scale(${mapScale})`;
   const m = c.querySelector('.map-marker');
   if (m) m.style.transform = `translate(-50%,-50%) scale(${1 / mapScale})`;
 }
-
 function _mapClamp() {
   const w = document.getElementById('map-picker-wrap');
   if (!w || !_mapCanvas()) return;
@@ -1096,7 +1133,6 @@ function _mapClamp() {
   mapTx = Math.max(cw * (1 - mapScale), Math.min(0, mapTx));
   mapTy = Math.max(ch * (1 - mapScale), Math.min(0, mapTy));
 }
-
 function _getImageRect() {
   const wrap = document.getElementById('map-picker-wrap');
   const img  = wrap.querySelector('.map-canvas img');
@@ -1106,18 +1142,15 @@ function _getImageRect() {
   const w = img.naturalWidth * s, h = img.naturalHeight * s;
   return { left: (cw - w) / 2, top: (ch - h) / 2, width: w, height: h };
 }
-
 function _currentAbilityIcon() {
   return (AGENT_ABILITY_ICONS[pickedAgent] ?? {})[pickedAbility] ?? null;
 }
-
 function updateMapPicker(mapName) {
   const wrap = document.getElementById('map-picker-wrap');
   mapScale = 1; mapTx = 0; mapTy = 0;
-  markerX  = null; markerY = null;
+  markerX = null; markerY = null;
   trajectoryPoints = [];
   updateCoordDisplay();
-
   const imgUrl = _resolveMapUrl(mapName);
   if (!imgUrl) {
     wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "' + mapName + '" — изображение недоступно' : 'Сначала выбери карту ↑'}</div>`;
@@ -1125,77 +1158,54 @@ function updateMapPicker(mapName) {
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
 }
-
 function renderMarker() {
-  const c = _mapCanvas();
-  if (!c) return;
+  const c = _mapCanvas(); if (!c) return;
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
   if (markerX === null) return;
-  const dot     = document.createElement('div');
+  const dot = document.createElement('div');
   const iconUrl = _currentAbilityIcon();
   dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
   dot.style.left = (markerX * 100) + '%';
   dot.style.top  = (markerY * 100) + '%';
   if (iconUrl) {
-    const ico = document.createElement('img');
-    ico.src = iconUrl; ico.alt = '';
+    const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = '';
     dot.appendChild(ico);
   }
   c.appendChild(dot);
 }
-
 function updateCoordDisplay() {
   document.getElementById('coord-x').textContent    = markerX !== null ? markerX.toFixed(4) : '—';
   document.getElementById('coord-y').textContent    = markerY !== null ? markerY.toFixed(4) : '—';
   document.getElementById('coord-hint').textContent = markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
 }
 
-// ── Trajectory drawing ────────────────────────────────────────────────────────
-
 function _buildTrajSvg(points, w, h, markerId) {
   const ns  = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('class', 'traj-svg');
   svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;';
-
-  // Arrowhead marker
   const defs = document.createElementNS(ns, 'defs');
   const mkr  = document.createElementNS(ns, 'marker');
-  mkr.setAttribute('id', markerId);
-  mkr.setAttribute('markerWidth',  '6');
-  mkr.setAttribute('markerHeight', '4');
-  mkr.setAttribute('refX', '6');
-  mkr.setAttribute('refY', '2');
-  mkr.setAttribute('orient', 'auto');
+  mkr.setAttribute('id', markerId); mkr.setAttribute('markerWidth', '6');
+  mkr.setAttribute('markerHeight', '4'); mkr.setAttribute('refX', '6');
+  mkr.setAttribute('refY', '2'); mkr.setAttribute('orient', 'auto');
   const tri = document.createElementNS(ns, 'polygon');
-  tri.setAttribute('points', '0 0, 6 2, 0 4');
-  tri.setAttribute('fill', '#FF4655');
-  mkr.appendChild(tri);
-  defs.appendChild(mkr);
-  svg.appendChild(defs);
-
-  // Lines (arrow only on last segment)
+  tri.setAttribute('points', '0 0, 6 2, 0 4'); tri.setAttribute('fill', '#FF4655');
+  mkr.appendChild(tri); defs.appendChild(mkr); svg.appendChild(defs);
   for (let i = 0; i < points.length - 1; i++) {
     const ln = document.createElementNS(ns, 'line');
-    ln.setAttribute('x1', points[i].x   * w); ln.setAttribute('y1', points[i].y   * h);
+    ln.setAttribute('x1', points[i].x * w); ln.setAttribute('y1', points[i].y * h);
     ln.setAttribute('x2', points[i+1].x * w); ln.setAttribute('y2', points[i+1].y * h);
-    ln.setAttribute('stroke', '#FF4655');
-    ln.setAttribute('stroke-width', '2');
-    ln.setAttribute('opacity', '0.8');
+    ln.setAttribute('stroke', '#FF4655'); ln.setAttribute('stroke-width', '2'); ln.setAttribute('opacity', '0.8');
     if (i === points.length - 2) ln.setAttribute('marker-end', `url(#${markerId})`);
     svg.appendChild(ln);
   }
-
-  // Dots at each point
   for (const p of points) {
     const c = document.createElementNS(ns, 'circle');
     c.setAttribute('cx', p.x * w); c.setAttribute('cy', p.y * h);
-    c.setAttribute('r', '4');
-    c.setAttribute('fill', '#FF4655');
-    c.setAttribute('opacity', '0.8');
+    c.setAttribute('r', '4'); c.setAttribute('fill', '#FF4655'); c.setAttribute('opacity', '0.8');
     svg.appendChild(c);
   }
-
   return svg;
 }
 
@@ -1222,83 +1232,59 @@ function _setMapMode(mode) {
 
 function initMapPicker() {
   const wrap = document.getElementById('map-picker-wrap');
-
-  // Wheel zoom — zoom around cursor
   wrap.addEventListener('wheel', e => {
     if (!_mapCanvas()) return;
     e.preventDefault();
     const rect = wrap.getBoundingClientRect();
-    const mx   = e.clientX - rect.left;
-    const my   = e.clientY - rect.top;
-    const f    = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    const ns   = Math.max(1, Math.min(8, mapScale * f));
-    const af   = ns / mapScale;
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const f  = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+    const ns = Math.max(1, Math.min(8, mapScale * f));
+    const af = ns / mapScale;
     mapTx = mx * (1 - af) + mapTx * af;
     mapTy = my * (1 - af) + mapTy * af;
-    mapScale = ns;
-    _mapClamp();
-    _mapApply();
+    mapScale = ns; _mapClamp(); _mapApply();
   }, { passive: false });
 
-  // Drag to pan, click to place marker
   wrap.addEventListener('mousedown', e => {
     if (e.button !== 0 || !_mapCanvas()) return;
     e.preventDefault();
     _mapDragging = false;
-    const sx = e.clientX, sy = e.clientY;
-    const tx0 = mapTx, ty0 = mapTy;
+    const sx = e.clientX, sy = e.clientY, tx0 = mapTx, ty0 = mapTy;
     wrap.style.cursor = 'grabbing';
-
     const onMove = mv => {
       const dx = mv.clientX - sx, dy = mv.clientY - sy;
       if (!_mapDragging && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) _mapDragging = true;
-      if (_mapDragging) {
-        mapTx = tx0 + dx; mapTy = ty0 + dy;
-        _mapClamp(); _mapApply();
-      }
+      if (_mapDragging) { mapTx = tx0 + dx; mapTy = ty0 + dy; _mapClamp(); _mapApply(); }
     };
     const onUp = up => {
       document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup',   onUp);
+      document.removeEventListener('mouseup', onUp);
       wrap.style.cursor = 'crosshair';
       if (!_mapDragging) {
         const rect = wrap.getBoundingClientRect();
-        const cx = up.clientX - rect.left;
-        const cy = up.clientY - rect.top;
-        const ir  = _getImageRect();
-        const cx2 = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale));
-        const cy2 = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale));
-        const nx = cx2 / wrap.clientWidth;
-        const ny = cy2 / wrap.clientHeight;
-        if (mapMode === 'position') {
-          markerX = nx; markerY = ny;
-          renderMarker(); updateCoordDisplay();
-        } else {
-          trajectoryPoints.push({ x: nx, y: ny });
-          renderTrajectory();
-        }
+        const cx = up.clientX - rect.left, cy = up.clientY - rect.top;
+        const ir = _getImageRect();
+        const nx = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale)) / wrap.clientWidth;
+        const ny = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale)) / wrap.clientHeight;
+        if (mapMode === 'position') { markerX = nx; markerY = ny; renderMarker(); updateCoordDisplay(); }
+        else { trajectoryPoints.push({ x: nx, y: ny }); renderTrajectory(); }
       }
     };
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('mouseup', onUp);
   });
 }
 
-// Wire up map select
 document.getElementById('f-map').addEventListener('change', e => updateMapPicker(e.target.value));
-
-// Init
-loadAgentIcons();   // loads icons → then calls initAgentGrid()
-loadMapImages();    // populates MAP_IMAGES from valorant-api.com CDN
+loadAgentIcons();
+loadMapImages();
 initMapPicker();
-
-// Mode toggle buttons (add form)
 document.getElementById('mode-position').addEventListener('click',   () => _setMapMode('position'));
 document.getElementById('mode-trajectory').addEventListener('click', () => _setMapMode('trajectory'));
 document.getElementById('traj-undo').addEventListener('click',  () => { trajectoryPoints.pop(); renderTrajectory(); });
 document.getElementById('traj-clear').addEventListener('click', () => { trajectoryPoints = []; renderTrajectory(); });
 
-// Video upload zone — "add" form
+// ── Video zone (add form) ─────────────────────────────────────────────────────
 (function () {
   const zone  = document.getElementById('add-video-zone');
   const input = document.getElementById('add-video-file');
@@ -1310,8 +1296,7 @@ document.getElementById('traj-clear').addEventListener('click', () => { trajecto
   zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) _handleAddVideoFile(e.dataTransfer.files[0]); });
 })();
 
-// ── Screenshot upload ────────────────────────────────────────────────────────
-
+// ── Screenshot upload ─────────────────────────────────────────────────────────
 function compressImage(file) {
   if (file.size < 300 * 1024) return Promise.resolve(file);
   return new Promise((resolve, reject) => {
@@ -1321,18 +1306,11 @@ function compressImage(file) {
       URL.revokeObjectURL(url);
       const MAX = 1280;
       let w = img.naturalWidth, h = img.naturalHeight;
-      if (w > MAX || h > MAX) {
-        const s = MAX / Math.max(w, h);
-        w = Math.round(w * s);
-        h = Math.round(h * s);
-      }
+      if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      canvas.toBlob(blob => {
-        if (blob) resolve(blob);
-        else reject(new Error('toBlob вернул null'));
-      }, 'image/jpeg', 0.82);
+      canvas.toBlob(blob => { if (blob) resolve(blob); else reject(new Error('toBlob вернул null')); }, 'image/jpeg', 0.82);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Ошибка загрузки изображения')); };
     img.src = url;
@@ -1344,21 +1322,15 @@ function uploadToCloudinary(blob, onProgress) {
   fd.append('file', blob, 'screenshot.jpg');
   fd.append('upload_preset', '4343242');
   fd.append('folder', 'lineups_screenshots');
-
   let xhr;
   const promise = new Promise((resolve, reject) => {
     xhr = new XMLHttpRequest();
     xhr.open('POST', 'https://api.cloudinary.com/v1_1/djxgwkbqn/image/upload');
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
-    };
+    xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        try { resolve(JSON.parse(xhr.responseText).secure_url); }
-        catch { reject(new Error('Неверный ответ Cloudinary')); }
-      } else {
-        reject(new Error('Cloudinary ' + xhr.status));
-      }
+        try { resolve(JSON.parse(xhr.responseText).secure_url); } catch { reject(new Error('Неверный ответ Cloudinary')); }
+      } else { reject(new Error('Cloudinary ' + xhr.status)); }
     };
     xhr.onerror  = () => reject(new Error('Сетевая ошибка'));
     xhr.onabort  = () => reject(new Error('canceled'));
@@ -1369,12 +1341,11 @@ function uploadToCloudinary(blob, onProgress) {
 }
 
 function _sizeLabel(item) {
-  const ok = item.origSize != null;
-  const ck = item.compSize != null;
+  const ok = item.origSize != null, ck = item.compSize != null;
   if (!ok) return '';
   const okb = Math.round(item.origSize / 1024);
   if (!ck) return `${okb} KB`;
-  const ckb  = Math.round(item.compSize / 1024);
+  const ckb = Math.round(item.compSize / 1024);
   const save = Math.round((1 - item.compSize / item.origSize) * 100);
   return save > 5 ? `${ckb} KB  −${save}%` : `${ckb} KB`;
 }
@@ -1414,8 +1385,7 @@ function updateThumb(uid) {
   if (!item || !wrap) { _syncAddBtn(); return; }
   wrap.outerHTML = _thumbHtml(item);
   const newWrap = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
-  if (newWrap) newWrap.querySelector('.up-remove')
-    ?.addEventListener('click', () => _removeByUid(uid));
+  if (newWrap) newWrap.querySelector('.up-remove')?.addEventListener('click', () => _removeByUid(uid));
   _syncAddBtn();
 }
 
@@ -1436,61 +1406,43 @@ function _syncAddBtn() {
   const uploading      = uploadedScreenshots.filter(s => s.status === 'uploading').length;
   const done           = uploadedScreenshots.filter(s => s.status === 'done').length;
   const total          = uploadedScreenshots.length;
-  if (videoUploading) {
-    btn.disabled = true;
-    btn.textContent = 'Загрузка видео…';
-  } else if (uploading > 0) {
-    btn.disabled = true;
-    btn.textContent = `Загрузка фото ${done + 1} из ${total}…`;
-  } else {
-    btn.disabled = false;
-    btn.textContent = 'Добавить лайнап';
-  }
+  if (videoUploading) { btn.disabled = true; btn.textContent = 'Загрузка видео…'; }
+  else if (uploading > 0) { btn.disabled = true; btn.textContent = `Загрузка фото ${done + 1} из ${total}…`; }
+  else { btn.disabled = false; btn.textContent = 'Добавить лайнап'; }
 }
 
 function handleFiles(files) {
   const toProcess = Array.from(files).filter(f => f.type.startsWith('image/'));
   if (!toProcess.length) return;
-
   const entries = toProcess.map(file => {
     const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const item = { uid, localUrl: URL.createObjectURL(file), storageUrl: null,
-                   status: 'uploading', progress: 0, xhr: null,
-                   origSize: file.size, compSize: null };
+                   status: 'uploading', progress: 0, xhr: null, origSize: file.size, compSize: null };
     uploadedScreenshots.push(item);
     return { file, item };
   });
-  renderUploadPreviews();
-  _syncAddBtn();
-
-  Promise.all(entries.map(({ file, item }) => _processFile(file, item)))
-    .then(() => _syncAddBtn());
+  renderUploadPreviews(); _syncAddBtn();
+  Promise.all(entries.map(({ file, item }) => _processFile(file, item))).then(() => _syncAddBtn());
 }
 
 function _processFile(file, item) {
   return new Promise(resolve => {
     const uid = item.uid;
-
     compressImage(file).then(blob => {
       const cur = uploadedScreenshots.find(s => s.uid === uid);
       if (!cur) { resolve(); return; }
-
-      cur.compSize = blob.size;
-      updateThumb(uid);
-
+      cur.compSize = blob.size; updateThumb(uid);
       const upload = uploadToCloudinary(blob, pct => {
-        const itm = uploadedScreenshots.find(s => s.uid === uid);
-        if (!itm) return;
+        const itm = uploadedScreenshots.find(s => s.uid === uid); if (!itm) return;
         itm.progress = pct;
-        const card     = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
+        const card = document.querySelector(`.up-thumb[data-uid="${uid}"]`);
         const progWrap = card?.querySelector('.up-prog-wrap');
-        const bar      = card?.querySelector('.up-prog-bar');
+        const bar = card?.querySelector('.up-prog-bar');
         if (progWrap) progWrap.style.display = 'block';
         if (bar) bar.style.width = Math.round(pct * 100) + '%';
         _syncAddBtn();
       });
       cur.xhr = upload;
-
       upload.then(url => {
         const itm = uploadedScreenshots.find(s => s.uid === uid);
         if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.xhr = null; updateThumb(uid); }
@@ -1506,36 +1458,26 @@ function _processFile(file, item) {
     }).catch(() => {
       const cur = uploadedScreenshots.find(s => s.uid === uid);
       if (cur) { cur.status = 'error'; updateThumb(uid); }
-      toast('Ошибка сжатия', 'e');
-      resolve();
+      toast('Ошибка сжатия', 'e'); resolve();
     });
   });
 }
 
-// Wire up upload zone
-const uploadZone  = document.getElementById('upload-zone');
-const fileInput   = document.getElementById('f-screenshots');
-
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('f-screenshots');
 uploadZone.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', () => { handleFiles(fileInput.files); fileInput.value = ''; });
-
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag');
-  handleFiles(e.dataTransfer.files);
-});
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
 
-// Drag-to-reorder for add form
 let _addDragSrc = null;
 (function() {
   const grid = document.getElementById('upload-previews');
   grid.addEventListener('dragstart', e => {
     const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
     _addDragSrc = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
-    thumb.style.opacity = '0.4';
-    e.dataTransfer.effectAllowed = 'move';
+    thumb.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move';
   });
   grid.addEventListener('dragend', () => {
     grid.querySelectorAll('.up-thumb').forEach(t => { t.style.opacity = ''; t.style.boxShadow = ''; });
@@ -1557,8 +1499,7 @@ let _addDragSrc = null;
     if (_addDragSrc === null || _addDragSrc === dstIdx) { _addDragSrc = null; return; }
     const [moved] = uploadedScreenshots.splice(_addDragSrc, 1);
     uploadedScreenshots.splice(dstIdx, 0, moved);
-    _addDragSrc = null;
-    renderUploadPreviews();
+    _addDragSrc = null; renderUploadPreviews();
   });
 })();
 
@@ -1568,81 +1509,53 @@ const editSessions = {};
 function _getEditSession(id, l) {
   if (!editSessions[id]) {
     editSessions[id] = {
-      agent:       l.agent   ?? '',
-      ability:     l.ability ?? '',
-      markerX:     typeof l.position_x === 'number' ? l.position_x : null,
-      markerY:     typeof l.position_y === 'number' ? l.position_y : null,
+      agent: l.agent ?? '', ability: l.ability ?? '',
+      markerX: typeof l.position_x === 'number' ? l.position_x : null,
+      markerY: typeof l.position_y === 'number' ? l.position_y : null,
       mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
-      screenshots: (Array.isArray(l.screenshots) ? l.screenshots : [])
-                     .map(url => ({ type: 'existing', url })),
-      videoUrl:   l.video_url ?? null,
-      videoXhr:   null,
+      screenshots: (Array.isArray(l.screenshots) ? l.screenshots : []).map(url => ({ type: 'existing', url })),
+      videoUrl: l.video_url ?? null, videoXhr: null,
       trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
-      mapMode:    'position',
+      mapMode: 'position',
     };
   }
   return editSessions[id];
 }
 
 function buildEditForm(id, l) {
-  const maps       = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode'];
-  const categories = ['lineup','combo','smoke','defense'];
+  const maps = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode'];
+  const cats = ['lineup','combo','smoke','defense'];
   const mapOpts = maps.map(m => `<option value="${m}"${m === (l.map ?? '') ? ' selected' : ''}>${m}</option>`).join('');
-  const catOpts = categories.map(c => `<option value="${c}"${c === (l.category ?? '') ? ' selected' : ''}>${c}</option>`).join('');
+  const catOpts = cats.map(c => `<option value="${c}"${c === (l.category ?? '') ? ' selected' : ''}>${c}</option>`).join('');
   return `
 <div class="edit-sep"></div>
 <div class="edit-form-title">✏️ РЕДАКТИРОВАНИЕ</div>
 <div class="fgrid" style="max-width:760px;">
-
-  <div class="fg full">
-    <label class="flabel">Название</label>
+  <div class="fg full"><label class="flabel">Название</label>
     <input class="finput" id="ce-title-${id}" value="${esc(l.title ?? '')}" placeholder="Название лайнапа">
   </div>
-
-  <div class="fg full">
-    <label class="flabel">Описание</label>
+  <div class="fg full"><label class="flabel">Описание</label>
     <textarea class="ftextarea" id="ce-desc-${id}" placeholder="Подробное описание…">${esc(l.description ?? '')}</textarea>
   </div>
-
-  <div class="fg">
-    <label class="flabel">Карта</label>
-    <select class="fselect" id="ce-map-${id}">
-      <option value="">— Выбери карту —</option>
-      ${mapOpts}
-    </select>
+  <div class="fg"><label class="flabel">Карта</label>
+    <select class="fselect" id="ce-map-${id}"><option value="">— Выбери карту —</option>${mapOpts}</select>
   </div>
-
-  <div class="fg">
-    <label class="flabel">Категория</label>
-    <select class="fselect" id="ce-cat-${id}">
-      <option value="">— Выбери категорию —</option>
-      ${catOpts}
-    </select>
+  <div class="fg"><label class="flabel">Категория</label>
+    <select class="fselect" id="ce-cat-${id}"><option value="">— Выбери категорию —</option>${catOpts}</select>
   </div>
-
-  <div class="fg full">
-    <label class="flabel">Агент</label>
+  <div class="fg full"><label class="flabel">Агент</label>
     <div class="agent-grid" id="ce-agent-grid-${id}"></div>
   </div>
-
-  <div class="fg full" id="ce-ability-wrap-${id}" style="display:none;">
-    <label class="flabel">Способность</label>
+  <div class="fg full" id="ce-ability-wrap-${id}" style="display:none;"><label class="flabel">Способность</label>
     <div class="ability-row" id="ce-ability-row-${id}"></div>
   </div>
-
-  <div class="fg full">
-    <label class="flabel">Эксклюзивный доступ 👑</label>
+  <div class="fg full"><label class="flabel">Эксклюзивный доступ 👑</label>
     <label class="fcheck-row">
-      <input type="checkbox" id="ce-excl-${id}"${l.is_exclusive ? ' checked' : ''}>
-      <span>Эксклюзивный лайнап</span>
+      <input type="checkbox" id="ce-excl-${id}"${l.is_exclusive ? ' checked' : ''}><span>Эксклюзивный лайнап</span>
     </label>
   </div>
-
-  <div class="fg full">
-    <label class="flabel">Точка на карте — кликни чтобы изменить позицию</label>
-    <div id="ce-map-wrap-${id}" class="map-picker-wrap">
-      <div class="map-ph">Выбери карту выше</div>
-    </div>
+  <div class="fg full"><label class="flabel">Точка на карте</label>
+    <div id="ce-map-wrap-${id}" class="map-picker-wrap"><div class="map-ph">Выбери карту выше</div></div>
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button id="ce-mode-pos-${id}"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
       <button id="ce-mode-traj-${id}" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
@@ -1657,41 +1570,32 @@ function buildEditForm(id, l) {
       <span id="ce-coord-hint-${id}" style="font-size:11px;opacity:.6;">Кликни на карту</span>
     </div>
   </div>
-
-  <div class="fg full">
-    <label class="flabel">Скриншоты</label>
+  <div class="fg full"><label class="flabel">Скриншоты</label>
     <div id="ce-ss-list-${id}" class="upload-previews" style="margin-bottom:8px;"></div>
     <div class="upload-zone" id="ce-uz-${id}">
-      <div class="uz-icon">📷</div>
-      <div class="uz-text">Нажми или перетащи фото для добавления</div>
-      <div class="uz-hint">Сжатие до 200 KB · JPEG</div>
+      <div class="uz-icon">📷</div><div class="uz-text">Нажми или перетащи фото для добавления</div>
+      <div class="uz-hint">Сжатие · JPEG</div>
     </div>
     <input type="file" id="ce-file-${id}" accept="image/*" multiple style="display:none;">
   </div>
-
-  <div class="fg full">
-    <label class="flabel">Видео</label>
+  <div class="fg full"><label class="flabel">Видео</label>
     <div id="ce-video-wrap-${id}">
       ${l.video_url ? `
-      <video src="${esc(l.video_url)}" controls preload="metadata"
-             style="width:100%;border-radius:var(--r);background:#000;max-height:270px;display:block;margin-bottom:8px;"></video>
+      <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:270px;display:block;margin-bottom:8px;"></video>
       <button class="btn btn-delete" id="ce-vrem-${id}" style="width:100%;justify-content:center;">🗑 Удалить видео</button>` : `
       <div class="video-upload-zone" id="ce-vzone-${id}">
-        <div class="uz-icon">🎬</div>
-        <div class="uz-text">Нажми или перетащи видео сюда</div>
+        <div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div>
         <div class="uz-hint">MP4 · максимум 50 MB</div>
       </div>
       <input type="file" id="ce-vfile-${id}" accept="video/*" style="display:none;">
       <div id="ce-vprog-${id}"></div>`}
     </div>
   </div>
-
   <div class="fg full" style="margin-top:6px;">
     <button class="btn btn-save" id="ce-save-${id}" style="width:100%;justify-content:center;padding:12px;font-size:14px;">
       💾 Сохранить изменения
     </button>
   </div>
-
 </div>`;
 }
 
@@ -1707,11 +1611,9 @@ function initEditAgentGrid(id) {
   }).join('');
   grid.querySelectorAll('.agent-card').forEach(card => {
     card.addEventListener('click', () => {
-      sess.agent = card.dataset.agent;
-      sess.ability = '';
+      sess.agent = card.dataset.agent; sess.ability = '';
       grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
-      card.classList.add('sel');
-      renderEditAbilityRow(id);
+      card.classList.add('sel'); renderEditAbilityRow(id);
     });
   });
 }
@@ -1731,8 +1633,7 @@ function renderEditAbilityRow(id) {
     btn.addEventListener('click', () => {
       sess.ability = btn.dataset.ab;
       row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel');
-      renderEditMarker(id);
+      btn.classList.add('sel'); renderEditMarker(id);
     });
   });
 }
@@ -1744,7 +1645,7 @@ function _eApply(id)   {
   c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
   const m = c.querySelector('.map-marker'); if (m) m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`;
 }
-function _eClamp(id)   {
+function _eClamp(id) {
   const s = editSessions[id]; if (!s) return;
   const w = document.getElementById('ce-map-wrap-' + id); if (!w || !_eCanvas(id)) return;
   s.mapTx = Math.max(w.clientWidth  * (1 - s.mapScale), Math.min(0, s.mapTx));
@@ -1765,7 +1666,7 @@ function _eAbilIcon(id) {
 
 function updateEditMapPicker(id, mapName) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
-  const key    = (mapName ?? '').trim();
+  const key = (mapName ?? '').trim();
   const imgUrl = _resolveMapUrl(key);
   if (!imgUrl) {
     wrap.innerHTML = `<div class="map-ph">${key ? 'Карта "'+esc(key)+'" — изображение недоступно' : 'Выбери карту выше'}</div>`;
@@ -1775,11 +1676,8 @@ function updateEditMapPicker(id, mapName) {
   const img = wrap.querySelector('.map-canvas img');
   if (!img) return;
   const tryRender = () => { if (_eCanvas(id)) renderEditMarker(id); };
-  img.addEventListener('load',  tryRender);
-  img.addEventListener('error', () => {
-    wrap.innerHTML = `<div class="map-ph">⚠ Не удалось загрузить карту "${esc(key)}"</div>`;
-  });
-  // Cached image: load event won't fire again — defer one frame so layout is ready
+  img.addEventListener('load', tryRender);
+  img.addEventListener('error', () => { wrap.innerHTML = `<div class="map-ph">⚠ Не удалось загрузить карту "${esc(key)}"</div>`; });
   if (img.complete) requestAnimationFrame(tryRender);
 }
 
@@ -1791,11 +1689,9 @@ function renderEditMarker(id) {
   const dot = document.createElement('div');
   const iconUrl = _eAbilIcon(id);
   dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
-  dot.style.left = (s.markerX * 100) + '%';
-  dot.style.top  = (s.markerY * 100) + '%';
+  dot.style.left = (s.markerX * 100) + '%'; dot.style.top = (s.markerY * 100) + '%';
   if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
-  c.appendChild(dot);
-  _eApply(id);
+  c.appendChild(dot); _eApply(id);
 }
 
 function updateEditCoords(id) {
@@ -1810,7 +1706,7 @@ function updateEditCoords(id) {
 
 function renderEditTrajectory(id) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
-  const c    = wrap.querySelector('.map-canvas');            if (!c)    return;
+  const c = wrap.querySelector('.map-canvas'); if (!c) return;
   c.querySelector('.traj-svg')?.remove();
   const sess = editSessions[id]; if (!sess || sess.trajectory.length === 0) return;
   c.appendChild(_buildTrajSvg(sess.trajectory, wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
@@ -1819,9 +1715,9 @@ function renderEditTrajectory(id) {
 function _setEditMapMode(id, mode) {
   const sess = editSessions[id]; if (!sess) return;
   sess.mapMode = mode;
-  const posBtn  = document.getElementById('ce-mode-pos-'      + id);
-  const trajBtn = document.getElementById('ce-mode-traj-'     + id);
-  const trajAct = document.getElementById('ce-traj-actions-'  + id);
+  const posBtn  = document.getElementById('ce-mode-pos-' + id);
+  const trajBtn = document.getElementById('ce-mode-traj-' + id);
+  const trajAct = document.getElementById('ce-traj-actions-' + id);
   if (!posBtn || !trajBtn) return;
   posBtn.className      = mode === 'position'   ? 'btn btn-save' : 'btn';
   posBtn.style.cssText  = mode === 'position'   ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
@@ -1832,26 +1728,20 @@ function _setEditMapMode(id, mode) {
 
 function initEditMapInteraction(id, initialMap) {
   const s = editSessions[id]; if (!s) return;
-  updateEditMapPicker(id, initialMap);
-  updateEditCoords(id);
+  updateEditMapPicker(id, initialMap); updateEditCoords(id);
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
-
   wrap.addEventListener('wheel', e => {
-    if (!_eCanvas(id)) return;
-    e.preventDefault();
+    if (!_eCanvas(id)) return; e.preventDefault();
     const rect = wrap.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const f  = e.deltaY < 0 ? 1.15 : 1/1.15;
     const ns = Math.max(1, Math.min(8, s.mapScale * f));
     const af = ns / s.mapScale;
-    s.mapTx = mx*(1-af) + s.mapTx*af;
-    s.mapTy = my*(1-af) + s.mapTy*af;
+    s.mapTx = mx*(1-af) + s.mapTx*af; s.mapTy = my*(1-af) + s.mapTy*af;
     s.mapScale = ns; _eClamp(id); _eApply(id);
   }, { passive: false });
-
   wrap.addEventListener('mousedown', e => {
-    if (e.button !== 0 || !_eCanvas(id)) return;
-    e.preventDefault();
+    if (e.button !== 0 || !_eCanvas(id)) return; e.preventDefault();
     s.mapDragging = false;
     const sx = e.clientX, sy = e.clientY, tx0 = s.mapTx, ty0 = s.mapTy;
     wrap.style.cursor = 'grabbing';
@@ -1861,8 +1751,7 @@ function initEditMapInteraction(id, initialMap) {
       if (s.mapDragging) { s.mapTx = tx0+dx; s.mapTy = ty0+dy; _eClamp(id); _eApply(id); }
     };
     const onUp = up => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
       wrap.style.cursor = 'crosshair';
       if (!s.mapDragging) {
         const rect = wrap.getBoundingClientRect();
@@ -1870,41 +1759,20 @@ function initEditMapInteraction(id, initialMap) {
         const ir = _eImgRect(id);
         const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
         const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
-        if (s.mapMode === 'position') {
-          s.markerX = nx; s.markerY = ny;
-          renderEditMarker(id); updateEditCoords(id);
-        } else {
-          s.trajectory.push({ x: nx, y: ny });
-          renderEditTrajectory(id);
-        }
+        if (s.mapMode === 'position') { s.markerX = nx; s.markerY = ny; renderEditMarker(id); updateEditCoords(id); }
+        else { s.trajectory.push({ x: nx, y: ny }); renderEditTrajectory(id); }
       }
     };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
   });
-
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
-    s.mapScale = 1; s.mapTx = 0; s.mapTy = 0;
-    s.markerX = null; s.markerY = null;
-    s.trajectory = [];
-    updateEditMapPicker(id, e.target.value);
-    updateEditCoords(id);
-    _setEditMapMode(id, 'position');
+    s.mapScale = 1; s.mapTx = 0; s.mapTy = 0; s.markerX = null; s.markerY = null; s.trajectory = [];
+    updateEditMapPicker(id, e.target.value); updateEditCoords(id); _setEditMapMode(id, 'position');
   });
-
-  // Mode toggle & trajectory actions
   document.getElementById('ce-mode-pos-'  + id)?.addEventListener('click', () => _setEditMapMode(id, 'position'));
   document.getElementById('ce-mode-traj-' + id)?.addEventListener('click', () => _setEditMapMode(id, 'trajectory'));
-  document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => {
-    const sess = editSessions[id]; if (!sess) return;
-    sess.trajectory.pop(); renderEditTrajectory(id);
-  });
-  document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => {
-    const sess = editSessions[id]; if (!sess) return;
-    sess.trajectory = []; renderEditTrajectory(id);
-  });
-
-  // Render existing trajectory
+  document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory.pop(); renderEditTrajectory(id); });
+  document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory = []; renderEditTrajectory(id); });
   renderEditTrajectory(id);
 }
 
@@ -1914,13 +1782,11 @@ function renderEditScreenshots(id) {
   grid.innerHTML = sess.screenshots.map((item, idx) => {
     if (item.type === 'existing') {
       return `<div class="up-thumb" draggable="true">
-        <img src="${esc(item.url)}" alt="" loading="lazy" draggable="false"
-             onerror="this.style.display='none'">
+        <img src="${esc(item.url)}" alt="" loading="lazy" draggable="false" onerror="this.style.display='none'">
         <button class="up-remove" data-eidx="${idx}" title="Удалить">✕</button>
       </div>`;
     }
-    const pct      = item.progress ?? 0;
-    const isUpload = item.status === 'uploading';
+    const pct = item.progress ?? 0, isUpload = item.status === 'uploading';
     return `<div class="up-thumb" draggable="true" data-euid="${item.uid}">
       <img src="${item.localUrl}" alt="" draggable="false">
       <button class="up-remove" data-euid="${item.uid}" title="${isUpload?'Отменить':'Удалить'}">✕</button>
@@ -1929,34 +1795,26 @@ function renderEditScreenshots(id) {
           <div class="up-prog-bar" style="width:${Math.round(pct * 100)}%"></div>
         </div>
       </div>
-      ${item.status==='done' ?`<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>`:''}
+      ${item.status==='done'?`<div class="up-overlay" style="background:rgba(34,197,94,.22);display:flex;align-items:center;justify-content:center;pointer-events:none;"><span style="font-size:24px;color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.8);">✓</span></div>`:''}
       ${item.status==='error'?`<div class="up-overlay up-overlay-err"><span class="up-err-icon">✕</span></div>`:''}
     </div>`;
   }).join('');
   grid.querySelectorAll('.up-remove[data-eidx]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      sess.screenshots.splice(parseInt(btn.dataset.eidx), 1);
-      renderEditScreenshots(id);
-    });
+    btn.addEventListener('click', e => { e.stopPropagation(); sess.screenshots.splice(parseInt(btn.dataset.eidx), 1); renderEditScreenshots(id); });
   });
   grid.querySelectorAll('.up-remove[data-euid]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const uid = btn.dataset.euid;
-      const idx = sess.screenshots.findIndex(s => s.uid === uid);
-      if (idx === -1) return;
+      const idx = sess.screenshots.findIndex(s => s.uid === uid); if (idx === -1) return;
       const item = sess.screenshots[idx];
-      if (item.xhr) item.xhr.abort();
-      URL.revokeObjectURL(item.localUrl);
-      sess.screenshots.splice(idx, 1);
-      renderEditScreenshots(id);
+      if (item.xhr) item.xhr.abort(); URL.revokeObjectURL(item.localUrl);
+      sess.screenshots.splice(idx, 1); renderEditScreenshots(id);
     });
   });
 }
 
 const _editDragSrc = {};
-
 function initEditScreenshots(id) {
   const uz = document.getElementById('ce-uz-' + id);
   const fi = document.getElementById('ce-file-' + id);
@@ -1966,27 +1824,20 @@ function initEditScreenshots(id) {
   uz.addEventListener('dragover',  e => { e.preventDefault(); uz.classList.add('drag'); });
   uz.addEventListener('dragleave', () => uz.classList.remove('drag'));
   uz.addEventListener('drop', e => { e.preventDefault(); uz.classList.remove('drag'); handleEditFiles(id, e.dataTransfer.files); });
-
   const grid = document.getElementById('ce-ss-list-' + id); if (!grid) return;
   grid.addEventListener('dragstart', e => {
     const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
     _editDragSrc[id] = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
-    thumb.style.opacity = '0.4';
-    e.dataTransfer.effectAllowed = 'move';
+    thumb.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move';
   });
-  grid.addEventListener('dragend', () => {
-    grid.querySelectorAll('.up-thumb').forEach(t => { t.style.opacity = ''; t.style.boxShadow = ''; });
-    _editDragSrc[id] = undefined;
-  });
+  grid.addEventListener('dragend', () => { grid.querySelectorAll('.up-thumb').forEach(t => { t.style.opacity = ''; t.style.boxShadow = ''; }); _editDragSrc[id] = undefined; });
   grid.addEventListener('dragover', e => {
     e.preventDefault();
     const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
     grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
     thumb.style.boxShadow = '0 0 0 2px var(--primary)';
   });
-  grid.addEventListener('dragleave', e => {
-    if (!grid.contains(e.relatedTarget)) grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
-  });
+  grid.addEventListener('dragleave', e => { if (!grid.contains(e.relatedTarget)) grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = ''); });
   grid.addEventListener('drop', e => {
     e.preventDefault();
     const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
@@ -1996,8 +1847,7 @@ function initEditScreenshots(id) {
     if (srcIdx === undefined || srcIdx === dstIdx) { _editDragSrc[id] = undefined; return; }
     const [moved] = sess.screenshots.splice(srcIdx, 1);
     sess.screenshots.splice(dstIdx, 0, moved);
-    _editDragSrc[id] = undefined;
-    renderEditScreenshots(id);
+    _editDragSrc[id] = undefined; renderEditScreenshots(id);
   });
 }
 
@@ -2008,8 +1858,7 @@ function handleEditFiles(id, files) {
   const entries = toProcess.map(file => {
     const uid  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const item = { type:'new', uid, localUrl: URL.createObjectURL(file), storageUrl:null, status:'uploading', progress:0, xhr:null };
-    sess.screenshots.push(item);
-    return { file, item };
+    sess.screenshots.push(item); return { file, item };
   });
   renderEditScreenshots(id);
   entries.forEach(({ file, item }) => _processEditFile(id, file, item));
@@ -2020,25 +1869,19 @@ async function _processEditFile(id, file, item) {
   let blob;
   try { blob = await compressImage(file); } catch (_) {}
   const sess = editSessions[id];
-  if (!blob) {
-    const cur = sess?.screenshots.find(s => s.uid === uid);
-    if (cur) { cur.status = 'error'; renderEditScreenshots(id); }
-    toast('Ошибка сжатия', 'e'); return;
-  }
+  if (!blob) { const cur = sess?.screenshots.find(s => s.uid === uid); if (cur) { cur.status = 'error'; renderEditScreenshots(id); } toast('Ошибка сжатия', 'e'); return; }
   if (!sess) return;
   const cur = sess.screenshots.find(s => s.uid === uid); if (!cur) return;
-
   const upload = uploadToCloudinary(blob, pct => {
     const itm = sess.screenshots.find(s => s.uid === uid); if (!itm) return;
     itm.progress = pct;
-    const ecard    = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
+    const ecard = document.querySelector(`.up-thumb[data-euid="${uid}"]`);
     const progWrap = ecard?.querySelector('.up-prog-wrap');
-    const bar      = ecard?.querySelector('.up-prog-bar');
+    const bar = ecard?.querySelector('.up-prog-bar');
     if (progWrap) progWrap.style.display = 'block';
     if (bar) bar.style.width = Math.round(pct * 100) + '%';
   });
   cur.xhr = upload;
-
   upload.then(url => {
     const itm = sess.screenshots.find(s => s.uid === uid);
     if (itm) { itm.storageUrl = url; itm.status = 'done'; itm.xhr = null; renderEditScreenshots(id); }
@@ -2053,36 +1896,25 @@ async function _processEditFile(id, file, item) {
 function openEditForm(id) {
   const container = document.getElementById('cedit-' + id); if (!container) return;
   const toggleBtn = document.querySelector(`.btn-edit-toggle[data-id="${id}"]`);
-
   if (container.style.display !== 'none') {
     const sess = editSessions[id];
     if (sess) {
       if (sess.videoXhr) sess.videoXhr.abort();
-      sess.screenshots.forEach(s => {
-        if (s.type === 'new') { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); }
-      });
+      sess.screenshots.forEach(s => { if (s.type === 'new') { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); } });
       delete editSessions[id];
     }
-    container.style.display = 'none';
-    container.innerHTML = '';
+    container.style.display = 'none'; container.innerHTML = '';
     if (toggleBtn) toggleBtn.classList.remove('open');
     return;
   }
-
   const l = lineups.find(l => l.id === id); if (!l) return;
-  delete editSessions[id];
-  _getEditSession(id, l);
-
+  delete editSessions[id]; _getEditSession(id, l);
   container.innerHTML = buildEditForm(id, l);
   container.style.display = 'block';
   if (toggleBtn) toggleBtn.classList.add('open');
-
-  initEditAgentGrid(id);
-  renderEditAbilityRow(id);
+  initEditAgentGrid(id); renderEditAbilityRow(id);
   initEditMapInteraction(id, l.map ?? '');
-  renderEditScreenshots(id);
-  initEditScreenshots(id);
-  initEditVideo(id);
+  renderEditScreenshots(id); initEditScreenshots(id); initEditVideo(id);
   document.getElementById('ce-save-' + id)?.addEventListener('click', () => saveEditedLineup(id));
 }
 
@@ -2094,22 +1926,19 @@ async function saveEditedLineup(id) {
   const map      = document.getElementById('ce-map-'    + id)?.value ?? '';
   const category = document.getElementById('ce-cat-'    + id)?.value ?? '';
   const excl     = document.getElementById('ce-excl-'   + id)?.checked ?? false;
-  if (!title)        { toast('Введи название',      'e'); return; }
-  if (!map)          { toast('Выбери карту',         'e'); return; }
-  if (!sess.agent)   { toast('Выбери агента',        'e'); return; }
-  if (!sess.ability) { toast('Выбери способность',   'e'); return; }
-  if (!category)     { toast('Выбери категорию',     'e'); return; }
+  if (!title)        { toast('Введи название',    'e'); return; }
+  if (!map)          { toast('Выбери карту',       'e'); return; }
+  if (!sess.agent)   { toast('Выбери агента',      'e'); return; }
+  if (!sess.ability) { toast('Выбери способность', 'e'); return; }
+  if (!category)     { toast('Выбери категорию',   'e'); return; }
   if (sess.videoXhr) { toast('Подожди — видео ещё загружается…', 'i'); return; }
   if (sess.screenshots.some(s => s.type === 'new' && s.status === 'uploading'))
     { toast('Подожди — фото ещё загружаются…', 'i'); return; }
-
   const screenshots = sess.screenshots
     .filter(s => s.type === 'existing' || (s.type === 'new' && s.status === 'done'))
     .map(s => s.type === 'existing' ? s.url : s.storageUrl);
-
   const saveBtn = document.getElementById('ce-save-' + id);
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Сохранение…'; }
-
   try {
     const updates = {
       title, description: desc, map, agent: sess.agent, ability: sess.ability,
@@ -2123,32 +1952,25 @@ async function saveEditedLineup(id) {
     const idx = lineups.findIndex(l => l.id === id);
     if (idx !== -1) Object.assign(lineups[idx], updates);
     toast('Изменения сохранены ✅', 's');
-    delete editSessions[id];
-    renderList();
+    delete editSessions[id]; renderList();
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Сохранить изменения'; }
   }
 }
 
-// ── Video upload (Cloudinary) ────────────────────────────────────────────────
-
+// ── Video upload ──────────────────────────────────────────────────────────────
 function uploadVideoToCloudinary(file, onProgress) {
   const fd = new FormData();
-  fd.append('file', file);
-  fd.append('upload_preset', 'ml_default');
-  fd.append('folder', 'lineups_videos');
+  fd.append('file', file); fd.append('upload_preset', 'ml_default'); fd.append('folder', 'lineups_videos');
   let xhr;
   const promise = new Promise((resolve, reject) => {
     xhr = new XMLHttpRequest();
     xhr.open('POST', 'https://api.cloudinary.com/v1_1/dtz0ouvk0/video/upload');
-    xhr.upload.onprogress = e => {
-      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
-    };
+    xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        try { resolve(JSON.parse(xhr.responseText).secure_url); }
-        catch { reject(new Error('Неверный ответ Cloudinary')); }
+        try { resolve(JSON.parse(xhr.responseText).secure_url); } catch { reject(new Error('Неверный ответ Cloudinary')); }
       } else { reject(new Error('Cloudinary ' + xhr.status)); }
     };
     xhr.onerror  = () => reject(new Error('Сетевая ошибка'));
@@ -2164,11 +1986,7 @@ function renderAddVideoPreview() {
   const zone = document.getElementById('add-video-zone');
   if (!wrap) return;
   const s = addVideoState;
-  if (s.status === 'idle') {
-    wrap.innerHTML = '';
-    if (zone) zone.style.display = '';
-    _syncAddBtn(); return;
-  }
+  if (s.status === 'idle') { wrap.innerHTML = ''; if (zone) zone.style.display = ''; _syncAddBtn(); return; }
   if (zone) zone.style.display = 'none';
   if (s.status === 'uploading') {
     wrap.innerHTML = `<div class="video-prog-wrap">
@@ -2231,33 +2049,26 @@ function _handleAddVideoFile(file) {
 
 function initEditVideo(id) {
   const sess = editSessions[id]; if (!sess) return;
-  document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => {
-    sess.videoUrl = '';
-    _resetEditVideoWrap(id);
-  });
+  document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => { sess.videoUrl = ''; _resetEditVideoWrap(id); });
   _wireEditVideoZone(id);
 }
-
 function _resetEditVideoWrap(id) {
   const sess = editSessions[id]; if (!sess) return;
   const wrap = document.getElementById('ce-video-wrap-'+id); if (!wrap) return;
   wrap.innerHTML = `
     <div class="video-upload-zone" id="ce-vzone-${id}">
-      <div class="uz-icon">🎬</div>
-      <div class="uz-text">Нажми или перетащи видео сюда</div>
+      <div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div>
       <div class="uz-hint">MP4 · максимум 50 MB</div>
     </div>
     <input type="file" id="ce-vfile-${id}" accept="video/*" style="display:none;">
     <div id="ce-vprog-${id}"></div>`;
   _wireEditVideoZone(id);
 }
-
 function _wireEditVideoZone(id) {
   const zone  = document.getElementById('ce-vzone-'+id);
   const input = document.getElementById('ce-vfile-'+id);
   if (!zone || !input) return;
   const sess = editSessions[id]; if (!sess) return;
-
   function handle(file) {
     if (!file || !file.type.startsWith('video/')) { toast('Выбери видеофайл', 'e'); return; }
     if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
@@ -2269,10 +2080,7 @@ function _wireEditVideoZone(id) {
       <div class="video-prog-pct" id="ce-vpp-${id}">0%</div>
       <button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="ce-vcnl-${id}">✕ Отмена</button>
     </div>`;
-    document.getElementById('ce-vcnl-'+id)?.addEventListener('click', () => {
-      sess.videoXhr?.abort(); sess.videoXhr = null;
-      _resetEditVideoWrap(id);
-    });
+    document.getElementById('ce-vcnl-'+id)?.addEventListener('click', () => { sess.videoXhr?.abort(); sess.videoXhr = null; _resetEditVideoWrap(id); });
     const upload = uploadVideoToCloudinary(file, pct => {
       const bar = document.getElementById('ce-vpb-'+id);
       const lbl = document.getElementById('ce-vpp-'+id);
@@ -2287,9 +2095,7 @@ function _wireEditVideoZone(id) {
         <video src="${esc(url)}" controls preload="metadata"></video>
         <button class="video-remove-btn" id="ce-vrem-${id}">✕</button>
       </div>`;
-      document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => {
-        sess.videoUrl = ''; _resetEditVideoWrap(id);
-      });
+      document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => { sess.videoUrl = ''; _resetEditVideoWrap(id); });
     }).catch(err => {
       sess.videoXhr = null;
       if (err.message === 'canceled') return;
@@ -2297,7 +2103,6 @@ function _wireEditVideoZone(id) {
       _resetEditVideoWrap(id);
     });
   }
-
   zone.addEventListener('click', () => input.click());
   input.addEventListener('change', () => { if (input.files[0]) handle(input.files[0]); input.value=''; });
   zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
@@ -2305,91 +2110,147 @@ function _wireEditVideoZone(id) {
   zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
 }
 
-// ── Author search ─────────────────────────────────────────────────────────────
+// ── Author Dictionary Panel ───────────────────────────────────────────────────
+let apUsers   = [];
+let apLoaded  = false;
+let apOpen    = false;
 
-async function _searchUsers(q) {
-  const t = q.trim();
-  if (t.length < 2) return [];
-  const qCap = t.charAt(0).toUpperCase() + t.slice(1);
-  const mkQuery = s => getDocs(query(
-    collection(db, 'users'),
-    where('name', '>=', s),
-    where('name', '<=', s + ''),
-    limit(8)
-  ));
+async function loadAuthorPanelUsers() {
   try {
-    const [snapLow, snapCap] = await Promise.all([mkQuery(t), mkQuery(qCap)]);
-    const seen = new Set();
-    const results = [];
-    for (const d of [...snapLow.docs, ...snapCap.docs]) {
-      if (!seen.has(d.id)) { seen.add(d.id); results.push({ uid: d.id, ...d.data() }); }
-    }
-    return results;
-  } catch (e) { console.error('_searchUsers error:', e); return []; }
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('name')));
+    apUsers = snap.docs
+      .map(d => ({ uid: d.id, ...d.data() }))
+      .map(u => ({ ...u, _dn: (u.name ?? u.username ?? u.displayName ?? '').trim() }))
+      .filter(u => u._dn)
+      .sort((a, b) => a._dn.localeCompare(b._dn, 'ru', { sensitivity: 'base' }));
+    apLoaded = true;
+    if (apOpen) apRenderAlpha('');
+  } catch (e) { console.warn('loadAuthorPanelUsers:', e.message); }
 }
 
-
-let _authorTimer = null;
-
-async function _searchAndShowUsers(q) {
-  console.log('_searchAndShowUsers called', q);
-  const dropdown = document.getElementById('author-dropdown');
-  if (!dropdown) return;
-  const users = await _searchUsers(q);
-  if (!users.length) { dropdown.style.display = 'none'; return; }
-  dropdown.innerHTML = users.map(u => {
-    const name = u.name ?? u.email ?? '—';
-    const lvl  = u.level ?? u.xp_level ?? '';
-    const ava  = u.avatar_url ?? u.photo_url ?? '';
-    return `<div class="author-item" data-uid="${esc(u.uid)}" data-name="${esc(name)}">
-      <div class="author-ava">${ava ? `<img src="${esc(ava)}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}</div>
-      <div class="author-info">
-        <div class="author-uname">${esc(name)}</div>
-        ${lvl ? `<div class="author-lvl">Ур. ${esc(String(lvl))}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-  dropdown.style.display = 'block';
+function apEsc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-document.addEventListener('input', e => {
-  if (e.target.id !== 'f-author-input') return;
-  clearTimeout(_authorTimer);
-  const q = e.target.value.trim();
-  const dropdown = document.getElementById('author-dropdown');
-  const selectedEl = document.getElementById('author-selected');
-  if (!q) {
-    if (dropdown) dropdown.style.display = 'none';
-    selectedAuthor = null;
-    if (selectedEl) selectedEl.textContent = '';
-    return;
-  }
-  if (q.length < 2) { if (dropdown) dropdown.style.display = 'none'; return; }
-  _authorTimer = setTimeout(() => _searchAndShowUsers(q), 280);
+function apHighlight(text, q) {
+  if (!q) return apEsc(text);
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx < 0) return apEsc(text);
+  return apEsc(text.slice(0, idx))
+    + '<mark>' + apEsc(text.slice(idx, idx + q.length)) + '</mark>'
+    + apEsc(text.slice(idx + q.length));
+}
+
+function apUserHtml(u, q, isSugg) {
+  const dn  = u._dn;
+  const lvl = u.level ?? u.xp_level ?? '';
+  const role = u.role ?? 'user';
+  const roleColor = role === 'admin' ? 'var(--primary)' : role === 'moderator' ? 'var(--orange)' : 'var(--border)';
+  const ava = u.avatar_url ?? u.photo_url ?? '';
+  const initials = dn.slice(0, 2).toUpperCase();
+  return `<div class="ap-user-item${isSugg ? ' sugg' : ''}" data-uid="${apEsc(u.uid)}" data-name="${apEsc(dn)}">
+    <div class="ap-ava" style="border-color:${roleColor};color:${roleColor};">
+      ${ava ? `<img src="${apEsc(ava)}" style="width:100%;height:100%;object-fit:cover;" alt="">` : initials}
+    </div>
+    <div class="ap-info">
+      <div class="ap-name">${apHighlight(dn, q)}</div>
+      <div class="ap-sub">${lvl ? `Ур. ${apEsc(String(lvl))}` : ''}${role !== 'user' ? (lvl ? ' · ' : '') + role : ''}</div>
+    </div>
+  </div>`;
+}
+
+function apRenderAlpha(q) {
+  const al = document.getElementById('ap-alpha-list'); if (!al) return;
+  if (!apLoaded) { al.innerHTML = '<div class="ap-empty">Загрузка…</div>'; return; }
+  const qLow = q.toLowerCase();
+  const list = q ? apUsers.filter(u => u._dn.toLowerCase().includes(qLow)) : apUsers;
+  if (!list.length) { al.innerHTML = '<div class="ap-empty">Пользователи не найдены</div>'; return; }
+  const groups = {};
+  list.forEach(u => {
+    const letter = u._dn[0].toUpperCase();
+    if (!groups[letter]) groups[letter] = [];
+    groups[letter].push(u);
+  });
+  al.innerHTML = Object.keys(groups).sort().map(letter =>
+    `<div class="ap-alpha-letter">${letter}</div>` +
+    groups[letter].map(u => apUserHtml(u, q, false)).join('')
+  ).join('');
+  al.querySelectorAll('.ap-user-item').forEach(el => {
+    el.addEventListener('click', () => apSelectUser(el.dataset.name, el.dataset.uid));
+  });
+}
+
+function apRenderSuggestions(q) {
+  const block = document.getElementById('ap-suggestions');
+  const list  = document.getElementById('ap-sugg-list');
+  if (!block || !list) return;
+  if (!q) { block.style.display = 'none'; return; }
+  const qLow = q.toLowerCase();
+  const matches = apUsers.filter(u => u._dn.toLowerCase().includes(qLow)).slice(0, 5);
+  if (!matches.length) { block.style.display = 'none'; return; }
+  block.style.display = '';
+  list.innerHTML = matches.map(u => apUserHtml(u, q, true)).join('');
+  list.querySelectorAll('.ap-user-item').forEach(el => {
+    el.addEventListener('click', () => apSelectUser(el.dataset.name, el.dataset.uid));
+  });
+}
+
+function apSelectUser(name, uid) {
+  selectedAuthor = { uid, name };
+  const input = document.getElementById('f-author-input');
+  const sel   = document.getElementById('author-selected');
+  if (input) input.value = name;
+  if (sel)   sel.textContent = `✓ Будет добавлен от имени ${name}`;
+  closeAuthorPanel();
+}
+
+function openAuthorPanel() {
+  apOpen = true;
+  document.getElementById('author-panel')?.classList.add('open');
+  document.getElementById('ap-overlay')?.classList.add('visible');
+  const search = document.getElementById('ap-search');
+  if (search) { search.value = ''; search.focus(); }
+  document.getElementById('ap-suggestions').style.display = 'none';
+  apRenderAlpha('');
+}
+
+function closeAuthorPanel() {
+  apOpen = false;
+  document.getElementById('author-panel')?.classList.remove('open');
+  document.getElementById('ap-overlay')?.classList.remove('visible');
+  const search = document.getElementById('ap-search');
+  if (search) search.value = '';
+  document.getElementById('ap-suggestions').style.display = 'none';
+  apRenderAlpha('');
+}
+
+// Открываем панель при фокусе на поле автора
+document.getElementById('f-author-input')?.addEventListener('focus', () => {
+  if (!apOpen) openAuthorPanel();
 });
 
-document.addEventListener('click', e => {
-  const dropdown = document.getElementById('author-dropdown');
-  if (dropdown && !dropdown.contains(e.target) && e.target.id !== 'f-author-input') {
-    dropdown.style.display = 'none';
-  }
-  const item = e.target.closest('.author-item');
-  if (!item) return;
-  const input = document.getElementById('f-author-input');
-  const dropdown2 = document.getElementById('author-dropdown');
-  const selectedEl = document.getElementById('author-selected');
-  selectedAuthor = { uid: item.dataset.uid, name: item.dataset.name };
-  if (input) input.value = item.dataset.name;
-  if (dropdown2) dropdown2.style.display = 'none';
-  if (selectedEl) selectedEl.textContent = `✓ Будет добавлен от имени ${item.dataset.name}`;
+// Живой поиск при вводе в поле автора тоже открывает панель и фильтрует
+document.getElementById('f-author-input')?.addEventListener('input', e => {
+  const q = e.target.value.trim();
+  if (!apOpen) openAuthorPanel();
+  apRenderSuggestions(q);
+  apRenderAlpha(q);
+  if (!q) { selectedAuthor = null; document.getElementById('author-selected').textContent = ''; }
+});
+
+document.getElementById('ap-close')?.addEventListener('click', closeAuthorPanel);
+document.getElementById('ap-overlay')?.addEventListener('click', closeAuthorPanel);
+
+document.getElementById('ap-search')?.addEventListener('input', e => {
+  const q = e.target.value.trim();
+  apRenderSuggestions(q);
+  apRenderAlpha(q);
 });
 
 // ── Profile modal ─────────────────────────────────────────────────────────────
-
 function closeProfileModal() {
   document.getElementById('profile-modal').style.display = 'none';
 }
-
 async function openUserProfile(uid, name) {
   const modal = document.getElementById('profile-modal');
   const body  = document.getElementById('profile-modal-body');
@@ -2398,18 +2259,16 @@ async function openUserProfile(uid, name) {
   modal.style.display = 'flex';
   document.getElementById('pm-cb')?.addEventListener('click', closeProfileModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeProfileModal(); }, { once: true });
-
   try {
     const snap = await getDoc(doc(db, 'users', uid));
     const u = snap.exists() ? snap.data() : {};
     const displayName = u.username ?? u.displayName ?? name ?? '—';
-    const ava      = u.avatar_url ?? u.photo_url ?? '';
-    const date     = u.created_at?.toDate ? u.created_at.toDate().toLocaleDateString('ru') : '';
-    const level    = u.level ?? u.xp_level ?? '—';
+    const ava     = u.avatar_url ?? u.photo_url ?? '';
+    const date    = u.created_at?.toDate ? u.created_at.toDate().toLocaleDateString('ru') : '';
+    const level   = u.level ?? u.xp_level ?? '—';
     const approved = u.approved_lineups ?? 0;
     const likes    = u.total_likes ?? '—';
     const banned   = u.is_banned === true;
-
     body.innerHTML = `
       <button class="pm-close" id="pm-cb">✕</button>
       <div class="pm-avatar">${ava ? `<img src="${esc(ava)}" style="width:100%;height:100%;object-fit:cover;">` : '👤'}</div>
@@ -2431,25 +2290,19 @@ async function openUserProfile(uid, name) {
   }
 }
 
-// ── Lightbox ─────────────────────────────────────────────────────────────────
-function openLb(url) {
-  document.getElementById('lb-img').src = url;
-  document.getElementById('lb').classList.add('open');
-}
-document.getElementById('lb').addEventListener('click', () => {
-  document.getElementById('lb').classList.remove('open');
-});
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+function openLb(url) { document.getElementById('lb-img').src = url; document.getElementById('lb').classList.add('open'); }
+document.getElementById('lb').addEventListener('click', () => document.getElementById('lb').classList.remove('open'));
 
-// ── Toast ────────────────────────────────────────────────────────────────────
+// ── Toast ─────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'i') {
   const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.textContent = msg;
+  el.className = `toast ${type}`; el.textContent = msg;
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), 3200);
 }
 
-// ── Utils ────────────────────────────────────────────────────────────────────
+// ── Utils ─────────────────────────────────────────────────────────────────────
 function esc(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
@@ -2457,16 +2310,11 @@ function fmtNum(v) { return typeof v === 'number' ? v.toFixed(4) : '—'; }
 
 // ── Admins tab ────────────────────────────────────────────────────────────────
 let admins = [];
-
 async function loadAdmins() {
-  const el = document.getElementById('admins-list');
-  if (!el) return;
+  const el = document.getElementById('admins-list'); if (!el) return;
   el.innerHTML = '<div class="state">Загрузка…</div>';
   try {
-    const snap = await getDocs(query(
-      collection(db, 'users'),
-      where('role', 'in', ['admin', 'moderator'])
-    ));
+    const snap = await getDocs(query(collection(db, 'users'), where('role', 'in', ['admin', 'moderator'])));
     admins = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
     renderAdmins();
   } catch (e) {
@@ -2475,14 +2323,12 @@ async function loadAdmins() {
 }
 
 function renderAdmins() {
-  const el = document.getElementById('admins-list');
-  if (!el) return;
+  const el = document.getElementById('admins-list'); if (!el) return;
   if (!admins.length) { el.innerHTML = '<div class="state">Нет администраторов</div>'; return; }
   el.innerHTML = admins.map(a => {
     const date      = a.created_at?.toDate ? a.created_at.toDate().toLocaleDateString('ru') : '';
     const roleClass = a.role === 'admin' ? 'b-admin' : 'b-moderator';
     const isSelf    = a.uid === currentUser?.uid;
-    // Firestore documents may use different field names for the display name
     const nameVal   = a.displayName ?? a.display_name ?? a.name ?? a.username ?? a.email ?? '—';
     const isPioneer = a.is_beta === true;
     return `
@@ -2516,31 +2362,24 @@ function renderAdmins() {
     btn.addEventListener('click', () => removeAdminAccess(btn.dataset.admUid, btn.dataset.admName));
   });
   el.querySelectorAll('[data-pioneer-uid]').forEach(btn => {
-    btn.addEventListener('click', () => togglePioneer(
-      btn.dataset.pioneerUid,
-      btn.dataset.pioneerCurrent === 'true',
-      btn.dataset.pioneerName
-    ));
+    btn.addEventListener('click', () => togglePioneer(btn.dataset.pioneerUid, btn.dataset.pioneerCurrent === 'true', btn.dataset.pioneerName));
   });
 }
 
 async function togglePioneer(uid, currentIsBeta, name) {
   const newVal = !currentIsBeta;
-  const action = newVal ? 'Выдать бейдж Pioneer' : 'Снять бейдж Pioneer';
-  if (!confirm(`${action} для ${name}?`)) return;
+  if (!confirm(`${newVal ? 'Выдать' : 'Снять'} бейдж Pioneer для ${name}?`)) return;
   try {
     await updateDoc(doc(db, 'users', uid), { is_beta: newVal });
     const idx = admins.findIndex(a => a.uid === uid);
     if (idx !== -1) admins[idx].is_beta = newVal;
     renderAdmins();
     toast(`${newVal ? '⚡ Pioneer выдан' : 'Pioneer снят'} для ${name}`, 's');
-  } catch (e) {
-    toast('Ошибка: ' + e.message, 'e');
-  }
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
 async function removeAdminAccess(uid, name) {
-  if (!confirm(`Удалить доступ для ${name}?\nFirebase Auth аккаунт останется — только запись в users будет удалена.`)) return;
+  if (!confirm(`Удалить доступ для ${name}?`)) return;
   try {
     await deleteDoc(doc(db, 'users', uid));
     admins = admins.filter(a => a.uid !== uid);
@@ -2555,27 +2394,18 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
   const name  = document.getElementById('adm-name').value.trim();
   const role  = document.getElementById('adm-role').value;
   if (!email || !pass || !name) { toast('Заполни все поля', 'e'); return; }
-  if (pass.length < 6)          { toast('Пароль минимум 6 символов', 'e'); return; }
-
+  if (pass.length < 6) { toast('Пароль минимум 6 символов', 'e'); return; }
   const btn = document.getElementById('btn-add-admin');
   btn.disabled = true; btn.textContent = 'Создание…';
   try {
     const res = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${cfg.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass, displayName: name }),
-      }
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pass, displayName: name }) }
     );
     const data = await res.json();
     if (data.error) throw new Error(data.error.message);
-
-    await setDoc(doc(db, 'users', data.localId), {
-      email, displayName: name, role,
-      created_at: serverTimestamp(),
-    });
-
+    await setDoc(doc(db, 'users', data.localId), { email, displayName: name, role, created_at: serverTimestamp() });
     admins.push({ uid: data.localId, email, displayName: name, role });
     renderAdmins();
     toast(`Аккаунт ${email} создан с ролью ${role} ✅`, 's');
@@ -2589,103 +2419,55 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
   }
 });
 
-// ── Migration: EN abilities → RU abilities ────────────────────────────────────
+// ── Migration EN→RU ───────────────────────────────────────────────────────────
 document.getElementById('btn-migrate').addEventListener('click', migrateAbilities);
-
 async function migrateAbilities() {
   const btn    = document.getElementById('btn-migrate');
   const status = document.getElementById('migrate-status');
-  if (!confirm('Обновить поле ability с английских названий на русские для всех лайнапов?\nЭто изменит данные в Firestore.')) return;
-
-  btn.disabled = true;
-  status.textContent = 'Загрузка данных API…';
-
+  if (!confirm('Обновить поле ability с английских названий на русские для всех лайнапов?')) return;
+  btn.disabled = true; status.textContent = 'Загрузка данных API…';
   try {
     const [enRes, ruRes] = await Promise.all([
       fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=en-US'),
       fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU'),
     ]);
     const [enJson, ruJson] = await Promise.all([enRes.json(), ruRes.json()]);
-
-    // icon URL → Russian ability displayName
     const iconToRu = {};
-    for (const ag of ruJson.data ?? []) {
-      for (const ab of ag.abilities ?? []) {
+    for (const ag of ruJson.data ?? [])
+      for (const ab of ag.abilities ?? [])
         if (ab.displayIcon && ab.displayName) iconToRu[ab.displayIcon] = ab.displayName;
-      }
-    }
-
-    // English agent name → { English ability name → icon URL }
     const enAbilityIcon = {};
     for (const ag of enJson.data ?? []) {
       if (!ag.displayName) continue;
       enAbilityIcon[ag.displayName] = {};
-      for (const ab of ag.abilities ?? []) {
-        if (ab.displayName && ab.displayIcon) {
-          enAbilityIcon[ag.displayName][ab.displayName] = ab.displayIcon;
-        }
-      }
+      for (const ab of ag.abilities ?? [])
+        if (ab.displayName && ab.displayIcon) enAbilityIcon[ag.displayName][ab.displayName] = ab.displayIcon;
     }
-
     status.textContent = 'Загрузка лайнапов…';
     const snap = await getDocs(collection(db, 'lineups'));
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
     let updated = 0, skipped = 0, errors = 0;
-
     for (let i = 0; i < docs.length; i++) {
       status.textContent = `Обработка ${i + 1} / ${docs.length}…`;
       const l = docs[i];
-
-      const agentMap = enAbilityIcon[l.agent];
-      if (!agentMap) { skipped++; continue; }
-
-      const icon = agentMap[l.ability];
-      if (!icon) { skipped++; continue; } // уже русское или неизвестное
-
-      const ruName = iconToRu[icon];
-      if (!ruName || ruName === l.ability) { skipped++; continue; }
-
+      const agentMap = enAbilityIcon[l.agent]; if (!agentMap) { skipped++; continue; }
+      const icon = agentMap[l.ability]; if (!icon) { skipped++; continue; }
+      const ruName = iconToRu[icon]; if (!ruName || ruName === l.ability) { skipped++; continue; }
       try {
         await updateDoc(doc(db, 'lineups', l.id), { ability: ruName });
-        // sync in-memory cache too
         const idx = lineups.findIndex(x => x.id === l.id);
         if (idx !== -1) lineups[idx].ability = ruName;
         updated++;
-      } catch (e) {
-        errors++;
-        console.error('migrate error', l.id, e);
-      }
+      } catch (e) { errors++; console.error('migrate error', l.id, e); }
     }
-
     const msg = `Готово: обновлено ${updated}, пропущено ${skipped}${errors ? `, ошибок ${errors}` : ''}`;
-    status.textContent = msg;
-    toast(msg, 's');
+    status.textContent = msg; toast(msg, 's');
     if (updated > 0) renderList();
   } catch (e) {
     status.textContent = 'Ошибка: ' + e.message;
     toast('Ошибка миграции: ' + e.message, 'e');
-  } finally {
-    btn.disabled = false;
-  }
+  } finally { btn.disabled = false; }
 }
 </script>
-<!--
-  ── Firestore Security Rules (справка) ──────────────────────────────────────
-
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-
-      match /users/{uid} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      }
-
-      // остальные коллекции — по аналогии
-    }
-  }
--->
 </body>
 </html>
