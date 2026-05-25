@@ -371,6 +371,19 @@
     .cl-badge-fix    { background:rgba(249,115,22,.12); color:var(--orange); border:1px solid var(--orange); }
     .cl-badge-event  { background:rgba(168,85,247,.15); color:#c084fc; border:1px solid rgba(168,85,247,.4); }
     .cl-badge-alert  { background:rgba(239,68,68,.12);  color:var(--red); border:1px solid var(--red); }
+
+    /* ── Analytics tab ── */
+    .an-section    { margin-bottom: 34px; max-width: 1100px; }
+    .an-cards      { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .an-card       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
+    .an-val        { font-size: 26px; font-weight: 800; color: var(--primary); margin-bottom: 4px; line-height: 1.1; }
+    .an-lbl        { font-size: 11px; color: var(--text2); letter-spacing: .4px; }
+    .an-chart-box  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 16px 10px; overflow: hidden; }
+    .an-legend     { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+    .an-leg-item   { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+    .an-leg-dot    { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+    .an-loading    { animation: an-pulse 1s ease-in-out infinite alternate; }
+    @keyframes an-pulse { from { opacity: .4; } to { opacity: 1; } }
   </style>
 </head>
 <body>
@@ -426,6 +439,7 @@
       <button class="tab"        id="tab-btn-add">ДОБАВИТЬ</button>
       <button class="tab"        id="tab-btn-admins">АДМИНИСТРАТОРЫ</button>
       <button class="tab"        id="tab-btn-changelog">НОВОСТИ</button>
+      <button class="tab"        id="tab-btn-analytics">АНАЛИТИКА</button>
     </div>
 
     <!-- List tab -->
@@ -661,6 +675,51 @@
       </div>
     </div>
 
+    <!-- Analytics tab -->
+    <div id="tab-analytics" style="display:none;">
+
+      <!-- ── Section 1: Ads ── -->
+      <div class="an-section">
+        <div class="form-title">📺 РЕКЛАМА — последние 30 дней</div>
+        <div class="an-cards" id="ad-stat-cards">
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Rewarded показов</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Досмотрено</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Пропущено</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">% досмотра</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Interstitial</div></div>
+        </div>
+        <div class="an-chart-box">
+          <div class="dlabel" style="margin-bottom:8px;">Rewarded по дням</div>
+          <div class="an-legend" id="ad-legend">
+            <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>Показано</div>
+            <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--green)"></div>Досмотрено</div>
+          </div>
+          <svg id="ad-chart" width="100%" style="display:block;"></svg>
+        </div>
+      </div>
+
+      <!-- ── Section 2: Sessions ── -->
+      <div class="an-section">
+        <div class="form-title">👥 ОНЛАЙН / АКТИВНОСТЬ</div>
+        <div class="an-cards" id="ses-stat-cards">
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">DAU (сегодня)</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">WAU (7 дней)</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">MAU (30 дней)</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Всего сессий</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Пик DAU (30 дн)</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Среднее DAU</div></div>
+        </div>
+        <div class="an-chart-box">
+          <div class="dlabel" style="margin-bottom:8px;">DAU по дням</div>
+          <div class="an-legend">
+            <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>DAU</div>
+          </div>
+          <svg id="dau-chart" width="100%" style="display:block;"></svg>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 </div>
 
@@ -711,7 +770,7 @@ import {
 import {
   getFirestore, collection, getDocs, getDoc, doc, setDoc,
   updateDoc, deleteDoc, addDoc, query, orderBy, where, limit,
-  serverTimestamp, increment
+  serverTimestamp, increment, getCountFromServer
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const cfg = {
@@ -832,16 +891,20 @@ function switchTab(t) {
   document.getElementById('tab-add').style.display       = t === 'add'       ? 'block' : 'none';
   document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
   document.getElementById('tab-changelog').style.display = t === 'changelog' ? 'block' : 'none';
+  document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
   document.getElementById('tab-btn-changelog').classList.toggle('active', t === 'changelog');
+  document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
   if (t === 'changelog') loadChangelogPosts();
+  if (t === 'analytics') loadAnalytics();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 document.getElementById('tab-btn-add').addEventListener('click',       () => switchTab('add'));
 document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
+document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -2727,6 +2790,162 @@ async function clDeletePost(id) {
     toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u0443\u0434\u0430\u043b\u0435\u043d\u0430', 'i');
     loadChangelogPosts();
   } catch (e) { toast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + e.message, 'e'); }
+}
+
+// \u2500\u2500 Analytics \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+let analyticsLoaded = false;
+
+async function loadAnalytics() {
+  if (analyticsLoaded) return;
+  analyticsLoaded = true;
+
+  const now   = Date.now();
+  const d30   = new Date(now - 30 * 864e5);
+  const d7    = new Date(now -  7 * 864e5);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Last-30-days labels array
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
+  }
+
+  try {
+    // \u2500\u2500 Ad events \u2500\u2500
+    const adSnap = await getDocs(query(
+      collection(db, 'ad_events'),
+      where('ts', '>=', d30),
+      orderBy('ts')
+    ));
+
+    let rewShown = 0, rewDone = 0, rewSkip = 0, intShown = 0;
+    const adByDay = {};
+    days.forEach(d => { adByDay[d] = { shown: 0, done: 0 }; });
+
+    for (const d of adSnap.docs) {
+      const dat = d.data();
+      const day = dat.ts.toDate().toISOString().slice(0, 10);
+      switch (dat.type) {
+        case 'rewarded_shown':     rewShown++; if (adByDay[day]) adByDay[day].shown++; break;
+        case 'rewarded_completed': rewDone++;  if (adByDay[day]) adByDay[day].done++;  break;
+        case 'rewarded_skipped':   rewSkip++;  break;
+        case 'interstitial_shown': intShown++; break;
+      }
+    }
+    const pct = rewShown > 0 ? Math.round(rewDone / rewShown * 100) : 0;
+
+    document.getElementById('ad-stat-cards').innerHTML = [
+      [rewShown,        'Rewarded \u043f\u043e\u043a\u0430\u0437\u043e\u0432'],
+      [rewDone,         '\u0414\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e'],
+      [rewSkip,         '\u041f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043e'],
+      [pct + '%',       '% \u0434\u043e\u0441\u043c\u043e\u0442\u0440\u0430'],
+      [intShown,        'Interstitial'],
+    ].map(([v, l]) =>
+      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+    ).join('');
+
+    drawLineChart('ad-chart', [
+      { data: days.map(d => adByDay[d].shown), color: 'var(--primary)' },
+      { data: days.map(d => adByDay[d].done),  color: 'var(--green)' },
+    ], days);
+
+    // \u2500\u2500 User sessions \u2500\u2500
+    const sesSnap = await getDocs(query(
+      collection(db, 'user_sessions'),
+      where('ts', '>=', d30),
+      orderBy('ts')
+    ));
+
+    const dauByDay = {};
+    days.forEach(d => { dauByDay[d] = new Set(); });
+    const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
+
+    for (const d of sesSnap.docs) {
+      const dat = d.data();
+      const uid = dat.uid;
+      const day = dat.date || dat.ts.toDate().toISOString().slice(0, 10);
+      if (dauByDay[day]) dauByDay[day].add(uid);
+      mauUids.add(uid);
+      if (dat.ts.toDate() >= d7)  wauUids.add(uid);
+      if (day === today)           dauUids.add(uid);
+    }
+
+    const dauArr = days.map(d => dauByDay[d].size);
+    const peakDau = Math.max(0, ...dauArr);
+    const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
+
+    const totalSnap = await getCountFromServer(collection(db, 'user_sessions'));
+    const total = totalSnap.data().count;
+
+    document.getElementById('ses-stat-cards').innerHTML = [
+      [dauUids.size, 'DAU (\u0441\u0435\u0433\u043e\u0434\u043d\u044f)'],
+      [wauUids.size, 'WAU (7 \u0434\u043d\u0435\u0439)'],
+      [mauUids.size, 'MAU (30 \u0434\u043d\u0435\u0439)'],
+      [total,        '\u0412\u0441\u0435\u0433\u043e \u0441\u0435\u0441\u0441\u0438\u0439'],
+      [peakDau,      '\u041f\u0438\u043a DAU (30 \u0434\u043d)'],
+      [avgDau,       '\u0421\u0440\u0435\u0434\u043d\u0435\u0435 DAU'],
+    ].map(([v, l]) =>
+      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+    ).join('');
+
+    drawLineChart('dau-chart', [
+      { data: dauArr, color: 'var(--primary)' },
+    ], days);
+
+  } catch (e) {
+    console.error('Analytics error:', e);
+    toast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0438: ' + e.message, 'e');
+    analyticsLoaded = false; // allow retry
+  }
+}
+
+function drawLineChart(svgId, series, days) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const W = svg.parentElement.clientWidth || 600;
+  const H = 180;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', H);
+
+  const pad = { t: 12, r: 14, b: 28, l: 34 };
+  const cW = W - pad.l - pad.r;
+  const cH = H - pad.t - pad.b;
+  const n  = days.length;
+
+  const maxVal = Math.max(1, ...series.flatMap(s => s.data));
+  const xp = i => pad.l + (i / (n - 1)) * cW;
+  const yp = v => pad.t + cH - (v / maxVal) * cH;
+
+  let html = '';
+
+  // Grid lines + Y labels
+  for (let i = 0; i <= 4; i++) {
+    const y   = pad.t + (cH / 4) * i;
+    const val = Math.round(maxVal * (1 - i / 4));
+    html += `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${(W - pad.r).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<text x="${(pad.l - 4).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text2)">${val}</text>`;
+  }
+
+  // X labels every 5 days
+  for (let i = 0; i < n; i += 5) {
+    html += `<text x="${xp(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-size="9" fill="var(--text2)">${days[i].slice(5)}</text>`;
+  }
+
+  // Series
+  for (const s of series) {
+    // Area fill
+    let area = `M ${xp(0).toFixed(1)},${yp(s.data[0]).toFixed(1)}`;
+    for (let i = 1; i < n; i++) area += ` L ${xp(i).toFixed(1)},${yp(s.data[i]).toFixed(1)}`;
+    area += ` L ${xp(n - 1).toFixed(1)},${(pad.t + cH).toFixed(1)} L ${xp(0).toFixed(1)},${(pad.t + cH).toFixed(1)} Z`;
+    html += `<path d="${area}" fill="${s.color}" fill-opacity="0.08"/>`;
+
+    // Line
+    let line = `M ${xp(0).toFixed(1)},${yp(s.data[0]).toFixed(1)}`;
+    for (let i = 1; i < n; i++) line += ` L ${xp(i).toFixed(1)},${yp(s.data[i]).toFixed(1)}`;
+    html += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+
+  svg.innerHTML = html;
 }
 </script>
 </body>
