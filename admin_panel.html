@@ -440,6 +440,8 @@
       <button class="tab"        id="tab-btn-admins">АДМИНИСТРАТОРЫ</button>
       <button class="tab"        id="tab-btn-changelog">НОВОСТИ</button>
       <button class="tab"        id="tab-btn-analytics">АНАЛИТИКА</button>
+      <button class="tab"        id="tab-btn-guides">ГАЙДЫ</button>
+      <button class="tab"        id="tab-btn-agents">АГЕНТЫ</button>
     </div>
 
     <!-- List tab -->
@@ -718,9 +720,117 @@
         </div>
       </div>
 
+      <!-- ── Section 3: Content views ── -->
+      <div class="an-section">
+        <div class="form-title">📋 КОНТЕНТ — просмотры лайнапов (30 дней)</div>
+        <div class="an-cards" id="content-stat-cards">
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Просмотров всего</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Уникальных лайнапов</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Сегодня</div></div>
+        </div>
+        <div class="an-chart-box" style="margin-top:14px;">
+          <div class="dlabel" style="margin-bottom:8px;">Просмотры по дням</div>
+          <svg id="views-chart" width="100%" style="display:block;"></svg>
+        </div>
+        <div style="margin-top:14px;">
+          <div class="dlabel" style="margin-bottom:10px;">Топ-10 лайнапов</div>
+          <div id="top-lineups-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+      </div>
+
     </div>
 
   </div>
+
+  <!-- Guides tab -->
+  <div id="tab-guides" style="display:none;">
+    <div class="form-wrap" style="max-width:900px;">
+      <div class="form-title">📋 ГАЙДЫ — редактор guide_content</div>
+
+      <div class="fg" style="margin-bottom:14px;">
+        <label class="flabel">Категория</label>
+        <select class="fselect" id="guide-cat-select">
+          <option value="default">🗒️ Default (общий гайд)</option>
+          <option value="molly">🧨 Молики (molly)</option>
+          <option value="reveal">🔦 Ревил (reveal)</option>
+          <option value="smoke">💨 Смоки (smoke)</option>
+          <option value="lineup">🎯 Лайнапы (lineup)</option>
+          <option value="combo">⚡ Комбо (combo)</option>
+        </select>
+      </div>
+      <div class="row" style="margin-bottom:18px;">
+        <button class="btn btn-save" id="guide-load-btn">Загрузить</button>
+      </div>
+
+      <div id="guide-form" style="display:none;">
+        <div class="fgrid">
+          <div class="fg">
+            <label class="flabel">Название (title)</label>
+            <input class="finput" id="guide-title" placeholder="Молики">
+          </div>
+          <div class="fg">
+            <label class="flabel">Иконка (icon)</label>
+            <input class="finput" id="guide-icon" placeholder="🧨">
+          </div>
+        </div>
+
+        <div class="fg full" style="margin-top:14px;">
+          <label class="flabel">Шаги (steps) — по одному на строку</label>
+          <textarea class="ftextarea" id="guide-steps" rows="6" placeholder="Шаг 1: Покажи спайк...&#10;Шаг 2: Откуда бросать..."></textarea>
+        </div>
+
+        <div class="fg full" style="margin-top:14px;">
+          <label class="flabel">Тайминги (timings) — по одному на строку</label>
+          <textarea class="ftextarea" id="guide-timings" rows="4" placeholder="Длина видео — не более 20 секунд."></textarea>
+        </div>
+
+        <div class="fg full" style="margin-top:14px;">
+          <label class="flabel">Нужно делать (rules_do) — по одному на строку</label>
+          <textarea class="ftextarea" id="guide-rules-do" rows="4" placeholder="Видео должно быть публичное..."></textarea>
+        </div>
+
+        <div class="fg full" style="margin-top:14px;">
+          <label class="flabel">Не нужно делать (rules_dont) — по одному на строку</label>
+          <textarea class="ftextarea" id="guide-rules-dont" rows="4" placeholder="Не снимай весь матч..."></textarea>
+        </div>
+
+        <div class="fg full" style="margin-top:14px;">
+          <label class="flabel">Примеры (examples) — по одному на строку</label>
+          <textarea class="ftextarea" id="guide-examples" rows="3" placeholder="Sova Haven Shock Dart — лайнап на А-сайт"></textarea>
+        </div>
+
+        <div class="row" style="margin-top:18px;">
+          <button class="btn btn-save" id="guide-save-btn">💾 Сохранить</button>
+        </div>
+        <div id="guide-save-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agents tab -->
+  <div id="tab-agents" style="display:none;">
+    <div class="form-wrap" style="max-width:900px;">
+      <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">Выберите агента и отметьте галочками абилки, которые будут доступны для создания лайнапов.</p>
+
+      <div class="fg" style="margin-bottom:14px;">
+        <label class="flabel">Агент</label>
+        <select class="fselect" id="agents-select">
+          <option value="">— выберите агента —</option>
+        </select>
+      </div>
+
+      <div id="agents-abilities-block" style="display:none;">
+        <div class="dlabel" style="margin-bottom:10px;">Доступные абилки</div>
+        <div id="agents-abilities-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;"></div>
+        <div class="row">
+          <button class="btn btn-save" id="agents-save-btn">💾 Сохранить</button>
+        </div>
+        <div id="agents-save-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Author dictionary panel -->
@@ -763,7 +873,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
-  getAuth, signInWithPopup, GoogleAuthProvider,
+  getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider,
   signInWithEmailAndPassword,
   signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -815,16 +925,17 @@ onAuthStateChanged(auth, async user => {
   loadAuthorPanelUsers();
 });
 
-document.getElementById('btn-login').addEventListener('click', async () => {
+// Handle redirect result on page load
+getRedirectResult(auth).catch(e => loginErr('Ошибка входа: ' + e.message));
+
+document.getElementById('btn-login').addEventListener('click', () => {
   const btn = document.getElementById('btn-login');
-  btn.disabled = true; btn.textContent = 'Входим…';
-  try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
-  } catch (e) {
+  btn.disabled = true; btn.textContent = 'Перенаправление…';
+  signInWithRedirect(auth, new GoogleAuthProvider()).catch(e => {
     loginErr(e.message);
     btn.disabled = false;
     btn.innerHTML = '<span class="g-icon">G</span> Войти через Google';
-  }
+  });
 });
 
 document.getElementById('btn-ep-login').addEventListener('click', _epLogin);
@@ -892,11 +1003,16 @@ function switchTab(t) {
   document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
   document.getElementById('tab-changelog').style.display = t === 'changelog' ? 'block' : 'none';
   document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
+  document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
+  document.getElementById('tab-agents').style.display    = t === 'agents'    ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
   document.getElementById('tab-btn-changelog').classList.toggle('active', t === 'changelog');
   document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
+  document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
+  document.getElementById('tab-btn-agents').classList.toggle('active',    t === 'agents');
+  if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
 }
@@ -905,6 +1021,142 @@ document.getElementById('tab-btn-add').addEventListener('click',       () => swi
 document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
+document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
+document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
+
+// ── Agents config editor ──────────────────────────────────────────────────────
+let _agentsData = []; // full agents list from API
+let _agentAbilitiesConfig = {}; // current toggles { abilityName: bool }
+let _selectedAgentName = null;
+
+async function loadAgentsForConfig() {
+  if (_agentsData.length > 0) { _renderAgentSelect(); return; }
+  try {
+    const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
+    const json = await res.json();
+    _agentsData = (json.data || []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    _renderAgentSelect();
+  } catch (e) {
+    console.error('Failed to load agents', e);
+  }
+}
+
+function _renderAgentSelect() {
+  const sel = document.getElementById('agents-select');
+  sel.innerHTML = '<option value="">— выберите агента —</option>';
+  _agentsData.forEach(agent => {
+    const opt = document.createElement('option');
+    opt.value = agent.displayName;
+    opt.textContent = agent.displayName;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('agents-select').addEventListener('change', async (e) => {
+  const name = e.target.value;
+  if (!name) { document.getElementById('agents-abilities-block').style.display = 'none'; return; }
+  _selectedAgentName = name;
+  const agent = _agentsData.find(a => a.displayName === name);
+  if (!agent) return;
+
+  // Load existing config from Firestore
+  try {
+    const snap = await getDoc(doc(db, 'agents_config', name));
+    _agentAbilitiesConfig = snap.exists() ? (snap.data().abilities || {}) : {};
+  } catch (_) { _agentAbilitiesConfig = {}; }
+
+  // Render ability toggles
+  const abilities = (agent.abilities || []).filter(a => a.displayIcon);
+  const list = document.getElementById('agents-abilities-list');
+  list.innerHTML = '';
+  abilities.forEach(ability => {
+    const enabled = _agentAbilitiesConfig[ability.displayName] !== false;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--surface);padding:10px 14px;border-radius:8px;border:1px solid var(--border);';
+    row.innerHTML = `
+      <img src="${ability.displayIcon}" width="28" height="28" style="border-radius:4px;" onerror="this.style.display='none'">
+      <span style="flex:1;font-size:13px;">${ability.displayName}</span>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="ab-${ability.displayName}" ${enabled ? 'checked' : ''}
+          style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+        <span style="font-size:12px;color:var(--text2);">${enabled ? 'Включена' : 'Выключена'}</span>
+      </label>`;
+    const chk = row.querySelector('input');
+    const lbl = row.querySelector('span:last-child');
+    chk.addEventListener('change', () => { lbl.textContent = chk.checked ? 'Включена' : 'Выключена'; });
+    list.appendChild(row);
+  });
+
+  document.getElementById('agents-abilities-block').style.display = 'block';
+  document.getElementById('agents-save-status').style.display = 'none';
+});
+
+document.getElementById('agents-save-btn').addEventListener('click', async () => {
+  if (!_selectedAgentName) return;
+  const agent = _agentsData.find(a => a.displayName === _selectedAgentName);
+  if (!agent) return;
+  const abilities = (agent.abilities || []).filter(a => a.displayIcon);
+  const config = {};
+  abilities.forEach(ability => {
+    const chk = document.getElementById('ab-' + ability.displayName);
+    if (chk) config[ability.displayName] = chk.checked;
+  });
+  try {
+    await setDoc(doc(db, 'agents_config', _selectedAgentName), { abilities: config }, { merge: true });
+    const st = document.getElementById('agents-save-status');
+    st.style.display = 'block';
+    st.textContent = `✅ Сохранено для ${_selectedAgentName}`;
+    setTimeout(() => { st.style.display = 'none'; }, 3000);
+  } catch (e) {
+    alert('Ошибка сохранения: ' + e.message);
+  }
+});
+
+// ── Guide content editor ──────────────────────────────────────────────────────
+const splitLines = str => str.split('\n').map(s => s.trim()).filter(Boolean);
+const joinLines  = arr => (arr || []).join('\n');
+
+document.getElementById('guide-load-btn').addEventListener('click', async () => {
+  const cat = document.getElementById('guide-cat-select').value;
+  try {
+    const snap = await getDoc(doc(db, 'guide_content', cat));
+    const d = snap.exists() ? snap.data() : {};
+    document.getElementById('guide-title').value      = d.title    || '';
+    document.getElementById('guide-icon').value       = d.icon     || '';
+    document.getElementById('guide-steps').value      = joinLines(d.steps);
+    document.getElementById('guide-timings').value    = joinLines(d.timings);
+    document.getElementById('guide-rules-do').value   = joinLines(d.rules_do);
+    document.getElementById('guide-rules-dont').value = joinLines(d.rules_dont);
+    document.getElementById('guide-examples').value   = joinLines(d.examples);
+    document.getElementById('guide-form').style.display = 'block';
+    document.getElementById('guide-save-status').style.display = 'none';
+  } catch (e) {
+    toast('Ошибка загрузки: ' + e.message, 'e');
+  }
+});
+
+document.getElementById('guide-save-btn').addEventListener('click', async () => {
+  const cat = document.getElementById('guide-cat-select').value;
+  const data = {
+    title:       document.getElementById('guide-title').value.trim(),
+    icon:        document.getElementById('guide-icon').value.trim(),
+    steps:       splitLines(document.getElementById('guide-steps').value),
+    timings:     splitLines(document.getElementById('guide-timings').value),
+    rules_do:    splitLines(document.getElementById('guide-rules-do').value),
+    rules_dont:  splitLines(document.getElementById('guide-rules-dont').value),
+    examples:    splitLines(document.getElementById('guide-examples').value),
+    updated_at:  serverTimestamp(),
+  };
+  try {
+    await setDoc(doc(db, 'guide_content', cat), data);
+    const status = document.getElementById('guide-save-status');
+    status.textContent = '✅ Сохранено! Кэш в приложении обновится через 24 часа.';
+    status.style.display = 'block';
+    toast('Гайд сохранён!', 's');
+  } catch (e) {
+    toast('Ошибка сохранения: ' + e.message, 'e');
+  }
+});
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -2892,6 +3144,63 @@ async function loadAnalytics() {
       { data: dauArr, color: 'var(--primary)' },
     ], days);
 
+    // ── Content views ──
+    const viewsSnap = await getDocs(query(
+      collection(db, 'analytics_events'),
+      where('type', '==', 'lineup_viewed'),
+      where('ts', '>=', d30),
+      orderBy('ts')
+    ));
+
+    let totalViews = 0;
+    const viewsByDay = {};
+    const viewsByLineup = {};
+    const lineupTitles = {};
+    days.forEach(d => { viewsByDay[d] = 0; });
+
+    for (const d of viewsSnap.docs) {
+      const dat = d.data();
+      const day = dat.ts.toDate().toISOString().slice(0, 10);
+      totalViews++;
+      if (viewsByDay[day] !== undefined) viewsByDay[day]++;
+      const lid = dat.lineup_id || '';
+      if (lid) {
+        viewsByLineup[lid] = (viewsByLineup[lid] || 0) + 1;
+        if (!lineupTitles[lid] && dat.title) lineupTitles[lid] = dat.title;
+      }
+    }
+
+    const uniqueLineups = Object.keys(viewsByLineup).length;
+    const todayViews = viewsByDay[today] || 0;
+    const viewsArr = days.map(d => viewsByDay[d]);
+
+    document.getElementById('content-stat-cards').innerHTML = [
+      [totalViews,    'Просмотров всего'],
+      [uniqueLineups, 'Уникальных лайнапов'],
+      [todayViews,    'Сегодня'],
+    ].map(([v, l]) =>
+      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+    ).join('');
+
+    drawLineChart('views-chart', [
+      { data: viewsArr, color: 'var(--orange)' },
+    ], days);
+
+    // Top-10 lineups by views
+    const topLineups = Object.entries(viewsByLineup)
+      .sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const topEl = document.getElementById('top-lineups-list');
+    topEl.innerHTML = topLineups.length === 0
+      ? '<span style="color:var(--text2);font-size:13px;">Нет данных за 30 дней</span>'
+      : topLineups.map(([lid, cnt], idx) => {
+          const title = lineupTitles[lid] || lid.slice(0, 12) + '…';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);">
+            <span style="width:20px;text-align:center;font-weight:700;color:var(--text2);font-size:12px;">${idx+1}</span>
+            <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</span>
+            <span style="font-weight:700;color:var(--orange);font-size:14px;">${cnt}</span>
+          </div>`;
+        }).join('');
+
   } catch (e) {
     console.error('Analytics error:', e);
     toast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0438: ' + e.message, 'e');
@@ -2911,10 +3220,12 @@ function drawLineChart(svgId, series, days) {
   const cW = W - pad.l - pad.r;
   const cH = H - pad.t - pad.b;
   const n  = days.length;
+  if (n === 0) { svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Нет данных</text>'; return; }
 
-  const maxVal = Math.max(1, ...series.flatMap(s => s.data));
-  const xp = i => pad.l + (i / (n - 1)) * cW;
-  const yp = v => pad.t + cH - (v / maxVal) * cH;
+  const allVals = series.flatMap(s => s.data.filter(Number.isFinite));
+  const maxVal = allVals.length > 0 ? Math.max(1, ...allVals) : 1;
+  const xp = i => n <= 1 ? pad.l + cW / 2 : pad.l + (i / (n - 1)) * cW;
+  const yp = v => pad.t + cH - (Number.isFinite(v) ? (v / maxVal) * cH : 0);
 
   let html = '';
 
