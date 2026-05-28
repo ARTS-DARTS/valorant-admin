@@ -809,19 +809,16 @@
 
   <!-- Agents tab -->
   <div id="tab-agents" style="display:none;">
-    <div class="form-wrap" style="max-width:900px;">
+    <div style="max-width:1200px;margin:0 auto;padding:4px 0 20px;">
       <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
-      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">Выберите агента и отметьте галочками абилки, которые будут доступны для создания лайнапов.</p>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">Выберите агента и настройте доступные абилки для создания лайнапов.</p>
 
-      <div class="fg" style="margin-bottom:14px;">
-        <label class="flabel">Агент</label>
-        <select class="fselect" id="agents-select">
-          <option value="">— выберите агента —</option>
-        </select>
+      <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-bottom:24px;">
+        <div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>
       </div>
 
-      <div id="agents-abilities-block" style="display:none;">
-        <div class="dlabel" style="margin-bottom:10px;">Доступные абилки</div>
+      <div id="agents-abilities-block" style="display:none;max-width:700px;">
+        <div class="dlabel" style="margin-bottom:10px;">Абилки — <span id="agents-selected-name" style="color:var(--primary);"></span></div>
         <div id="agents-abilities-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;"></div>
         <div class="row">
           <button class="btn btn-save" id="agents-save-btn">💾 Сохранить</button>
@@ -1025,47 +1022,58 @@ document.getElementById('tab-btn-guides').addEventListener('click',    () => swi
 document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
 
 // ── Agents config editor ──────────────────────────────────────────────────────
-let _agentsData = []; // full agents list from API
-let _agentAbilitiesConfig = {}; // current toggles { abilityName: bool }
+let _agentsData = [];
+let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
 
 async function loadAgentsForConfig() {
-  if (_agentsData.length > 0) { _renderAgentSelect(); return; }
+  if (_agentsData.length > 0) { _renderAgentCards(); return; }
+  document.getElementById('agents-card-grid').innerHTML =
+    '<div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>';
   try {
     const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
     const json = await res.json();
     _agentsData = (json.data || []).sort((a, b) => a.displayName.localeCompare(b.displayName));
-    _renderAgentSelect();
+    _renderAgentCards();
   } catch (e) {
-    console.error('Failed to load agents', e);
+    document.getElementById('agents-card-grid').innerHTML =
+      `<div class="state" style="grid-column:1/-1;color:var(--red);">Ошибка загрузки: ${esc(e.message)}</div>`;
   }
 }
 
-function _renderAgentSelect() {
-  const sel = document.getElementById('agents-select');
-  sel.innerHTML = '<option value="">— выберите агента —</option>';
+function _renderAgentCards() {
+  const grid = document.getElementById('agents-card-grid');
+  grid.innerHTML = '';
   _agentsData.forEach(agent => {
-    const opt = document.createElement('option');
-    opt.value = agent.displayName;
-    opt.textContent = agent.displayName;
-    sel.appendChild(opt);
+    const card = document.createElement('div');
+    card.className = 'agent-card' + (_selectedAgentName === agent.displayName ? ' sel' : '');
+    card.dataset.name = agent.displayName;
+    const icon = agent.displayIcon || agent.displayIconSmall || '';
+    card.innerHTML = `
+      ${icon ? `<img src="${icon}" alt="${agent.displayName}" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
+      <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
+      <div class="ac-name">${agent.displayName}</div>`;
+    card.addEventListener('click', () => _selectAgentCard(agent.displayName));
+    grid.appendChild(card);
   });
 }
 
-document.getElementById('agents-select').addEventListener('change', async (e) => {
-  const name = e.target.value;
-  if (!name) { document.getElementById('agents-abilities-block').style.display = 'none'; return; }
+async function _selectAgentCard(name) {
   _selectedAgentName = name;
+  // Update card selection
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(c => {
+    c.classList.toggle('sel', c.dataset.name === name);
+  });
+  document.getElementById('agents-selected-name').textContent = name;
+
   const agent = _agentsData.find(a => a.displayName === name);
   if (!agent) return;
 
-  // Load existing config from Firestore
   try {
     const snap = await getDoc(doc(db, 'agents_config', name));
     _agentAbilitiesConfig = snap.exists() ? (snap.data().abilities || {}) : {};
   } catch (_) { _agentAbilitiesConfig = {}; }
 
-  // Render ability toggles
   const abilities = (agent.abilities || []).filter(a => a.displayIcon);
   const list = document.getElementById('agents-abilities-list');
   list.innerHTML = '';
@@ -1073,13 +1081,14 @@ document.getElementById('agents-select').addEventListener('change', async (e) =>
     const enabled = _agentAbilitiesConfig[ability.displayName] !== false;
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--surface);padding:10px 14px;border-radius:8px;border:1px solid var(--border);';
+    const safeId = 'ab-' + ability.displayName.replace(/[^a-zA-Z0-9]/g, '_');
     row.innerHTML = `
-      <img src="${ability.displayIcon}" width="28" height="28" style="border-radius:4px;" onerror="this.style.display='none'">
-      <span style="flex:1;font-size:13px;">${ability.displayName}</span>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-        <input type="checkbox" id="ab-${ability.displayName}" ${enabled ? 'checked' : ''}
-          style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
-        <span style="font-size:12px;color:var(--text2);">${enabled ? 'Включена' : 'Выключена'}</span>
+      <img src="${ability.displayIcon}" width="32" height="32" style="border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">
+      <span style="flex:1;font-size:13px;font-weight:600;">${ability.displayName}</span>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="${safeId}" ${enabled ? 'checked' : ''}
+          style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
+        <span style="font-size:12px;color:var(--text2);min-width:60px;">${enabled ? 'Включена' : 'Выключена'}</span>
       </label>`;
     const chk = row.querySelector('input');
     const lbl = row.querySelector('span:last-child');
@@ -1089,7 +1098,8 @@ document.getElementById('agents-select').addEventListener('change', async (e) =>
 
   document.getElementById('agents-abilities-block').style.display = 'block';
   document.getElementById('agents-save-status').style.display = 'none';
-});
+  document.getElementById('agents-abilities-block').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
 
 document.getElementById('agents-save-btn').addEventListener('click', async () => {
   if (!_selectedAgentName) return;
@@ -1098,7 +1108,8 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
   const abilities = (agent.abilities || []).filter(a => a.displayIcon);
   const config = {};
   abilities.forEach(ability => {
-    const chk = document.getElementById('ab-' + ability.displayName);
+    const safeId = 'ab-' + ability.displayName.replace(/[^a-zA-Z0-9]/g, '_');
+    const chk = document.getElementById(safeId);
     if (chk) config[ability.displayName] = chk.checked;
   });
   try {
@@ -1107,8 +1118,9 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     st.style.display = 'block';
     st.textContent = `✅ Сохранено для ${_selectedAgentName}`;
     setTimeout(() => { st.style.display = 'none'; }, 3000);
+    toast(`Сохранено для ${_selectedAgentName}`, 's');
   } catch (e) {
-    alert('Ошибка сохранения: ' + e.message);
+    toast('Ошибка сохранения: ' + e.message, 'e');
   }
 });
 
