@@ -406,10 +406,12 @@
     .mp-lineup-row { gap: 5px; }
     .dc-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; }
     @keyframes mpSlideIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
-    @media (max-width: 1100px) { #map-panel { display: none !important; } }
-    /* ── Map Overlay ── */
-    #mp-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); z-index: 600; display: none; align-items: center; justify-content: center; padding: 20px; }
-    .mp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    /* ── Lineup Detail Overlay ── */
+    #lineup-detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); z-index: 600; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .ld-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .ld-screenshots { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+    .ld-screenshots img { height: 110px; width: auto; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid var(--border); flex-shrink: 0; }
+    .ld-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; min-height: 80px; }
   </style>
 </head>
 <body>
@@ -472,24 +474,17 @@
 
     <!-- List tab -->
     <div id="tab-list">
-      <div style="display:flex;gap:18px;align-items:flex-start;">
-        <div style="flex:1;min-width:0;">
-          <div class="filters">
-            <button class="filter-btn active"     data-filter="all">Все</button>
-            <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
-            <button class="filter-btn f-approved" data-filter="approved">Одобренные</button>
-            <button class="filter-btn f-rejected" data-filter="rejected">Отклонённые</button>
-          </div>
-          <input class="search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
-          <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-            <button class="btn btn-save" id="btn-migrate" style="font-size:12px;padding:7px 14px;">⚡ Мигрировать способности EN→RU</button>
-            <span id="migrate-status" style="font-size:12px;color:var(--text2);"></span>
-          </div>
-          <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
-        </div>
+      <div class="filters">
+        <button class="filter-btn active"     data-filter="all">Все</button>
+        <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
+        <button class="filter-btn f-approved" data-filter="approved">Одобренные</button>
+        <button class="filter-btn f-rejected" data-filter="rejected">Отклонённые</button>
+        <button class="filter-btn" id="btn-map-panel">📊 Карты</button>
+      </div>
 
-        <!-- ── Map Stats Panel ── -->
-        <div id="map-panel" style="width:640px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;position:sticky;top:72px;max-height:calc(100vh - 90px);">
+      <!-- ── Map Stats Panel (drawer) ── -->
+      <div id="map-panel" style="display:none;height:340px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <div style="display:flex;height:100%;">
           <!-- Колонка 1: Карты -->
           <div id="mp-col1" style="width:220px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
             <div style="padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -512,8 +507,14 @@
             <div id="mp-col3-list" style="overflow-y:auto;flex:1;"></div>
           </div>
         </div>
-
       </div>
+
+      <input class="search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
+      <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-save" id="btn-migrate" style="font-size:12px;padding:7px 14px;">⚡ Мигрировать способности EN→RU</button>
+        <span id="migrate-status" style="font-size:12px;color:var(--text2);"></span>
+      </div>
+      <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
     </div>
 
     <!-- Add tab -->
@@ -918,9 +919,9 @@
   </div>
 </div>
 
-<!-- Map Stats Overlay -->
-<div id="mp-overlay">
-  <div class="mp-card" id="mp-overlay-body"></div>
+<!-- Lineup Detail Overlay -->
+<div id="lineup-detail-overlay">
+  <div class="ld-card" id="lineup-detail-card"></div>
 </div>
 
 <!-- Lightbox -->
@@ -1245,13 +1246,21 @@ document.getElementById('guide-save-btn').addEventListener('click', async () => 
 });
 
 // ── Filters ───────────────────────────────────────────────────────────────────
-document.querySelectorAll('.filter-btn').forEach(btn => {
+document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentFilter = btn.dataset.filter;
     renderList();
   });
+});
+document.getElementById('btn-map-panel').addEventListener('click', () => {
+  const panel = document.getElementById('map-panel');
+  const btn   = document.getElementById('btn-map-panel');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  btn.classList.toggle('active', open);
+  if (open) initMapPanel();
 });
 document.getElementById('search').addEventListener('input', renderList);
 
@@ -1327,6 +1336,7 @@ function cardHtml(l) {
         ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
         : ''}
       <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
+      <button class="btn" style="padding:6px 12px;font-size:12px;" data-action="detail" data-id="${l.id}">👁 Открыть</button>
     </div>
     ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
     <div class="dgrid">
@@ -1373,6 +1383,7 @@ function bindCardEvents() {
       if (action === 'ban')          banUser(uid, name);
       if (action === 'edit-toggle')  openEditForm(id);
       if (action === 'open-profile') openUserProfile(uid, name);
+      if (action === 'detail')       openLineupDetail(id);
     });
   });
   document.querySelectorAll('[data-lightbox]').forEach(el => {
@@ -3565,35 +3576,77 @@ function _mpRenderCol3(agLineups, agent, map, noAnim) {
       col3List.querySelectorAll('.mp-lineup-row').forEach(r => r.classList.remove('active'));
       row.classList.add('active');
       const lineup = agLineups.find(l => l.id === row.dataset.id);
-      if (lineup) _mpOpenOverlay(lineup);
+      if (lineup) openLineupDetail(lineup.id);
     });
   });
 }
 
-function _mpOpenOverlay(l) {
-  const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
-  const date = _mpFmtDate(l.submitted_at ?? l.createdAt) || '—';
-  const imgUrl = _resolveMapUrl(l.map);
+async function openLineupDetail(id) {
+  let l = lineups.find(x => x.id === id);
+  if (!l) {
+    try {
+      const snap = await getDoc(doc(db, 'lineups', id));
+      if (snap.exists()) l = { id: snap.id, ...snap.data() };
+    } catch (_) {}
+  }
+  if (!l) { toast('Лайнап не найден', 'error'); return; }
+  _renderLineupDetail(l);
+}
 
-  document.getElementById('mp-overlay-body').innerHTML = `
+function _mpGetScreenshots(l) {
+  if (Array.isArray(l.screenshots)) return l.screenshots;
+  if (l.screenshots?.arrayValue?.values)
+    return l.screenshots.arrayValue.values.map(v => v.stringValue).filter(Boolean);
+  return [];
+}
+
+function _renderLineupDetail(l) {
+  const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
+  const date     = _mpFmtDate(l.submitted_at ?? l.createdAt) || '—';
+  const imgUrl   = _resolveMapUrl(l.map);
+  const shots    = _mpGetScreenshots(l);
+
+  const posX = typeof l.position_x === 'number' ? (l.position_x * 100).toFixed(1) + '%' : '—';
+  const posY = typeof l.position_y === 'number' ? (l.position_y * 100).toFixed(1) + '%' : '—';
+
+  let videoHtml = '';
+  if (l.video_url) {
+    const ytMatch = l.video_url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if (ytMatch) {
+      videoHtml = `<div class="section"><div class="dlabel">Видео</div>
+        <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:var(--r);">
+          <iframe src="https://www.youtube.com/embed/${ytMatch[1]}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:var(--r);" allowfullscreen></iframe>
+        </div></div>`;
+    } else {
+      videoHtml = `<div class="section"><div class="dlabel">Видео</div>
+        <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
+      </div>`;
+    }
+  }
+
+  const shotsHtml = shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
+    <div class="ld-screenshots">
+      ${shots.map(u => `<img src="${esc(u)}" alt="" loading="lazy" data-lightbox="${esc(u)}"
+        onerror="this.style.display='none'">`).join('')}
+    </div></div>` : '';
+
+  document.getElementById('lineup-detail-card').innerHTML = `
     <div style="padding:20px 22px 22px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">
         <div>
           <div style="font-size:11px;color:var(--primary);font-weight:700;letter-spacing:1px;margin-bottom:5px;">${esc(l.map??'')} › ${esc(l.agent??'')}</div>
-          <div style="font-size:18px;font-weight:800;line-height:1.25;color:var(--text);">${esc(l.title??l.name??'—')}</div>
+          <div style="font-size:18px;font-weight:800;line-height:1.25;color:var(--text);">${esc(l.title??'—')}</div>
         </div>
-        <button id="mp-ovl-close" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:2px;">✕</button>
+        <button id="ld-close-btn" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:2px;">✕</button>
       </div>
 
-      <div class="dc-map-zone">
-        <img id="dcMapImg" src="${imgUrl ?? ''}"
-          style="width:100%;height:160px;object-fit:cover;opacity:0.7;display:${imgUrl ? 'block' : 'none'};"
-          onerror="this.style.display='none';document.getElementById('dcMapFallback').style.display='flex';">
-        <div id="dcMapFallback" style="display:${imgUrl ? 'none' : 'flex'};height:160px;align-items:center;justify-content:center;background:#0e1016;color:var(--border);font-size:12px;letter-spacing:.1em;text-transform:uppercase;">
-          Карта недоступна
-        </div>
-        <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 18px;background:linear-gradient(transparent,rgba(0,0,0,0.82));">
-          <div style="font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;">${esc(l.map??'')}</div>
+      <div class="ld-map-zone">
+        ${imgUrl ? `<img src="${esc(imgUrl)}" style="width:100%;height:200px;object-fit:cover;opacity:0.7;display:block;" onerror="this.style.display='none'">` : ''}
+        ${typeof l.position_x === 'number' && typeof l.position_y === 'number'
+          ? `<div style="position:absolute;top:${(l.position_y*100).toFixed(2)}%;left:${(l.position_x*100).toFixed(2)}%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--primary);border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.8);z-index:2;pointer-events:none;"></div>`
+          : ''}
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 16px;background:linear-gradient(transparent,rgba(0,0,0,0.82));">
+          <div style="font-size:18px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;">${esc(l.map??'')}</div>
           <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;">${[l.agent,l.ability].filter(Boolean).map(esc).join(' · ')}</div>
         </div>
       </div>
@@ -3605,25 +3658,34 @@ function _mpOpenOverlay(l) {
         <span class="badge ${bc}">${bl}</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:0;">
+      <div class="dgrid" style="margin-bottom:16px;">
         ${[['Карта',l.map],['Агент',l.agent],['Способность',l.ability],
-           ['Автор',l.submitted_by??l.authorName??'—'],['Дата',date],['Статус',bl]]
+           ['Автор',l.submitted_by??'—'],['Дата',date],['Позиция X',posX],['Позиция Y',posY],['Статус',bl]]
           .map(([lbl,val]) =>
             `<div class="dfield">
               <div class="dlabel" style="margin-bottom:3px;">${esc(lbl)}</div>
               <div class="dval">${esc(val??'—')}</div>
             </div>`).join('')}
       </div>
+
+      ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
+      ${videoHtml}
+      ${shotsHtml}
     </div>`;
 
-  const overlay = document.getElementById('mp-overlay');
+  const overlay = document.getElementById('lineup-detail-overlay');
   overlay.style.display = 'flex';
-  document.getElementById('mp-ovl-close').addEventListener('click', () => { overlay.style.display = 'none'; });
+  document.getElementById('ld-close-btn').addEventListener('click', () => {
+    overlay.style.display = 'none';
+  });
+  overlay.querySelectorAll('[data-lightbox]').forEach(img => {
+    img.addEventListener('click', () => openLb(img.dataset.lightbox));
+  });
 }
 
-document.getElementById('mp-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('mp-overlay'))
-    document.getElementById('mp-overlay').style.display = 'none';
+document.getElementById('lineup-detail-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('lineup-detail-overlay'))
+    document.getElementById('lineup-detail-overlay').style.display = 'none';
 });
 </script>
 </body>
