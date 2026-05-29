@@ -579,6 +579,10 @@
             <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">
               Добавить лайнап
             </button>
+            <button class="btn" id="btn-reset-preset"
+              style="width:100%;justify-content:center;padding:10px;border:1px solid var(--border);color:var(--text2);margin-top:6px;font-size:13px;">
+              🔄 Сбросить пресет
+            </button>
           </div>
 
         </div>
@@ -1011,7 +1015,7 @@ function switchTab(t) {
   if (t === 'analytics') loadAnalytics();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
-document.getElementById('tab-btn-add').addEventListener('click',       () => switchTab('add'));
+document.getElementById('tab-btn-add').addEventListener('click',       () => { switchTab('add'); _restorePreset(); });
 document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
@@ -1019,6 +1023,8 @@ document.getElementById('tab-btn-guides').addEventListener('click',    () => swi
 document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
 
 // ── Agents config editor ──────────────────────────────────────────────────────
+const sanitizeAgentId = name => name.replaceAll('/', '_');
+
 let _agentsData = [];
 let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
@@ -1067,7 +1073,7 @@ async function _selectAgentCard(name) {
   if (!agent) return;
 
   try {
-    const snap = await getDoc(doc(db, 'agents_config', name));
+    const snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name)));
     _agentAbilitiesConfig = snap.exists() ? (snap.data().abilities || {}) : {};
   } catch (_) { _agentAbilitiesConfig = {}; }
 
@@ -1110,7 +1116,7 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     if (chk) config[ability.displayName] = chk.checked;
   });
   try {
-    await setDoc(doc(db, 'agents_config', _selectedAgentName), { abilities: config }, { merge: true });
+    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName)), { abilities: config }, { merge: true });
     const st = document.getElementById('agents-save-status');
     st.style.display = 'block';
     st.textContent = `✅ Сохранено для ${_selectedAgentName}`;
@@ -1407,7 +1413,44 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   }
 });
 
+function _restorePreset() {
+  if (document.getElementById('f-map').value) return;
+  const saved = localStorage.getItem('lineup_preset');
+  if (!saved) return;
+  try {
+    const p = JSON.parse(saved);
+    if (p.map) {
+      document.getElementById('f-map').value = p.map;
+      updateMapPicker(p.map);
+    }
+    if (p.agent) {
+      pickedAgent = p.agent;
+      document.querySelectorAll('#agent-grid .agent-card').forEach(c => {
+        c.classList.toggle('sel', c.dataset.agent === p.agent);
+      });
+      pickedAbility = p.ability || '';
+      renderAbilityRow();
+      if (p.ability) {
+        setTimeout(() => {
+          document.querySelectorAll('#ability-row .abil-btn').forEach(b => {
+            b.classList.toggle('sel', b.dataset.ab === p.ability);
+          });
+        }, 0);
+      }
+    }
+  } catch (_) {}
+}
+
 function resetForm() {
+  const presetMap   = document.getElementById('f-map').value;
+  const presetAgent = pickedAgent;
+  const presetAbil  = pickedAbility;
+  if (presetMap || presetAgent) {
+    localStorage.setItem('lineup_preset', JSON.stringify({
+      map: presetMap, agent: presetAgent, ability: presetAbil
+    }));
+  }
+
   ['f-map','f-category','f-status'].forEach(id => {
     const el = document.getElementById(id);
     el.value = id === 'f-status' ? 'approved' : '';
@@ -1433,6 +1476,32 @@ function resetForm() {
   trajectoryPoints = [];
   _setMapMode('position');
   updateMapPicker('');
+
+  const saved = localStorage.getItem('lineup_preset');
+  if (saved) {
+    try {
+      const p = JSON.parse(saved);
+      if (p.map) {
+        document.getElementById('f-map').value = p.map;
+        updateMapPicker(p.map);
+      }
+      if (p.agent) {
+        pickedAgent = p.agent;
+        document.querySelectorAll('#agent-grid .agent-card').forEach(c => {
+          c.classList.toggle('sel', c.dataset.agent === p.agent);
+        });
+        pickedAbility = p.ability || '';
+        renderAbilityRow();
+        if (p.ability) {
+          setTimeout(() => {
+            document.querySelectorAll('#ability-row .abil-btn').forEach(b => {
+              b.classList.toggle('sel', b.dataset.ab === p.ability);
+            });
+          }, 0);
+        }
+      }
+    } catch (_) {}
+  }
 }
 
 // ── Agents / Abilities / Maps ─────────────────────────────────────────────────
@@ -1712,6 +1781,16 @@ function initMapPicker() {
 }
 
 document.getElementById('f-map').addEventListener('change', e => updateMapPicker(e.target.value));
+document.getElementById('btn-reset-preset').addEventListener('click', () => {
+  localStorage.removeItem('lineup_preset');
+  pickedAgent = ''; pickedAbility = '';
+  document.getElementById('f-map').value = '';
+  document.querySelectorAll('#agent-grid .agent-card').forEach(c => c.classList.remove('sel'));
+  document.getElementById('ability-wrap').style.display = 'none';
+  document.getElementById('ability-row').innerHTML = '';
+  updateMapPicker('');
+  toast('Пресет сброшен', 'i');
+});
 loadAgentIcons();
 loadMapImages();
 initMapPicker();
