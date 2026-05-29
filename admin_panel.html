@@ -750,12 +750,9 @@
       <div class="fg" style="margin-bottom:14px;">
         <label class="flabel">Категория</label>
         <select class="fselect" id="guide-cat-select">
-          <option value="default">🗒️ Default (общий гайд)</option>
           <option value="molly">🧨 Молики (molly)</option>
           <option value="reveal">🔦 Ревил (reveal)</option>
           <option value="smoke">💨 Смоки (smoke)</option>
-          <option value="lineup">🎯 Лайнапы (lineup)</option>
-          <option value="combo">⚡ Комбо (combo)</option>
         </select>
       </div>
       <div class="row" style="margin-bottom:18px;">
@@ -1130,18 +1127,28 @@ const joinLines  = arr => (arr || []).join('\n');
 
 document.getElementById('guide-load-btn').addEventListener('click', async () => {
   const cat = document.getElementById('guide-cat-select').value;
+  const form = document.getElementById('guide-form');
+  // Show form immediately so user can edit even if doc doesn't exist yet
+  form.style.display = 'block';
+  document.getElementById('guide-save-status').style.display = 'none';
+  // Clear fields while loading
+  ['guide-title','guide-icon','guide-steps','guide-timings','guide-rules-do','guide-rules-dont','guide-examples']
+    .forEach(id => document.getElementById(id).value = '');
   try {
     const snap = await getDoc(doc(db, 'guide_content', cat));
-    const d = snap.exists() ? snap.data() : {};
-    document.getElementById('guide-title').value      = d.title    || '';
-    document.getElementById('guide-icon').value       = d.icon     || '';
-    document.getElementById('guide-steps').value      = joinLines(d.steps);
-    document.getElementById('guide-timings').value    = joinLines(d.timings);
-    document.getElementById('guide-rules-do').value   = joinLines(d.rules_do);
-    document.getElementById('guide-rules-dont').value = joinLines(d.rules_dont);
-    document.getElementById('guide-examples').value   = joinLines(d.examples);
-    document.getElementById('guide-form').style.display = 'block';
-    document.getElementById('guide-save-status').style.display = 'none';
+    if (snap.exists()) {
+      const d = snap.data();
+      document.getElementById('guide-title').value      = d.title    || '';
+      document.getElementById('guide-icon').value       = d.icon     || '';
+      document.getElementById('guide-steps').value      = joinLines(d.steps);
+      document.getElementById('guide-timings').value    = joinLines(d.timings);
+      document.getElementById('guide-rules-do').value   = joinLines(d.rules_do);
+      document.getElementById('guide-rules-dont').value = joinLines(d.rules_dont);
+      document.getElementById('guide-examples').value   = joinLines(d.examples);
+      toast('Загружено из Firestore', 's');
+    } else {
+      toast('Документ не найден — заполни поля и сохрани', 'i');
+    }
   } catch (e) {
     toast('Ошибка загрузки: ' + e.message, 'e');
   }
