@@ -3603,11 +3603,7 @@ function _mpGetScreenshots(l) {
 function _renderLineupDetail(l) {
   const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
   const date     = _mpFmtDate(l.submitted_at ?? l.createdAt) || '—';
-  const imgUrl   = _resolveMapUrl(l.map);
   const shots    = _mpGetScreenshots(l);
-
-  const posX = typeof l.position_x === 'number' ? (l.position_x * 100).toFixed(1) + '%' : '—';
-  const posY = typeof l.position_y === 'number' ? (l.position_y * 100).toFixed(1) + '%' : '—';
 
   let videoHtml = '';
   if (l.video_url) {
@@ -3640,14 +3636,31 @@ function _renderLineupDetail(l) {
         <button id="ld-close-btn" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:2px;">✕</button>
       </div>
 
-      <div class="ld-map-zone">
-        ${imgUrl ? `<img src="${esc(imgUrl)}" style="width:100%;height:200px;object-fit:cover;opacity:0.7;display:block;" onerror="this.style.display='none'">` : ''}
-        ${typeof l.position_x === 'number' && typeof l.position_y === 'number'
-          ? `<div style="position:absolute;top:${(l.position_y*100).toFixed(2)}%;left:${(l.position_x*100).toFixed(2)}%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:var(--primary);border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.8);z-index:2;pointer-events:none;"></div>`
-          : ''}
-        <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 16px;background:linear-gradient(transparent,rgba(0,0,0,0.82));">
-          <div style="font-size:18px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;">${esc(l.map??'')}</div>
-          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;">${[l.agent,l.ability].filter(Boolean).map(esc).join(' · ')}</div>
+      <div id="dcMapContainer" style="position:relative;width:100%;height:280px;background:#0e1016;overflow:hidden;cursor:grab;user-select:none;border-radius:8px;margin-bottom:16px;">
+        <div class="dc-map-inner" style="position:absolute;inset:0;transform-origin:50% 50%;">
+          <img id="dcMapImg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
+          <canvas id="dcMapCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+        </div>
+        <div style="position:absolute;bottom:10px;left:14px;pointer-events:none;z-index:5;">
+          <div id="dcMapLabel" style="font-size:16px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.9);"></div>
+          <div id="dcMapSublabel" style="font-size:11px;color:rgba(255,255,255,0.55);text-shadow:0 1px 4px rgba(0,0,0,0.9);margin-top:2px;"></div>
+        </div>
+        <div style="position:absolute;top:10px;right:12px;pointer-events:none;z-index:5;display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#ff4655;border:2px solid #fff;flex-shrink:0;"></div>
+            <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Позиция</span>
+          </div>
+          <div id="dcLegendTarget" style="display:none;align-items:center;gap:5px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#00c86e;border:2px solid #fff;flex-shrink:0;"></div>
+            <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Цель</span>
+          </div>
+          <div id="dcLegendAim" style="display:none;align-items:center;gap:5px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:#f5a623;border:2px solid #fff;flex-shrink:0;"></div>
+            <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Прицел</span>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:10px;right:12px;font-size:9px;color:rgba(255,255,255,0.3);pointer-events:none;text-align:right;line-height:1.6;z-index:5;">
+          Колёсико — зум<br>Зажать — перемещение<br>2×клик — сброс
         </div>
       </div>
 
@@ -3660,7 +3673,7 @@ function _renderLineupDetail(l) {
 
       <div class="dgrid" style="margin-bottom:16px;">
         ${[['Карта',l.map],['Агент',l.agent],['Способность',l.ability],
-           ['Автор',l.submitted_by??'—'],['Дата',date],['Позиция X',posX],['Позиция Y',posY],['Статус',bl]]
+           ['Автор',l.submitted_by??'—'],['Дата',date],['Статус',bl]]
           .map(([lbl,val]) =>
             `<div class="dfield">
               <div class="dlabel" style="margin-bottom:3px;">${esc(lbl)}</div>
@@ -3675,17 +3688,223 @@ function _renderLineupDetail(l) {
 
   const overlay = document.getElementById('lineup-detail-overlay');
   overlay.style.display = 'flex';
-  document.getElementById('ld-close-btn').addEventListener('click', () => {
+
+  renderInteractiveMap(l);
+  initMapInteraction(document.getElementById('dcMapContainer'));
+
+  function closeDetail() {
+    const c = document.getElementById('dcMapContainer');
+    if (c?._resizeObserver)      { c._resizeObserver.disconnect(); c._resizeObserver = null; }
+    if (c?._cleanupInteraction)  { c._cleanupInteraction(); c._cleanupInteraction = null; }
+    const inner = c?.querySelector('.dc-map-inner');
+    if (inner) inner.style.transform = '';
     overlay.style.display = 'none';
-  });
+  }
+
+  document.getElementById('ld-close-btn').addEventListener('click', closeDetail);
   overlay.querySelectorAll('[data-lightbox]').forEach(img => {
     img.addEventListener('click', () => openLb(img.dataset.lightbox));
+  });
+
+  overlay._closeDetail = closeDetail;
+}
+
+function renderInteractiveMap(lineup) {
+  const STATIC_MAPS = {
+    'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
+    'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4bbe-4143-b2b1-1c5d92c14786/displayicon.png',
+    'Bind':     'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png',
+    'Split':    'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png',
+    'Fracture': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png',
+    'Breeze':   'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/displayicon.png',
+    'Icebox':   'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/displayicon.png',
+    'Pearl':    'https://media.valorant-api.com/maps/33bb57b4-4e5b-8d85-0505-b8c5b8b36136/displayicon.png',
+    'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-01bc-1236-069b34a8b785/displayicon.png',
+    'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39eb02e28435/displayicon.png',
+    'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-d703-cc5f-3e8e0f488ea8/displayicon.png',
+  };
+
+  const container = document.getElementById('dcMapContainer');
+  const img       = document.getElementById('dcMapImg');
+  const canvas    = document.getElementById('dcMapCanvas');
+
+  img.src = _resolveMapUrl(lineup.map) || STATIC_MAPS[lineup.map] || '';
+  document.getElementById('dcMapLabel').textContent    = lineup.map || '';
+  document.getElementById('dcMapSublabel').textContent =
+    [lineup.agent, lineup.ability].filter(Boolean).join(' · ');
+
+  const px = parseFloat(lineup.positionX ?? lineup.position_x);
+  const py = parseFloat(lineup.positionY ?? lineup.position_y);
+  const tx = parseFloat(lineup.targetX);
+  const ty = parseFloat(lineup.targetY);
+  const ax = parseFloat(lineup.aimX);
+  const ay = parseFloat(lineup.aimY);
+
+  const hasTarget = !isNaN(tx) && !isNaN(ty);
+  const hasAim    = !isNaN(ax) && !isNaN(ay);
+
+  document.getElementById('dcLegendTarget').style.display = hasTarget ? 'flex' : 'none';
+  document.getElementById('dcLegendAim').style.display    = hasAim    ? 'flex' : 'none';
+
+  function drawCanvas() {
+    const W = container.offsetWidth;
+    const H = container.offsetHeight;
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    if (isNaN(px) || isNaN(py)) return;
+
+    const imgNatW = img.naturalWidth  || W;
+    const imgNatH = img.naturalHeight || H;
+    const scale   = Math.min(W / imgNatW, H / imgNatH);
+    const rendW   = imgNatW * scale;
+    const rendH   = imgNatH * scale;
+    const offX    = (W - rendW) / 2;
+    const offY    = (H - rendH) / 2;
+
+    function toCanvas(normX, normY) {
+      return { x: offX + normX * rendW, y: offY + normY * rendH };
+    }
+
+    const start  = toCanvas(px, py);
+    const target = hasTarget ? toCanvas(tx, ty) : null;
+    const aim    = hasAim    ? toCanvas(ax, ay) : null;
+
+    if (target) {
+      ctx.save();
+      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+      const angle = Math.atan2(target.y - start.y, target.x - start.x);
+      const aLen  = 10;
+      ctx.setLineDash([]);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.beginPath();
+      ctx.moveTo(target.x, target.y);
+      ctx.lineTo(target.x - aLen * Math.cos(angle - 0.4), target.y - aLen * Math.sin(angle - 0.4));
+      ctx.moveTo(target.x, target.y);
+      ctx.lineTo(target.x - aLen * Math.cos(angle + 0.4), target.y - aLen * Math.sin(angle + 0.4));
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (aim) {
+      ctx.save();
+      ctx.setLineDash([3, 5]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(245,166,35,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(aim.x, aim.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (aim)    drawDot(ctx, aim.x,    aim.y,    '#f5a623', '#fff', 7);
+    if (target) {
+      drawDot(ctx, target.x, target.y, '#00c86e', '#fff', 8);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, 14, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,200,110,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    drawDot(ctx, start.x, start.y, '#ff4655', '#fff', 9);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(start.x, start.y, 16, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,70,85,0.35)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawDot(ctx, x, y, fill, stroke, r) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (img.complete && img.naturalWidth > 0) {
+    drawCanvas();
+  } else {
+    img.onload = drawCanvas;
+  }
+
+  const ro = new ResizeObserver(() => drawCanvas());
+  ro.observe(container);
+  container._resizeObserver = ro;
+}
+
+function initMapInteraction(container) {
+  let scale = 1, tx = 0, ty = 0;
+  let isDragging = false, startX = 0, startY = 0;
+  const inner = container.querySelector('.dc-map-inner');
+
+  function applyTransform() {
+    inner.style.transform       = `translate(${tx}px,${ty}px) scale(${scale})`;
+    inner.style.transformOrigin = '50% 50%';
+  }
+
+  container.addEventListener('wheel', e => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.85 : 1.18;
+    scale = Math.min(Math.max(scale * delta, 1), 5);
+    if (scale === 1) { tx = 0; ty = 0; }
+    applyTransform();
+  }, { passive: false });
+
+  container.addEventListener('mousedown', e => {
+    if (scale <= 1) return;
+    isDragging = true;
+    startX = e.clientX - tx;
+    startY = e.clientY - ty;
+    container.style.cursor = 'grabbing';
+  });
+
+  const onMove = e => {
+    if (!isDragging) return;
+    tx = e.clientX - startX;
+    ty = e.clientY - startY;
+    applyTransform();
+  };
+  const onUp = () => {
+    isDragging = false;
+    container.style.cursor = 'grab';
+  };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup',   onUp);
+  container._cleanupInteraction = () => {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup',   onUp);
+  };
+
+  container.addEventListener('dblclick', () => {
+    scale = 1; tx = 0; ty = 0;
+    applyTransform();
   });
 }
 
 document.getElementById('lineup-detail-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('lineup-detail-overlay'))
-    document.getElementById('lineup-detail-overlay').style.display = 'none';
+  const overlay = document.getElementById('lineup-detail-overlay');
+  if (e.target === overlay) {
+    if (overlay._closeDetail) overlay._closeDetail();
+    else overlay.style.display = 'none';
+  }
 });
 </script>
 </body>
