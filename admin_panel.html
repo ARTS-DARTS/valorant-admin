@@ -3556,10 +3556,10 @@ function _mpRenderCol3(agLineups, agent, map, noAnim) {
   col3List.innerHTML = agLineups.length
     ? agLineups.map(l => {
         const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
-        const date = _mpFmtDate(l.submitted_at ?? l.createdAt);
+        const date = _mpFmtDate(l.submitted_at);
         return `<div class="mp-lineup-row${_mpSelLineup === l.id ? ' active' : ''}" data-id="${esc(l.id)}">
           <span class="badge ${bc}">${bl}</span>
-          <span class="mp-row-name">${esc(l.title ?? l.name ?? '—')}</span>
+          <span class="mp-row-name">${esc(l.title ?? '—')}</span>
           ${l.ability ? `<span class="mp-ability">⚡ ${esc(l.ability)}</span>` : ''}
           ${date ? `<span class="mp-date">${date}</span>` : ''}
           <span class="mp-chevron">›</span>
@@ -3594,15 +3594,12 @@ async function openLineupDetail(id) {
 }
 
 function _mpGetScreenshots(l) {
-  if (Array.isArray(l.screenshots)) return l.screenshots;
-  if (l.screenshots?.arrayValue?.values)
-    return l.screenshots.arrayValue.values.map(v => v.stringValue).filter(Boolean);
-  return [];
+  return Array.isArray(l.screenshots) ? l.screenshots : [];
 }
 
 function _renderLineupDetail(l) {
   const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
-  const date     = _mpFmtDate(l.submitted_at ?? l.createdAt) || '—';
+  const date     = _mpFmtDate(l.submitted_at) || '—';
   const shots    = _mpGetScreenshots(l);
 
   let videoHtml = '';
@@ -3673,11 +3670,11 @@ function _renderLineupDetail(l) {
 
       <div class="dgrid" style="margin-bottom:16px;">
         ${[['Карта',l.map],['Агент',l.agent],['Способность',l.ability],
-           ['Автор',l.submitted_by??'—'],['Дата',date],['Статус',bl]]
+           ['Автор',l.submitted_by||'—'],['Дата',date],['Статус',bl]]
           .map(([lbl,val]) =>
             `<div class="dfield">
               <div class="dlabel" style="margin-bottom:3px;">${esc(lbl)}</div>
-              <div class="dval">${esc(val??'—')}</div>
+              <div class="dval">${esc(String(val??'—'))}</div>
             </div>`).join('')}
       </div>
 
@@ -3733,18 +3730,14 @@ function renderInteractiveMap(lineup) {
   document.getElementById('dcMapSublabel').textContent =
     [lineup.agent, lineup.ability].filter(Boolean).join(' · ');
 
-  const px = parseFloat(lineup.positionX ?? lineup.position_x);
-  const py = parseFloat(lineup.positionY ?? lineup.position_y);
-  const tx = parseFloat(lineup.targetX);
-  const ty = parseFloat(lineup.targetY);
-  const ax = parseFloat(lineup.aimX);
-  const ay = parseFloat(lineup.aimY);
+  const px = parseFloat(lineup.position_x);
+  const py = parseFloat(lineup.position_y);
 
-  const hasTarget = !isNaN(tx) && !isNaN(ty);
-  const hasAim    = !isNaN(ax) && !isNaN(ay);
+  const traj      = Array.isArray(lineup.trajectory) ? lineup.trajectory : [];
+  const hasTarget = traj.length >= 2;
 
   document.getElementById('dcLegendTarget').style.display = hasTarget ? 'flex' : 'none';
-  document.getElementById('dcLegendAim').style.display    = hasAim    ? 'flex' : 'none';
+  document.getElementById('dcLegendAim').style.display    = 'none';
 
   function drawCanvas() {
     const W = container.offsetWidth;
@@ -3757,66 +3750,65 @@ function renderInteractiveMap(lineup) {
 
     const imgNatW = img.naturalWidth  || W;
     const imgNatH = img.naturalHeight || H;
-    const scale   = Math.min(W / imgNatW, H / imgNatH);
-    const rendW   = imgNatW * scale;
-    const rendH   = imgNatH * scale;
-    const offX    = (W - rendW) / 2;
-    const offY    = (H - rendH) / 2;
+    const imgScale = Math.min(W / imgNatW, H / imgNatH);
+    const rendW    = imgNatW * imgScale;
+    const rendH    = imgNatH * imgScale;
+    const offX     = (W - rendW) / 2;
+    const offY     = (H - rendH) / 2;
 
     function toCanvas(normX, normY) {
       return { x: offX + normX * rendW, y: offY + normY * rendH };
     }
 
-    const start  = toCanvas(px, py);
-    const target = hasTarget ? toCanvas(tx, ty) : null;
-    const aim    = hasAim    ? toCanvas(ax, ay) : null;
+    const start = toCanvas(px, py);
 
-    if (target) {
+    if (hasTarget) {
+      const points = traj.map(p => toCanvas(parseFloat(p.x), parseFloat(p.y)));
+
+      // Dashed polyline through all trajectory points
       ctx.save();
       ctx.setLineDash([6, 4]);
       ctx.lineWidth = 2;
       ctx.strokeStyle = 'rgba(255,255,255,0.55)';
       ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(target.x, target.y);
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
       ctx.stroke();
-      const angle = Math.atan2(target.y - start.y, target.x - start.x);
+
+      // Arrowhead at last point
+      const last  = points[points.length - 1];
+      const prev  = points[points.length - 2];
+      const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
       const aLen  = 10;
       ctx.setLineDash([]);
       ctx.lineWidth = 2;
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.beginPath();
-      ctx.moveTo(target.x, target.y);
-      ctx.lineTo(target.x - aLen * Math.cos(angle - 0.4), target.y - aLen * Math.sin(angle - 0.4));
-      ctx.moveTo(target.x, target.y);
-      ctx.lineTo(target.x - aLen * Math.cos(angle + 0.4), target.y - aLen * Math.sin(angle + 0.4));
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(last.x - aLen * Math.cos(angle - 0.4), last.y - aLen * Math.sin(angle - 0.4));
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(last.x - aLen * Math.cos(angle + 0.4), last.y - aLen * Math.sin(angle + 0.4));
       ctx.stroke();
       ctx.restore();
-    }
 
-    if (aim) {
-      ctx.save();
-      ctx.setLineDash([3, 5]);
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = 'rgba(245,166,35,0.5)';
-      ctx.beginPath();
-      ctx.moveTo(start.x, start.y);
-      ctx.lineTo(aim.x, aim.y);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    if (aim)    drawDot(ctx, aim.x,    aim.y,    '#f5a623', '#fff', 7);
-    if (target) {
-      drawDot(ctx, target.x, target.y, '#00c86e', '#fff', 8);
+      // Green dot on last point (target)
+      const endPt = points[points.length - 1];
+      drawDot(ctx, endPt.x, endPt.y, '#00c86e', '#fff', 8);
       ctx.save();
       ctx.beginPath();
-      ctx.arc(target.x, target.y, 14, 0, Math.PI * 2);
+      ctx.arc(endPt.x, endPt.y, 14, 0, Math.PI * 2);
       ctx.strokeStyle = 'rgba(0,200,110,0.3)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
+
+      // Intermediate waypoints (white, small)
+      for (let i = 1; i < points.length - 1; i++) {
+        drawDot(ctx, points[i].x, points[i].y, 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.3)', 4);
+      }
     }
+
+    // Red position dot on top
     drawDot(ctx, start.x, start.y, '#ff4655', '#fff', 9);
     ctx.save();
     ctx.beginPath();
