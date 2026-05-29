@@ -392,23 +392,24 @@
       border-left: 2px solid transparent;
       transition: background .12s, border-color .12s;
     }
-    .mp-map-row:hover, .mp-agent-row:hover, .mp-lineup-row:hover { background: #1a1d26; }
-    .mp-map-row.active, .mp-agent-row.active { border-left-color: #ff4655; background: #1a1d26; }
-    .mp-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #e8f0fe; }
-    .mp-count-badge { font-size: 11px; font-weight: 700; color: #ff4655; background: rgba(255,70,85,.12); border: 1px solid rgba(255,70,85,.2); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; }
-    .mp-chevron { color: #7a9bb5; font-size: 14px; flex-shrink: 0; }
+    .mp-map-row:hover, .mp-agent-row:hover, .mp-lineup-row:hover { background: var(--surface2); }
+    .mp-map-row.active, .mp-agent-row.active { border-left-color: var(--primary); background: rgba(255,70,85,.08); }
+    .mp-lineup-row.active { border-left-color: var(--primary); background: rgba(255,70,85,.08); outline: 1px solid rgba(255,70,85,.3); }
+    .mp-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text); }
+    .mp-count-badge { font-size: 11px; font-weight: 700; color: var(--primary); background: rgba(255,70,85,.12); border: 1px solid rgba(255,70,85,.2); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; }
+    .mp-chevron { color: var(--text2); font-size: 14px; flex-shrink: 0; }
     .mp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .mp-agent-count { font-size: 11px; color: #7a9bb5; flex-shrink: 0; }
-    .mp-status-badge { font-size: 9px; font-weight: 700; letter-spacing: .3px; border-radius: 3px; padding: 1px 5px; border: 1px solid; flex-shrink: 0; white-space: nowrap; }
-    .mp-ability { font-size: 10px; color: #7a9bb5; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 86px; }
-    .mp-date { font-size: 10px; color: #7a9bb5; flex-shrink: 0; white-space: nowrap; }
-    .mp-empty { padding: 24px 12px; font-size: 12px; color: #7a9bb5; text-align: center; }
+    .mp-agent-count { font-size: 11px; color: var(--text2); flex-shrink: 0; }
+    .mp-ability { font-size: 10px; color: var(--text2); flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 86px; }
+    .mp-date { font-size: 10px; color: var(--text2); flex-shrink: 0; white-space: nowrap; }
+    .mp-empty { padding: 24px 12px; font-size: 12px; color: var(--text2); text-align: center; }
     .mp-lineup-row { gap: 5px; }
+    .dc-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; }
     @keyframes mpSlideIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
     @media (max-width: 1100px) { #map-panel { display: none !important; } }
     /* ── Map Overlay ── */
     #mp-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); z-index: 600; display: none; align-items: center; justify-content: center; padding: 20px; }
-    .mp-card { background: #161920; border-radius: 8px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .mp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; }
   </style>
 </head>
 <body>
@@ -488,25 +489,25 @@
         </div>
 
         <!-- ── Map Stats Panel ── -->
-        <div id="map-panel" style="width:640px;flex-shrink:0;background:#0f1117;border:1px solid #1e2129;border-radius:8px;overflow:hidden;display:flex;position:sticky;top:72px;max-height:calc(100vh - 90px);">
+        <div id="map-panel" style="width:640px;flex-shrink:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;display:flex;position:sticky;top:72px;max-height:calc(100vh - 90px);">
           <!-- Колонка 1: Карты -->
-          <div id="mp-col1" style="width:220px;flex-shrink:0;border-right:1px solid #1e2129;display:flex;flex-direction:column;overflow:hidden;">
-            <div style="padding:10px 12px 8px;border-bottom:1px solid #1e2129;flex-shrink:0;">
-              <div style="font-size:10px;font-weight:700;color:#7a9bb5;letter-spacing:1.5px;text-transform:uppercase;">КАРТЫ / ЛАЙНАПЫ</div>
+          <div id="mp-col1" style="width:220px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+              <div class="dlabel" style="margin-bottom:0;">КАРТЫ / ЛАЙНАПЫ</div>
             </div>
             <div id="mp-col1-list" style="overflow-y:auto;flex:1;"></div>
           </div>
           <!-- Колонка 2: Агенты -->
-          <div id="mp-col2" style="width:190px;flex-shrink:0;border-right:1px solid #1e2129;flex-direction:column;overflow:hidden;display:none;">
-            <div style="padding:10px 12px 8px;border-bottom:1px solid #1e2129;flex-shrink:0;">
-              <div id="mp-col2-title" style="font-size:10px;font-weight:700;color:#7a9bb5;letter-spacing:1.5px;text-transform:uppercase;"></div>
+          <div id="mp-col2" style="width:190px;flex-shrink:0;border-right:1px solid var(--border);flex-direction:column;overflow:hidden;display:none;">
+            <div style="padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+              <div id="mp-col2-title" class="dlabel" style="margin-bottom:0;"></div>
             </div>
             <div id="mp-col2-list" style="overflow-y:auto;flex:1;"></div>
           </div>
           <!-- Колонка 3: Лайнапы -->
           <div id="mp-col3" style="flex:1;min-width:0;flex-direction:column;overflow:hidden;display:none;">
-            <div style="padding:10px 12px 8px;border-bottom:1px solid #1e2129;flex-shrink:0;">
-              <div id="mp-col3-title" style="font-size:11px;font-weight:700;color:#e8f0fe;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div style="padding:10px 12px 8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+              <div id="mp-col3-title" style="font-size:11px;font-weight:700;color:var(--text);letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
             </div>
             <div id="mp-col3-list" style="overflow-y:auto;flex:1;"></div>
           </div>
@@ -3421,8 +3422,9 @@ function drawLineChart(svgId, series, days) {
 }
 
 // ── Map Stats Panel ───────────────────────────────────────────────────────────
-let _mpSelMap   = null;
-let _mpSelAgent = null;
+let _mpSelMap    = null;
+let _mpSelAgent  = null;
+let _mpSelLineup = null;
 
 const MP_AGENT_COLORS = {
   'Sova': '#4a90d9',     'Сова': '#4a90d9',
@@ -3437,6 +3439,12 @@ const MP_AGENT_COLORS = {
   'Breach': '#e09040',   'Бреш': '#e09040',
   'Chamber': '#c8a050',  'Чэмбер': '#c8a050',
   'Fade': '#d080b8',     'Фейд': '#d080b8',
+};
+
+const MP_BADGE = {
+  pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
+  approved: ['b-approved', 'ОДОБРЕН'],
+  rejected: ['b-rejected', 'ОТКЛОНЁН'],
 };
 
 function _mpGroupByMap(arr) {
@@ -3454,8 +3462,10 @@ function _mpGroupByMap(arr) {
   return maps;
 }
 
-function _mpHexRgb(hex) {
-  return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)].join(',');
+function _mpFmtDate(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : (ts instanceof Date ? ts : null);
+  return d ? d.toLocaleDateString('ru') : '';
 }
 
 function initMapPanel() {
@@ -3477,8 +3487,9 @@ function initMapPanel() {
   col1List.querySelectorAll('.mp-map-row').forEach(row => {
     row.addEventListener('click', () => {
       if (_mpSelMap === row.dataset.map) return;
-      _mpSelMap   = row.dataset.map;
-      _mpSelAgent = null;
+      _mpSelMap    = row.dataset.map;
+      _mpSelAgent  = null;
+      _mpSelLineup = null;
       col1List.querySelectorAll('.mp-map-row').forEach(r => r.classList.remove('active'));
       row.classList.add('active');
       document.getElementById('mp-col3').style.display = 'none';
@@ -3502,7 +3513,7 @@ function _mpRenderCol2(agents, noAnim) {
   const sorted = Object.entries(agents).sort((a, b) => b[1].length - a[1].length);
   col2List.innerHTML = sorted.length
     ? sorted.map(([agName, agLs]) => {
-        const color = MP_AGENT_COLORS[agName] ?? '#7a9bb5';
+        const color = MP_AGENT_COLORS[agName] ?? 'var(--text2)';
         return `<div class="mp-agent-row${_mpSelAgent === agName ? ' active' : ''}" data-agent="${esc(agName)}">
           <span class="mp-dot" style="background:${color}"></span>
           <span class="mp-row-name">${esc(agName)}</span>
@@ -3517,7 +3528,8 @@ function _mpRenderCol2(agents, noAnim) {
   col2List.querySelectorAll('.mp-agent-row').forEach(row => {
     row.addEventListener('click', () => {
       if (_mpSelAgent === row.dataset.agent) return;
-      _mpSelAgent = row.dataset.agent;
+      _mpSelAgent  = row.dataset.agent;
+      _mpSelLineup = null;
       col2List.querySelectorAll('.mp-agent-row').forEach(r => r.classList.remove('active'));
       row.classList.add('active');
       _mpRenderCol3(agents[_mpSelAgent] ?? [], _mpSelAgent, _mpSelMap);
@@ -3530,19 +3542,12 @@ function _mpRenderCol3(agLineups, agent, map, noAnim) {
   const col3List = document.getElementById('mp-col3-list');
   document.getElementById('mp-col3-title').textContent = `${agent} · ${map} · ${agLineups.length} лайнапов`;
 
-  const statusCfg = {
-    pending:  ['#f97316', 'НА ПРОВЕРКЕ'],
-    approved: ['#22c55e', 'ОДОБРЕН'],
-    rejected: ['#ef4444', 'ОТКЛОНЁН'],
-  };
-
   col3List.innerHTML = agLineups.length
     ? agLineups.map(l => {
-        const [bc, bl] = statusCfg[l.status] ?? ['#7a9bb5', (l.status ?? '?').toUpperCase()];
-        const rgb  = _mpHexRgb(bc);
-        const date = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
-        return `<div class="mp-lineup-row" data-id="${esc(l.id)}">
-          <span class="mp-status-badge" style="color:${bc};border-color:rgba(${rgb},.3);background:rgba(${rgb},.1)">${bl}</span>
+        const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
+        const date = _mpFmtDate(l.submitted_at ?? l.createdAt);
+        return `<div class="mp-lineup-row${_mpSelLineup === l.id ? ' active' : ''}" data-id="${esc(l.id)}">
+          <span class="badge ${bc}">${bl}</span>
           <span class="mp-row-name">${esc(l.title ?? l.name ?? '—')}</span>
           ${l.ability ? `<span class="mp-ability">⚡ ${esc(l.ability)}</span>` : ''}
           ${date ? `<span class="mp-date">${date}</span>` : ''}
@@ -3556,6 +3561,9 @@ function _mpRenderCol3(agLineups, agent, map, noAnim) {
 
   col3List.querySelectorAll('.mp-lineup-row').forEach(row => {
     row.addEventListener('click', () => {
+      _mpSelLineup = row.dataset.id;
+      col3List.querySelectorAll('.mp-lineup-row').forEach(r => r.classList.remove('active'));
+      row.classList.add('active');
       const lineup = agLineups.find(l => l.id === row.dataset.id);
       if (lineup) _mpOpenOverlay(lineup);
     });
@@ -3563,54 +3571,48 @@ function _mpRenderCol3(agLineups, agent, map, noAnim) {
 }
 
 function _mpOpenOverlay(l) {
-  const statusCfg = {
-    pending:  ['#f97316', 'НА ПРОВЕРКЕ'],
-    approved: ['#22c55e', 'ОДОБРЕН'],
-    rejected: ['#ef4444', 'ОТКЛОНЁН'],
-  };
-  const [bc, bl] = statusCfg[l.status] ?? ['#7a9bb5', (l.status ?? '?').toUpperCase()];
-  const rgb  = _mpHexRgb(bc);
-  const date = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '—';
+  const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
+  const date = _mpFmtDate(l.submitted_at ?? l.createdAt) || '—';
+  const imgUrl = _resolveMapUrl(l.map);
 
   document.getElementById('mp-overlay-body').innerHTML = `
     <div style="padding:20px 22px 22px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;">
         <div>
-          <div style="font-size:11px;color:#ff4655;font-weight:700;letter-spacing:1px;margin-bottom:5px;">${esc(l.map??'')} › ${esc(l.agent??'')}</div>
-          <div style="font-size:18px;font-weight:800;line-height:1.25;">${esc(l.title??l.name??'—')}</div>
+          <div style="font-size:11px;color:var(--primary);font-weight:700;letter-spacing:1px;margin-bottom:5px;">${esc(l.map??'')} › ${esc(l.agent??'')}</div>
+          <div style="font-size:18px;font-weight:800;line-height:1.25;color:var(--text);">${esc(l.title??l.name??'—')}</div>
         </div>
-        <button id="mp-ovl-close" style="background:transparent;border:none;color:#7a9bb5;font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:2px;">✕</button>
+        <button id="mp-ovl-close" style="background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;margin-top:2px;">✕</button>
       </div>
 
-      <div style="height:160px;background:#0e1016;border-radius:6px;position:relative;overflow:hidden;margin-bottom:16px;display:flex;align-items:center;justify-content:center;">
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-          <span style="font-size:96px;font-weight:900;color:#fff;opacity:.04;white-space:nowrap;">${esc(l.map??'')}</span>
+      <div class="dc-map-zone">
+        <img id="dcMapImg" src="${imgUrl ?? ''}"
+          style="width:100%;height:160px;object-fit:cover;opacity:0.7;display:${imgUrl ? 'block' : 'none'};"
+          onerror="this.style.display='none';document.getElementById('dcMapFallback').style.display='flex';">
+        <div id="dcMapFallback" style="display:${imgUrl ? 'none' : 'flex'};height:160px;align-items:center;justify-content:center;background:#0e1016;color:var(--border);font-size:12px;letter-spacing:.1em;text-transform:uppercase;">
+          Карта недоступна
         </div>
-        <div style="text-align:center;position:relative;">
-          <div style="font-size:22px;font-weight:800;color:#fff;">${esc(l.map??'')}</div>
-          <div style="font-size:12px;color:#7a9bb5;margin-top:4px;">${esc(l.agent??'')} · ${esc(l.ability??'')}</div>
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 18px;background:linear-gradient(transparent,rgba(0,0,0,0.82));">
+          <div style="font-size:20px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;">${esc(l.map??'')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:2px;">${[l.agent,l.ability].filter(Boolean).map(esc).join(' · ')}</div>
         </div>
       </div>
 
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
         ${[l.map,l.agent,l.ability].filter(Boolean).map(t =>
-          `<span style="padding:3px 10px;border-radius:4px;background:rgba(255,70,85,.1);border:1px solid rgba(255,70,85,.2);color:#ff4655;font-size:11px;font-weight:700;">${esc(t)}</span>`
+          `<span style="padding:3px 10px;border-radius:4px;background:rgba(255,70,85,.1);border:1px solid rgba(255,70,85,.2);color:var(--primary);font-size:11px;font-weight:700;">${esc(t)}</span>`
         ).join('')}
-        <span style="padding:3px 10px;border-radius:4px;background:rgba(${rgb},.1);border:1px solid rgba(${rgb},.25);color:${bc};font-size:11px;font-weight:700;">${bl}</span>
+        <span class="badge ${bc}">${bl}</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:0;">
         ${[['Карта',l.map],['Агент',l.agent],['Способность',l.ability],
            ['Автор',l.submitted_by??l.authorName??'—'],['Дата',date],['Статус',bl]]
           .map(([lbl,val]) =>
-            `<div style="background:#1a1d26;border:1px solid #1e2129;border-radius:6px;padding:9px 12px;">
-              <div style="font-size:10px;color:#7a9bb5;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;">${esc(lbl)}</div>
-              <div style="font-size:13px;font-weight:600;">${esc(val??'—')}</div>
+            `<div class="dfield">
+              <div class="dlabel" style="margin-bottom:3px;">${esc(lbl)}</div>
+              <div class="dval">${esc(val??'—')}</div>
             </div>`).join('')}
-      </div>
-
-      <div style="border:2px dashed #1e2129;border-radius:6px;height:180px;display:flex;align-items:center;justify-content:center;color:#7a9bb5;font-size:13px;">
-        Интерактивная карта лайнапа
       </div>
     </div>`;
 
