@@ -583,10 +583,10 @@
         </div><!-- end .fgrid -->
 
         <!-- Slots -->
-        <div id="add-slots-container" style="display:flex;flex-direction:column;gap:16px;margin-top:8px;"></div>
+        <div id="add-slots-container" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:8px;"></div>
 
         <div style="margin-top:12px;text-align:center;">
-          <button class="btn" id="btn-add-slot" style="border:2px dashed var(--border);color:var(--text2);padding:10px 28px;font-size:13px;">+ Добавить слот</button>
+          <button class="btn" id="btn-add-slot" style="border:2px dashed var(--border);color:var(--text2);padding:10px 28px;font-size:13px;">+ Добавить ещё лайнап</button>
         </div>
 
         <div style="margin-top:16px;">
@@ -1170,31 +1170,45 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
 });
 
 document.getElementById('agents-migrate-btn').addEventListener('click', async () => {
-  const migrKey = 'agents_migrate_done_v1';
+  const migrKey = 'categories_migrated';
   if (localStorage.getItem(migrKey)) { toast('Миграция уже выполнена', 'i'); return; }
-  if (!_agentsData.length) { toast('Сначала подождите загрузки агентов', 'e'); return; }
-  const st = document.getElementById('agents-migrate-status');
-  st.style.display = 'block'; st.textContent = 'Миграция…';
-  let ok = 0, fail = 0;
-  for (const agent of _agentsData) {
-    const agentId = sanitizeAgentId(agent.displayName);
-    try {
-      const snap = await getDoc(doc(db, 'agents_config', agentId));
-      const oldAbilities = snap.exists() ? (snap.data().abilities || {}) : {};
-      await setDoc(doc(db, 'agents_config', agentId, 'categories', 'lineup'), { abilities: oldAbilities });
-      for (const cat of ['combo','smoke','defense']) {
-        await setDoc(doc(db, 'agents_config', agentId, 'categories', cat), { abilities: {} }, { merge: true });
+  const st  = document.getElementById('agents-migrate-status');
+  const btn = document.getElementById('agents-migrate-btn');
+  st.style.display = 'block'; st.textContent = 'Чтение agents_config…';
+  btn.disabled = true;
+  try {
+    const snap = await getDocs(collection(db, 'agents_config'));
+    const total = snap.size;
+    if (total === 0) { st.textContent = 'Нет документов в agents_config — нечего мигрировать.'; btn.disabled = false; return; }
+    let ok = 0, fail = 0;
+    for (const agentDoc of snap.docs) {
+      const agentId = agentDoc.id;
+      const oldAbilities = (agentDoc.data().abilities) || {};
+      // Build disabled version: same keys, all false
+      const disabledAbilities = Object.fromEntries(Object.keys(oldAbilities).map(k => [k, false]));
+      st.textContent = `Миграция ${ok + fail + 1} / ${total}: ${agentId}…`;
+      try {
+        await setDoc(doc(db, 'agents_config', agentId, 'categories', 'lineup'), { abilities: oldAbilities });
+        for (const cat of ['combo', 'smoke', 'defense']) {
+          await setDoc(doc(db, 'agents_config', agentId, 'categories', cat), { abilities: disabledAbilities });
+        }
+        ok++;
+      } catch (e) {
+        console.error('migrate:', agentId, e);
+        fail++;
       }
-      ok++;
-    } catch (e) { fail++; }
+    }
+    localStorage.setItem(migrKey, '1');
+    st.textContent = `✅ Готово: ${ok} агентов${fail ? ', ошибок: ' + fail : ''}`;
+    toast('Миграция завершена', 's');
+    btn.textContent = '✅ Выполнено';
+  } catch (e) {
+    st.textContent = '❌ Ошибка: ' + e.message;
+    toast('Ошибка миграции: ' + e.message, 'e');
+    btn.disabled = false;
   }
-  localStorage.setItem(migrKey, '1');
-  st.textContent = `✅ Мигрировано ${ok} агентов${fail ? ', ошибок: '+fail : ''}`;
-  toast('Миграция завершена', 's');
-  document.getElementById('agents-migrate-btn').disabled = true;
-  document.getElementById('agents-migrate-btn').textContent = '✅ Выполнено';
 });
-if (localStorage.getItem('agents_migrate_done_v1')) {
+if (localStorage.getItem('categories_migrated')) {
   const mb = document.getElementById('agents-migrate-btn');
   if (mb) { mb.disabled = true; mb.textContent = '✅ Выполнено'; }
 }
@@ -1710,8 +1724,12 @@ function _initSlotEvents(id) {
   }
 }
 
+function _syncAddSlotBtn() {
+  const btn=document.getElementById('btn-add-slot'); if(!btn) return;
+  btn.style.display=Object.keys(addSlotSessions).length>=6?'none':'inline-flex';
+}
 function createAddSlot() {
-  if(Object.keys(addSlotSessions).length>=5){toast('Максимум 5 слотов','e');return;}
+  if(Object.keys(addSlotSessions).length>=6){toast('Максимум 6 слотов','e');return;}
   const id=_nextAddSlotId++;
   addSlotSessions[id]={markerX:null,markerY:null,trajectory:[],mapMode:'position',mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,videoState:{status:'idle',url:null,localUrl:null,progress:0,xhr:null},screenshots:[]};
   const container=document.getElementById('add-slots-container');
@@ -1720,6 +1738,7 @@ function createAddSlot() {
   _initSlotEvents(id);
   _updateSlotNumbers();
   _updateSaveBtn();
+  _syncAddSlotBtn();
 }
 function deleteAddSlot(id) {
   const s=addSlotSessions[id]; if(!s) return;
@@ -1728,7 +1747,7 @@ function deleteAddSlot(id) {
   s.screenshots.forEach(sc=>{if(sc.xhr)sc.xhr.abort();URL.revokeObjectURL(sc.localUrl);});
   delete addSlotSessions[id];
   document.getElementById('add-slot-'+id)?.remove();
-  _updateSlotNumbers(); _updateSaveBtn();
+  _updateSlotNumbers(); _updateSaveBtn(); _syncAddSlotBtn();
 }
 function _updateSlotNumbers() {
   let n=1;
