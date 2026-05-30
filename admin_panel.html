@@ -148,6 +148,7 @@
     .uz-hint { color: var(--text2); font-size: 11px; margin-top: 3px; opacity: .65; }
     .upload-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 7px; margin-top: 9px; }
     .up-thumb { position: relative; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface2); }
+    .slot-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
     .up-thumb img { width: 100%; height: 100%; object-fit: cover; }
     .up-overlay { position: absolute; inset: 0; pointer-events: none; }
     .up-overlay-err { background: rgba(239,68,68,.55); display: flex; align-items: center; justify-content: center; }
@@ -555,58 +556,6 @@
             </select>
           </div>
 
-          <div class="fg full">
-            <label class="flabel">Название</label>
-            <input class="finput" id="f-title" placeholder="Название лайнапа">
-          </div>
-
-          <div class="fg full">
-            <label class="flabel">Описание</label>
-            <textarea class="ftextarea" id="f-desc" placeholder="Подробное описание…"></textarea>
-          </div>
-
-          <div class="fg full">
-            <label class="flabel">Видео (необязательно)</label>
-            <div class="video-upload-zone" id="add-video-zone">
-              <div class="uz-icon">🎬</div>
-              <div class="uz-text">Нажми или перетащи видео сюда</div>
-              <div class="uz-hint">MP4 · максимум 50 MB</div>
-            </div>
-            <input type="file" id="add-video-file" accept="video/*" style="display:none;">
-            <div id="add-video-preview"></div>
-          </div>
-
-          <div class="fg full">
-            <label class="flabel">Скриншоты</label>
-            <div class="upload-zone" id="upload-zone">
-              <div class="uz-icon">📷</div>
-              <div class="uz-text">Нажми или перетащи фото сюда</div>
-              <div class="uz-hint">Сжатие до 500 KB · JPEG · можно несколько</div>
-            </div>
-            <input type="file" id="f-screenshots" accept="image/*" multiple style="display:none;">
-            <div class="upload-previews" id="upload-previews"></div>
-          </div>
-
-          <div class="fg full">
-            <label class="flabel">Точка на карте — кликни чтобы поставить метку</label>
-            <div id="map-picker-wrap" class="map-picker-wrap">
-              <div class="map-ph">Сначала выбери карту ↑</div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button id="mode-position"   class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
-              <button id="mode-trajectory" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
-            </div>
-            <div id="traj-actions" style="display:none;gap:8px;margin-top:6px;">
-              <button id="traj-undo"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
-              <button id="traj-clear" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
-            </div>
-            <div class="coords-row">
-              X: <span class="coord-pill" id="coord-x">—</span>
-              Y: <span class="coord-pill" id="coord-y">—</span>
-              <span id="coord-hint" style="font-size:11px;opacity:.6;">Кликни на карту</span>
-            </div>
-          </div>
-
           <div class="fg">
             <label class="flabel">Статус</label>
             <select class="fselect" id="f-status">
@@ -626,23 +575,28 @@
             <label class="flabel">Автор (оставь пустым — будет твой аккаунт)</label>
             <div class="author-wrap">
               <input class="finput" id="f-author-input" placeholder="Поиск по username…" autocomplete="off">
-              <!-- dropdown скрыт, используется панель -->
               <div class="author-dropdown" id="author-dropdown" style="display:none;"></div>
             </div>
             <div id="author-selected" style="font-size:12px;color:var(--text2);margin-top:5px;"></div>
           </div>
 
-          <div class="fg full" style="margin-top:6px;">
-            <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">
-              Добавить лайнап
-            </button>
-            <button class="btn" id="btn-reset-preset"
-              style="width:100%;justify-content:center;padding:10px;border:1px solid var(--border);color:var(--text2);margin-top:6px;font-size:13px;">
-              🔄 Сбросить пресет
-            </button>
-          </div>
+        </div><!-- end .fgrid -->
 
+        <!-- Slots -->
+        <div id="add-slots-container" style="display:flex;flex-direction:column;gap:16px;margin-top:8px;"></div>
+
+        <div style="margin-top:12px;text-align:center;">
+          <button class="btn" id="btn-add-slot" style="border:2px dashed var(--border);color:var(--text2);padding:10px 28px;font-size:13px;">+ Добавить слот</button>
         </div>
+
+        <div style="margin-top:16px;">
+          <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">Добавить 1 лайнап</button>
+          <button class="btn" id="btn-reset-preset" style="width:100%;justify-content:center;padding:10px;border:1px solid var(--border);color:var(--text2);margin-top:6px;font-size:13px;">🔄 Сбросить пресет</button>
+        </div>
+
+        <!-- hidden map-picker-wrap stub for global state (not shown) -->
+        <div id="map-picker-wrap" style="display:none;"></div>
+
       </div>
     </div>
 
@@ -805,7 +759,7 @@
 
   <!-- Guides tab -->
   <div id="tab-guides" style="display:none;">
-    <div class="form-wrap" style="max-width:900px;">
+    <div class="form-wrap" style="max-width:900px;margin:0 auto;">
       <div class="form-title">📋 ГАЙДЫ — редактор guide_content</div>
 
       <div class="fg" style="margin-bottom:14px;">
@@ -876,12 +830,23 @@
       </div>
 
       <div id="agents-abilities-block" style="display:none;max-width:700px;">
-        <div class="dlabel" style="margin-bottom:10px;">Абилки — <span id="agents-selected-name" style="color:var(--primary);"></span></div>
+        <div class="dlabel" style="margin-bottom:12px;">Абилки — <span id="agents-selected-name" style="color:var(--primary);"></span></div>
+
+        <!-- Category tabs -->
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="agents-cat-tabs">
+          <button class="btn btn-save" data-cat="lineup"  id="agents-tab-lineup" >🎯 Лайнапы</button>
+          <button class="btn"          data-cat="combo"   id="agents-tab-combo"  style="border:1px solid var(--border);color:var(--text2);">⚡ Комбо</button>
+          <button class="btn"          data-cat="smoke"   id="agents-tab-smoke"  style="border:1px solid var(--border);color:var(--text2);">💨 Смоки</button>
+          <button class="btn"          data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
+        </div>
+
         <div id="agents-abilities-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;"></div>
-        <div class="row">
+        <div class="row" style="flex-wrap:wrap;gap:8px;">
           <button class="btn btn-save" id="agents-save-btn">💾 Сохранить</button>
+          <button class="btn" id="agents-migrate-btn" style="border:1px solid var(--border);color:var(--text2);font-size:12px;">⚡ Мигрировать старые данные</button>
         </div>
         <div id="agents-save-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
+        <div id="agents-migrate-status" style="margin-top:8px;font-size:12px;color:var(--text2);display:none;"></div>
       </div>
     </div>
   </div>
@@ -1123,22 +1088,30 @@ function _renderAgentCards() {
   });
 }
 
-async function _selectAgentCard(name) {
-  _selectedAgentName = name;
-  // Update card selection
-  document.querySelectorAll('#agents-card-grid .agent-card').forEach(c => {
-    c.classList.toggle('sel', c.dataset.name === name);
+let _selectedAgentCategory = 'lineup';
+
+function _setAgentCategoryTab(cat) {
+  _selectedAgentCategory = cat;
+  ['lineup','combo','smoke','defense'].forEach(c => {
+    const btn = document.getElementById('agents-tab-'+c); if (!btn) return;
+    const active = c === cat;
+    btn.className      = active ? 'btn btn-save' : 'btn';
+    btn.style.cssText  = active ? '' : 'border:1px solid var(--border);color:var(--text2);';
   });
-  document.getElementById('agents-selected-name').textContent = name;
+  if (_selectedAgentName) _loadAgentAbilitiesForCategory();
+}
 
-  const agent = _agentsData.find(a => a.displayName === name);
-  if (!agent) return;
+document.getElementById('agents-cat-tabs')?.querySelectorAll('[data-cat]').forEach(btn => {
+  btn.addEventListener('click', () => _setAgentCategoryTab(btn.dataset.cat));
+});
 
+async function _loadAgentAbilitiesForCategory() {
+  const name = _selectedAgentName; if (!name) return;
+  const agent = _agentsData.find(a => a.displayName === name); if (!agent) return;
   try {
-    const snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name)));
+    const snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', _selectedAgentCategory));
     _agentAbilitiesConfig = snap.exists() ? (snap.data().abilities || {}) : {};
   } catch (_) { _agentAbilitiesConfig = {}; }
-
   const abilities = (agent.abilities || []).filter(a => a.displayIcon);
   const list = document.getElementById('agents-abilities-list');
   list.innerHTML = '';
@@ -1160,7 +1133,15 @@ async function _selectAgentCard(name) {
     chk.addEventListener('change', () => { lbl.textContent = chk.checked ? 'Включена' : 'Выключена'; });
     list.appendChild(row);
   });
+}
 
+async function _selectAgentCard(name) {
+  _selectedAgentName = name;
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(c => {
+    c.classList.toggle('sel', c.dataset.name === name);
+  });
+  document.getElementById('agents-selected-name').textContent = name;
+  await _loadAgentAbilitiesForCategory();
   document.getElementById('agents-abilities-block').style.display = 'block';
   document.getElementById('agents-save-status').style.display = 'none';
   document.getElementById('agents-abilities-block').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1168,8 +1149,7 @@ async function _selectAgentCard(name) {
 
 document.getElementById('agents-save-btn').addEventListener('click', async () => {
   if (!_selectedAgentName) return;
-  const agent = _agentsData.find(a => a.displayName === _selectedAgentName);
-  if (!agent) return;
+  const agent = _agentsData.find(a => a.displayName === _selectedAgentName); if (!agent) return;
   const abilities = (agent.abilities || []).filter(a => a.displayIcon);
   const config = {};
   abilities.forEach(ability => {
@@ -1178,16 +1158,46 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     if (chk) config[ability.displayName] = chk.checked;
   });
   try {
-    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName)), { abilities: config }, { merge: true });
+    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _selectedAgentCategory), { abilities: config });
     const st = document.getElementById('agents-save-status');
     st.style.display = 'block';
-    st.textContent = `✅ Сохранено для ${_selectedAgentName}`;
+    st.textContent = `✅ Сохранено для ${_selectedAgentName} / ${_selectedAgentCategory}`;
     setTimeout(() => { st.style.display = 'none'; }, 3000);
-    toast(`Сохранено для ${_selectedAgentName}`, 's');
+    toast(`Сохранено для ${_selectedAgentName} [${_selectedAgentCategory}]`, 's');
   } catch (e) {
     toast('Ошибка сохранения: ' + e.message, 'e');
   }
 });
+
+document.getElementById('agents-migrate-btn').addEventListener('click', async () => {
+  const migrKey = 'agents_migrate_done_v1';
+  if (localStorage.getItem(migrKey)) { toast('Миграция уже выполнена', 'i'); return; }
+  if (!_agentsData.length) { toast('Сначала подождите загрузки агентов', 'e'); return; }
+  const st = document.getElementById('agents-migrate-status');
+  st.style.display = 'block'; st.textContent = 'Миграция…';
+  let ok = 0, fail = 0;
+  for (const agent of _agentsData) {
+    const agentId = sanitizeAgentId(agent.displayName);
+    try {
+      const snap = await getDoc(doc(db, 'agents_config', agentId));
+      const oldAbilities = snap.exists() ? (snap.data().abilities || {}) : {};
+      await setDoc(doc(db, 'agents_config', agentId, 'categories', 'lineup'), { abilities: oldAbilities });
+      for (const cat of ['combo','smoke','defense']) {
+        await setDoc(doc(db, 'agents_config', agentId, 'categories', cat), { abilities: {} }, { merge: true });
+      }
+      ok++;
+    } catch (e) { fail++; }
+  }
+  localStorage.setItem(migrKey, '1');
+  st.textContent = `✅ Мигрировано ${ok} агентов${fail ? ', ошибок: '+fail : ''}`;
+  toast('Миграция завершена', 's');
+  document.getElementById('agents-migrate-btn').disabled = true;
+  document.getElementById('agents-migrate-btn').textContent = '✅ Выполнено';
+});
+if (localStorage.getItem('agents_migrate_done_v1')) {
+  const mb = document.getElementById('agents-migrate-btn');
+  if (mb) { mb.disabled = true; mb.textContent = '✅ Выполнено'; }
+}
 
 // ── Guide content editor ──────────────────────────────────────────────────────
 const splitLines = str => str.split('\n').map(s => s.trim()).filter(Boolean);
@@ -1433,149 +1443,408 @@ function patchStatus(id, status) {
   initMapPanel();
 }
 
-// ── Add lineup ────────────────────────────────────────────────────────────────
+// ── Add lineup — multi-slot system ───────────────────────────────────────────
+const addSlotSessions = {};
+let _nextAddSlotId = 0;
+
+function _buildSlotHtml(id) {
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="dlabel" id="slot-${id}-num">Лайнап #1</div>
+      <button class="btn btn-delete" style="padding:4px 10px;font-size:12px;" onclick="deleteAddSlot(${id})">✕ Удалить</button>
+    </div>
+    <div class="fgrid">
+      <div class="fg full">
+        <label class="flabel">Название</label>
+        <input class="finput" id="slot-${id}-title" placeholder="Название лайнапа">
+      </div>
+      <div class="fg full">
+        <label class="flabel">Описание</label>
+        <textarea class="ftextarea" id="slot-${id}-desc" placeholder="Подробное описание…"></textarea>
+      </div>
+      <div class="fg full">
+        <label class="flabel">Видео (необязательно)</label>
+        <div class="video-upload-zone" id="slot-${id}-video-zone"><div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div><div class="uz-hint">MP4 · максимум 50 MB</div></div>
+        <input type="file" id="slot-${id}-video-file" accept="video/*" style="display:none;">
+        <div id="slot-${id}-video-preview"></div>
+      </div>
+      <div class="fg full">
+        <label class="flabel">Скриншоты</label>
+        <div class="upload-zone" id="slot-${id}-upload-zone"><div class="uz-icon">📷</div><div class="uz-text">Нажми или перетащи фото сюда</div><div class="uz-hint">Сжатие до 500 KB · JPEG · можно несколько</div></div>
+        <input type="file" id="slot-${id}-screenshots" accept="image/*" multiple style="display:none;">
+        <div class="upload-previews" id="slot-${id}-upload-previews"></div>
+      </div>
+      <div class="fg full">
+        <label class="flabel">Точка на карте — кликни чтобы поставить метку</label>
+        <div id="slot-${id}-map-wrap" class="map-picker-wrap"><div class="map-ph">Сначала выбери карту ↑</div></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="slot-${id}-mode-pos"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+          <button id="slot-${id}-mode-traj" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
+        </div>
+        <div id="slot-${id}-traj-actions" style="display:none;gap:8px;margin-top:6px;">
+          <button id="slot-${id}-traj-undo"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
+          <button id="slot-${id}-traj-clear" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
+        </div>
+        <div class="coords-row">
+          X: <span class="coord-pill" id="slot-${id}-coord-x">—</span>
+          Y: <span class="coord-pill" id="slot-${id}-coord-y">—</span>
+          <span id="slot-${id}-coord-hint" style="font-size:11px;opacity:.6;">Кликни на карту</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function _sCanvas(id) { return document.querySelector('#slot-'+id+'-map-wrap .map-canvas'); }
+function _sApply(id) {
+  const s = addSlotSessions[id]; if (!s) return;
+  const c = _sCanvas(id); if (!c) return;
+  c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
+  const m = c.querySelector('.map-marker');
+  if (m) m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`;
+}
+function _sClamp(id) {
+  const s = addSlotSessions[id]; if (!s) return;
+  const w = document.getElementById('slot-'+id+'-map-wrap'); if (!w) return;
+  const cw = w.clientWidth, ch = w.clientHeight;
+  s.mapTx = Math.max(cw*(1-s.mapScale), Math.min(0, s.mapTx));
+  s.mapTy = Math.max(ch*(1-s.mapScale), Math.min(0, s.mapTy));
+}
+function _sImgRect(id) {
+  const wrap = document.getElementById('slot-'+id+'-map-wrap');
+  const img  = wrap?.querySelector('.map-canvas img');
+  const cw = wrap.clientWidth, ch = wrap.clientHeight;
+  if (!img || !img.naturalWidth) return {left:0,top:0,width:cw,height:ch};
+  const sc = Math.min(cw/img.naturalWidth, ch/img.naturalHeight);
+  return {left:(cw-img.naturalWidth*sc)/2, top:(ch-img.naturalHeight*sc)/2, width:img.naturalWidth*sc, height:img.naturalHeight*sc};
+}
+function renderSlotMarker(id) {
+  const s = addSlotSessions[id]; if (!s) return;
+  const c = _sCanvas(id); if (!c) return;
+  c.querySelectorAll('.map-marker').forEach(m => m.remove());
+  if (s.markerX === null) return;
+  const dot = document.createElement('div');
+  dot.className = 'map-marker dot';
+  dot.style.left = (s.markerX*100)+'%'; dot.style.top = (s.markerY*100)+'%';
+  c.appendChild(dot); _sApply(id);
+}
+function updateSlotCoords(id) {
+  const s = addSlotSessions[id]; if (!s) return;
+  const cx = document.getElementById('slot-'+id+'-coord-x');
+  const cy = document.getElementById('slot-'+id+'-coord-y');
+  const ch = document.getElementById('slot-'+id+'-coord-hint');
+  if (cx) cx.textContent = s.markerX !== null ? s.markerX.toFixed(4) : '—';
+  if (cy) cy.textContent = s.markerY !== null ? s.markerY.toFixed(4) : '—';
+  if (ch) ch.textContent = s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+}
+function renderSlotTraj(id) {
+  const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
+  const c = wrap.querySelector('.map-canvas'); if (!c) return;
+  c.querySelector('.traj-svg')?.remove();
+  const s = addSlotSessions[id]; if (!s || s.trajectory.length === 0) return;
+  c.appendChild(_buildTrajSvg(s.trajectory, wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id));
+}
+function _setSlotMapMode(id, mode) {
+  const s = addSlotSessions[id]; if (!s) return;
+  s.mapMode = mode;
+  const posBtn  = document.getElementById('slot-'+id+'-mode-pos');
+  const trajBtn = document.getElementById('slot-'+id+'-mode-traj');
+  const trajAct = document.getElementById('slot-'+id+'-traj-actions');
+  if (posBtn)  { posBtn.className  = mode==='position'   ? 'btn btn-save':'btn'; posBtn.style.cssText  = mode==='position'   ? 'flex:1;':'flex:1;border:1px solid var(--border);color:var(--text2);'; }
+  if (trajBtn) { trajBtn.className = mode==='trajectory' ? 'btn btn-save':'btn'; trajBtn.style.cssText = mode==='trajectory' ? 'flex:1;':'flex:1;border:1px solid var(--border);color:var(--text2);'; }
+  if (trajAct) trajAct.style.display = mode==='trajectory' ? 'flex':'none';
+}
+function updateSlotMapWrap(id, mapName) {
+  const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
+  const imgUrl = _resolveMapUrl(mapName);
+  if (!imgUrl) {
+    wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "'+mapName+'" — изображение недоступно':'Сначала выбери карту ↑'}</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
+}
+function initSlotMapWrap(id) {
+  const s = addSlotSessions[id]; if (!s) return;
+  const mapName = document.getElementById('f-map').value;
+  updateSlotMapWrap(id, mapName);
+  const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
+  wrap.addEventListener('wheel', e => {
+    if (!_sCanvas(id)) return; e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+    const f  = e.deltaY < 0 ? 1.15:1/1.15;
+    const ns = Math.max(1, Math.min(8, s.mapScale*f));
+    const af = ns/s.mapScale;
+    s.mapTx = mx*(1-af)+s.mapTx*af; s.mapTy = my*(1-af)+s.mapTy*af;
+    s.mapScale = ns; _sClamp(id); _sApply(id);
+  }, { passive:false });
+  wrap.addEventListener('mousedown', e => {
+    if (e.button!==0 || !_sCanvas(id)) return; e.preventDefault();
+    s._mapDragging = false;
+    const sx = e.clientX, sy = e.clientY, tx0 = s.mapTx, ty0 = s.mapTy;
+    wrap.style.cursor = 'grabbing';
+    const onMove = mv => {
+      const dx = mv.clientX-sx, dy = mv.clientY-sy;
+      if (!s._mapDragging && (Math.abs(dx)>3||Math.abs(dy)>3)) s._mapDragging = true;
+      if (s._mapDragging) { s.mapTx = tx0+dx; s.mapTy = ty0+dy; _sClamp(id); _sApply(id); }
+    };
+    const onUp = up => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      wrap.style.cursor = 'crosshair';
+      if (!s._mapDragging) {
+        const r2 = wrap.getBoundingClientRect();
+        const cx = up.clientX-r2.left, cy = up.clientY-r2.top;
+        const ir = _sImgRect(id);
+        const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale))/wrap.clientWidth;
+        const ny = Math.max(ir.top,  Math.min(ir.top+ir.height,  (cy-s.mapTy)/s.mapScale))/wrap.clientHeight;
+        if (s.mapMode==='position') { s.markerX=nx; s.markerY=ny; renderSlotMarker(id); updateSlotCoords(id); }
+        else { s.trajectory.push({x:nx,y:ny}); renderSlotTraj(id); }
+      }
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  document.getElementById('slot-'+id+'-mode-pos')?.addEventListener('click',  () => _setSlotMapMode(id,'position'));
+  document.getElementById('slot-'+id+'-mode-traj')?.addEventListener('click', () => _setSlotMapMode(id,'trajectory'));
+  document.getElementById('slot-'+id+'-traj-undo')?.addEventListener('click', () => { s.trajectory.pop(); renderSlotTraj(id); });
+  document.getElementById('slot-'+id+'-traj-clear')?.addEventListener('click',() => { s.trajectory=[]; renderSlotTraj(id); });
+}
+
+function _renderSlotVideoPreview(id) {
+  const s  = addSlotSessions[id]; if (!s) return;
+  const wrap = document.getElementById('slot-'+id+'-video-preview');
+  const zone = document.getElementById('slot-'+id+'-video-zone');
+  if (!wrap) return;
+  const vs = s.videoState;
+  if (vs.status==='idle') { wrap.innerHTML=''; if (zone) zone.style.display=''; return; }
+  if (zone) zone.style.display='none';
+  if (vs.status==='uploading') {
+    wrap.innerHTML=`<div class="video-prog-wrap"><div class="video-prog-track"><div class="video-prog-fill" id="sv${id}-vpb" style="width:${Math.round(vs.progress*100)}%"></div></div><div class="video-prog-pct" id="sv${id}-vpp">${Math.round(vs.progress*100)}%</div><button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="sv${id}-vcnl">✕ Отмена</button></div>`;
+    document.getElementById('sv'+id+'-vcnl')?.addEventListener('click',()=>{ vs.xhr?.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
+  } else if (vs.status==='done') {
+    wrap.innerHTML=`<div class="video-preview-wrap"><video src="${esc(vs.url)}" controls preload="metadata"></video><button class="video-remove-btn" id="sv${id}-vrem">✕</button></div>`;
+    document.getElementById('sv'+id+'-vrem')?.addEventListener('click',()=>{ s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
+  } else {
+    wrap.innerHTML=`<div style="color:var(--red);font-size:13px;padding:8px 0;">⚠ Ошибка загрузки <button class="btn btn-delete" style="margin-left:8px;padding:4px 10px;font-size:12px;" id="sv${id}-vclr">Попробовать снова</button></div>`;
+    document.getElementById('sv'+id+'-vclr')?.addEventListener('click',()=>{ s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
+  }
+}
+function _handleSlotVideoFile(id, file) {
+  const s = addSlotSessions[id]; if (!s) return;
+  if (!file||!file.type.startsWith('video/')) { toast('Выбери видеофайл','e'); return; }
+  if (file.size>50*1024*1024) { toast('Видео превышает 50 MB','e'); return; }
+  const vs=s.videoState; if(vs.xhr)vs.xhr.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl);
+  s.videoState={status:'uploading',url:null,localUrl:URL.createObjectURL(file),progress:0,xhr:null};
+  _renderSlotVideoPreview(id);
+  const upload=uploadVideoToCloudinary(file,pct=>{
+    s.videoState.progress=pct;
+    const bar=document.getElementById('sv'+id+'-vpb'); const lbl=document.getElementById('sv'+id+'-vpp');
+    if(bar)bar.style.width=Math.round(pct*100)+'%'; if(lbl)lbl.textContent=Math.round(pct*100)+'%';
+  });
+  s.videoState.xhr=upload;
+  upload.then(url=>{ s.videoState={status:'done',url,localUrl:null,progress:1,xhr:null}; _renderSlotVideoPreview(id); })
+        .catch(err=>{ if(err.message==='canceled')return; s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); toast('Ошибка загрузки видео','e'); });
+}
+
+function _renderSlotPreviews(id) {
+  const s=addSlotSessions[id]; if(!s) return;
+  const grid=document.getElementById('slot-'+id+'-upload-previews'); if(!grid) return;
+  grid.innerHTML=s.screenshots.map(_thumbHtml).join('');
+  grid.querySelectorAll('.up-remove').forEach(btn=>btn.addEventListener('click',()=>_removeSlotScreenshot(id,btn.dataset.uid)));
+}
+function _removeSlotScreenshot(id, uid) {
+  const s=addSlotSessions[id]; if(!s) return;
+  const idx=s.screenshots.findIndex(sc=>sc.uid===uid); if(idx===-1) return;
+  const item=s.screenshots[idx]; if(item.xhr)item.xhr.abort(); URL.revokeObjectURL(item.localUrl);
+  s.screenshots.splice(idx,1); _renderSlotPreviews(id);
+}
+function handleSlotFiles(id, files) {
+  const s=addSlotSessions[id]; if(!s) return;
+  const toProcess=Array.from(files).filter(f=>f.type.startsWith('image/')); if(!toProcess.length) return;
+  const entries=toProcess.map(file=>{
+    const uid=`${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const item={uid,localUrl:URL.createObjectURL(file),storageUrl:null,status:'uploading',progress:0,xhr:null,origSize:file.size,compSize:null};
+    s.screenshots.push(item); return{file,item};
+  });
+  _renderSlotPreviews(id);
+  Promise.all(entries.map(({file,item})=>_processSlotFile(id,file,item)));
+}
+function _processSlotFile(id, file, item) {
+  const s=addSlotSessions[id]; if(!s) return Promise.resolve();
+  return new Promise(resolve=>{
+    const uid=item.uid;
+    compressImage(file).then(blob=>{
+      const cur=s.screenshots.find(sc=>sc.uid===uid); if(!cur){resolve();return;}
+      cur.compSize=blob.size; _renderSlotPreviews(id);
+      const upload=uploadToCloudinary(blob,pct=>{
+        const itm=s.screenshots.find(sc=>sc.uid===uid); if(!itm) return; itm.progress=pct;
+        const bar=document.querySelector(`#slot-${id}-upload-previews .up-thumb[data-uid="${uid}"] .up-prog-bar`);
+        if(bar)bar.style.width=Math.round(pct*100)+'%';
+      });
+      cur.xhr=upload;
+      upload.then(url=>{ const itm=s.screenshots.find(sc=>sc.uid===uid); if(itm){itm.storageUrl=url;itm.status='done';itm.xhr=null;_renderSlotPreviews(id);} resolve(); })
+            .catch(err=>{ if(err.message!=='canceled'){const itm=s.screenshots.find(sc=>sc.uid===uid);if(itm){itm.status='error';itm.xhr=null;_renderSlotPreviews(id);}toast('Ошибка загрузки: '+err.message,'e');} resolve(); });
+    }).catch(()=>{ const cur=s.screenshots.find(sc=>sc.uid===uid);if(cur){cur.status='error';_renderSlotPreviews(id);}toast('Ошибка сжатия','e');resolve(); });
+  });
+}
+
+function _initSlotEvents(id) {
+  initSlotMapWrap(id);
+  const vzone=document.getElementById('slot-'+id+'-video-zone');
+  const vfile=document.getElementById('slot-'+id+'-video-file');
+  if(vzone&&vfile){
+    vzone.addEventListener('click',()=>vfile.click());
+    vfile.addEventListener('change',()=>{if(vfile.files[0])_handleSlotVideoFile(id,vfile.files[0]);vfile.value='';});
+    vzone.addEventListener('dragover',e=>{e.preventDefault();vzone.classList.add('drag');});
+    vzone.addEventListener('dragleave',()=>vzone.classList.remove('drag'));
+    vzone.addEventListener('drop',e=>{e.preventDefault();vzone.classList.remove('drag');if(e.dataTransfer.files[0])_handleSlotVideoFile(id,e.dataTransfer.files[0]);});
+  }
+  const uzone=document.getElementById('slot-'+id+'-upload-zone');
+  const ufile=document.getElementById('slot-'+id+'-screenshots');
+  if(uzone&&ufile){
+    uzone.addEventListener('click',()=>ufile.click());
+    ufile.addEventListener('change',()=>{handleSlotFiles(id,ufile.files);ufile.value='';});
+    uzone.addEventListener('dragover',e=>{e.preventDefault();uzone.classList.add('drag');});
+    uzone.addEventListener('dragleave',()=>uzone.classList.remove('drag'));
+    uzone.addEventListener('drop',e=>{e.preventDefault();uzone.classList.remove('drag');handleSlotFiles(id,e.dataTransfer.files);});
+  }
+}
+
+function createAddSlot() {
+  if(Object.keys(addSlotSessions).length>=5){toast('Максимум 5 слотов','e');return;}
+  const id=_nextAddSlotId++;
+  addSlotSessions[id]={markerX:null,markerY:null,trajectory:[],mapMode:'position',mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,videoState:{status:'idle',url:null,localUrl:null,progress:0,xhr:null},screenshots:[]};
+  const container=document.getElementById('add-slots-container');
+  const el=document.createElement('div'); el.id='add-slot-'+id; el.className='slot-block';
+  el.innerHTML=_buildSlotHtml(id); container.appendChild(el);
+  _initSlotEvents(id);
+  _updateSlotNumbers();
+  _updateSaveBtn();
+}
+function deleteAddSlot(id) {
+  const s=addSlotSessions[id]; if(!s) return;
+  if(Object.keys(addSlotSessions).length<=1){toast('Минимум 1 слот','i');return;}
+  if(s.videoState.xhr)s.videoState.xhr.abort(); if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl);
+  s.screenshots.forEach(sc=>{if(sc.xhr)sc.xhr.abort();URL.revokeObjectURL(sc.localUrl);});
+  delete addSlotSessions[id];
+  document.getElementById('add-slot-'+id)?.remove();
+  _updateSlotNumbers(); _updateSaveBtn();
+}
+function _updateSlotNumbers() {
+  let n=1;
+  document.querySelectorAll('#add-slots-container .slot-block').forEach(el=>{
+    const id=el.id.replace('add-slot-','');
+    const lbl=document.getElementById('slot-'+id+'-num'); if(lbl)lbl.textContent='Лайнап #'+n; n++;
+  });
+}
+function _slotCount(n){return n===1?'1 лайнап':n<=4?n+' лайнапа':n+' лайнапов';}
+function _updateSaveBtn() {
+  const count=Object.keys(addSlotSessions).length;
+  const btn=document.getElementById('btn-add-lineup'); if(!btn) return;
+  btn.textContent='Сохранить '+_slotCount(count);
+}
+
+document.getElementById('btn-add-slot').addEventListener('click', createAddSlot);
+
 document.getElementById('btn-add-lineup').addEventListener('click', async () => {
   const map      = document.getElementById('f-map').value;
   const agent    = pickedAgent;
   const ability  = pickedAbility;
   const category = document.getElementById('f-category').value;
-  const title    = document.getElementById('f-title').value.trim();
-  const desc     = document.getElementById('f-desc').value.trim();
-  const videoUrl = addVideoState.status === 'done' ? (addVideoState.url ?? '') : '';
-  const posX     = markerX ?? 0;
-  const posY     = markerY ?? 0;
   const status   = document.getElementById('f-status').value;
   const excl     = document.getElementById('f-exclusive').checked;
-  if (!map)     { toast('Выбери карту', 'e'); return; }
-  if (!agent)   { toast('Выбери агента', 'e'); return; }
-  if (!ability) { toast('Выбери способность', 'e'); return; }
-  if (!category || !title) { toast('Заполни все обязательные поля', 'e'); return; }
-  if (markerX === null) { toast('Поставь точку на карте', 'e'); return; }
-  if (addVideoState.status === 'uploading') { toast('Подожди — видео ещё загружается…', 'i'); return; }
-  const uploading = uploadedScreenshots.some(s => s.status === 'uploading');
-  if (uploading) { toast('Подожди — фото ещё загружаются…', 'i'); return; }
-  const screenshots = uploadedScreenshots.filter(s => s.status === 'done').map(s => s.storageUrl);
-  const btn = document.getElementById('btn-add-lineup');
-  btn.disabled = true; btn.textContent = 'Сохранение…';
-  try {
-    const ref = await addDoc(collection(db, 'lineups'), {
-      map, agent, ability, category, title,
-      description:  desc,
-      video_url:    videoUrl,
-      screenshots,
-      position_x:   posX,
-      position_y:   posY,
-      trajectory:   trajectoryPoints,
-      status,
-      is_exclusive: excl,
-      submitted_at: serverTimestamp(),
-      user_id:      selectedAuthor?.uid      ?? currentUser?.uid ?? '',
-      submitted_by: selectedAuthor?.name ?? currentUser?.displayName ?? 'Admin',
-    });
-    toast('Лайнап добавлен ✅', 's');
-    resetForm();
-    lineups.unshift({
-      id: ref.id, map, agent, ability, category, title,
-      description: desc, video_url: videoUrl, screenshots,
-      position_x: posX, position_y: posY, status, is_exclusive: excl,
-      submitted_by: selectedAuthor?.name ?? currentUser?.displayName ?? 'Admin',
-    });
-    renderList();
-  } catch (e) {
-    toast('Ошибка: ' + e.message, 'e');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Добавить лайнап';
+  if (!map)      { toast('Выбери карту','e'); return; }
+  if (!agent)    { toast('Выбери агента','e'); return; }
+  if (!ability)  { toast('Выбери способность','e'); return; }
+  if (!category) { toast('Выбери категорию','e'); return; }
+  const slotIds = Object.keys(addSlotSessions);
+  for (const id of slotIds) {
+    const s = addSlotSessions[id];
+    const n = slotIds.indexOf(id)+1;
+    if (!document.getElementById('slot-'+id+'-title')?.value.trim()) { toast(`Слот #${n}: заполни название`,'e'); return; }
+    if (s.markerX===null) { toast(`Слот #${n}: поставь точку на карте`,'e'); return; }
+    if (s.videoState.status==='uploading') { toast('Подожди — видео ещё загружается…','i'); return; }
+    if (s.screenshots.some(sc=>sc.status==='uploading')) { toast('Подожди — фото ещё загружаются…','i'); return; }
   }
+  const btn=document.getElementById('btn-add-lineup');
+  btn.disabled=true; btn.textContent='Сохранение…';
+  try {
+    const saves=slotIds.map(id=>{
+      const s=addSlotSessions[id];
+      const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
+      const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
+      const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
+      const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
+      return addDoc(collection(db,'lineups'),{
+        map,agent,ability,category,title,description:desc,video_url:videoUrl,screenshots,
+        position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
+        status,is_exclusive:excl,submitted_at:serverTimestamp(),
+        user_id:selectedAuthor?.uid??currentUser?.uid??'',
+        submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin',
+      });
+    });
+    const refs=await Promise.all(saves);
+    toast(`Добавлено ${_slotCount(slotIds.length)} ✅`,'s');
+    refs.forEach((ref,i)=>{
+      const id=slotIds[i]; const s=addSlotSessions[id];
+      const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
+      const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
+      const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
+      const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
+      lineups.unshift({id:ref.id,map,agent,ability,category,title,description:desc,video_url:videoUrl,screenshots,position_x:s.markerX??0,position_y:s.markerY??0,status,is_exclusive:excl,submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin'});
+    });
+    renderList(); resetForm();
+  } catch(e) { toast('Ошибка: '+e.message,'e'); }
+  finally { btn.disabled=false; _updateSaveBtn(); }
 });
 
 function _restorePreset() {
   if (document.getElementById('f-map').value) return;
-  const saved = localStorage.getItem('lineup_preset');
-  if (!saved) return;
+  const saved=localStorage.getItem('lineup_preset'); if(!saved) return;
   try {
-    const p = JSON.parse(saved);
+    const p=JSON.parse(saved);
     if (p.map) {
-      document.getElementById('f-map').value = p.map;
-      updateMapPicker(p.map);
+      document.getElementById('f-map').value=p.map;
+      Object.keys(addSlotSessions).forEach(id=>updateSlotMapWrap(Number(id),p.map));
     }
     if (p.agent) {
-      pickedAgent = p.agent;
-      document.querySelectorAll('#agent-grid .agent-card').forEach(c => {
-        c.classList.toggle('sel', c.dataset.agent === p.agent);
-      });
-      pickedAbility = p.ability || '';
-      renderAbilityRow();
-      if (p.ability) {
-        setTimeout(() => {
-          document.querySelectorAll('#ability-row .abil-btn').forEach(b => {
-            b.classList.toggle('sel', b.dataset.ab === p.ability);
-          });
-        }, 0);
-      }
+      pickedAgent=p.agent;
+      document.querySelectorAll('#agent-grid .agent-card').forEach(c=>c.classList.toggle('sel',c.dataset.agent===p.agent));
+      pickedAbility=p.ability||''; renderAbilityRow();
+      if(p.ability) setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===p.ability)),0);
     }
-  } catch (_) {}
+  } catch(_) {}
 }
 
 function resetForm() {
-  const presetMap   = document.getElementById('f-map').value;
-  const presetAgent = pickedAgent;
-  const presetAbil  = pickedAbility;
-  if (presetMap || presetAgent) {
-    localStorage.setItem('lineup_preset', JSON.stringify({
-      map: presetMap, agent: presetAgent, ability: presetAbil
-    }));
-  }
-
-  ['f-map','f-category','f-status'].forEach(id => {
-    const el = document.getElementById(id);
-    el.value = id === 'f-status' ? 'approved' : '';
+  const presetMap=document.getElementById('f-map').value, presetAgent=pickedAgent, presetAbil=pickedAbility;
+  if(presetMap||presetAgent) localStorage.setItem('lineup_preset',JSON.stringify({map:presetMap,agent:presetAgent,ability:presetAbil}));
+  ['f-map','f-category','f-status'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value=fid==='f-status'?'approved':'';});
+  document.getElementById('f-exclusive').checked=false;
+  selectedAuthor=null; document.getElementById('f-author-input').value=''; document.getElementById('author-selected').textContent='';
+  pickedAgent=''; pickedAbility='';
+  document.querySelectorAll('.agent-card').forEach(c=>c.classList.remove('sel'));
+  document.getElementById('ability-wrap').style.display='none'; document.getElementById('ability-row').innerHTML='';
+  Object.keys(addSlotSessions).forEach(id=>{
+    const s=addSlotSessions[id];
+    if(s.videoState.xhr)s.videoState.xhr.abort(); if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl);
+    s.screenshots.forEach(sc=>{if(sc.xhr)sc.xhr.abort();URL.revokeObjectURL(sc.localUrl);});
+    delete addSlotSessions[id];
   });
-  ['f-title','f-desc'].forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('f-exclusive').checked = false;
-  if (addVideoState.xhr) addVideoState.xhr.abort();
-  if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
-  addVideoState = { status:'idle', url:null, localUrl:null, progress:0, xhr:null };
-  renderAddVideoPreview();
-  uploadedScreenshots.forEach(s => { if (s.xhr) s.xhr.abort(); URL.revokeObjectURL(s.localUrl); });
-  uploadedScreenshots = [];
-  document.getElementById('upload-previews').innerHTML = '';
-  selectedAuthor = null;
-  document.getElementById('f-author-input').value = '';
-  document.getElementById('author-selected').textContent = '';
-  pickedAgent = ''; pickedAbility = '';
-  document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
-  document.getElementById('ability-wrap').style.display = 'none';
-  document.getElementById('ability-row').innerHTML = '';
-  markerX = null; markerY = null;
-  mapScale = 1; mapTx = 0; mapTy = 0;
-  trajectoryPoints = [];
-  _setMapMode('position');
-  updateMapPicker('');
-
-  const saved = localStorage.getItem('lineup_preset');
-  if (saved) {
-    try {
-      const p = JSON.parse(saved);
-      if (p.map) {
-        document.getElementById('f-map').value = p.map;
-        updateMapPicker(p.map);
+  document.getElementById('add-slots-container').innerHTML='';
+  createAddSlot();
+  const saved=localStorage.getItem('lineup_preset');
+  if(saved){
+    try{
+      const p=JSON.parse(saved);
+      if(p.map){document.getElementById('f-map').value=p.map;Object.keys(addSlotSessions).forEach(id=>updateSlotMapWrap(Number(id),p.map));}
+      if(p.agent){
+        pickedAgent=p.agent;
+        document.querySelectorAll('#agent-grid .agent-card').forEach(c=>c.classList.toggle('sel',c.dataset.agent===p.agent));
+        pickedAbility=p.ability||''; renderAbilityRow();
+        if(p.ability)setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===p.ability)),0);
       }
-      if (p.agent) {
-        pickedAgent = p.agent;
-        document.querySelectorAll('#agent-grid .agent-card').forEach(c => {
-          c.classList.toggle('sel', c.dataset.agent === p.agent);
-        });
-        pickedAbility = p.ability || '';
-        renderAbilityRow();
-        if (p.ability) {
-          setTimeout(() => {
-            document.querySelectorAll('#ability-row .abil-btn').forEach(b => {
-              b.classList.toggle('sel', b.dataset.ab === p.ability);
-            });
-          }, 0);
-        }
-      }
-    } catch (_) {}
+    }catch(_){}
   }
 }
 
@@ -1754,9 +2023,12 @@ function renderMarker() {
   c.appendChild(dot);
 }
 function updateCoordDisplay() {
-  document.getElementById('coord-x').textContent    = markerX !== null ? markerX.toFixed(4) : '—';
-  document.getElementById('coord-y').textContent    = markerY !== null ? markerY.toFixed(4) : '—';
-  document.getElementById('coord-hint').textContent = markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+  const ex = document.getElementById('coord-x');
+  const ey = document.getElementById('coord-y');
+  const eh = document.getElementById('coord-hint');
+  if (ex) ex.textContent = markerX !== null ? markerX.toFixed(4) : '—';
+  if (ey) ey.textContent = markerY !== null ? markerY.toFixed(4) : '—';
+  if (eh) eh.textContent = markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
 }
 
 function _buildTrajSvg(points, w, h, markerId) {
@@ -1766,24 +2038,26 @@ function _buildTrajSvg(points, w, h, markerId) {
   svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;';
   const defs = document.createElementNS(ns, 'defs');
   const mkr  = document.createElementNS(ns, 'marker');
-  mkr.setAttribute('id', markerId); mkr.setAttribute('markerWidth', '6');
-  mkr.setAttribute('markerHeight', '4'); mkr.setAttribute('refX', '6');
-  mkr.setAttribute('refY', '2'); mkr.setAttribute('orient', 'auto');
+  mkr.setAttribute('id', markerId); mkr.setAttribute('markerWidth', '4');
+  mkr.setAttribute('markerHeight', '3'); mkr.setAttribute('refX', '4');
+  mkr.setAttribute('refY', '1.5'); mkr.setAttribute('orient', 'auto');
   const tri = document.createElementNS(ns, 'polygon');
-  tri.setAttribute('points', '0 0, 6 2, 0 4'); tri.setAttribute('fill', '#FF4655');
+  tri.setAttribute('points', '0 0, 4 1.5, 0 3'); tri.setAttribute('fill', 'rgba(255,255,255,0.85)');
   mkr.appendChild(tri); defs.appendChild(mkr); svg.appendChild(defs);
   for (let i = 0; i < points.length - 1; i++) {
     const ln = document.createElementNS(ns, 'line');
     ln.setAttribute('x1', points[i].x * w); ln.setAttribute('y1', points[i].y * h);
     ln.setAttribute('x2', points[i+1].x * w); ln.setAttribute('y2', points[i+1].y * h);
-    ln.setAttribute('stroke', '#FF4655'); ln.setAttribute('stroke-width', '2'); ln.setAttribute('opacity', '0.8');
+    ln.setAttribute('stroke', 'rgba(255,255,255,0.7)'); ln.setAttribute('stroke-width', '1.5');
     if (i === points.length - 2) ln.setAttribute('marker-end', `url(#${markerId})`);
     svg.appendChild(ln);
   }
-  for (const p of points) {
+  for (let i = 0; i < points.length; i++) {
     const c = document.createElementNS(ns, 'circle');
-    c.setAttribute('cx', p.x * w); c.setAttribute('cy', p.y * h);
-    c.setAttribute('r', '4'); c.setAttribute('fill', '#FF4655'); c.setAttribute('opacity', '0.8');
+    c.setAttribute('cx', points[i].x * w); c.setAttribute('cy', points[i].y * h);
+    const isFirst = i === 0, isLast = i === points.length - 1;
+    c.setAttribute('r', (isFirst || isLast) ? '6' : '3');
+    c.setAttribute('fill', isFirst ? '#FF4655' : isLast ? '#4CAF50' : 'rgba(255,255,255,0.85)');
     svg.appendChild(c);
   }
   return svg;
@@ -1855,7 +2129,11 @@ function initMapPicker() {
   });
 }
 
-document.getElementById('f-map').addEventListener('change', e => updateMapPicker(e.target.value));
+document.getElementById('f-map').addEventListener('change', e => {
+  const mapName = e.target.value;
+  updateMapPicker(mapName);
+  Object.keys(addSlotSessions).forEach(id => updateSlotMapWrap(Number(id), mapName));
+});
 document.getElementById('btn-reset-preset').addEventListener('click', () => {
   localStorage.removeItem('lineup_preset');
   pickedAgent = ''; pickedAbility = '';
@@ -1864,27 +2142,12 @@ document.getElementById('btn-reset-preset').addEventListener('click', () => {
   document.getElementById('ability-wrap').style.display = 'none';
   document.getElementById('ability-row').innerHTML = '';
   updateMapPicker('');
+  Object.keys(addSlotSessions).forEach(id => updateSlotMapWrap(Number(id), ''));
   toast('Пресет сброшен', 'i');
 });
 loadAgentIcons();
 loadMapImages();
-initMapPicker();
-document.getElementById('mode-position').addEventListener('click',   () => _setMapMode('position'));
-document.getElementById('mode-trajectory').addEventListener('click', () => _setMapMode('trajectory'));
-document.getElementById('traj-undo').addEventListener('click',  () => { trajectoryPoints.pop(); renderTrajectory(); });
-document.getElementById('traj-clear').addEventListener('click', () => { trajectoryPoints = []; renderTrajectory(); });
-
-// ── Video zone (add form) ─────────────────────────────────────────────────────
-(function () {
-  const zone  = document.getElementById('add-video-zone');
-  const input = document.getElementById('add-video-file');
-  if (!zone || !input) return;
-  zone.addEventListener('click', () => input.click());
-  input.addEventListener('change', () => { if (input.files[0]) _handleAddVideoFile(input.files[0]); input.value=''; });
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
-  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); if (e.dataTransfer.files[0]) _handleAddVideoFile(e.dataTransfer.files[0]); });
-})();
+createAddSlot();
 
 // ── Screenshot upload ─────────────────────────────────────────────────────────
 function compressImage(file) {
@@ -1991,14 +2254,8 @@ function _removeByUid(uid) {
 }
 
 function _syncAddBtn() {
-  const btn            = document.getElementById('btn-add-lineup');
-  const videoUploading = addVideoState.status === 'uploading';
-  const uploading      = uploadedScreenshots.filter(s => s.status === 'uploading').length;
-  const done           = uploadedScreenshots.filter(s => s.status === 'done').length;
-  const total          = uploadedScreenshots.length;
-  if (videoUploading) { btn.disabled = true; btn.textContent = 'Загрузка видео…'; }
-  else if (uploading > 0) { btn.disabled = true; btn.textContent = `Загрузка фото ${done + 1} из ${total}…`; }
-  else { btn.disabled = false; btn.textContent = 'Добавить лайнап'; }
+  // Legacy — slots now manage their own upload state; just keep the save button updated
+  _updateSaveBtn();
 }
 
 function handleFiles(files) {
@@ -2053,44 +2310,12 @@ function _processFile(file, item) {
   });
 }
 
-const uploadZone = document.getElementById('upload-zone');
-const fileInput  = document.getElementById('f-screenshots');
-uploadZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => { handleFiles(fileInput.files); fileInput.value = ''; });
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+// upload-zone / f-screenshots are now rendered per-slot dynamically — no global init needed
 
 let _addDragSrc = null;
 (function() {
   const grid = document.getElementById('upload-previews');
-  grid.addEventListener('dragstart', e => {
-    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
-    _addDragSrc = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
-    thumb.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move';
-  });
-  grid.addEventListener('dragend', () => {
-    grid.querySelectorAll('.up-thumb').forEach(t => { t.style.opacity = ''; t.style.boxShadow = ''; });
-    _addDragSrc = null;
-  });
-  grid.addEventListener('dragover', e => {
-    e.preventDefault();
-    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
-    grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
-    thumb.style.boxShadow = '0 0 0 2px var(--primary)';
-  });
-  grid.addEventListener('dragleave', e => {
-    if (!grid.contains(e.relatedTarget)) grid.querySelectorAll('.up-thumb').forEach(t => t.style.boxShadow = '');
-  });
-  grid.addEventListener('drop', e => {
-    e.preventDefault();
-    const thumb = e.target.closest('.up-thumb'); if (!thumb) return;
-    const dstIdx = [...grid.querySelectorAll('.up-thumb')].indexOf(thumb);
-    if (_addDragSrc === null || _addDragSrc === dstIdx) { _addDragSrc = null; return; }
-    const [moved] = uploadedScreenshots.splice(_addDragSrc, 1);
-    uploadedScreenshots.splice(dstIdx, 0, moved);
-    _addDragSrc = null; renderUploadPreviews();
-  });
+  if (!grid) return; // element removed — drag-reorder disabled for add form
 })();
 
 // ── Inline edit in card ───────────────────────────────────────────────────────
