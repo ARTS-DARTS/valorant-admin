@@ -469,6 +469,7 @@
       <button class="tab"        id="tab-btn-admins">АДМИНИСТРАТОРЫ</button>
       <button class="tab"        id="tab-btn-changelog">НОВОСТИ</button>
       <button class="tab"        id="tab-btn-analytics">АНАЛИТИКА</button>
+      <button class="tab"        id="tab-btn-duels">ДУЭЛИ</button>
       <button class="tab"        id="tab-btn-guides">ГАЙДЫ</button>
       <button class="tab"        id="tab-btn-agents">АГЕНТЫ</button>
     </div>
@@ -757,6 +758,50 @@
 
   </div>
 
+  <!-- Duels tab -->
+  <div id="tab-duels" style="display:none;">
+    <div class="form-wrap" style="max-width:900px;margin:0 auto;">
+      <div class="form-title">⚔️ ДУЭЛИ ЛАЙНАПОВ</div>
+
+      <!-- Create duel form -->
+      <div class="dlabel" style="margin-bottom:12px;">Создать дуэль</div>
+      <div class="fgrid" style="margin-bottom:16px;">
+
+        <div class="fg full">
+          <label class="flabel">Лайнап #1 (поиск по названию / карте / агенту)</label>
+          <input class="finput" id="duel-search1" placeholder="Введи название…" autocomplete="off">
+          <div id="duel-results1" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-top:4px;display:none;max-height:180px;overflow-y:auto;"></div>
+          <div id="duel-selected1" style="margin-top:6px;font-size:12px;color:var(--text2);"></div>
+        </div>
+
+        <div class="fg full">
+          <label class="flabel">Лайнап #2 (только та же карта — <span id="duel-map-hint" style="color:var(--primary);">выбери #1 сначала</span>)</label>
+          <input class="finput" id="duel-search2" placeholder="Сначала выбери #1…" autocomplete="off" disabled>
+          <div id="duel-results2" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-top:4px;display:none;max-height:180px;overflow-y:auto;"></div>
+          <div id="duel-selected2" style="margin-top:6px;font-size:12px;color:var(--text2);"></div>
+        </div>
+
+        <div class="fg">
+          <label class="flabel">Длительность</label>
+          <select class="fselect" id="duel-duration">
+            <option value="86400">24 часа</option>
+            <option value="172800">48 часов</option>
+            <option value="604800" selected>7 дней</option>
+          </select>
+        </div>
+
+      </div>
+      <button class="btn btn-save" id="duel-create-btn">⚔️ Запустить дуэль</button>
+      <div id="duel-create-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
+
+      <!-- Active duels list -->
+      <div class="dlabel" style="margin-top:28px;margin-bottom:12px;">Активные дуэли</div>
+      <div id="duel-list-wrap">
+        <div style="color:var(--text2);font-size:13px;">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Guides tab -->
   <div id="tab-guides" style="display:none;">
     <div class="form-wrap" style="max-width:900px;margin:0 auto;">
@@ -1028,6 +1073,7 @@ function switchTab(t) {
   document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
   document.getElementById('tab-changelog').style.display = t === 'changelog' ? 'block' : 'none';
   document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
+  document.getElementById('tab-duels').style.display     = t === 'duels'     ? 'block' : 'none';
   document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
   document.getElementById('tab-agents').style.display    = t === 'agents'    ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
@@ -1035,17 +1081,20 @@ function switchTab(t) {
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
   document.getElementById('tab-btn-changelog').classList.toggle('active', t === 'changelog');
   document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
+  document.getElementById('tab-btn-duels').classList.toggle('active',     t === 'duels');
   document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
   document.getElementById('tab-btn-agents').classList.toggle('active',    t === 'agents');
   if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
+  if (t === 'duels') loadDuelsTab();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 document.getElementById('tab-btn-add').addEventListener('click',       () => { switchTab('add'); _restorePreset(); });
 document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
+document.getElementById('tab-btn-duels').addEventListener('click',     () => switchTab('duels'));
 document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
 document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
 
@@ -1180,11 +1229,10 @@ document.getElementById('agents-migrate-btn').addEventListener('click', async ()
     const snap = await getDocs(collection(db, 'agents_config'));
     const total = snap.size;
     if (total === 0) { st.textContent = 'Нет документов в agents_config — нечего мигрировать.'; btn.disabled = false; return; }
-    let ok = 0, fail = 0;
+    let ok = 0, fail = 0, firstErr = null;
     for (const agentDoc of snap.docs) {
       const agentId = agentDoc.id;
       const oldAbilities = (agentDoc.data().abilities) || {};
-      // Build disabled version: same keys, all false
       const disabledAbilities = Object.fromEntries(Object.keys(oldAbilities).map(k => [k, false]));
       st.textContent = `Миграция ${ok + fail + 1} / ${total}: ${agentId}…`;
       try {
@@ -1194,25 +1242,217 @@ document.getElementById('agents-migrate-btn').addEventListener('click', async ()
         }
         ok++;
       } catch (e) {
-        console.error('migrate:', agentId, e);
+        console.error('migrate error:', agentId, e.code, e.message, e);
+        if (!firstErr) firstErr = `[${agentId}] ${e.code || ''}: ${e.message || String(e)}`;
         fail++;
       }
     }
-    localStorage.setItem(migrKey, '1');
-    st.textContent = `✅ Готово: ${ok} агентов${fail ? ', ошибок: ' + fail : ''}`;
-    toast('Миграция завершена', 's');
-    setTimeout(() => { btn.style.display = 'none'; st.style.display = 'none'; }, 2000);
+    if (ok > 0) localStorage.setItem(migrKey, '1');
+    if (fail > 0 && ok === 0) {
+      st.style.color = '#ef4444';
+      st.textContent = `❌ Все провалились (${fail}/${total}). Ошибка: ${firstErr}`;
+      btn.disabled = false;
+    } else if (fail > 0) {
+      st.style.color = '#f97316';
+      st.textContent = `⚠ Частично: ${ok} ok, ${fail} ошибок. Первая: ${firstErr}`;
+      setTimeout(() => { btn.style.display = 'none'; st.style.display = 'none'; }, 5000);
+    } else {
+      st.textContent = `✅ Готово: ${ok} агентов`;
+      toast('Миграция завершена', 's');
+      setTimeout(() => { btn.style.display = 'none'; st.style.display = 'none'; }, 2000);
+    }
   } catch (e) {
     st.textContent = '❌ Ошибка: ' + e.message;
     toast('Ошибка миграции: ' + e.message, 'e');
     btn.disabled = false;
   }
 });
-if (localStorage.getItem('categories_migrated')) {
+if (localStorage.getItem('categories_migrated') === '1') {
   const mb = document.getElementById('agents-migrate-btn');
   if (mb) mb.style.display = 'none';
   const ms = document.getElementById('agents-migrate-status');
   if (ms) ms.style.display = 'none';
+}
+
+// ── Duels ─────────────────────────────────────────────────────────────────────
+let _duel1 = null; // { id, title, mapName }
+let _duel2 = null;
+let _duelsUnsubscribe = null;
+
+function _renderDuelResults(results, containerId, onPick) {
+  const box = document.getElementById(containerId);
+  box.innerHTML = '';
+  if (!results.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  results.forEach(r => {
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;';
+    row.textContent = `${r.title} — ${r.mapName} / ${r.agent}`;
+    row.addEventListener('mouseenter', () => row.style.background = 'var(--surface)');
+    row.addEventListener('mouseleave', () => row.style.background = '');
+    row.addEventListener('click', () => { onPick(r); box.style.display = 'none'; });
+    box.appendChild(row);
+  });
+}
+
+async function _searchLineups(query, mapFilter) {
+  let q = collection(db, 'lineups');
+  const constraints = [where('status', '==', 'approved'), orderBy('title'), limit(20)];
+  if (mapFilter) constraints.splice(0, 0, where('map', '==', mapFilter));
+  const snap = await getDocs(window._buildQuery(q, constraints));
+  return snap.docs
+    .map(d => ({ id: d.id, title: d.data().title ?? '', mapName: d.data().map ?? '', agent: d.data().agent ?? '' }))
+    .filter(r => !query || r.title.toLowerCase().includes(query.toLowerCase()));
+}
+
+// helper because query() is variadic
+window._buildQuery = (ref, constraints) => {
+  // eslint-disable-next-line no-undef
+  return query(ref, ...constraints);
+};
+
+let _duelSearchTimer1 = null;
+document.getElementById('duel-search1').addEventListener('input', e => {
+  clearTimeout(_duelSearchTimer1);
+  _duelSearchTimer1 = setTimeout(async () => {
+    const results = await _searchLineups(e.target.value, null);
+    _renderDuelResults(results, 'duel-results1', r => {
+      _duel1 = r;
+      _duel2 = null;
+      document.getElementById('duel-selected1').textContent = `✓ ${r.title} (${r.mapName})`;
+      document.getElementById('duel-selected2').textContent = '';
+      document.getElementById('duel-search1').value = '';
+      document.getElementById('duel-search2').value = '';
+      document.getElementById('duel-search2').disabled = false;
+      document.getElementById('duel-search2').placeholder = `Поиск на карте ${r.mapName}…`;
+      document.getElementById('duel-map-hint').textContent = r.mapName;
+    });
+  }, 300);
+});
+
+let _duelSearchTimer2 = null;
+document.getElementById('duel-search2').addEventListener('input', e => {
+  if (!_duel1) return;
+  clearTimeout(_duelSearchTimer2);
+  _duelSearchTimer2 = setTimeout(async () => {
+    const results = await _searchLineups(e.target.value, _duel1.mapName);
+    const filtered = results.filter(r => r.id !== _duel1.id);
+    _renderDuelResults(filtered, 'duel-results2', r => {
+      _duel2 = r;
+      document.getElementById('duel-selected2').textContent = `✓ ${r.title} (${r.mapName})`;
+      document.getElementById('duel-search2').value = '';
+    });
+  }, 300);
+});
+
+document.getElementById('duel-create-btn').addEventListener('click', async () => {
+  if (!_duel1 || !_duel2) { toast('Выбери оба лайнапа', 'e'); return; }
+  const duration = parseInt(document.getElementById('duel-duration').value, 10);
+  const uid = auth.currentUser?.uid;
+  if (!uid) { toast('Не авторизован', 'e'); return; }
+  const st = document.getElementById('duel-create-status');
+  st.style.display = 'block'; st.textContent = 'Создание…';
+  try {
+    const endsAt = new Date(Date.now() + duration * 1000);
+    await addDoc(collection(db, 'duels'), {
+      lineup1Id: _duel1.id,
+      lineup2Id: _duel2.id,
+      mapName: _duel1.mapName,
+      votes1: 0,
+      votes2: 0,
+      status: 'active',
+      endsAt,
+      createdAt: serverTimestamp(),
+      createdBy: uid,
+    });
+    st.textContent = '✅ Дуэль запущена!';
+    toast('Дуэль создана', 's');
+    _duel1 = null; _duel2 = null;
+    document.getElementById('duel-selected1').textContent = '';
+    document.getElementById('duel-selected2').textContent = '';
+    document.getElementById('duel-search2').disabled = true;
+    document.getElementById('duel-search2').placeholder = 'Сначала выбери #1…';
+    document.getElementById('duel-map-hint').textContent = 'выбери #1 сначала';
+    setTimeout(() => { st.style.display = 'none'; }, 3000);
+    loadDuelsTab();
+  } catch (e) {
+    st.textContent = '❌ ' + e.message;
+    toast('Ошибка: ' + e.message, 'e');
+  }
+});
+
+function _timeLeft(endsAt) {
+  const endMs = endsAt?.toDate ? endsAt.toDate().getTime() : (endsAt?.seconds ? endsAt.seconds * 1000 : Date.now());
+  const sec = Math.floor((endMs - Date.now()) / 1000);
+  if (sec <= 0) return 'Завершена';
+  if (sec >= 86400) return Math.floor(sec / 86400) + 'д ' + Math.floor((sec % 86400) / 3600) + 'ч';
+  if (sec >= 3600) return Math.floor(sec / 3600) + 'ч ' + Math.floor((sec % 3600) / 60) + 'мин';
+  return Math.floor(sec / 60) + 'мин';
+}
+
+async function loadDuelsTab() {
+  const wrap = document.getElementById('duel-list-wrap'); if (!wrap) return;
+  wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка…</div>';
+  try {
+    const snap = await getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')]));
+    if (snap.empty) { wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Активных дуэлей нет.</div>'; return; }
+
+    const table = document.createElement('table');
+    table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
+    table.innerHTML = `<thead><tr style="border-bottom:2px solid var(--border);">
+      <th style="text-align:left;padding:8px 6px;color:var(--text2);">Карта</th>
+      <th style="text-align:left;padding:8px 6px;color:var(--text2);">Лайнап #1</th>
+      <th style="text-align:center;padding:8px 6px;color:var(--text2);">Голоса</th>
+      <th style="text-align:left;padding:8px 6px;color:var(--text2);">Лайнап #2</th>
+      <th style="text-align:right;padding:8px 6px;color:var(--text2);">Осталось</th>
+      <th style="padding:8px 6px;"></th>
+    </tr></thead><tbody id="duel-table-body"></tbody>`;
+    wrap.innerHTML = '';
+    wrap.appendChild(table);
+    const tbody = document.getElementById('duel-table-body');
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const [l1snap, l2snap] = await Promise.all([
+        getDoc(doc(db, 'lineups', data.lineup1Id)),
+        getDoc(doc(db, 'lineups', data.lineup2Id)),
+      ]);
+      const t1 = l1snap.data()?.title ?? data.lineup1Id;
+      const t2 = l2snap.data()?.title ?? data.lineup2Id;
+      const v1 = data.votes1 ?? 0, v2 = data.votes2 ?? 0;
+      const total = v1 + v2;
+      const p1 = total ? Math.round(v1 / total * 100) : 50;
+      const p2 = total ? Math.round(v2 / total * 100) : 50;
+      const remaining = data.endsAt ? _timeLeft(data.endsAt) : '—';
+
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--border)';
+      tr.innerHTML = `
+        <td style="padding:8px 6px;color:var(--text2);">${data.mapName ?? '—'}</td>
+        <td style="padding:8px 6px;">${t1}</td>
+        <td style="padding:8px 6px;text-align:center;white-space:nowrap;">
+          <span style="color:var(--primary);font-weight:700;">${v1}</span>
+          <span style="color:var(--text2);"> (${p1}%) vs (${p2}%) </span>
+          <span style="color:var(--primary);font-weight:700;">${v2}</span>
+        </td>
+        <td style="padding:8px 6px;">${t2}</td>
+        <td style="padding:8px 6px;text-align:right;color:var(--text2);">${remaining}</td>
+        <td style="padding:8px 6px;">
+          <button class="btn" data-duel-id="${d.id}" style="border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 10px;">Завершить</button>
+        </td>`;
+      tbody.appendChild(tr);
+
+      tr.querySelector('[data-duel-id]').addEventListener('click', async btn => {
+        const id = btn.currentTarget.dataset.duelId;
+        if (!confirm('Завершить дуэль досрочно?')) return;
+        await updateDoc(doc(db, 'duels', id), { status: 'finished' });
+        toast('Дуэль завершена', 's');
+        loadDuelsTab();
+      });
+    }
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${e.message}</div>`;
+  }
 }
 
 // ── Guide content editor ──────────────────────────────────────────────────────
