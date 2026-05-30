@@ -19,7 +19,7 @@
       --r: 8px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; font-size: 14px; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; font-size: 14px; overflow-x: hidden; }
 
     .header {
       background: var(--surface); border-bottom: 1px solid var(--border);
@@ -134,7 +134,7 @@
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 9/16; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
-    .map-marker { position: absolute; width: 22px; height: 22px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 1; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+    .map-marker { position: absolute; width: 22px; height: 22px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .map-marker img { object-fit: cover; }
     .map-marker.dot { background: var(--primary); border-color: #fff; box-shadow: 0 0 8px rgba(255,70,85,.85); }
     .map-ph { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text2); font-size: 13px; padding: 16px; text-align: center; }
@@ -148,7 +148,7 @@
     .uz-hint { color: var(--text2); font-size: 11px; margin-top: 3px; opacity: .65; }
     .upload-previews { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 7px; margin-top: 9px; }
     .up-thumb { position: relative; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface2); }
-    .slot-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+    .slot-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; min-width: 0; overflow: hidden; }
     .up-thumb img { width: 100%; height: 100%; object-fit: cover; }
     .up-overlay { position: absolute; inset: 0; pointer-events: none; }
     .up-overlay-err { background: rgba(239,68,68,.55); display: flex; align-items: center; justify-content: center; }
@@ -1201,7 +1201,7 @@ document.getElementById('agents-migrate-btn').addEventListener('click', async ()
     localStorage.setItem(migrKey, '1');
     st.textContent = `✅ Готово: ${ok} агентов${fail ? ', ошибок: ' + fail : ''}`;
     toast('Миграция завершена', 's');
-    btn.textContent = '✅ Выполнено';
+    setTimeout(() => { btn.style.display = 'none'; st.style.display = 'none'; }, 2000);
   } catch (e) {
     st.textContent = '❌ Ошибка: ' + e.message;
     toast('Ошибка миграции: ' + e.message, 'e');
@@ -1210,7 +1210,9 @@ document.getElementById('agents-migrate-btn').addEventListener('click', async ()
 });
 if (localStorage.getItem('categories_migrated')) {
   const mb = document.getElementById('agents-migrate-btn');
-  if (mb) { mb.disabled = true; mb.textContent = '✅ Выполнено'; }
+  if (mb) mb.style.display = 'none';
+  const ms = document.getElementById('agents-migrate-status');
+  if (ms) ms.style.display = 'none';
 }
 
 // ── Guide content editor ──────────────────────────────────────────────────────
@@ -2057,7 +2059,7 @@ function _buildTrajSvg(points, w, h, markerId) {
   const ns  = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('class', 'traj-svg');
-  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;';
+  svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;';
 
   // Arrow marker (tip = end of line)
   const defs = document.createElementNS(ns, 'defs');
