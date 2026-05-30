@@ -1537,8 +1537,10 @@ function renderSlotMarker(id) {
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
   if (s.markerX === null) return;
   const dot = document.createElement('div');
-  dot.className = 'map-marker dot';
+  const iconUrl = _currentAbilityIcon();
+  dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
   dot.style.left = (s.markerX*100)+'%'; dot.style.top = (s.markerY*100)+'%';
+  if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
   c.appendChild(dot); _sApply(id);
 }
 function updateSlotCoords(id) {
@@ -1983,6 +1985,7 @@ function renderAbilityRow() {
       row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
       btn.classList.add('sel');
       renderMarker();
+      Object.keys(addSlotSessions).forEach(sid => renderSlotMarker(Number(sid)));
     });
   });
 }
@@ -2055,30 +2058,45 @@ function _buildTrajSvg(points, w, h, markerId) {
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('class', 'traj-svg');
   svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;';
+
+  // Arrow marker (tip = end of line)
   const defs = document.createElementNS(ns, 'defs');
   const mkr  = document.createElementNS(ns, 'marker');
-  mkr.setAttribute('id', markerId); mkr.setAttribute('markerWidth', '4');
-  mkr.setAttribute('markerHeight', '3'); mkr.setAttribute('refX', '4');
-  mkr.setAttribute('refY', '1.5'); mkr.setAttribute('orient', 'auto');
+  mkr.setAttribute('id', markerId);
+  mkr.setAttribute('markerWidth', '10'); mkr.setAttribute('markerHeight', '8');
+  mkr.setAttribute('refX', '10');       mkr.setAttribute('refY', '4');
+  mkr.setAttribute('orient', 'auto');   mkr.setAttribute('markerUnits', 'userSpaceOnUse');
   const tri = document.createElementNS(ns, 'polygon');
-  tri.setAttribute('points', '0 0, 4 1.5, 0 3'); tri.setAttribute('fill', 'rgba(255,255,255,0.85)');
+  tri.setAttribute('points', '0 0, 10 4, 0 8'); tri.setAttribute('fill', '#FF4655');
   mkr.appendChild(tri); defs.appendChild(mkr); svg.appendChild(defs);
-  for (let i = 0; i < points.length - 1; i++) {
-    const ln = document.createElementNS(ns, 'line');
-    ln.setAttribute('x1', points[i].x * w); ln.setAttribute('y1', points[i].y * h);
-    ln.setAttribute('x2', points[i+1].x * w); ln.setAttribute('y2', points[i+1].y * h);
-    ln.setAttribute('stroke', 'rgba(255,255,255,0.7)'); ln.setAttribute('stroke-width', '1.5');
-    if (i === points.length - 2) ln.setAttribute('marker-end', `url(#${markerId})`);
-    svg.appendChild(ln);
+
+  // Single polyline — no stitch artifacts, clean joins
+  if (points.length >= 2) {
+    const coords = points.map(p => `${(p.x * w).toFixed(1)},${(p.y * h).toFixed(1)}`).join(' ');
+    const poly = document.createElementNS(ns, 'polyline');
+    poly.setAttribute('points', coords);
+    poly.setAttribute('fill', 'none');
+    poly.setAttribute('stroke', '#FF4655');
+    poly.setAttribute('stroke-opacity', '0.85');
+    poly.setAttribute('stroke-width', '1.75');
+    poly.setAttribute('stroke-linejoin', 'round');
+    poly.setAttribute('stroke-linecap', 'round');
+    poly.setAttribute('marker-end', `url(#${markerId})`);
+    svg.appendChild(poly);
   }
-  for (let i = 0; i < points.length; i++) {
-    const c = document.createElementNS(ns, 'circle');
-    c.setAttribute('cx', points[i].x * w); c.setAttribute('cy', points[i].y * h);
-    const isFirst = i === 0, isLast = i === points.length - 1;
-    c.setAttribute('r', (isFirst || isLast) ? '6' : '3');
-    c.setAttribute('fill', isFirst ? '#FF4655' : isLast ? '#4CAF50' : 'rgba(255,255,255,0.85)');
-    svg.appendChild(c);
+
+  // Start dot only — red, r=5, hairline white stroke
+  if (points.length >= 1) {
+    const dot = document.createElementNS(ns, 'circle');
+    dot.setAttribute('cx', (points[0].x * w).toFixed(1));
+    dot.setAttribute('cy', (points[0].y * h).toFixed(1));
+    dot.setAttribute('r', '5');
+    dot.setAttribute('fill', '#FF4655');
+    dot.setAttribute('stroke', 'rgba(255,255,255,0.45)');
+    dot.setAttribute('stroke-width', '0.5');
+    svg.appendChild(dot);
   }
+
   return svg;
 }
 
