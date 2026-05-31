@@ -1101,7 +1101,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {
-  getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider,
+  getAuth, signInWithPopup, GoogleAuthProvider,
   signInWithEmailAndPassword,
   signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -1139,8 +1139,9 @@ onAuthStateChanged(auth, async user => {
     const role = snap.exists() ? (snap.data().role ?? 'user') : 'user';
     if (role !== 'admin') { show('denied'); return; }
   } catch (e) {
+    console.error('[auth] role check failed:', e);
     loginErr('Ошибка проверки прав: ' + e.message);
-    await signOut(auth);
+    show('login');
     return;
   }
   currentUser = user;
@@ -1153,17 +1154,18 @@ onAuthStateChanged(auth, async user => {
   loadAuthorPanelUsers();
 });
 
-// Handle redirect result on page load
-getRedirectResult(auth).catch(e => loginErr('Ошибка входа: ' + e.message));
-
-document.getElementById('btn-login').addEventListener('click', () => {
+document.getElementById('btn-login').addEventListener('click', async () => {
   const btn = document.getElementById('btn-login');
-  btn.disabled = true; btn.textContent = 'Перенаправление…';
-  signInWithRedirect(auth, new GoogleAuthProvider()).catch(e => {
-    loginErr(e.message);
+  btn.disabled = true; btn.textContent = 'Входим…';
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (e) {
+    if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      loginErr(e.message);
+    }
     btn.disabled = false;
     btn.innerHTML = '<span class="g-icon">G</span> Войти через Google';
-  });
+  }
 });
 
 document.getElementById('btn-ep-login').addEventListener('click', _epLogin);
