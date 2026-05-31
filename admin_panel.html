@@ -4642,7 +4642,7 @@ async function sendOsNotification({ title, body, type }) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Key ${OS_REST_KEY}`,
+      'Authorization': `Basic ${OS_REST_KEY}`,
     },
     body: JSON.stringify({
       app_id: OS_APP_ID,
