@@ -413,6 +413,18 @@
     .ld-screenshots { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
     .ld-screenshots img { height: 110px; width: auto; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid var(--border); flex-shrink: 0; }
     .ld-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; min-height: 80px; }
+
+    /* ── Notifications test tab ── */
+    .notif-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+    .notif-card  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; transition: border-color .15s; }
+    .notif-card:hover { border-color: rgba(255,70,85,.4); }
+    .nc-header   { display: flex; align-items: center; gap: 13px; }
+    .nc-icon     { font-size: 30px; line-height: 1; flex-shrink: 0; }
+    .nc-title    { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+    .nc-desc     { font-size: 12px; color: var(--text2); line-height: 1.4; }
+    .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
+    .nc-status.ok  { color: var(--green); }
+    .nc-status.err { color: var(--red); }
   </style>
 </head>
 <body>
@@ -472,6 +484,7 @@
       <button class="tab"        id="tab-btn-duels">ДУЭЛИ</button>
       <button class="tab"        id="tab-btn-guides">ГАЙДЫ</button>
       <button class="tab"        id="tab-btn-agents">АГЕНТЫ</button>
+      <button class="tab"        id="tab-btn-notif">🔔 УВЕДОМЛЕНИЯ</button>
     </div>
 
     <!-- List tab -->
@@ -760,46 +773,43 @@
 
   <!-- Duels tab -->
   <div id="tab-duels" style="display:none;">
-    <div class="form-wrap" style="max-width:900px;margin:0 auto;">
-      <div class="form-title">⚔️ ДУЭЛИ ЛАЙНАПОВ</div>
+    <div class="form-title">⚔️ ДУЭЛИ ЛАЙНАПОВ</div>
+    <div class="dlabel" style="margin-bottom:10px;">Создать дуэль</div>
 
-      <!-- Create duel form -->
-      <div class="dlabel" style="margin-bottom:12px;">Создать дуэль</div>
-      <div class="fgrid" style="margin-bottom:16px;">
+    <!-- Two picker panels side-by-side -->
+    <div style="display:flex;gap:12px;margin-bottom:10px;height:270px;">
 
-        <div class="fg full">
-          <label class="flabel">Лайнап #1 (поиск по названию / карте / агенту)</label>
-          <input class="finput" id="duel-search1" placeholder="Введи название…" autocomplete="off">
-          <div id="duel-results1" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-top:4px;display:none;max-height:180px;overflow-y:auto;"></div>
-          <div id="duel-selected1" style="margin-top:6px;font-size:12px;color:var(--text2);"></div>
-        </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:5px;">ЛАЙНАП #1</div>
+        <div id="duel-picker1" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;"></div>
+        <div id="duel-selected1" style="margin-top:4px;font-size:12px;color:var(--green);min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      </div>
 
-        <div class="fg full">
-          <label class="flabel">Лайнап #2 (только та же карта — <span id="duel-map-hint" style="color:var(--primary);">выбери #1 сначала</span>)</label>
-          <input class="finput" id="duel-search2" placeholder="Сначала выбери #1…" autocomplete="off" disabled>
-          <div id="duel-results2" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);margin-top:4px;display:none;max-height:180px;overflow-y:auto;"></div>
-          <div id="duel-selected2" style="margin-top:6px;font-size:12px;color:var(--text2);"></div>
-        </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+        <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.5px;margin-bottom:5px;">ЛАЙНАП #2 <span id="duel-map-hint" style="font-weight:400;color:var(--text2);"></span></div>
+        <div id="duel-picker2" style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;"></div>
+        <div id="duel-selected2" style="margin-top:4px;font-size:12px;color:var(--green);min-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+      </div>
 
-        <div class="fg">
-          <label class="flabel">Длительность</label>
-          <select class="fselect" id="duel-duration">
-            <option value="86400">24 часа</option>
-            <option value="172800">48 часов</option>
-            <option value="604800" selected>7 дней</option>
-          </select>
-        </div>
+    </div>
 
+    <!-- Duration + Create button -->
+    <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:8px;flex-wrap:wrap;">
+      <div>
+        <label class="flabel">Длительность</label>
+        <select class="fselect" id="duel-duration" style="width:160px;">
+          <option value="86400">24 часа</option>
+          <option value="172800">48 часов</option>
+          <option value="604800" selected>7 дней</option>
+        </select>
       </div>
       <button class="btn btn-save" id="duel-create-btn">⚔️ Запустить дуэль</button>
-      <div id="duel-create-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
-
-      <!-- Active duels list -->
-      <div class="dlabel" style="margin-top:28px;margin-bottom:12px;">Активные дуэли</div>
-      <div id="duel-list-wrap">
-        <div style="color:var(--text2);font-size:13px;">Загрузка…</div>
-      </div>
     </div>
+    <div id="duel-create-status" style="margin-bottom:16px;font-size:12px;color:var(--green);display:none;"></div>
+
+    <!-- Active duels list -->
+    <div class="dlabel" style="margin-top:20px;margin-bottom:10px;">Активные дуэли</div>
+    <div id="duel-list-wrap"><div style="color:var(--text2);font-size:13px;">Загрузка…</div></div>
   </div>
 
   <!-- Guides tab -->
@@ -893,6 +903,154 @@
         <div id="agents-save-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
         <div id="agents-migrate-status" style="margin-top:8px;font-size:12px;color:var(--text2);display:none;"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Notifications tab -->
+  <div id="tab-notif" style="display:none;">
+    <div style="max-width:1160px;margin:0 auto;padding:22px 20px 32px;">
+
+      <div class="form-title">🔔 ТЕСТИРОВАНИЕ УВЕДОМЛЕНИЙ</div>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5;">
+        Тестовые push-уведомления отправляются <strong style="color:var(--text);">всем подписанным устройствам</strong> через OneSignal REST API.
+        Используй для проверки что каждый тип корректно приходит и открывает нужный экран.
+      </p>
+
+      <!-- Cards grid: 7 notification types -->
+      <div class="notif-grid" id="notif-cards-grid">
+
+        <!-- 1. Лайк -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">❤️</span>
+            <div>
+              <div class="nc-title">Лайк на лайнап</div>
+              <div class="nc-desc">Твой лайнап нравится людям</div>
+            </div>
+          </div>
+          <button class="btn btn-save nc-btn" data-nc="liked" style="width:100%;justify-content:center;margin-top:13px;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-liked"></div>
+        </div>
+
+        <!-- 2. Лайнап отклонён -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">🚫</span>
+            <div>
+              <div class="nc-title">Лайнап отклонён</div>
+              <div class="nc-desc">Не прошёл модерацию</div>
+            </div>
+          </div>
+          <button class="btn nc-btn" data-nc="rejected" style="width:100%;justify-content:center;margin-top:13px;background:var(--orange);color:#fff;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-rejected"></div>
+        </div>
+
+        <!-- 3. Лайнап одобрен -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">✅</span>
+            <div>
+              <div class="nc-title">Лайнап одобрен</div>
+              <div class="nc-desc">Лайнап опубликован</div>
+            </div>
+          </div>
+          <button class="btn nc-btn" data-nc="approved" style="width:100%;justify-content:center;margin-top:13px;background:var(--green);color:#fff;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-approved"></div>
+        </div>
+
+        <!-- 4. Победа в дуэли -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">⚔️</span>
+            <div>
+              <div class="nc-title">Победа в дуэли</div>
+              <div class="nc-desc">Твой лайнап победил в дуэли</div>
+            </div>
+          </div>
+          <button class="btn btn-save nc-btn" data-nc="duel" style="width:100%;justify-content:center;margin-top:13px;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-duel"></div>
+        </div>
+
+        <!-- 5. Заявка одобрена -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">📋</span>
+            <div>
+              <div class="nc-title">Заявка на модератора одобрена</div>
+              <div class="nc-desc">Пользователь стал модератором</div>
+            </div>
+          </div>
+          <button class="btn nc-btn" data-nc="mod_approved" style="width:100%;justify-content:center;margin-top:13px;background:var(--green);color:#fff;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-mod_approved"></div>
+        </div>
+
+        <!-- 6. Заявка отклонена -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">📋</span>
+            <div>
+              <div class="nc-title">Заявка на модератора отклонена</div>
+              <div class="nc-desc">Заявка не одобрена</div>
+            </div>
+          </div>
+          <button class="btn nc-btn" data-nc="mod_rejected" style="width:100%;justify-content:center;margin-top:13px;background:var(--orange);color:#fff;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-mod_rejected"></div>
+        </div>
+
+        <!-- 7. Контент разблокирован -->
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">🎁</span>
+            <div>
+              <div class="nc-title">Контент разблокирован</div>
+              <div class="nc-desc">Эксклюзивный доступ получен</div>
+            </div>
+          </div>
+          <button class="btn btn-save nc-btn" data-nc="exclusive" style="width:100%;justify-content:center;margin-top:13px;">
+            Отправить тест
+          </button>
+          <div class="nc-status" id="nc-status-exclusive"></div>
+        </div>
+
+      </div><!-- /notif-cards-grid -->
+
+      <!-- Changelog broadcast — отдельная карточка с полями ввода -->
+      <div style="margin-top:16px;max-width:560px;">
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">🔔</span>
+            <div>
+              <div class="nc-title">Новое обновление — broadcast</div>
+              <div class="nc-desc">Отправить push всем подписчикам с произвольным текстом</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-top:13px;">
+            <label class="flabel">Заголовок</label>
+            <input class="finput" id="notif-cl-title" placeholder="Например: Обновление 9.04" style="background:var(--bg);">
+          </div>
+          <div class="fg" style="margin-top:8px;">
+            <label class="flabel">Текст</label>
+            <textarea class="ftextarea" id="notif-cl-body" rows="3" placeholder="Что нового в этом обновлении…" style="min-height:64px;background:var(--bg);"></textarea>
+          </div>
+          <button class="btn btn-save" id="notif-cl-btn" style="width:100%;justify-content:center;margin-top:12px;">
+            📢 Отправить всем
+          </button>
+          <div class="nc-status" id="nc-status-changelog"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1076,6 +1234,7 @@ function switchTab(t) {
   document.getElementById('tab-duels').style.display     = t === 'duels'     ? 'block' : 'none';
   document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
   document.getElementById('tab-agents').style.display    = t === 'agents'    ? 'block' : 'none';
+  document.getElementById('tab-notif').style.display     = t === 'notif'     ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -1084,6 +1243,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-duels').classList.toggle('active',     t === 'duels');
   document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
   document.getElementById('tab-btn-agents').classList.toggle('active',    t === 'agents');
+  document.getElementById('tab-btn-notif').classList.toggle('active',     t === 'notif');
   if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
@@ -1097,6 +1257,7 @@ document.getElementById('tab-btn-analytics').addEventListener('click', () => swi
 document.getElementById('tab-btn-duels').addEventListener('click',     () => switchTab('duels'));
 document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
 document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
+document.getElementById('tab-btn-notif').addEventListener('click',     () => switchTab('notif'));
 
 // ── Agents config editor ──────────────────────────────────────────────────────
 const sanitizeAgentId = name => name.replaceAll('/', '_');
@@ -1277,73 +1438,148 @@ if (localStorage.getItem('categories_migrated') === '1') {
 // ── Duels ─────────────────────────────────────────────────────────────────────
 let _duel1 = null; // { id, title, mapName }
 let _duel2 = null;
-let _duelsUnsubscribe = null;
 
-function _renderDuelResults(results, containerId, onPick) {
-  const box = document.getElementById(containerId);
-  box.innerHTML = '';
-  if (!results.length) { box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  results.forEach(r => {
-    const row = document.createElement('div');
-    row.style.cssText = 'padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;';
-    row.textContent = `${r.title} — ${r.mapName} / ${r.agent}`;
-    row.addEventListener('mouseenter', () => row.style.background = 'var(--surface)');
-    row.addEventListener('mouseleave', () => row.style.background = '');
-    row.addEventListener('click', () => { onPick(r); box.style.display = 'none'; });
-    box.appendChild(row);
+// helper because query() is variadic
+window._buildQuery = (ref, constraints) => query(ref, ...constraints);
+
+// Load approved lineups into the global array if not already loaded
+async function _ensureLineupsForDuels() {
+  if (lineups && lineups.length > 0) return;
+  try {
+    const snap = await getDocs(window._buildQuery(collection(db, 'lineups'), [
+      where('status', '==', 'approved'), orderBy('submitted_at', 'desc'), limit(300),
+    ]));
+    lineups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('Duels: could not load lineups:', e.message);
+  }
+}
+
+// Build a self-contained 3-column map→agent→lineup picker inside a container div.
+// onPick(r) is called with { id, title, mapName, agent } when user clicks a lineup.
+function _dpRender(containerId, srcLineups, onPick) {
+  const host = document.getElementById(containerId);
+  if (!host) return;
+
+  const data       = _mpGroupByMap(srcLineups);
+  const sortedMaps = Object.entries(data).sort((a, b) => b[1].total - a[1].total);
+  let selMap = null, selAgent = null;
+
+  host.innerHTML = `
+    <div style="display:flex;height:100%;overflow:hidden;">
+      <div style="width:34%;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.8px;padding:8px 10px;border-bottom:1px solid var(--border);">КАРТА</div>
+        <div id="${containerId}-c1" style="flex:1;overflow-y:auto;"></div>
+      </div>
+      <div id="${containerId}-c2" style="width:30%;flex-shrink:0;display:none;flex-direction:column;border-right:1px solid var(--border);">
+        <div id="${containerId}-c2t" style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.8px;padding:8px 10px;border-bottom:1px solid var(--border);"></div>
+        <div id="${containerId}-c2l" style="flex:1;overflow-y:auto;"></div>
+      </div>
+      <div id="${containerId}-c3" style="flex:1;min-width:0;display:none;flex-direction:column;">
+        <div id="${containerId}-c3t" style="font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.8px;padding:8px 10px;border-bottom:1px solid var(--border);"></div>
+        <div id="${containerId}-c3l" style="flex:1;overflow-y:auto;"></div>
+      </div>
+    </div>`;
+
+  const c1    = document.getElementById(`${containerId}-c1`);
+  const c2    = document.getElementById(`${containerId}-c2`);
+  const c2t   = document.getElementById(`${containerId}-c2t`);
+  const c2l   = document.getElementById(`${containerId}-c2l`);
+  const c3    = document.getElementById(`${containerId}-c3`);
+  const c3t   = document.getElementById(`${containerId}-c3t`);
+  const c3l   = document.getElementById(`${containerId}-c3l`);
+
+  const rowBase = 'cursor:pointer;padding:8px 10px;border-bottom:1px solid var(--border);font-size:12px;display:flex;align-items:center;gap:8px;';
+
+  function renderCol3(agLineups, agent, map) {
+    c3t.textContent = `${agent} · ${map} · ${agLineups.length}`;
+    c3l.innerHTML = agLineups.length
+      ? agLineups.map(l => `<div class="mp-lineup-row" data-id="${esc(l.id)}" style="${rowBase}flex-direction:column;align-items:flex-start;gap:2px;">
+          <div style="font-weight:600;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;">${esc(l.title ?? l.id)}</div>
+        </div>`).join('')
+      : '<div style="padding:16px;color:var(--text2);font-size:12px;">Нет лайнапов</div>';
+    c3.style.display = 'flex';
+
+    c3l.querySelectorAll('.mp-lineup-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const l = agLineups.find(x => x.id === row.dataset.id);
+        if (!l) return;
+        c3l.querySelectorAll('.mp-lineup-row').forEach(r => r.style.background = '');
+        row.style.background = 'rgba(255,70,85,.12)';
+        onPick({ id: l.id, title: l.title ?? l.id, mapName: l.map ?? map, agent: l.agent ?? agent });
+      });
+    });
+  }
+
+  function renderCol2(agents) {
+    c2t.textContent = (selMap ?? '').toUpperCase();
+    const sorted = Object.entries(agents).sort((a, b) => b[1].length - a[1].length);
+    c2l.innerHTML = sorted.length
+      ? sorted.map(([agName, agLs]) => {
+          const color = MP_AGENT_COLORS[agName] ?? 'var(--text2)';
+          return `<div class="mp-agent-row" data-agent="${esc(agName)}" style="${rowBase}">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
+            <span style="flex:1;color:var(--text1);">${esc(agName)}</span>
+            <span style="color:var(--text2);font-size:11px;">${agLs.length}</span>
+          </div>`;
+        }).join('')
+      : '<div style="padding:16px;color:var(--text2);font-size:12px;">Нет агентов</div>';
+    c2.style.display = 'flex';
+    c3.style.display = 'none';
+
+    c2l.querySelectorAll('.mp-agent-row').forEach(row => {
+      row.addEventListener('click', () => {
+        selAgent = row.dataset.agent;
+        c2l.querySelectorAll('.mp-agent-row').forEach(r => r.style.background = '');
+        row.style.background = 'rgba(255,70,85,.12)';
+        renderCol3(agents[selAgent] ?? [], selAgent, selMap);
+      });
+    });
+  }
+
+  c1.innerHTML = sortedMaps.length
+    ? sortedMaps.map(([mapName, md]) =>
+        `<div class="mp-map-row" data-map="${esc(mapName)}" style="${rowBase}">
+          <span style="flex:1;color:var(--text1);">${esc(mapName)}</span>
+          <span style="color:var(--text2);font-size:11px;">${md.total}</span>
+          <span style="color:var(--text2);">›</span>
+        </div>`).join('')
+    : '<div style="padding:16px;color:var(--text2);font-size:12px;">Нет лайнапов</div>';
+
+  c1.querySelectorAll('.mp-map-row').forEach(row => {
+    row.addEventListener('click', () => {
+      selMap   = row.dataset.map;
+      selAgent = null;
+      c1.querySelectorAll('.mp-map-row').forEach(r => r.style.background = '');
+      row.style.background = 'rgba(255,70,85,.12)';
+      c3.style.display = 'none';
+      renderCol2(data[selMap]?.agents ?? {});
+    });
   });
 }
 
-async function _searchLineups(query, mapFilter) {
-  let q = collection(db, 'lineups');
-  const constraints = [where('status', '==', 'approved'), orderBy('title'), limit(20)];
-  if (mapFilter) constraints.splice(0, 0, where('map', '==', mapFilter));
-  const snap = await getDocs(window._buildQuery(q, constraints));
-  return snap.docs
-    .map(d => ({ id: d.id, title: d.data().title ?? '', mapName: d.data().map ?? '', agent: d.data().agent ?? '' }))
-    .filter(r => !query || r.title.toLowerCase().includes(query.toLowerCase()));
+async function _initDuelPickers() {
+  await _ensureLineupsForDuels();
+  const approved = lineups.filter(l => l.status === 'approved');
+
+  _dpRender('duel-picker1', approved, r => {
+    _duel1 = r;
+    _duel2 = null;
+    document.getElementById('duel-selected1').textContent = `✓ ${r.title} (${r.mapName})`;
+    document.getElementById('duel-selected2').textContent = '';
+    document.getElementById('duel-map-hint').textContent  = r.mapName;
+    // Picker 2: same map, exclude chosen lineup
+    const forMap = approved.filter(l => l.map === r.mapName && l.id !== r.id);
+    _dpRender('duel-picker2', forMap, r2 => {
+      _duel2 = r2;
+      document.getElementById('duel-selected2').textContent = `✓ ${r2.title} (${r2.mapName})`;
+    });
+  });
+
+  // Picker 2 placeholder until picker 1 is chosen
+  const p2 = document.getElementById('duel-picker2');
+  if (p2) p2.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:12px;text-align:center;padding:16px;">Сначала выбери лайнап #1</div>';
 }
-
-// helper because query() is variadic
-window._buildQuery = (ref, constraints) => {
-  // eslint-disable-next-line no-undef
-  return query(ref, ...constraints);
-};
-
-let _duelSearchTimer1 = null;
-document.getElementById('duel-search1').addEventListener('input', e => {
-  clearTimeout(_duelSearchTimer1);
-  _duelSearchTimer1 = setTimeout(async () => {
-    const results = await _searchLineups(e.target.value, null);
-    _renderDuelResults(results, 'duel-results1', r => {
-      _duel1 = r;
-      _duel2 = null;
-      document.getElementById('duel-selected1').textContent = `✓ ${r.title} (${r.mapName})`;
-      document.getElementById('duel-selected2').textContent = '';
-      document.getElementById('duel-search1').value = '';
-      document.getElementById('duel-search2').value = '';
-      document.getElementById('duel-search2').disabled = false;
-      document.getElementById('duel-search2').placeholder = `Поиск на карте ${r.mapName}…`;
-      document.getElementById('duel-map-hint').textContent = r.mapName;
-    });
-  }, 300);
-});
-
-let _duelSearchTimer2 = null;
-document.getElementById('duel-search2').addEventListener('input', e => {
-  if (!_duel1) return;
-  clearTimeout(_duelSearchTimer2);
-  _duelSearchTimer2 = setTimeout(async () => {
-    const results = await _searchLineups(e.target.value, _duel1.mapName);
-    const filtered = results.filter(r => r.id !== _duel1.id);
-    _renderDuelResults(filtered, 'duel-results2', r => {
-      _duel2 = r;
-      document.getElementById('duel-selected2').textContent = `✓ ${r.title} (${r.mapName})`;
-      document.getElementById('duel-search2').value = '';
-    });
-  }, 300);
-});
 
 document.getElementById('duel-create-btn').addEventListener('click', async () => {
   if (!_duel1 || !_duel2) { toast('Выбери оба лайнапа', 'e'); return; }
@@ -1370,9 +1606,7 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
     _duel1 = null; _duel2 = null;
     document.getElementById('duel-selected1').textContent = '';
     document.getElementById('duel-selected2').textContent = '';
-    document.getElementById('duel-search2').disabled = true;
-    document.getElementById('duel-search2').placeholder = 'Сначала выбери #1…';
-    document.getElementById('duel-map-hint').textContent = 'выбери #1 сначала';
+    document.getElementById('duel-map-hint').textContent  = '';
     setTimeout(() => { st.style.display = 'none'; }, 3000);
     loadDuelsTab();
   } catch (e) {
@@ -1391,6 +1625,7 @@ function _timeLeft(endsAt) {
 }
 
 async function loadDuelsTab() {
+  await _initDuelPickers();
   const wrap = document.getElementById('duel-list-wrap'); if (!wrap) return;
   wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка…</div>';
   try {
@@ -4394,6 +4629,101 @@ function initMapInteraction(container) {
     applyTransform();
   });
 }
+
+// ── OneSignal Test Notifications ─────────────────────────────────────────────
+
+const OS_APP_ID   = '1703b1a2-73e6-42b5-b788-9437233799ca';
+const OS_REST_KEY = 'os_v2_app_c4b3ditt4zblln4isq3sgn4zzlwmi655tx7en3mw2x3tutxeubgwimysymd7dhpjtffm36uyodt6atcbgd3u2ed32bdz2hnqce76i6q';
+
+async function sendOsNotification({ title, body, type }) {
+  const res = await fetch('https://onesignal.com/api/v1/notifications', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Key ${OS_REST_KEY}`,
+    },
+    body: JSON.stringify({
+      app_id: OS_APP_ID,
+      included_segments: ['All'],
+      headings: { en: title },
+      contents: { en: body },
+      data: { type },
+      android_channel_id: 'valorant_lineups',
+      priority: 10,
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok || json.errors?.length) {
+    throw new Error(json.errors?.[0] ?? `HTTP ${res.status}`);
+  }
+  return json; // json.recipients = количество устройств
+}
+
+const NC_PRESETS = {
+  liked:        { title: '❤️ Новый лайк',                      body: 'Твой лайнап нравится людям',                           type: 'lineup_liked' },
+  rejected:     { title: 'Лайнап отклонён ❌',                  body: 'Твой лайнап не прошёл модерацию',                      type: 'lineup_rejected' },
+  approved:     { title: 'Лайнап одобрен! ✅',                  body: 'Твой лайнап опубликован',                              type: 'lineup_approved' },
+  duel:         { title: '⚔️ Победа в дуэли',                   body: 'Твой лайнап победил в дуэли!',                         type: 'duel' },
+  mod_approved: { title: 'Поздравляем! 🎉',                     body: 'Твоя заявка одобрена — ты теперь модератор!',          type: 'moderator_approved' },
+  mod_rejected: { title: 'Заявка на модератора отклонена',      body: 'К сожалению, заявка на роль модератора не одобрена',   type: 'moderator_rejected' },
+  exclusive:    { title: '⭐ Эксклюзивный доступ разблокирован', body: 'У тебя есть доступ к эксклюзивному контенту!',         type: 'exclusive_access' },
+};
+
+function _ncSetStatus(id, ok, text) {
+  const el = document.getElementById(`nc-status-${id}`);
+  if (!el) return;
+  el.className = `nc-status ${ok ? 'ok' : 'err'}`;
+  el.textContent = text;
+}
+
+function _devicesLabel(n) {
+  if (n === 1) return '1 устройству';
+  if (n >= 2 && n <= 4) return `${n} устройствам`;
+  return `${n} устройствам`;
+}
+
+document.querySelectorAll('.nc-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const id = btn.dataset.nc;
+    const preset = NC_PRESETS[id];
+    if (!preset) return;
+    btn.disabled = true;
+    _ncSetStatus(id, true, 'Отправка…');
+    try {
+      const res = await sendOsNotification(preset);
+      const n = res.recipients ?? 0;
+      _ncSetStatus(id, true, `✅ Отправлено ${_devicesLabel(n)}`);
+      toast(`Отправлено: ${preset.title}`, 's');
+    } catch (e) {
+      _ncSetStatus(id, false, `❌ ${e.message}`);
+      toast('Ошибка отправки: ' + e.message, 'e');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+});
+
+document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
+  const title = document.getElementById('notif-cl-title').value.trim();
+  const body  = document.getElementById('notif-cl-body').value.trim();
+  if (!title || !body) { toast('Заполни заголовок и текст', 'e'); return; }
+  const btn = document.getElementById('notif-cl-btn');
+  btn.disabled = true;
+  _ncSetStatus('changelog', true, 'Отправка…');
+  try {
+    const res = await sendOsNotification({ title, body, type: 'changelog' });
+    const n = res.recipients ?? 0;
+    _ncSetStatus('changelog', true, `✅ Отправлено ${_devicesLabel(n)}`);
+    toast('Changelog broadcast отправлен', 's');
+  } catch (e) {
+    _ncSetStatus('changelog', false, `❌ ${e.message}`);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 document.getElementById('lineup-detail-overlay').addEventListener('click', e => {
   const overlay = document.getElementById('lineup-detail-overlay');
