@@ -4632,33 +4632,19 @@ function initMapInteraction(container) {
   });
 }
 
-// ── OneSignal Test Notifications ─────────────────────────────────────────────
+// ── Push Queue (Firestore → Flutter → OneSignal) ──────────────────────────────
+// Запросы к api.onesignal.com из браузера блокируются CORS.
+// Вместо этого: пишем задание в Firestore push_queue/{id},
+// Flutter-приложение подхватывает его и отправляет через SDK (нет CORS на мобиле).
 
-const OS_APP_ID   = '1703b1a2-73e6-42b5-b788-9437233799ca';
-const OS_REST_KEY = 'os_v2_app_c4b3ditt4zblln4isq3sgn4zzlwmi655tx7en3mw2x3tutxeubgwimysymd7dhpjtffm36uyodt6atcbgd3u2ed32bdz2hnqce76i6q';
-
-async function sendOsNotification({ title, body, type }) {
-  const res = await fetch('https://onesignal.com/api/v1/notifications', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${OS_REST_KEY}`,
-    },
-    body: JSON.stringify({
-      app_id: OS_APP_ID,
-      included_segments: ['All'],
-      headings: { en: title },
-      contents: { en: body },
-      data: { type },
-      android_channel_id: 'valorant_lineups',
-      priority: 10,
-    }),
+async function queueNotification({ title, body, type }) {
+  await addDoc(collection(db, 'push_queue'), {
+    type,
+    title,
+    body,
+    processed: false,
+    created_at: serverTimestamp(),
   });
-  const json = await res.json();
-  if (!res.ok || json.errors?.length) {
-    throw new Error(json.errors?.[0] ?? `HTTP ${res.status}`);
-  }
-  return json; // json.recipients = количество устройств
 }
 
 const NC_PRESETS = {
@@ -4678,27 +4664,20 @@ function _ncSetStatus(id, ok, text) {
   el.textContent = text;
 }
 
-function _devicesLabel(n) {
-  if (n === 1) return '1 устройству';
-  if (n >= 2 && n <= 4) return `${n} устройствам`;
-  return `${n} устройствам`;
-}
-
 document.querySelectorAll('.nc-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
     const id = btn.dataset.nc;
     const preset = NC_PRESETS[id];
     if (!preset) return;
     btn.disabled = true;
-    _ncSetStatus(id, true, 'Отправка…');
+    _ncSetStatus(id, true, 'Добавление в очередь…');
     try {
-      const res = await sendOsNotification(preset);
-      const n = res.recipients ?? 0;
-      _ncSetStatus(id, true, `✅ Отправлено ${_devicesLabel(n)}`);
-      toast(`Отправлено: ${preset.title}`, 's');
+      await queueNotification(preset);
+      _ncSetStatus(id, true, '✅ В очереди — придёт через приложение');
+      toast(`В очереди: ${preset.title}`, 's');
     } catch (e) {
       _ncSetStatus(id, false, `❌ ${e.message}`);
-      toast('Ошибка отправки: ' + e.message, 'e');
+      toast('Ошибка: ' + e.message, 'e');
     } finally {
       btn.disabled = false;
     }
@@ -4711,12 +4690,11 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   if (!title || !body) { toast('Заполни заголовок и текст', 'e'); return; }
   const btn = document.getElementById('notif-cl-btn');
   btn.disabled = true;
-  _ncSetStatus('changelog', true, 'Отправка…');
+  _ncSetStatus('changelog', true, 'Добавление в очередь…');
   try {
-    const res = await sendOsNotification({ title, body, type: 'changelog' });
-    const n = res.recipients ?? 0;
-    _ncSetStatus('changelog', true, `✅ Отправлено ${_devicesLabel(n)}`);
-    toast('Changelog broadcast отправлен', 's');
+    await queueNotification({ title, body, type: 'changelog' });
+    _ncSetStatus('changelog', true, '✅ В очереди — придёт через приложение');
+    toast('Changelog добавлен в очередь', 's');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
