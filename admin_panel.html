@@ -912,9 +912,29 @@
 
       <div class="form-title">🔔 ТЕСТИРОВАНИЕ УВЕДОМЛЕНИЙ</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5;">
-        Тестовые push-уведомления отправляются <strong style="color:var(--text);">всем подписанным устройствам</strong> через OneSignal REST API.
-        Используй для проверки что каждый тип корректно приходит и открывает нужный экран.
+        Выбери получателя и тип уведомления. Запись попадает в Firestore — Flutter-приложение подхватит и отправит через OneSignal.
       </p>
+
+      <!-- Target picker -->
+      <div style="margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;">
+        <div class="dlabel" style="margin-bottom:10px;">ПОЛУЧАТЕЛЬ</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-save" id="nc-mode-all">📢 Все пользователи</button>
+          <button class="btn" id="nc-mode-one" style="border:1px solid var(--border);color:var(--text2);">👤 Конкретный</button>
+        </div>
+        <div id="nc-user-wrap" style="display:none;margin-top:12px;">
+          <div style="position:relative;">
+            <input class="finput" id="nc-user-input" placeholder="Поиск по нику…" autocomplete="off" spellcheck="false" style="background:var(--bg);">
+            <div id="nc-user-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
+          </div>
+          <div id="nc-selected-badge" style="display:none;margin-top:8px;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;">
+            <span style="font-size:16px;">👤</span>
+            <span id="nc-selected-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);"></span>
+            <span id="nc-selected-uid" style="font-size:10px;color:var(--text2);font-family:monospace;"></span>
+            <button id="nc-clear-user" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;" title="Сбросить">✕</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Cards grid: 7 notification types -->
       <div class="notif-grid" id="notif-cards-grid">
@@ -4633,19 +4653,79 @@ function initMapInteraction(container) {
 }
 
 // ── Push Queue (Firestore → Flutter → OneSignal) ──────────────────────────────
-// Запросы к api.onesignal.com из браузера блокируются CORS.
-// Вместо этого: пишем задание в Firestore push_queue/{id},
-// Flutter-приложение подхватывает его и отправляет через SDK (нет CORS на мобиле).
+
+let _ncTargetUid  = null;
+let _ncTargetName = null;
 
 async function queueNotification({ title, body, type }) {
-  await addDoc(collection(db, 'push_queue'), {
-    type,
-    title,
-    body,
-    processed: false,
-    created_at: serverTimestamp(),
-  });
+  const payload = { type, title, body, processed: false, created_at: serverTimestamp() };
+  if (_ncTargetUid) payload.target_uid = _ncTargetUid;
+  await addDoc(collection(db, 'push_queue'), payload);
 }
+
+// ── Target picker logic ───────────────────────────────────────────────────────
+document.getElementById('nc-mode-all').addEventListener('click', () => {
+  _ncTargetUid = null; _ncTargetName = null;
+  document.getElementById('nc-mode-all').className = 'btn btn-save';
+  document.getElementById('nc-mode-all').style.cssText = '';
+  document.getElementById('nc-mode-one').className = 'btn';
+  document.getElementById('nc-mode-one').style.cssText = 'border:1px solid var(--border);color:var(--text2);';
+  document.getElementById('nc-user-wrap').style.display = 'none';
+});
+
+document.getElementById('nc-mode-one').addEventListener('click', () => {
+  document.getElementById('nc-mode-one').className = 'btn btn-save';
+  document.getElementById('nc-mode-one').style.cssText = '';
+  document.getElementById('nc-mode-all').className = 'btn';
+  document.getElementById('nc-mode-all').style.cssText = 'border:1px solid var(--border);color:var(--text2);';
+  document.getElementById('nc-user-wrap').style.display = 'block';
+  document.getElementById('nc-user-input').focus();
+});
+
+document.getElementById('nc-user-input').addEventListener('input', e => {
+  const q = e.target.value.trim();
+  const drop = document.getElementById('nc-user-drop');
+  if (!q || !apLoaded) { drop.style.display = 'none'; return; }
+  const qLow = q.toLowerCase();
+  const matches = apUsers.filter(u => u._dn.toLowerCase().includes(qLow)).slice(0, 8);
+  if (!matches.length) { drop.style.display = 'none'; return; }
+  drop.style.display = 'block';
+  drop.innerHTML = matches.map(u =>
+    `<div class="nc-user-row" data-uid="${apEsc(u.uid)}" data-name="${apEsc(u._dn)}"
+          style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+      <span style="flex:1;">${apHighlight(u._dn, q)}</span>
+      <span style="font-size:11px;color:var(--text2);">${u.role && u.role !== 'user' ? u.role : ''}</span>
+    </div>`
+  ).join('');
+  drop.querySelectorAll('.nc-user-row').forEach(el => {
+    el.addEventListener('mouseenter', () => el.style.background = 'var(--surface2)');
+    el.addEventListener('mouseleave', () => el.style.background = '');
+    el.addEventListener('click', () => _ncSelectUser(el.dataset.uid, el.dataset.name));
+  });
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#nc-user-wrap')) {
+    document.getElementById('nc-user-drop').style.display = 'none';
+  }
+});
+
+function _ncSelectUser(uid, name) {
+  _ncTargetUid  = uid;
+  _ncTargetName = name;
+  document.getElementById('nc-user-input').value = '';
+  document.getElementById('nc-user-drop').style.display = 'none';
+  document.getElementById('nc-selected-name').textContent = name;
+  document.getElementById('nc-selected-uid').textContent = uid;
+  document.getElementById('nc-selected-badge').style.display = 'flex';
+}
+
+document.getElementById('nc-clear-user').addEventListener('click', () => {
+  _ncTargetUid = null; _ncTargetName = null;
+  document.getElementById('nc-selected-badge').style.display = 'none';
+  document.getElementById('nc-user-input').value = '';
+  document.getElementById('nc-user-input').focus();
+});
 
 const NC_PRESETS = {
   liked:        { title: '❤️ Новый лайк',                      body: 'Твой лайнап нравится людям',                           type: 'lineup_liked' },
