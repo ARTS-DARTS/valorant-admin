@@ -3007,15 +3007,29 @@ createAddSlot();
       const file = toProcess[i];
       updateBulkProgress(i + 1, toProcess.length, file.name);
 
-      const beforeIds = new Set(Object.keys(addSlotSessions));
-      createAddSlot();
-      // Даём браузеру время отрисовать новый слот
-      await new Promise(r => setTimeout(r, 50));
-      const newId = Object.keys(addSlotSessions).find(id => !beforeIds.has(id));
+      // Сначала ищем пустой слот (без видео)
+      const emptySlotId = Object.keys(addSlotSessions).find(id => {
+        const s = addSlotSessions[id];
+        return !s.videoState || s.videoState.status === 'idle';
+      });
 
-      if (newId !== undefined) {
-        _handleSlotVideoFile(Number(newId), file);
-        if (firstScrollId === null) firstScrollId = newId;
+      let targetId;
+      if (emptySlotId !== undefined) {
+        targetId = emptySlotId;
+      } else {
+        if (Object.keys(addSlotSessions).length >= 12) {
+          toast('Лимит 12 слотов достигнут', 'i');
+          break;
+        }
+        const beforeIds = new Set(Object.keys(addSlotSessions));
+        document.getElementById('btn-add-slot')?.click();
+        await new Promise(r => setTimeout(r, 100));
+        targetId = Object.keys(addSlotSessions).find(id => !beforeIds.has(id));
+      }
+
+      if (targetId !== undefined) {
+        _handleSlotVideoFile(Number(targetId), file);
+        if (firstScrollId === null) firstScrollId = targetId;
       }
     }
 
