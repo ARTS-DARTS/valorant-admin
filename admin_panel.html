@@ -120,13 +120,23 @@
     .yt-hint    { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; color: var(--text2); font-size: 12px; line-height: 1.6; margin-bottom: 7px; }
 
     .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 5px; }
-    .agent-card { border-radius: 7px; border: 2px solid var(--border); background: var(--surface2); cursor: pointer; transition: border-color .13s, background .13s; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+    .agent-card { position: relative; border-radius: 7px; border: 2px solid var(--border); background: var(--surface2); cursor: pointer; transition: border-color .13s, background .13s; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
     .agent-card:hover  { border-color: var(--primary); }
     .agent-card.sel    { border-color: var(--primary); background: rgba(255,70,85,.12); }
     .agent-card img    { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; pointer-events: none; }
     .agent-card .ac-fallback { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; }
     .agent-card .ac-name { font-size: 9px; font-weight: 700; color: var(--text2); text-align: center; padding: 3px 3px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .agent-card.sel .ac-name { color: var(--primary); }
+    .agent-disable-btn { position: absolute; top: 3px; right: 3px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #ef4444; border-radius: 4px; font-size: 10px; line-height: 1; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; z-index: 2; opacity: 0; transition: opacity .15s; }
+    .agent-card:hover .agent-disable-btn { opacity: 1; }
+    .agent-card.disabled-agent { opacity: 0.35; filter: grayscale(1); }
+    .agent-card.disabled-agent .agent-disable-btn { opacity: 1; background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); color: #22c55e; }
+    .agent-cat-dots { display:flex; gap:3px; justify-content:center; margin-top:3px; padding-bottom:3px; }
+    .cat-dot { width:6px; height:6px; border-radius:50%; background:var(--border); transition:.15s; }
+    .cat-dot.has-abilities { background:var(--primary); }
+    .cat-dot[data-cat="combo"].has-abilities { background:#f97316; }
+    .cat-dot[data-cat="smoke"].has-abilities { background:#7a9bb5; }
+    .cat-dot[data-cat="defense"].has-abilities { background:#22c55e; }
     .ability-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .abil-btn   { padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .13s; }
     .abil-btn:hover { border-color: var(--primary); color: var(--primary); }
@@ -605,6 +615,17 @@
 
         <div style="margin-top:16px;">
           <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">Добавить 1 лайнап</button>
+          <div style="margin-top:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text2);">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="preset-save-map" checked> Сохранять карту
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="preset-save-agent" checked> Сохранять агента
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="preset-save-ability" checked> Сохранять способность
+            </label>
+          </div>
           <button class="btn" id="btn-reset-preset" style="width:100%;justify-content:center;padding:10px;border:1px solid var(--border);color:var(--text2);margin-top:6px;font-size:13px;">🔄 Сбросить пресет</button>
         </div>
 
@@ -1287,16 +1308,31 @@ const sanitizeAgentId = name => name.replaceAll('/', '_');
 let _agentsData = [];
 let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
+let _disabledAgents = new Set();
+
+async function _loadDisabledAgents() {
+  try {
+    const snap = await getDoc(doc(db, 'agents_config', '_disabled_agents'));
+    _disabledAgents = new Set(snap.exists() ? (snap.data().disabled || []) : []);
+  } catch(_) { _disabledAgents = new Set(); }
+}
 
 async function loadAgentsForConfig() {
-  if (_agentsData.length > 0) { _renderAgentCards(); return; }
+  if (_agentsData.length > 0) {
+    await _loadDisabledAgents();
+    _renderAgentCards();
+    _agentsData.forEach(a => _refreshAgentCatDots(a.displayName));
+    return;
+  }
   document.getElementById('agents-card-grid').innerHTML =
     '<div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>';
   try {
     const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
     const json = await res.json();
     _agentsData = (json.data || []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    await _loadDisabledAgents();
     _renderAgentCards();
+    _agentsData.forEach(a => _refreshAgentCatDots(a.displayName));
   } catch (e) {
     document.getElementById('agents-card-grid').innerHTML =
       `<div class="state" style="grid-column:1/-1;color:var(--red);">Ошибка загрузки: ${esc(e.message)}</div>`;
@@ -1308,16 +1344,55 @@ function _renderAgentCards() {
   grid.innerHTML = '';
   _agentsData.forEach(agent => {
     const card = document.createElement('div');
-    card.className = 'agent-card' + (_selectedAgentName === agent.displayName ? ' sel' : '');
+    const isDisabled = _disabledAgents.has(agent.displayName);
+    card.className = 'agent-card' + (_selectedAgentName === agent.displayName ? ' sel' : '') + (isDisabled ? ' disabled-agent' : '');
     card.dataset.name = agent.displayName;
     const icon = agent.displayIcon || agent.displayIconSmall || '';
     card.innerHTML = `
       ${icon ? `<img src="${icon}" alt="${agent.displayName}" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
       <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
-      <div class="ac-name">${agent.displayName}</div>`;
+      <div class="ac-name">${agent.displayName}</div>
+      <button class="agent-disable-btn" title="${isDisabled ? 'Восстановить агента' : 'Скрыть агента'}">${isDisabled ? '↩' : '✕'}</button>
+      <div class="agent-cat-dots" data-name="${agent.displayName}">
+        <span class="cat-dot" data-cat="lineup" title="Лайнапы"></span>
+        <span class="cat-dot" data-cat="combo" title="Комбо"></span>
+        <span class="cat-dot" data-cat="smoke" title="Смоки"></span>
+        <span class="cat-dot" data-cat="defense" title="Защита"></span>
+      </div>`;
     card.addEventListener('click', () => _selectAgentCard(agent.displayName));
+    card.querySelector('.agent-disable-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      const name = agent.displayName;
+      const wasDisabled = _disabledAgents.has(name);
+      if (wasDisabled) { _disabledAgents.delete(name); } else { _disabledAgents.add(name); }
+      try {
+        await setDoc(doc(db, 'agents_config', '_disabled_agents'), { disabled: [..._disabledAgents] });
+        card.classList.toggle('disabled-agent', !wasDisabled);
+        const btn = card.querySelector('.agent-disable-btn');
+        btn.textContent = wasDisabled ? '✕' : '↩';
+        btn.title = wasDisabled ? 'Скрыть агента' : 'Восстановить агента';
+        toast(wasDisabled ? 'Агент восстановлен' : 'Агент скрыт', 'i');
+      } catch (err) {
+        if (wasDisabled) { _disabledAgents.add(name); } else { _disabledAgents.delete(name); }
+        toast('Ошибка: ' + err.message, 'e');
+      }
+    });
     grid.appendChild(card);
   });
+}
+
+async function _refreshAgentCatDots(agentName) {
+  const agentId = sanitizeAgentId(agentName);
+  const cats = ['lineup', 'combo', 'smoke', 'defense'];
+  await Promise.all(cats.map(async cat => {
+    try {
+      const snap = await getDoc(doc(db, 'agents_config', agentId, 'categories', cat));
+      const abilities = snap.exists() ? (snap.data().abilities || {}) : {};
+      const hasEnabled = Object.values(abilities).some(v => v !== false);
+      const dot = document.querySelector(`.agent-cat-dots[data-name="${CSS.escape(agentName)}"] .cat-dot[data-cat="${cat}"]`);
+      if (dot) dot.classList.toggle('has-abilities', hasEnabled);
+    } catch(_) {}
+  }));
 }
 
 let _selectedAgentCategory = 'lineup';
@@ -1396,6 +1471,7 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     st.textContent = `✅ Сохранено для ${_selectedAgentName} / ${_selectedAgentCategory}`;
     setTimeout(() => { st.style.display = 'none'; }, 3000);
     toast(`Сохранено для ${_selectedAgentName} [${_selectedAgentCategory}]`, 's');
+    _refreshAgentCatDots(_selectedAgentName);
   } catch (e) {
     toast('Ошибка сохранения: ' + e.message, 'e');
   }
@@ -2166,6 +2242,7 @@ function _renderSlotPreviews(id) {
   const grid=document.getElementById('slot-'+id+'-upload-previews'); if(!grid) return;
   grid.innerHTML=s.screenshots.map(_thumbHtml).join('');
   grid.querySelectorAll('.up-remove').forEach(btn=>btn.addEventListener('click',()=>_removeSlotScreenshot(id,btn.dataset.uid)));
+  initSlotDragReorder(id);
 }
 function _removeSlotScreenshot(id, uid) {
   const s=addSlotSessions[id]; if(!s) return;
@@ -2227,10 +2304,10 @@ function _initSlotEvents(id) {
 
 function _syncAddSlotBtn() {
   const btn=document.getElementById('btn-add-slot'); if(!btn) return;
-  btn.style.display=Object.keys(addSlotSessions).length>=6?'none':'inline-flex';
+  btn.style.display=Object.keys(addSlotSessions).length>=12?'none':'inline-flex';
 }
 function createAddSlot() {
-  if(Object.keys(addSlotSessions).length>=6){toast('Максимум 6 слотов','e');return;}
+  if(Object.keys(addSlotSessions).length>=12){toast('Максимум 12 слотов','e');return;}
   const id=_nextAddSlotId++;
   addSlotSessions[id]={markerX:null,markerY:null,trajectory:[],mapMode:'position',mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,videoState:{status:'idle',url:null,localUrl:null,progress:0,xhr:null},screenshots:[]};
   const container=document.getElementById('add-slots-container');
@@ -2337,8 +2414,14 @@ function _restorePreset() {
 }
 
 function resetForm() {
-  const presetMap=document.getElementById('f-map').value, presetAgent=pickedAgent, presetAbil=pickedAbility;
-  if(presetMap||presetAgent) localStorage.setItem('lineup_preset',JSON.stringify({map:presetMap,agent:presetAgent,ability:presetAbil}));
+  const saveMap=document.getElementById('preset-save-map')?.checked;
+  const saveAgent=document.getElementById('preset-save-agent')?.checked;
+  const saveAbil=document.getElementById('preset-save-ability')?.checked;
+  const presetData={};
+  if(saveMap) presetData.map=document.getElementById('f-map').value;
+  if(saveAgent) presetData.agent=pickedAgent;
+  if(saveAbil) presetData.ability=pickedAbility;
+  if(Object.keys(presetData).length) localStorage.setItem('lineup_preset',JSON.stringify(presetData));
   ['f-map','f-category','f-status'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value=fid==='f-status'?'approved':'';});
   document.getElementById('f-exclusive').checked=false;
   selectedAuthor=null; document.getElementById('f-author-input').value=''; document.getElementById('author-selected').textContent='';
@@ -2684,6 +2767,19 @@ document.getElementById('btn-reset-preset').addEventListener('click', () => {
 loadAgentIcons();
 loadMapImages();
 createAddSlot();
+(function() {
+  const opts = (() => { try { return JSON.parse(localStorage.getItem('preset_options') || '{}'); } catch(_) { return {}; } })();
+  ['map','agent','ability'].forEach(key => {
+    const cb = document.getElementById('preset-save-' + key);
+    if (!cb) return;
+    if (key in opts) cb.checked = opts[key];
+    cb.addEventListener('change', () => {
+      const cur = (() => { try { return JSON.parse(localStorage.getItem('preset_options') || '{}'); } catch(_) { return {}; } })();
+      cur[key] = cb.checked;
+      localStorage.setItem('preset_options', JSON.stringify(cur));
+    });
+  });
+})();
 
 // ── Screenshot upload ─────────────────────────────────────────────────────────
 function compressImage(file) {
@@ -2849,10 +2945,40 @@ function _processFile(file, item) {
 // upload-zone / f-screenshots are now rendered per-slot dynamically — no global init needed
 
 let _addDragSrc = null;
-(function() {
-  const grid = document.getElementById('upload-previews');
-  if (!grid) return; // element removed — drag-reorder disabled for add form
-})();
+function initSlotDragReorder(id) {
+  const grid = document.getElementById('slot-' + id + '-upload-previews');
+  if (!grid) return;
+  grid.querySelectorAll('.up-thumb').forEach((thumb, idx) => {
+    thumb.draggable = true;
+    thumb.addEventListener('dragstart', e => {
+      _addDragSrc = { id, idx };
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    thumb.addEventListener('dragover', e => {
+      e.preventDefault();
+      thumb.style.boxShadow = '0 0 0 2px var(--primary)';
+    });
+    thumb.addEventListener('dragleave', () => {
+      thumb.style.boxShadow = '';
+    });
+    thumb.addEventListener('drop', e => {
+      e.preventDefault();
+      thumb.style.boxShadow = '';
+      if (!_addDragSrc || _addDragSrc.id !== id) return;
+      const fromIdx = _addDragSrc.idx;
+      const toIdx = idx;
+      if (fromIdx === toIdx) return;
+      const s = addSlotSessions[id];
+      const [moved] = s.screenshots.splice(fromIdx, 1);
+      s.screenshots.splice(toIdx, 0, moved);
+      _renderSlotPreviews(id);
+    });
+    thumb.addEventListener('dragend', () => {
+      thumb.style.boxShadow = '';
+      _addDragSrc = null;
+    });
+  });
+}
 
 // ── Inline edit in card ───────────────────────────────────────────────────────
 const editSessions = {};
