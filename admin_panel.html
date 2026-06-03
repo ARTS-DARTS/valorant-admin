@@ -2143,14 +2143,54 @@ document.getElementById('guide-save-btn').addEventListener('click', async () => 
 });
 
 // ── Filters ───────────────────────────────────────────────────────────────────
+let _filterTimer = null;
 document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     currentFilter = btn.dataset.filter;
-    renderList();
+    clearTimeout(_filterTimer);
+    _filterTimer = setTimeout(renderList, 80);
   });
 });
+
+// ── Event delegation для lineup-list (один раз, не перевешивается на каждый рендер) ──
+(function() {
+  const list = document.getElementById('lineup-list');
+  list.addEventListener('click', e => {
+    // [data-action] в приоритете — некоторые лежат внутри .lcard-head
+    const actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+      e.stopPropagation();
+      const { action, id, uid, name } = actionBtn.dataset;
+      if (action === 'approve')      approveLineup(id, uid);
+      if (action === 'reject')       rejectLineup(id);
+      if (action === 'archive')      archiveLineup(id);
+      if (action === 'restore')      restoreLineup(id);
+      if (action === 'delete')       deleteLineup(id);
+      if (action === 'ban')          banUser(uid, name);
+      if (action === 'edit-toggle')  openEditForm(id);
+      if (action === 'open-profile') openUserProfile(uid, name);
+      if (action === 'detail')       openLineupDetail(id);
+      return;
+    }
+    // раскрытие карточки
+    const head = e.target.closest('.lcard-head');
+    if (head) {
+      const id     = head.dataset.id;
+      const detail = document.getElementById('ldetail-' + id);
+      const btn    = list.querySelector(`.expand-btn[data-id="${id}"]`);
+      if (detail) {
+        const open = detail.classList.toggle('open');
+        if (btn) btn.classList.toggle('open', open);
+      }
+      return;
+    }
+    // лайтбокс
+    const lb = e.target.closest('[data-lightbox]');
+    if (lb) openLb(lb.dataset.lightbox);
+  });
+})();
 document.getElementById('btn-map-panel').addEventListener('click', () => {
   const panel = document.getElementById('map-panel');
   const btn   = document.getElementById('btn-map-panel');
@@ -2228,7 +2268,6 @@ function renderList() {
     return;
   }
   document.getElementById('lineup-list').innerHTML = fl.map(cardHtml).join('');
-  bindCardEvents();
 }
 
 function cardHtml(l) {
@@ -2296,37 +2335,7 @@ function cardHtml(l) {
 </div>`;
 }
 
-function bindCardEvents() {
-  document.querySelectorAll('.lcard-head, .expand-btn').forEach(el => {
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      const id     = el.dataset.id;
-      const detail = document.getElementById('ldetail-' + id);
-      const btn    = document.querySelector(`.expand-btn[data-id="${id}"]`);
-      if (!detail) return;
-      const open = detail.classList.toggle('open');
-      if (btn) btn.classList.toggle('open', open);
-    });
-  });
-  document.querySelectorAll('[data-action]').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const { action, id, uid, name } = btn.dataset;
-      if (action === 'approve')      approveLineup(id, uid);
-      if (action === 'reject')       rejectLineup(id);
-      if (action === 'archive')      archiveLineup(id);
-      if (action === 'restore')      restoreLineup(id);
-      if (action === 'delete')       deleteLineup(id);
-      if (action === 'ban')          banUser(uid, name);
-      if (action === 'edit-toggle')  openEditForm(id);
-      if (action === 'open-profile') openUserProfile(uid, name);
-      if (action === 'detail')       openLineupDetail(id);
-    });
-  });
-  document.querySelectorAll('[data-lightbox]').forEach(el => {
-    el.addEventListener('click', () => openLb(el.dataset.lightbox));
-  });
-}
+function bindCardEvents() { /* заменено event delegation на #lineup-list */ }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 async function approveLineup(id, userId) {
