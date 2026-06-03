@@ -384,7 +384,7 @@ class _MapScreenState extends State<MapScreen> {
                 crossAxisCount: 3,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 0.72,
+                childAspectRatio: 0.62,
               ),
               itemCount: _filteredAgents.length,
               itemBuilder: (context, index) =>
@@ -454,122 +454,139 @@ class _MapScreenState extends State<MapScreen> {
     final isDisabled = disabledAgents.contains(name);
     final count = lineupCounts[name] ?? 0;
 
+    final isEmpty = !isDisabled && count == 0;
+
     return GestureDetector(
       onTap: isDisabled
           ? () => _showDisabledDialog(context, theme)
-          : count == 0
+          : isEmpty
               ? () => AppSnackBar.show(context, AppLocalizations.of(context)!.noLineupsYet)
               : () => _openAgentScreen(name, abilities),
-      child: Opacity(
-        opacity: isDisabled ? 0.45 : (count == 0 ? 0.4 : 1.0),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDisabled ? theme.border : theme.primary,
-              width: 1,
-            ),
-          ),
-          child: Stack(
-            children: [
-              Padding(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Opacity(
+              opacity: isDisabled ? 0.45 : (isEmpty ? 0.4 : 1.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.surface,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isDisabled ? theme.border : theme.primary,
+                    width: 1,
+                  ),
+                ),
+                child: Stack(
                   children: [
-                    Flexible(
-                      flex: 5,
-                      child: ColorFiltered(
-                        colorFilter: isDisabled
-                            ? const ColorFilter.matrix([
-                          0.2126, 0.7152, 0.0722, 0, 0,
-                          0.2126, 0.7152, 0.0722, 0, 0,
-                          0.2126, 0.7152, 0.0722, 0, 0,
-                          0,      0,      0,      1, 0,
-                        ])
-                            : const ColorFilter.mode(
-                            Colors.transparent, BlendMode.multiply),
-                        child: CachedNetworkImage(
-                          imageUrl: iconUrl,
-                          fit: BoxFit.contain,
-                          placeholder: (_, _) => Container(color: Colors.transparent),
-                          errorWidget: (_, _, _) => Icon(
-                              Icons.person,
-                              color: theme.textSecondary,
-                              size: 36),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            flex: 5,
+                            child: ColorFiltered(
+                              colorFilter: isDisabled
+                                  ? const ColorFilter.matrix([
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0,      0,      0,      1, 0,
+                              ])
+                                  : const ColorFilter.mode(
+                                  Colors.transparent, BlendMode.multiply),
+                              child: CachedNetworkImage(
+                                imageUrl: iconUrl,
+                                fit: BoxFit.contain,
+                                placeholder: (_, _) => Container(color: Colors.transparent),
+                                errorWidget: (_, _, _) => Icon(
+                                    Icons.person,
+                                    color: theme.textSecondary,
+                                    size: 36),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            name,
+                            style: TextStyle(
+                              color: isDisabled ? theme.textSecondary : theme.textPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isDisabled)
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: Icon(Icons.lock, color: theme.textSecondary, size: 13),
+                      ),
+                    if (!isDisabled)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: GestureDetector(
+                          onTap: () => _toggleFavoriteAgent(name),
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _favoriteAgents.contains(name) ? Icons.star_rounded : Icons.star_border_rounded,
+                              color: _favoriteAgents.contains(name) ? Colors.amber : Colors.white70,
+                              size: 28,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      name,
-                      style: TextStyle(
-                        color: isDisabled
-                            ? theme.textSecondary
-                            : theme.textPrimary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isDisabled
-                          ? '🔒 скоро'
-                          : count == 0
-                          ? 'нет лайнапов'
-                          : '$count ${_lineupWord(count)}',
-                      style: TextStyle(
-                        color: isDisabled
-                            ? theme.textSecondary
-                            : count > 0
-                            ? theme.primary
-                            : theme.textSecondary,
-                        fontSize: 9,
-                        height: 1.2,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
               ),
-              if (isDisabled)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: Icon(Icons.lock, color: theme.textSecondary, size: 13),
-                ),
-              if (!isDisabled)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: GestureDetector(
-                    onTap: () => _toggleFavoriteAgent(name),
-                    behavior: HitTestBehavior.opaque,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        _favoriteAgents.contains(name) ? Icons.star_rounded : Icons.star_border_rounded,
-                        color: _favoriteAgents.contains(name) ? Colors.amber : Colors.white70,
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: (isDisabled || isEmpty)
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : const Color(0xFF4FC3F7).withValues(alpha: 0.35),
+                  width: 1,
+                ),
+              ),
+              child: Text(
+                isDisabled
+                    ? '🔒 скоро'
+                    : AppLocalizations.of(context)!.lineupCountLabel(count),
+                style: TextStyle(
+                  color: (isDisabled || isEmpty)
+                      ? Colors.white38
+                      : const Color(0xFF4FC3F7).withValues(alpha: 0.85),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -602,7 +619,7 @@ class _MapScreenState extends State<MapScreen> {
           crossAxisCount: 3,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 0.72,
+          childAspectRatio: 0.62,
         ),
         itemCount: all.length,
         itemBuilder: (ctx, i) => _buildAgentCard(all[i], theme),
@@ -657,7 +674,7 @@ class _MapScreenState extends State<MapScreen> {
             crossAxisCount: 3,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 0.72,
+            childAspectRatio: 0.62,
           ),
         ),
       ));
@@ -680,7 +697,7 @@ class _MapScreenState extends State<MapScreen> {
             crossAxisCount: 3,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 0.72,
+            childAspectRatio: 0.62,
           ),
         ),
       ));
@@ -755,17 +772,4 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  String _lineupWord(int n) {
-    if (n % 100 >= 11 && n % 100 <= 14) return 'лайнапов';
-    switch (n % 10) {
-      case 1:
-        return 'лайнап';
-      case 2:
-      case 3:
-      case 4:
-        return 'лайнапа';
-      default:
-        return 'лайнапов';
-    }
-  }
 }
