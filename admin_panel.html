@@ -127,9 +127,13 @@
       transition: border-color .15s; width: 100%; font-family: inherit; box-shadow: none;
     }
     .finput:focus, .fselect:focus, .ftextarea:focus { border-color: var(--primary); }
-    /* Отключаем красную рамку браузерной валидации */
-    .finput:invalid, .fselect:invalid, .ftextarea:invalid,
-    .finput:-moz-ui-invalid, .fselect:-moz-ui-invalid, .ftextarea:-moz-ui-invalid,
+    /* Отключаем красную рамку браузерной валидации (разделено для совместимости браузеров) */
+    .finput:invalid, .fselect:invalid, .ftextarea:invalid {
+      border-color: var(--border) !important; box-shadow: none !important; outline: none !important;
+    }
+    .finput:-moz-ui-invalid, .fselect:-moz-ui-invalid, .ftextarea:-moz-ui-invalid {
+      border-color: var(--border) !important; box-shadow: none !important; outline: none !important;
+    }
     .finput:user-invalid, .fselect:user-invalid, .ftextarea:user-invalid {
       border-color: var(--border) !important; box-shadow: none !important; outline: none !important;
     }
@@ -528,6 +532,8 @@
         <button class="filter-btn" id="btn-map-panel">📊 Карты</button>
       </div>
 
+      <div id="lineup-stats-bar" style="font-size:12px;color:var(--text2);margin-bottom:10px;padding:6px 2px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;"></div>
+
       <!-- ── Map Stats Panel (drawer) ── -->
       <div id="map-panel" style="display:none;height:340px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
         <div style="display:flex;height:100%;">
@@ -663,6 +669,15 @@
             </label>
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
               <input type="checkbox" id="preset-save-ability" checked> Сохранять способность
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="preset-save-category" checked> Сохранять категорию
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="preset-save-status" checked> Сохранять статус
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="preset-save-author" checked> Сохранять автора
             </label>
           </div>
           <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">Добавить 1 лайнап</button>
@@ -2043,8 +2058,37 @@ async function loadLineups() {
 }
 window.loadLineups = loadLineups;
 
+// ── Stats bar ─────────────────────────────────────────────────────────────────
+function updateStatsBar() {
+  const bar = document.getElementById('lineup-stats-bar');
+  if (!bar) return;
+  const all = lineups;
+  const counts = {
+    pending:  all.filter(l => l.status === 'pending').length,
+    approved: all.filter(l => l.status === 'approved').length,
+    rejected: all.filter(l => l.status === 'rejected').length,
+    archived: all.filter(l => l.status === 'archived').length,
+  };
+  const total = counts.pending + counts.approved + counts.rejected + counts.archived;
+  if (currentFilter === 'all' || !currentFilter) {
+    bar.innerHTML =
+      `<span>Всего: <b style="color:var(--text)">${total}</b></span>` +
+      `<span style="color:var(--orange)">⏳ На проверке: <b>${counts.pending}</b></span>` +
+      `<span style="color:var(--green)">✅ Одобрено: <b>${counts.approved}</b></span>` +
+      `<span style="color:var(--red)">❌ Отклонено: <b>${counts.rejected}</b></span>` +
+      `<span style="color:var(--text2)">📦 Архив: <b>${counts.archived}</b></span>`;
+  } else {
+    const filtered = all.filter(l => l.status === currentFilter);
+    const label = { pending:'⏳ На проверке', approved:'✅ Одобренных', rejected:'❌ Отклонённых', archived:'📦 В архиве' }[currentFilter] || currentFilter;
+    bar.innerHTML =
+      `<span>${label}: <b style="color:var(--text)">${filtered.length}</b></span>` +
+      `<span style="color:var(--text2);font-size:11px;">(всего в базе: ${total})</span>`;
+  }
+}
+
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderList() {
+  updateStatsBar();
   const q  = document.getElementById('search').value.toLowerCase();
   const fl = lineups.filter(l => {
     if (currentFilter === 'all' && l.status === 'archived') return false;
@@ -2583,6 +2627,23 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   finally { btn.disabled=false; _updateSaveBtn(); }
 });
 
+function savePreset() {
+  const saveMap  = document.getElementById('preset-save-map')?.checked;
+  const saveAgt  = document.getElementById('preset-save-agent')?.checked;
+  const saveAbl  = document.getElementById('preset-save-ability')?.checked;
+  const saveCat  = document.getElementById('preset-save-category')?.checked;
+  const saveStat = document.getElementById('preset-save-status')?.checked;
+  const saveAuth = document.getElementById('preset-save-author')?.checked;
+  const data = {};
+  if (saveMap)  data.map     = document.getElementById('f-map')?.value ?? '';
+  if (saveAgt)  data.agent   = pickedAgent;
+  if (saveAbl)  data.ability = pickedAbility;
+  if (saveCat)  data.category = document.getElementById('f-category')?.value ?? '';
+  if (saveStat) data.status   = document.getElementById('f-status')?.value ?? '';
+  if (saveAuth && selectedAuthor) { data.authorName = selectedAuthor.name; data.authorUid = selectedAuthor.uid; }
+  if (Object.keys(data).length) localStorage.setItem('lineup_preset', JSON.stringify(data));
+}
+
 function _restorePreset() {
   if (document.getElementById('f-map').value) return;
   const saved=localStorage.getItem('lineup_preset'); if(!saved) return;
@@ -2598,18 +2659,20 @@ function _restorePreset() {
       pickedAbility=p.ability||''; renderAbilityRow();
       if(p.ability) setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===p.ability)),0);
     }
+    if (p.category) { const sel=document.getElementById('f-category'); if(sel) sel.value=p.category; }
+    if (p.status)   { const sel=document.getElementById('f-status');   if(sel) sel.value=p.status; }
+    if (p.authorName && p.authorUid) {
+      selectedAuthor = { name: p.authorName, uid: p.authorUid };
+      const inp   = document.getElementById('f-author-input');
+      const badge = document.getElementById('author-selected');
+      if (inp)   inp.value       = p.authorName;
+      if (badge) badge.textContent = `✓ Будет добавлен от имени ${p.authorName}`;
+    }
   } catch(_) {}
 }
 
 function resetForm() {
-  const saveMap=document.getElementById('preset-save-map')?.checked;
-  const saveAgent=document.getElementById('preset-save-agent')?.checked;
-  const saveAbil=document.getElementById('preset-save-ability')?.checked;
-  const presetData={};
-  if(saveMap) presetData.map=document.getElementById('f-map').value;
-  if(saveAgent) presetData.agent=pickedAgent;
-  if(saveAbil) presetData.ability=pickedAbility;
-  if(Object.keys(presetData).length) localStorage.setItem('lineup_preset',JSON.stringify(presetData));
+  savePreset();
   ['f-map','f-category','f-status'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value=fid==='f-status'?'approved':'';});
   document.getElementById('f-exclusive').checked=false;
   selectedAuthor=null; document.getElementById('f-author-input').value=''; document.getElementById('author-selected').textContent='';
@@ -2634,6 +2697,15 @@ function resetForm() {
         document.querySelectorAll('#agent-grid .agent-card').forEach(c=>c.classList.toggle('sel',c.dataset.agent===p.agent));
         pickedAbility=p.ability||''; renderAbilityRow();
         if(p.ability)setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===p.ability)),0);
+      }
+      if(p.category){const sel=document.getElementById('f-category');if(sel)sel.value=p.category;}
+      if(p.status){const sel=document.getElementById('f-status');if(sel)sel.value=p.status;}
+      if(p.authorName&&p.authorUid){
+        selectedAuthor={name:p.authorName,uid:p.authorUid};
+        const inp=document.getElementById('f-author-input');
+        const badge=document.getElementById('author-selected');
+        if(inp)inp.value=p.authorName;
+        if(badge)badge.textContent=`✓ Будет добавлен от имени ${p.authorName}`;
       }
     }catch(_){}
   }
@@ -3061,7 +3133,7 @@ createAddSlot();
 })();
 (function() {
   const opts = (() => { try { return JSON.parse(localStorage.getItem('preset_options') || '{}'); } catch(_) { return {}; } })();
-  ['map','agent','ability'].forEach(key => {
+  ['map','agent','ability','category','status','author'].forEach(key => {
     const cb = document.getElementById('preset-save-' + key);
     if (!cb) return;
     if (key in opts) cb.checked = opts[key];
@@ -3971,6 +4043,7 @@ function apSelectUser(name, uid) {
   if (input) input.value = name;
   if (sel)   sel.textContent = `✓ Будет добавлен от имени ${name}`;
   closeAuthorPanel();
+  savePreset();
 }
 
 function openAuthorPanel() {
@@ -4004,11 +4077,14 @@ document.getElementById('f-author-input')?.addEventListener('input', e => {
   if (!apOpen) openAuthorPanel();
   apRenderSuggestions(q);
   apRenderAlpha(q);
-  if (!q) { selectedAuthor = null; document.getElementById('author-selected').textContent = ''; }
+  if (!q) { selectedAuthor = null; document.getElementById('author-selected').textContent = ''; savePreset(); }
 });
 
 document.getElementById('ap-close')?.addEventListener('click', closeAuthorPanel);
 document.getElementById('ap-overlay')?.addEventListener('click', closeAuthorPanel);
+
+document.getElementById('f-category')?.addEventListener('change', savePreset);
+document.getElementById('f-status')?.addEventListener('change', savePreset);
 
 document.getElementById('ap-search')?.addEventListener('input', e => {
   const q = e.target.value.trim();
