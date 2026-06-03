@@ -1348,14 +1348,15 @@ onAuthStateChanged(auth, async user => {
   show('app');
   loadLineups();
   loadAdmins();
-  loadAuthorPanelUsers();
 });
 
 document.getElementById('btn-login').addEventListener('click', async () => {
   const btn = document.getElementById('btn-login');
   btn.disabled = true; btn.textContent = 'Входим…';
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const _gp = new GoogleAuthProvider();
+    _gp.setCustomParameters({ prompt: 'select_account' });
+    await signInWithPopup(auth, _gp);
   } catch (e) {
     if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
       loginErr(e.message);
@@ -2183,6 +2184,16 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
       if (detail) {
         const open = detail.classList.toggle('open');
         if (btn) btn.classList.toggle('open', open);
+        if (open) {
+          // вставляем video только при первом раскрытии
+          detail.querySelectorAll('.lazy-video[data-src]').forEach(ph => {
+            const src = ph.dataset.src;
+            const vid = document.createElement('video');
+            vid.src = src; vid.controls = true; vid.preload = 'metadata';
+            vid.style.cssText = 'width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;';
+            ph.replaceWith(vid);
+          });
+        }
       }
       return;
     }
@@ -2320,7 +2331,7 @@ function cardHtml(l) {
       <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
     </div>
     ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
-      <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
+      <div class="lazy-video" data-src="${esc(l.video_url)}"></div>
     </div>` : ''}
     ${shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
       <div class="ss-grid">${shots.map(u => `
@@ -4202,6 +4213,7 @@ function apSelectUser(name, uid) {
 
 function openAuthorPanel() {
   apOpen = true;
+  if (!apLoaded) loadAuthorPanelUsers();
   document.getElementById('author-panel')?.classList.add('open');
   document.getElementById('ap-overlay')?.classList.add('visible');
   const search = document.getElementById('ap-search');
