@@ -577,6 +577,15 @@
             </div>
           </div>
         </div>
+        <div id="bulk-progress" style="display:none;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:8px;">
+            <span id="bulk-progress-label">Обработка видео...</span>
+            <span id="bulk-progress-count">0 / 0</span>
+          </div>
+          <div style="background:var(--bg);border-radius:4px;height:6px;overflow:hidden;">
+            <div id="bulk-progress-bar" style="height:100%;width:0%;background:var(--primary);border-radius:4px;transition:width .3s;"></div>
+          </div>
+        </div>
         <div class="fgrid">
 
           <div class="fg">
@@ -2399,7 +2408,7 @@ function _renderSlotVideoPreview(id) {
 }
 function _handleSlotVideoFile(id, file) {
   const s = addSlotSessions[id]; if (!s) return;
-  if (!file||!file.type.startsWith('video/')) { toast('Выбери видеофайл','e'); return; }
+  if (!file || (!file.type.startsWith('video/') && !file.name.toLowerCase().endsWith('.mp4'))) { toast('Выбери видеофайл','e'); return; }
   if (file.size>50*1024*1024) { toast('Видео превышает 50 MB','e'); return; }
   const vs=s.videoState; if(vs.xhr)vs.xhr.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl);
   s.videoState={status:'uploading',url:null,localUrl:URL.createObjectURL(file),progress:0,xhr:null};
@@ -2953,54 +2962,68 @@ createAddSlot();
   const input = document.getElementById('bulk-video-input');
   if (!zone || !input) return;
 
-  function isVideo(f) {
-    return f.type.startsWith('video/') || f.name.toLowerCase().endsWith('.mp4');
+  function showBulkProgress(total) {
+    const el = document.getElementById('bulk-progress'); if (!el) return;
+    el.style.display = 'block';
+    document.getElementById('bulk-progress-label').textContent = 'Обработка видео...';
+    document.getElementById('bulk-progress-count').textContent = '0 / ' + total;
+    document.getElementById('bulk-progress-bar').style.width = '0%';
+  }
+  function updateBulkProgress(current, total, filename) {
+    const pct = Math.round((current / total) * 100);
+    document.getElementById('bulk-progress-bar').style.width = pct + '%';
+    document.getElementById('bulk-progress-count').textContent = current + ' / ' + total;
+    document.getElementById('bulk-progress-label').textContent = 'Добавляю: ' + filename;
+  }
+  function hideBulkProgress() {
+    setTimeout(() => {
+      const el = document.getElementById('bulk-progress'); if (el) el.style.display = 'none';
+    }, 2000);
   }
 
-  function handleBulkFiles(fileList) {
-    const MAX_SIZE = 50 * 1024 * 1024;
-    const files = Array.from(fileList);
-    const valid = [];
-    for (const f of files) {
-      if (!isVideo(f)) continue;
-      if (f.size > MAX_SIZE) { toast(`«${f.name}» превышает 50 MB — пропущен`, 'e'); continue; }
-      valid.push(f);
-    }
-    if (!valid.length) { if (files.length) toast('Поддерживается только MP4', 'e'); return; }
+  async function handleBulkVideos(fileList) {
+    const mp4Files = Array.from(fileList).filter(f => {
+      if (!f.type.startsWith('video/') && !f.name.toLowerCase().endsWith('.mp4')) {
+        toast(`Пропущен «${f.name}» — не MP4`, 'i'); return false;
+      }
+      if (f.size > 50 * 1024 * 1024) {
+        toast(`Пропущен «${f.name}» — больше 50 MB`, 'i'); return false;
+      }
+      return true;
+    });
+    if (!mp4Files.length) return;
 
+    const available = 12 - Object.keys(addSlotSessions).length;
+    if (available <= 0) { toast('Достигнут лимит 12 слотов', 'e'); return; }
+    const toProcess = mp4Files.slice(0, available);
+    if (mp4Files.length > available) {
+      toast(`Лимит: пропущено ${mp4Files.length - available} видео`, 'i');
+    }
+
+    showBulkProgress(toProcess.length);
     let firstScrollId = null;
-    let created = 0;
-    let overflow = 0;
-    for (const f of valid) {
-      if (Object.keys(addSlotSessions).length >= 12) { overflow++; continue; }
+
+    for (let i = 0; i < toProcess.length; i++) {
+      const file = toProcess[i];
+      updateBulkProgress(i + 1, toProcess.length, file.name);
+
       const beforeIds = new Set(Object.keys(addSlotSessions));
       createAddSlot();
+      // Даём браузеру время отрисовать новый слот
+      await new Promise(r => setTimeout(r, 50));
       const newId = Object.keys(addSlotSessions).find(id => !beforeIds.has(id));
-      if (newId === undefined) continue;
-      const sid = Number(newId);
-      const s = addSlotSessions[sid];
-      if (!s) continue;
-      // Напрямую присваиваем файл в сессию — обходим проверку типа в _handleSlotVideoFile
-      if (s.videoState.xhr) s.videoState.xhr.abort();
-      if (s.videoState.localUrl) URL.revokeObjectURL(s.videoState.localUrl);
-      s.videoState = { status: 'uploading', url: null, localUrl: URL.createObjectURL(f), progress: 0, xhr: null };
-      _renderSlotVideoPreview(sid);
-      const upload = uploadVideoToCloudinary(f, pct => {
-        s.videoState.progress = pct;
-        const bar = document.getElementById('sv' + sid + '-vpb');
-        const lbl = document.getElementById('sv' + sid + '-vpp');
-        if (bar) bar.style.width = Math.round(pct * 100) + '%';
-        if (lbl) lbl.textContent = Math.round(pct * 100) + '%';
-      });
-      s.videoState.xhr = upload;
-      upload.then(url => { s.videoState = { status: 'done', url, localUrl: null, progress: 1, xhr: null }; _renderSlotVideoPreview(sid); })
-            .catch(err => { if (err.message === 'canceled') return; s.videoState = { status: 'error', url: null, localUrl: null, progress: 0, xhr: null }; _renderSlotVideoPreview(sid); toast('Ошибка загрузки видео', 'e'); });
-      if (firstScrollId === null) firstScrollId = newId;
-      created++;
+
+      if (newId !== undefined) {
+        _handleSlotVideoFile(Number(newId), file);
+        if (firstScrollId === null) firstScrollId = newId;
+      }
     }
-    if (overflow > 0) toast(`Достигнут лимит 12 слотов, ${overflow} видео не добавлено`, 'e');
-    if (created > 0) {
-      toast(`Создано ${created} слот${created===1?'':created<=4?'а':'ов'} с видео`, 's');
+
+    hideBulkProgress();
+    const n = toProcess.length;
+    toast(`✅ Создано ${n} слот${n===1?'':n<=4?'а':'ов'} с видео`, 's');
+
+    if (firstScrollId !== null) {
       requestAnimationFrame(() => {
         document.getElementById('add-slot-' + firstScrollId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -3008,7 +3031,7 @@ createAddSlot();
   }
 
   zone.addEventListener('click', () => input.click());
-  input.addEventListener('change', () => { handleBulkFiles(input.files); input.value = ''; });
+  input.addEventListener('change', () => { handleBulkVideos(input.files); input.value = ''; });
 
   // Счётчик dragenter/dragleave — надёжнее relatedTarget для вложенных элементов
   let dragCount = 0;
@@ -3019,7 +3042,7 @@ createAddSlot();
     e.preventDefault();
     dragCount = 0;
     zone.classList.remove('drag-active');
-    handleBulkFiles(e.dataTransfer.files);
+    handleBulkVideos(e.dataTransfer.files);
   });
 })();
 (function() {
