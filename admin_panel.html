@@ -54,6 +54,7 @@
     .filter-btn.f-pending.active  { background: var(--orange); border-color: var(--orange); }
     .filter-btn.f-approved.active { background: var(--green);  border-color: var(--green); }
     .filter-btn.f-rejected.active { background: var(--red);    border-color: var(--red); }
+    .filter-btn.f-archived.active { background: #7c3aed;      border-color: #7c3aed; }
 
     .search { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); color: var(--text); padding: 8px 13px; font-size: 14px; margin-bottom: 14px; outline: none; }
     .search:focus { border-color: var(--primary); }
@@ -66,7 +67,8 @@
     .b-pending  { background: rgba(249,115,22,.12); color: var(--orange); border: 1px solid var(--orange); }
     .b-approved { background: rgba(34,197,94,.12);  color: var(--green);  border: 1px solid var(--green); }
     .b-rejected { background: rgba(239,68,68,.12);  color: var(--red);    border: 1px solid var(--red); }
-    .b-removed  { background: rgba(100,100,100,.1); color: #777;          border: 1px solid #555; }
+    .b-removed   { background: rgba(100,100,100,.1); color: #777;          border: 1px solid #555; }
+    .b-archived  { background: rgba(139,92,246,.12); color: #a78bfa;       border: 1px solid #7c3aed; }
     .linfo { flex: 1; min-width: 0; }
     .ltitle { font-weight: 700; font-size: 14px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .lmeta  { color: var(--text2); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -87,13 +89,21 @@
     .btn:disabled { opacity: .4; cursor: default; }
     .btn-approve { background: var(--green);  color: #fff; }
     .btn-reject  { background: var(--orange); color: #fff; }
-    .btn-delete  { background: transparent; border: 1px solid var(--red);    color: var(--red); }
+    .btn-delete   { background: transparent; border: 1px solid var(--red);    color: var(--red); }
+    .btn-archive  { background: transparent; border: 1px solid #7c3aed;      color: #a78bfa; }
     .btn-ban     { background: transparent; border: 1px solid var(--red);    color: var(--red); font-size: 12px; }
     .btn-save    { background: var(--primary); color: #fff; }
 
     .yt-player  { width: 100%; aspect-ratio: 16/9; border-radius: var(--r); overflow: hidden; margin-bottom: 9px; background: #000; }
     .yt-player iframe { width: 100%; height: 100%; border: none; }
     .yt-row     { display: flex; gap: 8px; align-items: flex-start; }
+
+    .toggle-switch { position:relative; display:inline-block; width:36px; height:20px; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider { position:absolute; cursor:pointer; inset:0; background:var(--border); border-radius:20px; transition:.2s; }
+    .toggle-slider:before { position:absolute; content:""; height:14px; width:14px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; }
+    input:checked + .toggle-slider { background:var(--green); }
+    input:checked + .toggle-slider:before { transform:translateX(16px); }
 
     .ss-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
     .ss-thumb { aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface2); cursor: zoom-in; }
@@ -102,6 +112,10 @@
 
     .form-wrap  { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; max-width: 800px; }
     .form-title { color: var(--primary); font-size: 15px; font-weight: 700; letter-spacing: 1px; margin-bottom: 18px; }
+    .form-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+    .form-title-row .form-title { margin-bottom: 0; }
+    #bulk-video-zone { display: flex; align-items: center; gap: 12px; border: 2px dashed var(--border); border-radius: 10px; padding: 12px 20px; color: var(--text2); font-size: 12px; cursor: pointer; transition: all .2s; min-width: 220px; }
+    #bulk-video-zone:hover, #bulk-video-zone.drag-active { border-color: var(--primary); background: rgba(255,70,85,.06); color: var(--text); box-shadow: 0 0 0 3px rgba(255,70,85,.15); }
     .fgrid      { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
     @media (max-width: 600px) { .fgrid { grid-template-columns: 1fr; } }
     .fg         { display: flex; flex-direction: column; gap: 5px; }
@@ -504,6 +518,7 @@
         <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
         <button class="filter-btn f-approved" data-filter="approved">Одобренные</button>
         <button class="filter-btn f-rejected" data-filter="rejected">Отклонённые</button>
+        <button class="filter-btn f-archived" data-filter="archived">📦 Архив</button>
         <button class="filter-btn" id="btn-map-panel">📊 Карты</button>
       </div>
 
@@ -545,7 +560,17 @@
     <!-- Add tab -->
     <div id="tab-add" style="display:none;">
       <div class="form-wrap" style="max-width:100%;margin:0 auto;">
-        <div class="form-title">ДОБАВИТЬ ЛАЙНАП</div>
+        <div class="form-title-row">
+          <div class="form-title">ДОБАВИТЬ ЛАЙНАП</div>
+          <div id="bulk-video-zone">
+            <input type="file" id="bulk-video-input" accept="video/mp4" multiple style="display:none">
+            <span style="font-size:20px;">🎬</span>
+            <div>
+              <div style="font-weight:700;margin-bottom:2px;">Перетащи видео для массовой загрузки</div>
+              <div style="font-size:11px;opacity:.6;">MP4 · можно несколько файлов</div>
+            </div>
+          </div>
+        </div>
         <div class="fgrid">
 
           <div class="fg">
@@ -831,6 +856,13 @@
     <!-- Active duels list -->
     <div class="dlabel" style="margin-top:20px;margin-bottom:10px;">Активные дуэли</div>
     <div id="duel-list-wrap"><div style="color:var(--text2);font-size:13px;">Загрузка…</div></div>
+
+    <!-- Finished duels section -->
+    <div class="dlabel" style="margin-top:28px;margin-bottom:10px;">Завершённые дуэли</div>
+    <div id="duel-finished-wrap"><div style="color:var(--text2);font-size:13px;">Загрузка…</div></div>
+    <div style="margin-top:10px;text-align:center;display:none;" id="duel-load-more-wrap">
+      <button class="btn" id="duel-load-more-btn" style="border:1px solid var(--border);color:var(--text2);">Загрузить ещё</button>
+    </div>
   </div>
 
   <!-- Guides tab -->
@@ -1148,7 +1180,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
   getFirestore, collection, getDocs, getDoc, doc, setDoc,
-  updateDoc, deleteDoc, addDoc, query, orderBy, where, limit,
+  updateDoc, deleteDoc, addDoc, query, orderBy, where, limit, startAfter,
   serverTimestamp, increment, getCountFromServer
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -1722,6 +1754,121 @@ function _timeLeft(endsAt) {
   return Math.floor(sec / 60) + 'мин';
 }
 
+// ── Завершённые дуэли ─────────────────────────────────────────────────────────
+let _finishedCursor = null;
+let _finishedTbody  = null;
+
+async function loadFinishedDuels(append = false) {
+  const wrap    = document.getElementById('duel-finished-wrap');
+  const moreWrap = document.getElementById('duel-load-more-wrap');
+  if (!wrap) return;
+
+  if (!append) {
+    _finishedCursor = null;
+    wrap.innerHTML  = '<div style="color:var(--text2);font-size:13px;">Загрузка…</div>';
+    if (moreWrap) moreWrap.style.display = 'none';
+  }
+
+  try {
+    const constraints = [
+      where('status', '==', 'finished'),
+      orderBy('createdAt', 'desc'),
+      limit(20),
+    ];
+    if (_finishedCursor) constraints.push(startAfter(_finishedCursor));
+
+    const snap = await getDocs(query(collection(db, 'duels'), ...constraints));
+
+    if (snap.empty && !append) {
+      wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Завершённых дуэлей нет.</div>';
+      return;
+    }
+
+    if (!append) {
+      const table = document.createElement('table');
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
+      table.innerHTML = `<thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="text-align:left;padding:8px 6px;color:var(--text2);">Карта</th>
+        <th style="text-align:left;padding:8px 6px;color:var(--text2);">Лайнап #1</th>
+        <th style="text-align:center;padding:8px 6px;color:var(--text2);">Голоса</th>
+        <th style="text-align:left;padding:8px 6px;color:var(--text2);">Лайнап #2</th>
+        <th style="text-align:center;padding:8px 6px;color:var(--text2);">Победитель</th>
+        <th style="text-align:center;padding:8px 6px;color:var(--text2);">Вкл/Выкл</th>
+        <th style="text-align:right;padding:8px 6px;color:var(--text2);">Дата</th>
+      </tr></thead><tbody id="duel-finished-tbody"></tbody>`;
+      wrap.innerHTML = '';
+      wrap.appendChild(table);
+      _finishedTbody = document.getElementById('duel-finished-tbody');
+    }
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const [l1snap, l2snap] = await Promise.all([
+        getDoc(doc(db, 'lineups', data.lineup1Id ?? '')),
+        getDoc(doc(db, 'lineups', data.lineup2Id ?? '')),
+      ]);
+      const t1 = l1snap.data()?.title ?? data.lineup1Id ?? '—';
+      const t2 = l2snap.data()?.title ?? data.lineup2Id ?? '—';
+      const v1 = data.votes1 ?? 0;
+      const v2 = data.votes2 ?? 0;
+      const total = v1 + v2;
+      const p1 = total ? Math.round(v1 / total * 100) : 50;
+      const p2 = total ? Math.round(v2 / total * 100) : 50;
+
+      let winnerCell = '<span style="color:var(--text2);">Ничья</span>';
+      if (v1 > v2) winnerCell = `<span style="color:var(--green);font-weight:700;">Лайнап #1</span>`;
+      else if (v2 > v1) winnerCell = `<span style="color:var(--green);font-weight:700;">Лайнап #2</span>`;
+
+      const isVisible = data.visible !== false;
+      const dateStr = data.createdAt?.toDate
+        ? data.createdAt.toDate().toLocaleDateString('ru')
+        : '—';
+
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--border)';
+      tr.innerHTML = `
+        <td style="padding:8px 6px;color:var(--text2);">${esc(data.mapName ?? '—')}</td>
+        <td style="padding:8px 6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+            title="${esc(t1)}">${esc(t1)}</td>
+        <td style="padding:8px 6px;text-align:center;white-space:nowrap;">
+          <span style="font-weight:700;${v1 >= v2 ? 'color:var(--green)' : 'color:var(--text2)'};">${v1} (${p1}%)</span>
+          <span style="color:var(--text2);margin:0 4px;">vs</span>
+          <span style="font-weight:700;${v2 >= v1 ? 'color:var(--green)' : 'color:var(--text2)'};">${v2} (${p2}%)</span>
+        </td>
+        <td style="padding:8px 6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+            title="${esc(t2)}">${esc(t2)}</td>
+        <td style="padding:8px 6px;text-align:center;">${winnerCell}</td>
+        <td style="padding:8px 6px;text-align:center;">
+          <label class="toggle-switch">
+            <input type="checkbox" data-duel-vis="${d.id}" ${isVisible ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </td>
+        <td style="padding:8px 6px;text-align:right;color:var(--text2);white-space:nowrap;">${dateStr}</td>`;
+
+      _finishedTbody.appendChild(tr);
+
+      tr.querySelector(`[data-duel-vis="${d.id}"]`).addEventListener('change', async e => {
+        try {
+          await updateDoc(doc(db, 'duels', d.id), { visible: e.target.checked });
+        } catch (err) {
+          toast('Ошибка: ' + err.message, 'e');
+          e.target.checked = !e.target.checked;
+        }
+      });
+    }
+
+    if (!snap.empty) _finishedCursor = snap.docs[snap.docs.length - 1];
+    if (moreWrap) moreWrap.style.display = snap.size === 20 ? 'block' : 'none';
+
+  } catch (e) {
+    if (!append) wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+    else toast('Ошибка загрузки: ' + e.message, 'e');
+  }
+}
+
+document.getElementById('duel-load-more-btn')?.addEventListener('click', () => loadFinishedDuels(true));
+
 async function loadDuelsTab() {
   await _initDuelPickers();
   const wrap = document.getElementById('duel-list-wrap'); if (!wrap) return;
@@ -1786,6 +1933,7 @@ async function loadDuelsTab() {
   } catch (e) {
     wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${e.message}</div>`;
   }
+  loadFinishedDuels();
 }
 
 // ── Guide content editor ──────────────────────────────────────────────────────
@@ -1884,6 +2032,7 @@ window.loadLineups = loadLineups;
 function renderList() {
   const q  = document.getElementById('search').value.toLowerCase();
   const fl = lineups.filter(l => {
+    if (currentFilter === 'all' && l.status === 'archived') return false;
     if (currentFilter !== 'all' && l.status !== currentFilter) return false;
     if (q) {
       const hay = `${l.title} ${l.agent} ${l.map} ${l.ability} ${l.submitted_by ?? ''}`.toLowerCase();
@@ -1905,6 +2054,7 @@ function cardHtml(l) {
     approved: ['b-approved', 'ОДОБРЕН'],
     rejected: ['b-rejected', 'ОТКЛОНЁН'],
     removed:  ['b-removed',  'УДАЛЁН'],
+    archived: ['b-archived', 'АРХИВ'],
   };
   const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
   const date   = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
@@ -1928,8 +2078,11 @@ function cardHtml(l) {
   </div>
   <div class="ldetail" id="ldetail-${l.id}">
     <div class="row">
-      ${l.status !== 'approved' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
-      ${l.status !== 'rejected' ? `<button class="btn btn-reject"  data-action="reject"  data-id="${l.id}">✕ Отклонить</button>` : ''}
+      ${l.status !== 'approved'  ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
+      ${l.status !== 'rejected'  ? `<button class="btn btn-reject"  data-action="reject"  data-id="${l.id}">✕ Отклонить</button>` : ''}
+      ${l.status !== 'archived'
+        ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
+        : `<button class="btn btn-approve"  data-action="restore" data-id="${l.id}">✅ Восстановить</button>`}
       <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
       ${l.user_id && l.submitted_by
         ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
@@ -1978,6 +2131,8 @@ function bindCardEvents() {
       const { action, id, uid, name } = btn.dataset;
       if (action === 'approve')      approveLineup(id, uid);
       if (action === 'reject')       rejectLineup(id);
+      if (action === 'archive')      archiveLineup(id);
+      if (action === 'restore')      restoreLineup(id);
       if (action === 'delete')       deleteLineup(id);
       if (action === 'ban')          banUser(uid, name);
       if (action === 'edit-toggle')  openEditForm(id);
@@ -2018,6 +2173,22 @@ async function deleteLineup(id) {
     toast('Лайнап удалён', 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
+async function archiveLineup(id) {
+  if (!confirm('Перенести лайнап в архив? Он больше не будет виден пользователям.')) return;
+  try {
+    await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
+    patchStatus(id, 'archived');
+    toast('Лайнап перемещён в архив 📦', 'i');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+async function restoreLineup(id) {
+  if (!confirm('Восстановить лайнап? Статус вернётся к «На проверке».')) return;
+  try {
+    await updateDoc(doc(db, 'lineups', id), { status: 'pending' });
+    patchStatus(id, 'pending');
+    toast('Лайнап восстановлен ✅', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
 async function banUser(userId, username) {
   if (!confirm(`Заблокировать ${username}?`)) return;
   try {
@@ -2040,7 +2211,7 @@ function _buildSlotHtml(id) {
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div class="dlabel" id="slot-${id}-num">Лайнап #1</div>
-      <button class="btn btn-delete" style="padding:4px 10px;font-size:12px;" onclick="deleteAddSlot(${id})">✕ Удалить</button>
+      <button class="btn btn-delete" style="padding:4px 10px;font-size:12px;" id="slot-${id}-del-btn">✕ Удалить</button>
     </div>
     <div class="fgrid">
       <div class="fg full">
@@ -2281,6 +2452,8 @@ function _processSlotFile(id, file, item) {
 }
 
 function _initSlotEvents(id) {
+  const delBtn = document.getElementById('slot-'+id+'-del-btn');
+  if (delBtn) delBtn.addEventListener('click', () => deleteAddSlot(id));
   initSlotMapWrap(id);
   const vzone=document.getElementById('slot-'+id+'-video-zone');
   const vfile=document.getElementById('slot-'+id+'-video-file');
@@ -2767,6 +2940,51 @@ document.getElementById('btn-reset-preset').addEventListener('click', () => {
 loadAgentIcons();
 loadMapImages();
 createAddSlot();
+
+// ── Массовая загрузка видео ───────────────────────────────────────────────────
+(function() {
+  const zone  = document.getElementById('bulk-video-zone');
+  const input = document.getElementById('bulk-video-input');
+  if (!zone || !input) return;
+
+  function handleBulkFiles(files) {
+    const MAX_SIZE = 50 * 1024 * 1024;
+    const valid = [];
+    let skipped = 0;
+    for (const f of files) {
+      if (f.type !== 'video/mp4' && !f.name.toLowerCase().endsWith('.mp4')) continue;
+      if (f.size > MAX_SIZE) { toast(`«${f.name}» превышает 50 MB — пропущен`, 'e'); skipped++; continue; }
+      valid.push(f);
+    }
+    if (!valid.length) return;
+
+    const firstNewId = _nextAddSlotId;
+    let created = 0;
+    let overflow = 0;
+    for (const f of valid) {
+      if (Object.keys(addSlotSessions).length >= 12) { overflow++; continue; }
+      createAddSlot();
+      const id = _nextAddSlotId - 1;
+      _handleSlotVideoFile(id, f);
+      created++;
+    }
+    if (overflow > 0) toast(`Достигнут лимит 12 слотов, ${overflow} видео не добавлено`, 'e');
+    if (created > 0) {
+      toast(`Создано ${created} слот${created===1?'':created<=4?'а':'ов'} с видео`, 's');
+      document.getElementById('add-slot-'+firstNewId)?.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  }
+
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { handleBulkFiles(input.files); input.value = ''; });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-active'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-active'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-active');
+    handleBulkFiles(e.dataTransfer.files);
+  });
+})();
 (function() {
   const opts = (() => { try { return JSON.parse(localStorage.getItem('preset_options') || '{}'); } catch(_) { return {}; } })();
   ['map','agent','ability'].forEach(key => {
