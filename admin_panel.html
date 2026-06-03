@@ -124,9 +124,15 @@
     .finput, .fselect, .ftextarea {
       background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r);
       color: var(--text); padding: 9px 13px; font-size: 14px; outline: none;
-      transition: border-color .15s; width: 100%; font-family: inherit;
+      transition: border-color .15s; width: 100%; font-family: inherit; box-shadow: none;
     }
     .finput:focus, .fselect:focus, .ftextarea:focus { border-color: var(--primary); }
+    /* Отключаем красную рамку браузерной валидации */
+    .finput:invalid, .fselect:invalid, .ftextarea:invalid,
+    .finput:-moz-ui-invalid, .fselect:-moz-ui-invalid, .ftextarea:-moz-ui-invalid,
+    .finput:user-invalid, .fselect:user-invalid, .ftextarea:user-invalid {
+      border-color: var(--border) !important; box-shadow: none !important; outline: none !important;
+    }
     .fselect option { background: var(--surface2); }
     .ftextarea  { resize: vertical; min-height: 78px; }
     .fcheck-row { display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); cursor: pointer; }
@@ -639,8 +645,7 @@
         </div>
 
         <div style="margin-top:16px;">
-          <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">Добавить 1 лайнап</button>
-          <div style="margin-top:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text2);">
+          <div style="margin-bottom:8px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text2);">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
               <input type="checkbox" id="preset-save-map" checked> Сохранять карту
             </label>
@@ -651,6 +656,7 @@
               <input type="checkbox" id="preset-save-ability" checked> Сохранять способность
             </label>
           </div>
+          <button class="btn btn-save" id="btn-add-lineup" style="width:100%;justify-content:center;padding:12px;font-size:14px;">Добавить 1 лайнап</button>
           <button class="btn" id="btn-reset-preset" style="width:100%;justify-content:center;padding:10px;border:1px solid var(--border);color:var(--text2);margin-top:6px;font-size:13px;">🔄 Сбросить пресет</button>
         </div>
 
@@ -2950,37 +2956,44 @@ createAddSlot();
   function handleBulkFiles(files) {
     const MAX_SIZE = 50 * 1024 * 1024;
     const valid = [];
-    let skipped = 0;
     for (const f of files) {
       if (f.type !== 'video/mp4' && !f.name.toLowerCase().endsWith('.mp4')) continue;
-      if (f.size > MAX_SIZE) { toast(`«${f.name}» превышает 50 MB — пропущен`, 'e'); skipped++; continue; }
+      if (f.size > MAX_SIZE) { toast(`«${f.name}» превышает 50 MB — пропущен`, 'e'); continue; }
       valid.push(f);
     }
     if (!valid.length) return;
 
-    const firstNewId = _nextAddSlotId;
+    let firstScrollId = null;
     let created = 0;
     let overflow = 0;
     for (const f of valid) {
       if (Object.keys(addSlotSessions).length >= 12) { overflow++; continue; }
+      // Надёжный способ: берём разницу ключей до и после создания слота
+      const beforeIds = new Set(Object.keys(addSlotSessions));
       createAddSlot();
-      const id = _nextAddSlotId - 1;
-      _handleSlotVideoFile(id, f);
+      const newId = Object.keys(addSlotSessions).find(id => !beforeIds.has(id));
+      if (newId === undefined) continue;
+      _handleSlotVideoFile(Number(newId), f);
+      if (firstScrollId === null) firstScrollId = newId;
       created++;
     }
     if (overflow > 0) toast(`Достигнут лимит 12 слотов, ${overflow} видео не добавлено`, 'e');
     if (created > 0) {
       toast(`Создано ${created} слот${created===1?'':created<=4?'а':'ов'} с видео`, 's');
-      document.getElementById('add-slot-'+firstNewId)?.scrollIntoView({behavior:'smooth', block:'start'});
+      document.getElementById('add-slot-' + firstScrollId)?.scrollIntoView({behavior:'smooth', block:'start'});
     }
   }
 
   zone.addEventListener('click', () => input.click());
   input.addEventListener('change', () => { handleBulkFiles(input.files); input.value = ''; });
-  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-active'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-active'));
+  zone.addEventListener('dragover',  e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('drag-active'); });
+  zone.addEventListener('dragleave', e => {
+    // Срабатывает при переходе на дочерние элементы — проверяем, что курсор действительно покинул зону
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-active');
+  });
   zone.addEventListener('drop', e => {
     e.preventDefault();
+    e.stopPropagation();
     zone.classList.remove('drag-active');
     handleBulkFiles(e.dataTransfer.files);
   });
