@@ -1449,7 +1449,16 @@ function switchTab(t) {
   if (t === 'duels') loadDuelsTab();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
-document.getElementById('tab-btn-add').addEventListener('click',       () => { switchTab('add'); _restorePreset(); });
+let _addTabReady = false;
+document.getElementById('tab-btn-add').addEventListener('click', () => {
+  switchTab('add');
+  if (!_addTabReady) {
+    _addTabReady = true;
+    Promise.all([loadAgentIcons(), loadMapImages()]).then(_restorePreset);
+  } else {
+    _restorePreset();
+  }
+});
 document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
@@ -1465,6 +1474,7 @@ let _agentsData = [];
 let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
 let _disabledAgents = new Set();
+const _catDotCache = {};
 
 async function _loadDisabledAgents() {
   try {
@@ -1475,7 +1485,6 @@ async function _loadDisabledAgents() {
 
 async function loadAgentsForConfig() {
   if (_agentsData.length > 0) {
-    await _loadDisabledAgents();
     _renderAgentCards();
     _agentsData.forEach(a => _refreshAgentCatDots(a.displayName));
     return;
@@ -1483,9 +1492,14 @@ async function loadAgentsForConfig() {
   document.getElementById('agents-card-grid').innerHTML =
     '<div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>';
   try {
-    const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
-    const json = await res.json();
-    _agentsData = (json.data || []).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    let agents = _apiCacheGet('_api_agents');
+    if (!agents) {
+      const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
+      const json = await res.json();
+      agents = json.data || [];
+      _apiCacheSet('_api_agents', agents);
+    }
+    _agentsData = agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
     await _loadDisabledAgents();
     _renderAgentCards();
     _agentsData.forEach(a => _refreshAgentCatDots(a.displayName));
@@ -1537,18 +1551,30 @@ function _renderAgentCards() {
   });
 }
 
-async function _refreshAgentCatDots(agentName) {
+function _applyAgentCatDots(agentName, result) {
+  for (const [cat, hasEnabled] of Object.entries(result)) {
+    const dot = document.querySelector(`.agent-cat-dots[data-name="${CSS.escape(agentName)}"] .cat-dot[data-cat="${cat}"]`);
+    if (dot) dot.classList.toggle('has-abilities', hasEnabled);
+  }
+}
+
+async function _refreshAgentCatDots(agentName, force = false) {
+  if (!force && _catDotCache[agentName]) {
+    _applyAgentCatDots(agentName, _catDotCache[agentName]);
+    return;
+  }
   const agentId = sanitizeAgentId(agentName);
   const cats = ['lineup', 'combo', 'smoke', 'defense'];
+  const result = {};
   await Promise.all(cats.map(async cat => {
     try {
       const snap = await getDoc(doc(db, 'agents_config', agentId, 'categories', cat));
       const abilities = snap.exists() ? (snap.data().abilities || {}) : {};
-      const hasEnabled = Object.values(abilities).some(v => v !== false);
-      const dot = document.querySelector(`.agent-cat-dots[data-name="${CSS.escape(agentName)}"] .cat-dot[data-cat="${cat}"]`);
-      if (dot) dot.classList.toggle('has-abilities', hasEnabled);
-    } catch(_) {}
+      result[cat] = Object.values(abilities).some(v => v !== false);
+    } catch(_) { result[cat] = false; }
   }));
+  _catDotCache[agentName] = result;
+  _applyAgentCatDots(agentName, result);
 }
 
 let _selectedAgentCategory = 'lineup';
@@ -1627,7 +1653,7 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     st.textContent = `✅ Сохранено для ${_selectedAgentName} / ${_selectedAgentCategory}`;
     setTimeout(() => { st.style.display = 'none'; }, 3000);
     toast(`Сохранено для ${_selectedAgentName} [${_selectedAgentCategory}]`, 's');
-    _refreshAgentCatDots(_selectedAgentName);
+    _refreshAgentCatDots(_selectedAgentName, true);
   } catch (e) {
     toast('Ошибка сохранения: ' + e.message, 'e');
   }
@@ -2133,7 +2159,11 @@ document.getElementById('btn-map-panel').addEventListener('click', () => {
   btn.classList.toggle('active', open);
   if (open) initMapPanel();
 });
-document.getElementById('search').addEventListener('input', renderList);
+let _searchTimer = null;
+document.getElementById('search').addEventListener('input', () => {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(renderList, 250);
+});
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function loadLineups() {
@@ -2839,6 +2869,19 @@ const AGENT_ICONS = {};
 const AGENT_ABILITY_ICONS = {};
 const AGENT_ABILITIES = {};
 
+// ── API cache (localStorage, 24h TTL) ────────────────────────────────────────
+function _apiCacheGet(key) {
+  try {
+    const item = JSON.parse(localStorage.getItem(key) || 'null');
+    if (!item) return null;
+    if (Date.now() - item.ts > 86400000) { localStorage.removeItem(key); return null; }
+    return item.data;
+  } catch { return null; }
+}
+function _apiCacheSet(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
+}
+
 function _resolveMapUrl(key) {
   if (!key) return null;
   if (MAP_IMAGES[key]) return MAP_IMAGES[key];
@@ -2849,9 +2892,14 @@ function _resolveMapUrl(key) {
 
 async function loadMapImages() {
   try {
-    const res  = await fetch('https://valorant-api.com/v1/maps');
-    const json = await res.json();
-    for (const m of json.data ?? []) {
+    let maps = _apiCacheGet('_api_maps');
+    if (!maps) {
+      const res  = await fetch('https://valorant-api.com/v1/maps');
+      const json = await res.json();
+      maps = json.data ?? [];
+      _apiCacheSet('_api_maps', maps);
+    }
+    for (const m of maps) {
       if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
     }
   } catch (_) {}
@@ -2869,9 +2917,14 @@ let _mapDragging = false;
 
 async function loadAgentIcons() {
   try {
-    const res  = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
-    const json = await res.json();
-    for (const ag of json.data ?? []) {
+    let agents = _apiCacheGet('_api_agents');
+    if (!agents) {
+      const res  = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
+      const json = await res.json();
+      agents = json.data ?? [];
+      _apiCacheSet('_api_agents', agents);
+    }
+    for (const ag of agents) {
       if (!ag.displayName) continue;
       if (ag.displayIcon) AGENT_ICONS[ag.displayName] = ag.displayIcon;
       AGENT_ABILITY_ICONS[ag.displayName] = {};
@@ -3118,8 +3171,6 @@ document.getElementById('btn-reset-preset').addEventListener('click', () => {
   Object.keys(addSlotSessions).forEach(id => updateSlotMapWrap(Number(id), ''));
   toast('Пресет сброшен', 'i');
 });
-loadAgentIcons();
-loadMapImages();
 createAddSlot();
 
 // ── Массовая загрузка видео ───────────────────────────────────────────────────
