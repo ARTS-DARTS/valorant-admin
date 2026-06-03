@@ -459,6 +459,57 @@
     .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
     .nc-status.ok  { color: var(--green); }
     .nc-status.err { color: var(--red); }
+
+    /* Убираем красную рамку на textarea описания в слотах (баги 1+2) */
+    #add-slots-container .ftextarea:focus,
+    #add-slots-container .ftextarea:focus-visible {
+      border-color: var(--border) !important;
+      outline: none !important;
+      box-shadow: 0 0 0 2px rgba(255,255,255,.07) !important;
+    }
+    #add-slots-container .ftextarea:invalid,
+    #add-slots-container .ftextarea:-moz-ui-invalid,
+    #add-slots-container .ftextarea:user-invalid {
+      border-color: var(--border) !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    /* ── Desc Template Panel ─────────────────────────────────── */
+    #desc-template-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 300px;
+      background: var(--surface); border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      transition: transform .35s cubic-bezier(.16,1,.3,1);
+      will-change: transform; z-index: 480;
+      display: flex; flex-direction: column; overflow: hidden;
+      box-shadow: -6px 0 24px rgba(0,0,0,.35);
+    }
+    #desc-template-panel.open { transform: translateX(0); }
+    .dtp-header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .dtp-title { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+    .dtp-fselect {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--r); color: var(--text); padding: 7px 11px;
+      font-size: 13px; outline: none; font-family: inherit; cursor: pointer;
+    }
+    .dtp-fselect:focus { border-color: var(--primary); }
+    .dtp-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .dtp-empty { padding: 24px 14px; text-align: center; color: var(--text2); font-size: 13px; line-height: 1.5; }
+    .dtp-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r); padding: 10px 12px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .dtp-card:hover { border-color: var(--primary); background: rgba(255,70,85,.06); }
+    .dtp-card-map { font-size: 10px; font-weight: 700; color: var(--primary); letter-spacing: .8px; text-transform: uppercase; margin-bottom: 4px; }
+    .dtp-card-text { font-size: 13px; color: var(--text); line-height: 1.45; margin-bottom: 7px; }
+    .dtp-card-actions { display: flex; gap: 5px; justify-content: flex-end; }
+    .dtp-card-btn { background: transparent; border: 1px solid var(--border); color: var(--text2); border-radius: 5px; padding: 3px 9px; font-size: 11px; cursor: pointer; transition: .13s; }
+    .dtp-card-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .dtp-card-btn.dtp-del:hover { border-color: var(--red); color: var(--red); }
+    .dtp-edit-form { background: var(--bg); border-radius: var(--r); margin-top: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .dtp-edit-ta { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; color: var(--text); padding: 7px 10px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 60px; outline: none; box-sizing: border-box; }
+    .dtp-edit-ta:focus { border-color: var(--primary); }
+    .dtp-edit-row { display: flex; gap: 6px; }
+    .dtp-add-section { border-top: 1px solid var(--border); padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 7px; }
+    .dtp-add-label { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
   </style>
 </head>
 <body>
@@ -1157,6 +1208,49 @@
     </div>
   </div>
 
+</div>
+
+<!-- Desc Template Panel -->
+<div id="desc-template-panel">
+  <div class="dtp-header">
+    <div class="dtp-title">⚡ Быстрый ввод</div>
+    <select class="dtp-fselect" id="dtp-map-select">
+      <option value="all">Все карты</option>
+      <option value="Haven">Haven</option>
+      <option value="Bind">Bind</option>
+      <option value="Ascent">Ascent</option>
+      <option value="Split">Split</option>
+      <option value="Icebox">Icebox</option>
+      <option value="Breeze">Breeze</option>
+      <option value="Fracture">Fracture</option>
+      <option value="Pearl">Pearl</option>
+      <option value="Lotus">Lotus</option>
+      <option value="Sunset">Sunset</option>
+      <option value="Abyss">Abyss</option>
+      <option value="Corrode">Corrode</option>
+    </select>
+  </div>
+  <div id="dtp-list" class="dtp-list"></div>
+  <div class="dtp-add-section">
+    <div class="dtp-add-label">+ Добавить шаблон</div>
+    <textarea class="dtp-edit-ta" id="dtp-new-text" placeholder="Текст шаблона…" rows="3" style="min-height:60px;"></textarea>
+    <select class="dtp-fselect" id="dtp-new-map">
+      <option value="all">Все карты</option>
+      <option value="Haven">Haven</option>
+      <option value="Bind">Bind</option>
+      <option value="Ascent">Ascent</option>
+      <option value="Split">Split</option>
+      <option value="Icebox">Icebox</option>
+      <option value="Breeze">Breeze</option>
+      <option value="Fracture">Fracture</option>
+      <option value="Pearl">Pearl</option>
+      <option value="Lotus">Lotus</option>
+      <option value="Sunset">Sunset</option>
+      <option value="Abyss">Abyss</option>
+      <option value="Corrode">Corrode</option>
+    </select>
+    <button class="btn btn-save" id="dtp-save-btn" style="padding:7px 14px;font-size:13px;">Сохранить</button>
+  </div>
 </div>
 
 <!-- Author dictionary panel -->
@@ -5275,6 +5369,186 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   } finally {
     btn.disabled = false;
   }
+});
+
+// ── Description Template Panel ────────────────────────────────────────────────
+const DTP_KEY = 'desc_templates';
+let dtpActiveField = null;
+let dtpOpen = false;
+
+const DTP_DEFAULTS = [
+  // Общие
+  { id:'def-1',  map:'all',      text:'Стоять у стены. Прицел в правый верхний угол ящика.' },
+  { id:'def-2',  map:'all',      text:'Тихий шаг (Shift). Вплотную к стене справа.' },
+  { id:'def-3',  map:'all',      text:'Бросать на [X]-й секунде раунда.' },
+  { id:'def-4',  map:'all',      text:'Работает только без активных усилений агента.' },
+  { id:'def-5',  map:'all',      text:'Прицел: перекрестие в угол между стеной и потолком.' },
+  { id:'def-6',  map:'all',      text:'Активируй способность в момент вставания после приседания (unpeak).' },
+  // Haven
+  { id:'def-hv1',map:'Haven',    text:'Постав через гараж на A-сайт. Позиция: нижняя часть рампы.' },
+  { id:'def-hv2',map:'Haven',    text:'B-постав из верхнего коридора. Прицел в левый нижний угол крыши.' },
+  // Bind
+  { id:'def-bi1',map:'Bind',     text:'Постав через телепорт на A. Активируй после звука телепортации.' },
+  { id:'def-bi2',map:'Bind',     text:'B-постав с короткой. Прицел над левой трубой.' },
+  // Ascent
+  { id:'def-as1',map:'Ascent',   text:'Постав на A-сайт с маркета. Прицел в верхний правый угол ворот.' },
+  { id:'def-as2',map:'Ascent',   text:'B-постав с двора (мид). Стоять у правого ящика, прицел вверх.' },
+  // Split
+  { id:'def-sp1',map:'Split',    text:'Постав на A-сайт с рампы. Прицел в левый верхний угол ниши.' },
+  { id:'def-sp2',map:'Split',    text:'B-постав с мидовой лестницы. Тихий шаг обязателен.' },
+  // Breeze
+  { id:'def-br1',map:'Breeze',   text:'Постав через арку на A. Прицел в правый верхний край арки.' },
+  { id:'def-br2',map:'Breeze',   text:'B-постав с A-пика. Стоять у правой стены туннеля.' },
+  // Pearl
+  { id:'def-pe1',map:'Pearl',    text:'Постав на A-сайт через коннектор. Прицел в верхний угол стены.' },
+  { id:'def-pe2',map:'Pearl',    text:'B-постав с мида. Вплотную к левой стене лобби.' },
+  // Fracture
+  { id:'def-fr1',map:'Fracture', text:'Постав на A-аркадий. Стоять у правой стены входа.' },
+  { id:'def-fr2',map:'Fracture', text:'B-постав с башни. Прицел в правый нижний угол окна.' },
+  // Lotus
+  { id:'def-lo1',map:'Lotus',    text:'Постав на A-сайт с канала. Стоять у левой стены, прицел вверх.' },
+  { id:'def-lo2',map:'Lotus',    text:'B-постав с коннектора. Прицел в верхний правый угол прохода.' },
+  // Icebox
+  { id:'def-ic1',map:'Icebox',   text:'Постав через тубу на A. Прицел строго в центр трубы.' },
+  { id:'def-ic2',map:'Icebox',   text:'B-постав с кухни. Стоять у правого края ящика.' },
+  // Sunset
+  { id:'def-su1',map:'Sunset',   text:'Постав на A-сайт с рынка. Прицел в верхний угол левого навеса.' },
+  { id:'def-su2',map:'Sunset',   text:'B-постав с мебельного. Стоять у стены, прицел в угол ящика.' },
+  // Abyss
+  { id:'def-ab1',map:'Abyss',    text:'Постав на A-сайт с левого пика. Прицел в угол нависающей платформы.' },
+  { id:'def-ab2',map:'Abyss',    text:'B-постав с моста. Стоять у левого края, прицел в правый угол потолка.' },
+];
+
+function _dtpLoad() {
+  try { return JSON.parse(localStorage.getItem(DTP_KEY) || 'null'); } catch { return null; }
+}
+function _dtpSave(arr) { localStorage.setItem(DTP_KEY, JSON.stringify(arr)); }
+function _dtpGetAll() {
+  let arr = _dtpLoad();
+  if (!arr) { arr = DTP_DEFAULTS.map(t => ({ ...t })); _dtpSave(arr); }
+  return arr;
+}
+
+function openDescPanel(fieldId) {
+  dtpActiveField = fieldId;
+  dtpOpen = true;
+  document.getElementById('desc-template-panel').classList.add('open');
+  const mapVal = document.getElementById('f-map')?.value || 'all';
+  const sel = document.getElementById('dtp-map-select');
+  if (sel) {
+    const opt = [...sel.options].find(o => o.value === mapVal);
+    sel.value = opt ? mapVal : 'all';
+  }
+  renderDescTemplates();
+}
+function closeDescPanel() {
+  dtpOpen = false;
+  dtpActiveField = null;
+  document.getElementById('desc-template-panel')?.classList.remove('open');
+}
+
+function renderDescTemplates() {
+  const list = document.getElementById('dtp-list');
+  if (!list) return;
+  const mapFilter = document.getElementById('dtp-map-select')?.value || 'all';
+  const all = _dtpGetAll();
+  const filtered = mapFilter === 'all'
+    ? all
+    : all.filter(t => t.map === 'all' || t.map === mapFilter);
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="dtp-empty">Нет шаблонов для выбранной карты.<br>Добавь свой шаблон ниже.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(t => `
+    <div class="dtp-card" data-id="${t.id}">
+      ${t.map !== 'all' ? `<div class="dtp-card-map">${esc(t.map)}</div>` : ''}
+      <div class="dtp-card-text">${esc(t.text)}</div>
+      <div class="dtp-card-actions">
+        <button class="dtp-card-btn" data-edit-id="${t.id}" title="Редактировать">✏️</button>
+        <button class="dtp-card-btn dtp-del" data-del-id="${t.id}" title="Удалить">✕</button>
+      </div>
+      <div class="dtp-edit-form" id="dtp-ef-${t.id}" style="display:none;">
+        <textarea class="dtp-edit-ta" id="dtp-etxt-${t.id}">${t.text}</textarea>
+        <div class="dtp-edit-row">
+          <button class="btn btn-save" data-save-id="${t.id}" style="flex:1;padding:5px 10px;font-size:12px;">Сохранить</button>
+          <button class="btn" data-cancel-id="${t.id}" style="flex:1;padding:5px 10px;font-size:12px;border:1px solid var(--border);color:var(--text2);">Отмена</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('.dtp-card').forEach(card => {
+    const id = card.dataset.id;
+
+    card.addEventListener('click', e => {
+      if (e.target.closest('button') || e.target.closest('.dtp-edit-form')) return;
+      const t = _dtpGetAll().find(x => x.id === id);
+      if (!t || !dtpActiveField) return;
+      const ta = document.getElementById(dtpActiveField);
+      if (ta) { ta.value = (ta.value ? ta.value + '\n' : '') + t.text; ta.focus(); }
+    });
+
+    card.querySelector('[data-edit-id]')?.addEventListener('click', e => {
+      e.stopPropagation();
+      document.getElementById('dtp-ef-' + id).style.display = '';
+      document.getElementById('dtp-etxt-' + id)?.focus();
+    });
+    card.querySelector('[data-cancel-id]')?.addEventListener('click', e => {
+      e.stopPropagation();
+      document.getElementById('dtp-ef-' + id).style.display = 'none';
+    });
+    card.querySelector('[data-save-id]')?.addEventListener('click', e => {
+      e.stopPropagation();
+      const newText = document.getElementById('dtp-etxt-' + id)?.value.trim();
+      if (!newText) return;
+      const arr = _dtpGetAll();
+      const idx = arr.findIndex(x => x.id === id);
+      if (idx !== -1) { arr[idx].text = newText; _dtpSave(arr); }
+      renderDescTemplates();
+    });
+    card.querySelector('[data-del-id]')?.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!confirm('Удалить шаблон?')) return;
+      _dtpSave(_dtpGetAll().filter(x => x.id !== id));
+      renderDescTemplates();
+    });
+  });
+}
+
+// Открывается при фокусе на textarea описания в слотах
+document.getElementById('add-slots-container')?.addEventListener('focusin', e => {
+  if (e.target.tagName === 'TEXTAREA' && e.target.id.endsWith('-desc')) {
+    openDescPanel(e.target.id);
+  }
+});
+
+// Закрывается при клике вне формы и вне панели
+document.addEventListener('click', e => {
+  if (!dtpOpen) return;
+  const panel = document.getElementById('desc-template-panel');
+  const form  = document.querySelector('#tab-add .form-wrap');
+  if (panel && !panel.contains(e.target) && form && !form.contains(e.target)) {
+    closeDescPanel();
+  }
+}, true);
+
+// Смена карты в фильтре панели → перерисовать
+document.getElementById('dtp-map-select')?.addEventListener('change', renderDescTemplates);
+
+// Сохранить новый шаблон
+document.getElementById('dtp-save-btn')?.addEventListener('click', () => {
+  const text = document.getElementById('dtp-new-text')?.value.trim();
+  const map  = document.getElementById('dtp-new-map')?.value || 'all';
+  if (!text) return;
+  const arr = _dtpGetAll();
+  arr.push({ id: 'usr-' + Date.now(), map, text });
+  _dtpSave(arr);
+  document.getElementById('dtp-new-text').value = '';
+  if (document.getElementById('dtp-map-select')?.value === map || map === 'all') {
+    renderDescTemplates();
+  }
+  toast('Шаблон сохранён', 's');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
