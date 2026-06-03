@@ -2953,47 +2953,71 @@ createAddSlot();
   const input = document.getElementById('bulk-video-input');
   if (!zone || !input) return;
 
-  function handleBulkFiles(files) {
+  function isVideo(f) {
+    return f.type.startsWith('video/') || f.name.toLowerCase().endsWith('.mp4');
+  }
+
+  function handleBulkFiles(fileList) {
     const MAX_SIZE = 50 * 1024 * 1024;
+    const files = Array.from(fileList);
     const valid = [];
     for (const f of files) {
-      if (f.type !== 'video/mp4' && !f.name.toLowerCase().endsWith('.mp4')) continue;
+      if (!isVideo(f)) continue;
       if (f.size > MAX_SIZE) { toast(`«${f.name}» превышает 50 MB — пропущен`, 'e'); continue; }
       valid.push(f);
     }
-    if (!valid.length) return;
+    if (!valid.length) { if (files.length) toast('Поддерживается только MP4', 'e'); return; }
 
     let firstScrollId = null;
     let created = 0;
     let overflow = 0;
     for (const f of valid) {
       if (Object.keys(addSlotSessions).length >= 12) { overflow++; continue; }
-      // Надёжный способ: берём разницу ключей до и после создания слота
       const beforeIds = new Set(Object.keys(addSlotSessions));
       createAddSlot();
       const newId = Object.keys(addSlotSessions).find(id => !beforeIds.has(id));
       if (newId === undefined) continue;
-      _handleSlotVideoFile(Number(newId), f);
+      const sid = Number(newId);
+      const s = addSlotSessions[sid];
+      if (!s) continue;
+      // Напрямую присваиваем файл в сессию — обходим проверку типа в _handleSlotVideoFile
+      if (s.videoState.xhr) s.videoState.xhr.abort();
+      if (s.videoState.localUrl) URL.revokeObjectURL(s.videoState.localUrl);
+      s.videoState = { status: 'uploading', url: null, localUrl: URL.createObjectURL(f), progress: 0, xhr: null };
+      _renderSlotVideoPreview(sid);
+      const upload = uploadVideoToCloudinary(f, pct => {
+        s.videoState.progress = pct;
+        const bar = document.getElementById('sv' + sid + '-vpb');
+        const lbl = document.getElementById('sv' + sid + '-vpp');
+        if (bar) bar.style.width = Math.round(pct * 100) + '%';
+        if (lbl) lbl.textContent = Math.round(pct * 100) + '%';
+      });
+      s.videoState.xhr = upload;
+      upload.then(url => { s.videoState = { status: 'done', url, localUrl: null, progress: 1, xhr: null }; _renderSlotVideoPreview(sid); })
+            .catch(err => { if (err.message === 'canceled') return; s.videoState = { status: 'error', url: null, localUrl: null, progress: 0, xhr: null }; _renderSlotVideoPreview(sid); toast('Ошибка загрузки видео', 'e'); });
       if (firstScrollId === null) firstScrollId = newId;
       created++;
     }
     if (overflow > 0) toast(`Достигнут лимит 12 слотов, ${overflow} видео не добавлено`, 'e');
     if (created > 0) {
       toast(`Создано ${created} слот${created===1?'':created<=4?'а':'ов'} с видео`, 's');
-      document.getElementById('add-slot-' + firstScrollId)?.scrollIntoView({behavior:'smooth', block:'start'});
+      requestAnimationFrame(() => {
+        document.getElementById('add-slot-' + firstScrollId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     }
   }
 
   zone.addEventListener('click', () => input.click());
   input.addEventListener('change', () => { handleBulkFiles(input.files); input.value = ''; });
-  zone.addEventListener('dragover',  e => { e.preventDefault(); e.stopPropagation(); zone.classList.add('drag-active'); });
-  zone.addEventListener('dragleave', e => {
-    // Срабатывает при переходе на дочерние элементы — проверяем, что курсор действительно покинул зону
-    if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-active');
-  });
+
+  // Счётчик dragenter/dragleave — надёжнее relatedTarget для вложенных элементов
+  let dragCount = 0;
+  zone.addEventListener('dragenter', e => { e.preventDefault(); if (++dragCount === 1) zone.classList.add('drag-active'); });
+  zone.addEventListener('dragleave', () => { if (--dragCount <= 0) { dragCount = 0; zone.classList.remove('drag-active'); } });
+  zone.addEventListener('dragover',  e => { e.preventDefault(); });
   zone.addEventListener('drop', e => {
     e.preventDefault();
-    e.stopPropagation();
+    dragCount = 0;
     zone.classList.remove('drag-active');
     handleBulkFiles(e.dataTransfer.files);
   });
