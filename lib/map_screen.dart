@@ -128,6 +128,9 @@ class _MapScreenState extends State<MapScreen> {
     // ── Шаг 1: кэш агентов + Firestore параллельно ──────────────────────────
     final cachedAgents = await ValorantApi.getCached();
 
+    // getDisabledAgents is error-safe — await independently so a failure
+    // in the other Firestore queries doesn't prevent filtering from applying.
+    final hiddenAgentsFuture = AgentsConfigService.getDisabledAgents();
     final disabledFuture = FirebaseFirestore.instance
         .collection('settings').doc('disabled_agents').get();
     final lineupsFuture = FirebaseFirestore.instance
@@ -137,18 +140,16 @@ class _MapScreenState extends State<MapScreen> {
         .where('category', isEqualTo: widget.category)
         .limit(200)
         .get();
-    final hiddenAgentsFuture = AgentsConfigService.getDisabledAgents();
 
+    // All three futures run in parallel; hidden is set even if others fail.
+    final hidden = await hiddenAgentsFuture;
     Map<String, int> counts = {};
     Set<String> disabled = {};
-    Set<String> hidden = {};
 
     try {
-      final results = await Future.wait<dynamic>(
-          [disabledFuture, lineupsFuture, hiddenAgentsFuture]);
+      final results = await Future.wait([disabledFuture, lineupsFuture]);
       final disabledDoc = results[0] as DocumentSnapshot;
       final lineupsSnap = results[1] as QuerySnapshot;
-      hidden = results[2] as Set<String>;
 
       for (final doc in lineupsSnap.docs) {
         final name = (doc.data() as Map)['agent'] as String? ?? '';
@@ -161,7 +162,7 @@ class _MapScreenState extends State<MapScreen> {
             : [],
       );
     } catch (_) {
-      // Firestore ошибка — продолжаем с пустыми counts/disabled/hidden
+      // Firestore ошибка — продолжаем с пустыми counts/disabled
     }
 
     // Показываем кэш немедленно, не ждём сеть
@@ -458,7 +459,18 @@ class _MapScreenState extends State<MapScreen> {
 
     return GestureDetector(
       onTap: isDisabled
-          ? () => _showDisabledDialog(context, theme)
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)!.noLineupsYet),
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: const Color(0xFF1B2838),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFF2d4a63)),
+                  ),
+                ),
+              )
           : isEmpty
               ? () => AppSnackBar.show(context, AppLocalizations.of(context)!.noLineupsYet)
               : () => _openAgentScreen(name, abilities),
@@ -732,44 +744,6 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  void _showDisabledDialog(BuildContext context, AppThemeData theme) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: theme.surface,
-        shape:
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock, color: theme.textSecondary, size: 48),
-            const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.comingSoon,
-                style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text(AppLocalizations.of(context)!.noLineupsYet,
-                style:
-                TextStyle(color: theme.textSecondary, fontSize: 13),
-                textAlign: TextAlign.center),
-          ],
-        ),
-        actions: [
-          Center(
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primary),
-              child: const Text('OK',
-                  style: TextStyle(color: Colors.white)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
 }
