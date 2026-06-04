@@ -448,6 +448,27 @@
     .ld-screenshots img { height: 110px; width: auto; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid var(--border); flex-shrink: 0; }
     .ld-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; min-height: 80px; }
 
+    /* ── Logs tab ── */
+    .log-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 8px; transition: border-color .15s; }
+    .log-card:hover { border-color: rgba(255,70,85,.35); }
+    .log-head { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; cursor: pointer; user-select: none; }
+    .log-type { flex-shrink: 0; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+    .log-type-flutter { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.4); }
+    .log-type-dart    { background: rgba(249,115,22,.15);  color: var(--orange); border: 1px solid var(--orange); }
+    .log-type-manual  { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.4); }
+    .log-msg  { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }
+    .log-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text2); margin-top: 4px; }
+    .log-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .log-del { background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; transition: color .13s; }
+    .log-del:hover { color: var(--red); }
+    .log-stack-toggle { background: transparent; border: 1px solid var(--border); color: var(--text2); border-radius: 4px; font-size: 11px; padding: 2px 7px; cursor: pointer; white-space: nowrap; transition: .13s; }
+    .log-stack-toggle:hover { border-color: var(--primary); color: var(--primary); }
+    .log-stack { display: none; border-top: 1px solid var(--border); padding: 10px 14px; background: var(--bg); }
+    .log-stack.open { display: block; }
+    .log-stack pre { font-size: 11px; color: var(--text2); white-space: pre-wrap; word-break: break-all; line-height: 1.5; margin: 0; }
+    .logs-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .logs-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+
     /* ── Notifications test tab ── */
     .notif-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
     .notif-card  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; transition: border-color .15s; }
@@ -570,6 +591,7 @@
       <button class="tab"        id="tab-btn-guides">ГАЙДЫ</button>
       <button class="tab"        id="tab-btn-agents">АГЕНТЫ</button>
       <button class="tab"        id="tab-btn-notif">🔔 УВЕДОМЛЕНИЯ</button>
+      <button class="tab"        id="tab-btn-logs">⚠️ ЛОГИ</button>
     </div>
 
     <!-- List tab -->
@@ -1206,6 +1228,24 @@
       </div>
 
     </div>
+
+<!-- Logs tab -->
+<div id="tab-logs" style="display:none;">
+  <div class="logs-toolbar">
+    <span style="font-size:15px;font-weight:700;color:var(--text);">⚠️ Логи / Ошибки</span>
+    <div style="flex:1;"></div>
+    <button class="btn" id="logs-refresh-btn" style="border:1px solid var(--border);color:var(--text2);padding:6px 14px;font-size:12px;">🔄 Обновить</button>
+    <button class="btn btn-delete" id="logs-clear-btn" style="font-size:12px;padding:6px 14px;">🗑️ Очистить всё</button>
+  </div>
+  <div class="logs-filter-row">
+    <button class="filter-btn active" data-log-filter="all">Все</button>
+    <button class="filter-btn" data-log-filter="flutter">Flutter</button>
+    <button class="filter-btn" data-log-filter="dart">Dart</button>
+    <button class="filter-btn" data-log-filter="manual">Другие</button>
+  </div>
+  <div id="logs-list"></div>
+</div>
+
   </div>
 
 </div>
@@ -1435,6 +1475,7 @@ function switchTab(t) {
   document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
   document.getElementById('tab-agents').style.display    = t === 'agents'    ? 'block' : 'none';
   document.getElementById('tab-notif').style.display     = t === 'notif'     ? 'block' : 'none';
+  document.getElementById('tab-logs').style.display      = t === 'logs'      ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -1444,10 +1485,12 @@ function switchTab(t) {
   document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
   document.getElementById('tab-btn-agents').classList.toggle('active',    t === 'agents');
   document.getElementById('tab-btn-notif').classList.toggle('active',     t === 'notif');
+  document.getElementById('tab-btn-logs').classList.toggle('active',      t === 'logs');
   if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
   if (t === 'duels') loadDuelsTab();
+  if (t === 'logs')  loadLogsTab();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
@@ -1467,6 +1510,7 @@ document.getElementById('tab-btn-duels').addEventListener('click',     () => swi
 document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
 document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
 document.getElementById('tab-btn-notif').addEventListener('click',     () => switchTab('notif'));
+document.getElementById('tab-btn-logs').addEventListener('click',      () => switchTab('logs'));
 
 // ── Agents config editor ──────────────────────────────────────────────────────
 const sanitizeAgentId = name => name.replaceAll('/', '_');
@@ -5621,6 +5665,114 @@ document.getElementById('dtp-save-btn')?.addEventListener('click', () => {
     renderDescTemplates();
   }
   toast('Шаблон сохранён', 's');
+});
+
+// ── Logs tab ──────────────────────────────────────────────────────────────────
+let _logsFilter = 'all';
+let _logsCache  = [];
+
+async function loadLogsTab() {
+  const list = document.getElementById('logs-list');
+  list.innerHTML = '<div class="state"><div class="an-loading">Загружаем логи…</div></div>';
+  try {
+    const constraints = [orderBy('timestamp', 'desc'), limit(200)];
+    if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
+    const snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
+    _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _renderLogs();
+  } catch (e) {
+    list.innerHTML = `<div class="state">Ошибка загрузки: ${e.message}</div>`;
+  }
+}
+
+function _renderLogs() {
+  const list = document.getElementById('logs-list');
+  const items = _logsFilter === 'all'
+    ? _logsCache
+    : _logsCache.filter(l => l.type === _logsFilter);
+
+  if (!items.length) {
+    list.innerHTML = '<div class="state">Нет логов 🎉</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(log => {
+    const ts = log.timestamp?.toDate
+      ? log.timestamp.toDate().toLocaleString('ru-RU')
+      : '—';
+    const typeClass = `log-type-${log.type || 'manual'}`;
+    const typeLabel = (log.type || 'other').toUpperCase();
+    const msg = (log.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const hasStack = !!log.stack;
+
+    return `<div class="log-card" data-log-id="${log.id}">
+      <div class="log-head" onclick="this.closest('.log-card').querySelector('.log-stack')?.classList.toggle('open')">
+        <span class="log-type ${typeClass}">${typeLabel}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="log-msg">${msg.substring(0,300)}${msg.length>300?'…':''}</div>
+          <div class="log-meta">
+            <span>🕐 ${ts}</span>
+            ${log.platform ? `<span>📱 ${log.platform}</span>` : ''}
+            ${log.appVersion ? `<span>v${log.appVersion}</span>` : ''}
+            ${log.userId ? `<span style="font-family:monospace;">👤 ${log.userId.substring(0,8)}…</span>` : ''}
+          </div>
+        </div>
+        <div class="log-actions" onclick="event.stopPropagation()">
+          ${hasStack ? `<button class="log-stack-toggle" onclick="this.closest('.log-card').querySelector('.log-stack').classList.toggle('open')">Stack</button>` : ''}
+          <button class="log-del" title="Удалить" onclick="_deleteLog('${log.id}',this)">✕</button>
+        </div>
+      </div>
+      ${hasStack ? `<div class="log-stack"><pre>${stack}</pre></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function _deleteLog(id, btn) {
+  btn.disabled = true;
+  try {
+    await deleteDoc(doc(db, 'app_errors', id));
+    _logsCache = _logsCache.filter(l => l.id !== id);
+    btn.closest('.log-card').remove();
+    if (!document.querySelector('#logs-list .log-card')) {
+      document.getElementById('logs-list').innerHTML = '<div class="state">Нет логов 🎉</div>';
+    }
+  } catch (e) {
+    toast('Ошибка удаления: ' + e.message, 'e');
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('logs-refresh-btn').addEventListener('click', loadLogsTab);
+
+document.getElementById('logs-clear-btn').addEventListener('click', async () => {
+  if (!confirm(`Удалить все ${_logsCache.length} записей? Это нельзя отменить.`)) return;
+  const btn = document.getElementById('logs-clear-btn');
+  btn.disabled = true;
+  btn.textContent = 'Удаляем…';
+  try {
+    await Promise.all(_logsCache.map(l => deleteDoc(doc(db, 'app_errors', l.id))));
+    _logsCache = [];
+    document.getElementById('logs-list').innerHTML = '<div class="state">Нет логов 🎉</div>';
+    toast('Логи очищены', 's');
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  }
+  btn.disabled = false;
+  btn.textContent = '🗑️ Очистить всё';
+});
+
+document.querySelectorAll('[data-log-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-log-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _logsFilter = btn.dataset.logFilter;
+    if (_logsCache.length) {
+      _renderLogs();
+    } else {
+      loadLogsTab();
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
