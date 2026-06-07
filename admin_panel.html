@@ -446,6 +446,10 @@
     .ld-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto; }
     .ld-screenshots { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
     .ld-screenshots img { height: 110px; width: auto; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid var(--border); flex-shrink: 0; }
+    .ld-shotlist { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .ld-shotitem { position: relative; }
+    .ld-shotitem img { height: 80px; width: auto; border-radius: 5px; object-fit: cover; border: 1px solid var(--border); display: block; }
+    .ld-shotitem .rm { position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1; }
     .ld-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; min-height: 80px; }
 
     /* ── Logs tab ── */
@@ -1925,6 +1929,13 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
       endsAt,
       createdAt: serverTimestamp(),
       createdBy: uid,
+    });
+    await addDoc(collection(db, 'push_queue'), {
+      title: '⚔️ Новая дуэль!',
+      body: 'Проголосуй за лучший лайнап — дуэль уже идёт',
+      type: 'duel',
+      processed: false,
+      created_at: serverTimestamp(),
     });
     st.textContent = '✅ Дуэль запущена!';
     toast('Дуэль создана', 's');
@@ -5146,6 +5157,17 @@ function _renderLineupDetail(l) {
       ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
       ${videoHtml}
       ${shotsHtml}
+      ${l.video_url && !l.video_url.match(/youtube\.com|youtu\.be/) ? `
+      <div class="section" id="ld-vid-editor">
+        <div class="dlabel" style="margin-bottom:8px;">📷 Скриншоты из видео</div>
+        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
+          <button id="ld-frame-btn" class="btn btn-save" style="padding:6px 14px;font-size:12px;">📷 Сделать кадр</button>
+          <span id="ld-frame-status" style="font-size:12px;color:var(--text2);"></span>
+        </div>
+        <div class="ld-shotlist" id="ld-new-shots"></div>
+        <button id="ld-save-shots-btn" class="btn btn-save" style="margin-top:10px;display:none;padding:6px 16px;font-size:12px;">💾 Сохранить скриншоты</button>
+      </div>` : ''}
     </div>`;
 
   const overlay = document.getElementById('lineup-detail-overlay');
@@ -5167,6 +5189,79 @@ function _renderLineupDetail(l) {
   overlay.querySelectorAll('[data-lightbox]').forEach(img => {
     img.addEventListener('click', () => openLb(img.dataset.lightbox));
   });
+
+  // ── Video frame capture editor ───────────────────────────────────────────────
+  const frameBtn = document.getElementById('ld-frame-btn');
+  if (frameBtn) {
+    const vidEl       = document.getElementById('ld-vid-el');
+    const shotList    = document.getElementById('ld-new-shots');
+    const saveBtn     = document.getElementById('ld-save-shots-btn');
+    const frameStatus = document.getElementById('ld-frame-status');
+    const capturedUrls = [...(Array.isArray(l.screenshots) ? l.screenshots : [])];
+
+    function refreshShotList() {
+      const newOnly = capturedUrls.filter(u => !(Array.isArray(l.screenshots) && l.screenshots.includes(u)));
+      shotList.innerHTML = newOnly.map((u, i) => `
+        <div class="ld-shotitem">
+          <img src="${esc(u)}" alt="">
+          <button class="rm" data-idx="${i}">✕</button>
+        </div>`).join('');
+      shotList.querySelectorAll('.rm').forEach(b => {
+        b.addEventListener('click', () => {
+          const absIdx = capturedUrls.indexOf(newOnly[parseInt(b.dataset.idx)]);
+          if (absIdx !== -1) capturedUrls.splice(absIdx, 1);
+          refreshShotList();
+          saveBtn.style.display = capturedUrls.length ? 'inline-block' : 'none';
+        });
+      });
+      saveBtn.style.display = newOnly.length ? 'inline-block' : 'none';
+    }
+
+    frameBtn.addEventListener('click', async () => {
+      if (!vidEl.videoWidth) { toast('Видео ещё не загружено', 'i'); return; }
+      if (capturedUrls.length >= 8) { toast('Максимум 8 скриншотов', 'i'); return; }
+      frameBtn.disabled = true;
+      frameStatus.textContent = 'Загрузка…';
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = vidEl.videoWidth; canvas.height = vidEl.videoHeight;
+        canvas.getContext('2d').drawImage(vidEl, 0, 0);
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+        const compressed = await compressImage(blob);
+        const url = await uploadToCloudinary(compressed, pct => {
+          frameStatus.textContent = Math.round(pct * 100) + '%';
+        });
+        capturedUrls.push(url);
+        refreshShotList();
+        frameStatus.textContent = '✓ Готово';
+        setTimeout(() => { frameStatus.textContent = ''; }, 2000);
+      } catch (e) {
+        frameStatus.textContent = '';
+        toast('Ошибка: ' + e.message, 'e');
+      } finally {
+        frameBtn.disabled = false;
+      }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Сохранение…';
+      try {
+        await updateDoc(doc(db, 'lineups', l.id), { screenshots: capturedUrls });
+        const cached = lineups.find(x => x.id === l.id);
+        if (cached) cached.screenshots = [...capturedUrls];
+        toast('Скриншоты сохранены ✅', 's');
+        saveBtn.textContent = '✅ Сохранено';
+        setTimeout(() => { saveBtn.textContent = '💾 Сохранить скриншоты'; saveBtn.disabled = false; }, 2500);
+      } catch (e) {
+        toast('Ошибка сохранения: ' + e.message, 'e');
+        saveBtn.textContent = '💾 Сохранить скриншоты';
+        saveBtn.disabled = false;
+      }
+    });
+
+    refreshShotList();
+  }
 
   overlay._closeDetail = closeDetail;
 }
