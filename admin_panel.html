@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Valorant Lineups — Admin</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <style>
     :root {
       --bg: #0F1923;
@@ -1568,7 +1569,7 @@ function _renderAgentCards() {
     card.dataset.name = agent.displayName;
     const icon = agent.displayIcon || agent.displayIconSmall || '';
     card.innerHTML = `
-      ${icon ? `<img src="${icon}" alt="${agent.displayName}" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
+      ${icon ? `<img src="${icon}" alt="${agent.displayName}" crossorigin="anonymous" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
       <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
       <div class="ac-name">${agent.displayName}</div>
       <button class="agent-disable-btn" title="${isDisabled ? 'Восстановить агента' : 'Скрыть агента'}">${isDisabled ? '↩' : '✕'}</button>
@@ -2580,7 +2581,7 @@ function updateSlotMapWrap(id, mapName) {
     wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "'+mapName+'" — изображение недоступно':'Сначала выбери карту ↑'}</div>`;
     return;
   }
-  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
 }
 function initSlotMapWrap(id) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -3053,7 +3054,7 @@ function initAgentGrid() {
   grid.innerHTML = Object.keys(AGENTS).map(name => {
     const icon = AGENT_ICONS[name];
     return `<div class="agent-card" data-agent="${name}" title="${name}">
-      ${icon ? `<img src="${icon}" alt="${name}" loading="lazy">` : `<div class="ac-fallback">🎭</div>`}
+      ${icon ? `<img src="${icon}" alt="${name}" crossorigin="anonymous" loading="lazy">` : `<div class="ac-fallback">🎭</div>`}
       <div class="ac-name">${name}</div>
     </div>`;
   }).join('');
@@ -3124,7 +3125,7 @@ function updateMapPicker(mapName) {
     wrap.innerHTML = `<div class="map-ph">${mapName ? 'Карта "' + mapName + '" — изображение недоступно' : 'Сначала выбери карту ↑'}</div>`;
     return;
   }
-  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" draggable="false"></div>`;
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
 }
 function renderMarker() {
   const c = _mapCanvas(); if (!c) return;
@@ -3699,7 +3700,7 @@ function initEditAgentGrid(id) {
   grid.innerHTML = Object.keys(AGENTS).map(name => {
     const icon = AGENT_ICONS[name];
     return `<div class="agent-card${sess.agent === name ? ' sel' : ''}" data-agent="${name}" title="${name}">
-      ${icon ? `<img src="${icon}" alt="${name}" loading="lazy">` : `<div class="ac-fallback">🎭</div>`}
+      ${icon ? `<img src="${icon}" alt="${name}" crossorigin="anonymous" loading="lazy">` : `<div class="ac-fallback">🎭</div>`}
       <div class="ac-name">${name}</div>
     </div>`;
   }).join('');
@@ -3766,7 +3767,7 @@ function updateEditMapPicker(id, mapName) {
     wrap.innerHTML = `<div class="map-ph">${key ? 'Карта "'+esc(key)+'" — изображение недоступно' : 'Выбери карту выше'}</div>`;
     return;
   }
-  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${esc(key)}" draggable="false"></div>`;
+  wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${esc(key)}" crossorigin="anonymous" draggable="false"></div>`;
   const img = wrap.querySelector('.map-canvas img');
   if (!img) return;
   const tryRender = () => { if (_eCanvas(id)) renderEditMarker(id); };
