@@ -5358,46 +5358,41 @@ function renderInteractiveMap(lineup) {
     if (hasTarget) {
       const points = traj.map(p => toCanvas(parseFloat(p.x), parseFloat(p.y)));
 
-      // Dashed polyline through all trajectory points
+      // Solid red polyline (matches phone app style)
       ctx.save();
-      ctx.setLineDash([6, 4]);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.setLineDash([]);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(255,70,85,0.9)';
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
       for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
       ctx.stroke();
-
-      // Arrowhead at last point
-      const last  = points[points.length - 1];
-      const prev  = points[points.length - 2];
-      const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
-      const aLen  = 10;
-      ctx.setLineDash([]);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-      ctx.beginPath();
-      ctx.moveTo(last.x, last.y);
-      ctx.lineTo(last.x - aLen * Math.cos(angle - 0.4), last.y - aLen * Math.sin(angle - 0.4));
-      ctx.moveTo(last.x, last.y);
-      ctx.lineTo(last.x - aLen * Math.cos(angle + 0.4), last.y - aLen * Math.sin(angle + 0.4));
-      ctx.stroke();
       ctx.restore();
 
-      // Green dot on last point (target)
-      const endPt = points[points.length - 1];
-      drawDot(ctx, endPt.x, endPt.y, '#00c86e', '#fff', 8);
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(endPt.x, endPt.y, 14, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(0,200,110,0.3)';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.restore();
+      // Filled triangular arrowhead at last point
+      const last = points[points.length - 1];
+      const prev = points[points.length - 2];
+      const dx = last.x - prev.x, dy = last.y - prev.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 1) {
+        const ux = dx/len, uy = dy/len, s = 8, hw = 4;
+        const bx = last.x - s*ux, by = last.y - s*uy;
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,70,85,0.9)';
+        ctx.beginPath();
+        ctx.moveTo(last.x, last.y);
+        ctx.lineTo(bx - hw*uy, by + hw*ux);
+        ctx.lineTo(bx + hw*uy, by - hw*ux);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
 
-      // Intermediate waypoints (white, small)
-      for (let i = 1; i < points.length - 1; i++) {
-        drawDot(ctx, points[i].x, points[i].y, 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.3)', 4);
+      // Small dots at every waypoint
+      for (let i = 0; i < points.length; i++) {
+        drawDot(ctx, points[i].x, points[i].y, 'rgba(255,70,85,0.9)', 'rgba(255,255,255,0.45)', i === 0 ? 4 : 3.5);
       }
     }
 
