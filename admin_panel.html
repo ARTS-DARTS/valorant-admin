@@ -2939,7 +2939,19 @@ const AGENTS = {
   'Vyse':      ['Razorvine', 'Shear', 'Arc Rose', 'Steel Garden'],
   'Tejo':      ['Stealth Drone', 'Special Delivery', 'Guided Salvo', 'Armageddon'],
 };
-const MAP_IMAGES = {};
+const MAP_IMAGES = {
+  'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
+  'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4bbe-4143-b2b1-1c5d92c14786/displayicon.png',
+  'Bind':     'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png',
+  'Split':    'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png',
+  'Fracture': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png',
+  'Breeze':   'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/displayicon.png',
+  'Icebox':   'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/displayicon.png',
+  'Pearl':    'https://media.valorant-api.com/maps/33bb57b4-4e5b-8d85-0505-b8c5b8b36136/displayicon.png',
+  'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-01bc-1236-069b34a8b785/displayicon.png',
+  'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39eb02e28435/displayicon.png',
+  'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-d703-cc5f-3e8e0f488ea8/displayicon.png',
+};
 const AGENT_ICONS = {};
 const AGENT_ABILITY_ICONS = {};
 const AGENT_ABILITIES = {};
@@ -2949,9 +2961,12 @@ function _apiCacheGet(key) {
   try {
     const item = JSON.parse(localStorage.getItem(key) || 'null');
     if (!item) return null;
-    if (Date.now() - item.ts > 86400000) { localStorage.removeItem(key); return null; }
+    if (Date.now() - item.ts > 86400000) return null; // expired — fetch fresh, keep as stale fallback
     return item.data;
   } catch { return null; }
+}
+function _apiCacheGetStale(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null')?.data ?? null; } catch { return null; }
 }
 function _apiCacheSet(key, data) {
   try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
@@ -2977,7 +2992,11 @@ async function loadMapImages() {
     for (const m of maps) {
       if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
     }
-  } catch (_) {}
+  } catch (_) {
+    for (const m of _apiCacheGetStale('_api_maps') ?? []) {
+      if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
+    }
+  }
   const sel = document.getElementById('f-map')?.value;
   if (sel) updateMapPicker(sel);
 }
@@ -3011,7 +3030,21 @@ async function loadAgentIcons() {
         }
       }
     }
-  } catch (_) {}
+  } catch (_) {
+    const stale = _apiCacheGetStale('_api_agents') ?? [];
+    for (const ag of stale) {
+      if (!ag.displayName) continue;
+      if (ag.displayIcon) AGENT_ICONS[ag.displayName] = ag.displayIcon;
+      AGENT_ABILITY_ICONS[ag.displayName] = {};
+      AGENT_ABILITIES[ag.displayName] = [];
+      for (const ab of ag.abilities ?? []) {
+        if (ab.displayName && ab.displayIcon) {
+          AGENT_ABILITY_ICONS[ag.displayName][ab.displayName] = ab.displayIcon;
+          AGENT_ABILITIES[ag.displayName].push(ab.displayName);
+        }
+      }
+    }
+  }
   initAgentGrid();
 }
 
