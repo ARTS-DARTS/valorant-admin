@@ -82,7 +82,7 @@
     .tab.active .bi { opacity: 1; }
 
     /* ── Main content area ── */
-    .main { flex: 1; min-width: 0; padding: 22px 24px; max-width: 1180px; }
+    .main { flex: 1; min-width: 0; padding: 22px 24px; overflow-x: hidden; }
 
     .center-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
     .auth-card { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 48px 40px; max-width: 360px; width: 100%; text-align: center; }
@@ -1142,7 +1142,7 @@
 
   <!-- Agents tab -->
   <div id="tab-agents" style="display:none;">
-    <div style="max-width:1200px;margin:0 auto;padding:4px 0 20px;">
+    <div style="max-width:1200px;padding-bottom:20px;">
       <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">Выберите агента и настройте доступные абилки для создания лайнапов.</p>
 
@@ -1174,7 +1174,7 @@
 
   <!-- Notifications tab -->
   <div id="tab-notif" style="display:none;">
-    <div style="max-width:1160px;margin:0 auto;padding:22px 20px 32px;">
+    <div style="max-width:1160px;">
 
       <div class="form-title">🔔 ТЕСТИРОВАНИЕ УВЕДОМЛЕНИЙ</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5;">

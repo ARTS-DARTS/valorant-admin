@@ -51,7 +51,6 @@
     .btn-primary:disabled { opacity: .4; cursor: default; }
     .auth-err { color: var(--red); font-size: 12px; margin-top: 10px; text-align: center; display: none; }
 
-    .main { max-width: 680px; margin: 0 auto; padding: 24px 16px 60px; }
     .section-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--primary); margin-bottom: 8px; margin-top: 24px; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; margin-bottom: 14px; }
     select.finput { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
@@ -213,33 +212,6 @@
 <!-- Upload form -->
 <div id="form-screen" style="display:none;">
   <div class="form-layout">
-  <aside class="stats-sidebar" id="stats-sidebar">
-    <div class="stats-sidebar-title">МОЯ СТАТИСТИКА</div>
-    <div class="stats-loader" id="stats-loader">Загрузка…</div>
-    <div id="stats-cards" class="sidebar-row" style="display:none;">
-      <div class="stat-card s-total">
-        <div class="stat-icon">📤</div>
-        <div class="stat-info">
-          <div class="stat-count" id="stat-total">—</div>
-          <div class="stat-label">Отправлено</div>
-        </div>
-      </div>
-      <div class="stat-card s-approved">
-        <div class="stat-icon">✅</div>
-        <div class="stat-info">
-          <div class="stat-count" id="stat-approved">—</div>
-          <div class="stat-label">Принято</div>
-        </div>
-      </div>
-      <div class="stat-card s-pending">
-        <div class="stat-icon">⏳</div>
-        <div class="stat-info">
-          <div class="stat-count" id="stat-pending">—</div>
-          <div class="stat-label">На рассмотрении</div>
-        </div>
-      </div>
-    </div>
-  </aside>
   <div class="main">
     <div class="section-title">🗺 КАРТА</div>
     <div class="card">
@@ -365,6 +337,33 @@
 
     <button class="btn-submit" id="btn-submit" disabled>⬆ Отправить лайнап</button>
   </div><!-- /.main -->
+  <aside class="stats-sidebar" id="stats-sidebar">
+    <div class="stats-sidebar-title">МОЯ СТАТИСТИКА</div>
+    <div class="stats-loader" id="stats-loader">Загрузка…</div>
+    <div id="stats-cards" class="sidebar-row" style="display:none;">
+      <div class="stat-card s-total">
+        <div class="stat-icon">📤</div>
+        <div class="stat-info">
+          <div class="stat-count" id="stat-total">—</div>
+          <div class="stat-label">Отправлено</div>
+        </div>
+      </div>
+      <div class="stat-card s-approved">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <div class="stat-count" id="stat-approved">—</div>
+          <div class="stat-label">Принято</div>
+        </div>
+      </div>
+      <div class="stat-card s-pending">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+          <div class="stat-count" id="stat-pending">—</div>
+          <div class="stat-label">На рассмотрении</div>
+        </div>
+      </div>
+    </div>
+  </aside>
   </div><!-- /.form-layout -->
 </div>
 
