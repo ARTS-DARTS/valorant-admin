@@ -80,7 +80,7 @@ service cloud.firestore {
 
     match /lineups/{lineupId} {
       allow read: if true;
-      allow create: if isAuth() && isValidLineupData() && lineupNotOnCooldown();
+      allow create: if isAuth() && isValidLineupData();
       allow update: if isAuth() && (
         resource.data.get('user_id', '') == request.auth.uid || isModerator()
       );

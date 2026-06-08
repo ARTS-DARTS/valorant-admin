@@ -517,6 +517,7 @@ async function loadAgents() {
     const data = await res.json();
     agentsList = (data.data || []).sort((a, b) => a.displayName.localeCompare(b.displayName));
     renderAgentsGrid();
+    _restoreDraft();
   } catch (e) {
     toast('Не удалось загрузить агентов', 'e');
   }
@@ -569,7 +570,7 @@ function selectAgent(agent) {
       b.classList.add('selected');
       selectedAbility = b.dataset.key;
       updateMarkerIcon();
-      validateForm();
+      validateForm(); _saveDraft();
     });
   });
   validateForm();
@@ -581,7 +582,7 @@ document.getElementById('cat-row').querySelectorAll('.pill-btn').forEach(b => {
     document.getElementById('cat-row').querySelectorAll('.pill-btn').forEach(x => x.classList.remove('selected'));
     b.classList.add('selected');
     selectedCategory = b.dataset.val;
-    validateForm();
+    validateForm(); _saveDraft();
   });
 });
 document.getElementById('diff-row').querySelectorAll('.pill-btn').forEach(b => {
@@ -589,21 +590,22 @@ document.getElementById('diff-row').querySelectorAll('.pill-btn').forEach(b => {
     document.getElementById('diff-row').querySelectorAll('.pill-btn').forEach(x => x.classList.remove('selected'));
     b.classList.add('selected');
     selectedDifficulty = b.dataset.val;
-    validateForm();
+    validateForm(); _saveDraft();
   });
 });
 
 // ── Char counters ─────────────────────────────────────────────────────────────
 document.getElementById('inp-title').addEventListener('input', e => {
   document.getElementById('title-count').textContent = e.target.value.length;
-  validateForm();
+  validateForm(); _saveDraft();
 });
 document.getElementById('inp-desc').addEventListener('input', e => {
   document.getElementById('desc-count').textContent = e.target.value.length;
+  _saveDraft();
 });
 document.getElementById('sel-map').addEventListener('change', () => {
   loadMapMinimap();
-  validateForm();
+  validateForm(); _saveDraft();
 });
 
 // ── Video — file tab ──────────────────────────────────────────────────────────
@@ -660,7 +662,7 @@ async function handleVideoFile(file) {
     vidPlayer.src = url;
     document.getElementById('vid-player-wrap').style.display = '';
     toast('Видео загружено ✅', 's');
-    validateForm();
+    validateForm(); _saveDraft();
   } catch (e) {
     if (e.message === 'canceled') return;
     prog.style.display = 'none';
@@ -686,7 +688,7 @@ document.getElementById('vid-remove-btn').addEventListener('click', () => {
   document.getElementById('vid-player-wrap').style.display = 'none';
   dropZone.style.display = '';
   vidInput.value = '';
-  validateForm();
+  validateForm(); _saveDraft();
 });
 
 // Frame capture — pause first so the frame is stable, set crossOrigin before src
@@ -710,7 +712,7 @@ document.getElementById('vid-frame-btn').addEventListener('click', async () => {
     renderScreenshots();
     const url = await uploadToCloudinary(compressed);
     entry.cloudUrl = url; entry.uploading = false;
-    renderScreenshots();
+    renderScreenshots(); _saveDraft();
     toast('Кадр добавлен ✅', 's');
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');
@@ -762,7 +764,7 @@ document.getElementById('shot-file-input').addEventListener('change', e => {
     renderScreenshots();
     compressImage(file).then(blob => uploadToCloudinary(blob)).then(url => {
       entry.cloudUrl = url; entry.uploading = false;
-      renderScreenshots();
+      renderScreenshots(); _saveDraft();
     }).catch(err => {
       toast('Ошибка загрузки фото: ' + err.message, 'e');
       const idx = screenshots.indexOf(entry);
@@ -789,9 +791,9 @@ function renderScreenshots() {
   row.querySelectorAll('.rm').forEach(b => {
     b.addEventListener('click', () => {
       const idx = parseInt(b.dataset.idx);
-      URL.revokeObjectURL(screenshots[idx].localUrl);
+      if (screenshots[idx].localUrl?.startsWith('blob:')) URL.revokeObjectURL(screenshots[idx].localUrl);
       screenshots.splice(idx, 1);
-      renderScreenshots();
+      renderScreenshots(); _saveDraft();
     });
   });
 }
@@ -859,8 +861,8 @@ function setMapMode(mode) {
   document.getElementById('traj-clear').style.display = mode === 'trajectory' ? '' : 'none';
 }
 window.setMapMode = setMapMode;
-window.undoTraj  = function() { trajectoryPoints.pop(); renderTrajectory(); };
-window.clearTraj = function() { trajectoryPoints = []; renderTrajectory(); };
+window.undoTraj  = function() { trajectoryPoints.pop(); renderTrajectory(); _saveDraft(); };
+window.clearTraj = function() { trajectoryPoints = []; renderTrajectory(); _saveDraft(); };
 
 document.getElementById('map-wrap').addEventListener('click', e => {
   const img = document.getElementById('map-img');
@@ -881,7 +883,7 @@ document.getElementById('map-wrap').addEventListener('click', e => {
     trajectoryPoints.push({ x, y });
     renderTrajectory();
   }
-  validateForm();
+  validateForm(); _saveDraft();
 });
 
 function renderTrajectory() {
@@ -935,6 +937,112 @@ function updateMarkerIcon() {
   } else {
     img.style.display = 'none';
   }
+}
+
+// ── Draft persistence ─────────────────────────────────────────────────────────
+const _DRAFT_KEY = 'vl_lineup_draft';
+
+function _saveDraft() {
+  try {
+    localStorage.setItem(_DRAFT_KEY, JSON.stringify({
+      map:        document.getElementById('sel-map')?.value || '',
+      agent:      selectedAgent,
+      ability:    selectedAbility,
+      category:   selectedCategory,
+      difficulty: selectedDifficulty,
+      title:      document.getElementById('inp-title')?.value || '',
+      desc:       document.getElementById('inp-desc')?.value || '',
+      markerX, markerY, mapMode,
+      trajectory: trajectoryPoints,
+      videoUrl,
+      screenshots: screenshots.filter(s => s.cloudUrl).map(s => s.cloudUrl),
+    }));
+  } catch(_) {}
+}
+
+function _clearDraft() {
+  try { localStorage.removeItem(_DRAFT_KEY); } catch(_) {}
+}
+
+function _restoreDraft() {
+  let d;
+  try { d = JSON.parse(localStorage.getItem(_DRAFT_KEY)); } catch(_) {}
+  if (!d) return;
+
+  // Text fields
+  if (d.title) { const el = document.getElementById('inp-title'); if (el) { el.value = d.title; document.getElementById('title-count').textContent = d.title.length; } }
+  if (d.desc)  { const el = document.getElementById('inp-desc');  if (el) { el.value = d.desc;  document.getElementById('desc-count').textContent  = d.desc.length;  } }
+
+  // Category & difficulty
+  if (d.category) {
+    const btn = document.querySelector(`#cat-row .pill-btn[data-val="${d.category}"]`);
+    if (btn) { document.getElementById('cat-row').querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); selectedCategory = d.category; }
+  }
+  if (d.difficulty) {
+    const btn = document.querySelector(`#diff-row .pill-btn[data-val="${d.difficulty}"]`);
+    if (btn) { document.getElementById('diff-row').querySelectorAll('.pill-btn').forEach(b => b.classList.remove('selected')); btn.classList.add('selected'); selectedDifficulty = d.difficulty; }
+  }
+
+  // Map + marker (load minimap, then place marker after image loads)
+  if (d.map) {
+    const sel = document.getElementById('sel-map');
+    if (sel) sel.value = d.map;
+    const img = document.getElementById('map-img');
+    const ph  = document.getElementById('map-placeholder');
+    const apiUrl = mapsData.find(m => m.displayName === d.map)?.displayIcon;
+    const url    = apiUrl || MAP_FALLBACK_URLS[d.map];
+    if (url && img) {
+      img.crossOrigin = 'anonymous'; img.src = url; img.style.display = 'block';
+      if (ph) ph.style.display = 'none';
+      const afterLoad = () => {
+        if (d.mapMode) setMapMode(d.mapMode);
+        if (d.trajectory?.length) { trajectoryPoints = d.trajectory; renderTrajectory(); }
+        if (d.markerX != null) {
+          markerX = d.markerX; markerY = d.markerY;
+          const marker = document.getElementById('map-marker');
+          if (marker) { marker.style.display = ''; marker.style.left = (d.markerX*100)+'%'; marker.style.top = (d.markerY*100)+'%'; }
+          updateMarkerIcon();
+        }
+        validateForm();
+      };
+      if (img.complete && img.naturalWidth) afterLoad();
+      else img.addEventListener('load', afterLoad, { once: true });
+    }
+  }
+
+  // Agent
+  if (d.agent && agentsList.length) {
+    const agent = agentsList.find(a => a.displayName === d.agent);
+    if (agent) {
+      const card = document.querySelector(`.agent-card[data-uuid="${agent.uuid}"]`);
+      if (card) card.classList.add('selected');
+      selectAgent(agent);
+      if (d.ability) {
+        selectedAbility = d.ability;
+        const abilBtn = document.querySelector(`.ability-btn[data-key="${d.ability}"]`);
+        if (abilBtn) { document.querySelectorAll('.ability-btn').forEach(b => b.classList.remove('selected')); abilBtn.classList.add('selected'); updateMarkerIcon(); }
+      }
+    }
+  }
+
+  // Video
+  if (d.videoUrl) {
+    videoUrl = d.videoUrl;
+    const dropZ = document.getElementById('drop-zone');
+    const wrap  = document.getElementById('vid-player-wrap');
+    const vid   = document.getElementById('vid-player');
+    if (dropZ) dropZ.style.display = 'none';
+    if (wrap)  wrap.style.display = '';
+    if (vid)   { vid.crossOrigin = 'anonymous'; vid.src = d.videoUrl; }
+  }
+
+  // Screenshots (already uploaded — use cloud URL for display)
+  if (d.screenshots?.length) {
+    screenshots = d.screenshots.map(url => ({ localUrl: url, cloudUrl: url, uploading: false }));
+    renderScreenshots();
+  }
+
+  validateForm();
 }
 
 // ── Validation ────────────────────────────────────────────────────────────────
@@ -1026,11 +1134,13 @@ document.getElementById('btn-submit').addEventListener('click', async () => {
 });
 
 function showSuccess() {
+  _clearDraft();
   document.getElementById('form-screen').style.display = 'none';
   document.getElementById('success-screen').style.display = 'flex';
 }
 
 document.getElementById('btn-another').addEventListener('click', () => {
+  _clearDraft();
   selectedAgent = null; selectedAbility = null;
   selectedCategory = null; selectedDifficulty = null;
   markerX = null; markerY = null;
