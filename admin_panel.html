@@ -2996,11 +2996,11 @@ async function loadMapImages() {
       _apiCacheSet('_api_maps', maps);
     }
     for (const m of maps) {
-      if (m.displayName) MAP_IMAGES[m.displayName] = m.listViewIcon || m.displayIcon || '';
+      if (m.displayName) MAP_IMAGES[m.displayName] = m.displayIcon || m.listViewIcon || '';
     }
   } catch (_) {
     for (const m of _apiCacheGetStale('_api_maps') ?? []) {
-      if (m.displayName) MAP_IMAGES[m.displayName] = m.listViewIcon || m.displayIcon || '';
+      if (m.displayName) MAP_IMAGES[m.displayName] = m.displayIcon || m.listViewIcon || '';
     }
   }
   const sel = document.getElementById('f-map')?.value;
