@@ -39,21 +39,14 @@ service cloud.firestore {
           && d.description is string && d.description.size() <= 500;
     }
 
-    // ── Rate limiting (server-enforced via batch write) ───────────────────────
-    // Lineup creation MUST be part of a batch that also updates rate_limits/{uid}.
-    // This prevents bypassing the cooldown by calling Firestore directly.
+    // ── Rate limiting (cooldown check against previous submission) ──────────────
     function lineupNotOnCooldown() {
       let uid = request.auth.uid;
       let rateRef = /databases/$(database)/documents/rate_limits/$(uid);
-      let afterDoc = getAfter(rateRef);
       let beforeDoc = get(rateRef);
-      // Batch must set last_lineup_at to current server time
-      let batchOk = afterDoc.exists && afterDoc.data.last_lineup_at == request.time;
-      // Previous submission was more than 10 minutes ago (or never happened)
-      let cooldownOk = !beforeDoc.exists
+      return !beforeDoc.exists
           || !('last_lineup_at' in beforeDoc.data)
           || request.time > beforeDoc.data.last_lineup_at + duration.value(600, 's');
-      return batchOk && cooldownOk;
     }
 
     // Prevents backdating rate_limit timestamps (create)
