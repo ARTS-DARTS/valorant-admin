@@ -1499,11 +1499,16 @@ function switchTab(t) {
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
+let _iconsReady = null;
+function _ensureIconsLoaded() {
+  if (!_iconsReady) _iconsReady = Promise.all([loadAgentIcons(), loadMapImages()]);
+  return _iconsReady;
+}
 document.getElementById('tab-btn-add').addEventListener('click', () => {
   switchTab('add');
   if (!_addTabReady) {
     _addTabReady = true;
-    Promise.all([loadAgentIcons(), loadMapImages()]).then(_restorePreset);
+    _ensureIconsLoaded().then(_restorePreset);
   } else {
     _restorePreset();
   }
@@ -2991,11 +2996,11 @@ async function loadMapImages() {
       _apiCacheSet('_api_maps', maps);
     }
     for (const m of maps) {
-      if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
+      if (m.displayName) MAP_IMAGES[m.displayName] = m.listViewIcon || m.displayIcon || '';
     }
   } catch (_) {
     for (const m of _apiCacheGetStale('_api_maps') ?? []) {
-      if (m.displayName && m.displayIcon) MAP_IMAGES[m.displayName] = m.displayIcon;
+      if (m.displayName) MAP_IMAGES[m.displayName] = m.listViewIcon || m.displayIcon || '';
     }
   }
   const sel = document.getElementById('f-map')?.value;
@@ -3988,7 +3993,7 @@ async function _processEditFile(id, file, item) {
   });
 }
 
-function openEditForm(id) {
+async function openEditForm(id) {
   const container = document.getElementById('cedit-' + id); if (!container) return;
   const toggleBtn = document.querySelector(`.btn-edit-toggle[data-id="${id}"]`);
   if (container.style.display !== 'none') {
@@ -4007,6 +4012,7 @@ function openEditForm(id) {
   container.innerHTML = buildEditForm(id, l);
   container.style.display = 'block';
   if (toggleBtn) toggleBtn.classList.add('open');
+  await _ensureIconsLoaded();
   initEditAgentGrid(id); renderEditAbilityRow(id);
   initEditMapInteraction(id, l.map ?? '');
   renderEditScreenshots(id); initEditScreenshots(id); initEditVideo(id);
