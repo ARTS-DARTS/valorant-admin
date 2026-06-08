@@ -1,0 +1,233 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuth() {
+      return request.auth != null;
+    }
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user');
+    }
+    function isAdmin() {
+      return isAuth() && role() == 'admin';
+    }
+    function isModerator() {
+      return isAuth() && (role() == 'admin' || role() == 'moderator');
+    }
+
+    // ── Input validation ─────────────────────────────────────────────────────
+    function isValidLineupData() {
+      let d = request.resource.data;
+      return d.title is string && d.title.size() >= 1 && d.title.size() <= 100
+          && d.description is string && d.description.size() <= 1000
+          && d.map is string && d.map.size() >= 1 && d.map.size() <= 50
+          && d.agent is string && d.agent.size() >= 1 && d.agent.size() <= 50
+          && d.ability is string && d.ability.size() >= 1 && d.ability.size() <= 50
+          && d.category is string && d.category.size() >= 1 && d.category.size() <= 30;
+    }
+
+    function isValidFeedbackData() {
+      let d = request.resource.data;
+      return d.text is string && d.text.size() >= 1 && d.text.size() <= 2000;
+    }
+
+    function isValidCollectionData() {
+      let d = request.resource.data;
+      return d.title is string && d.title.size() >= 1 && d.title.size() <= 100
+          && d.description is string && d.description.size() <= 500;
+    }
+
+    // ── Rate limiting (server-enforced via batch write) ───────────────────────
+    // Lineup creation MUST be part of a batch that also updates rate_limits/{uid}.
+    // This prevents bypassing the cooldown by calling Firestore directly.
+    function lineupNotOnCooldown() {
+      let uid = request.auth.uid;
+      let rateRef = /databases/$(database)/documents/rate_limits/$(uid);
+      let afterDoc = getAfter(rateRef);
+      let beforeDoc = get(rateRef);
+      // Batch must set last_lineup_at to current server time
+      let batchOk = afterDoc.exists && afterDoc.data.last_lineup_at == request.time;
+      // Previous submission was more than 10 minutes ago (or never happened)
+      let cooldownOk = !beforeDoc.exists
+          || !('last_lineup_at' in beforeDoc.data)
+          || request.time > beforeDoc.data.last_lineup_at + duration.value(600, 's');
+      return batchOk && cooldownOk;
+    }
+
+    // Prevents backdating rate_limit timestamps (create)
+    function noBackdatingCreate() {
+      let d = request.resource.data;
+      return (!('last_lineup_at' in d) || d.last_lineup_at == request.time)
+          && (!('last_feedback_at' in d) || d.last_feedback_at == request.time);
+    }
+
+    // Prevents backdating rate_limit timestamps (update — checks only changed fields)
+    function noBackdatingUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
+      return (!('last_lineup_at' in changed) || d.last_lineup_at == request.time)
+          && (!('last_feedback_at' in changed) || d.last_feedback_at == request.time);
+    }
+
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isModerator();
+      allow delete: if isOwner(uid) || isAdmin();
+    }
+
+    // ── Rate limits (server-enforced timestamps, owner-only) ─────────────────
+    match /rate_limits/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && noBackdatingCreate();
+      allow update: if isOwner(uid) && noBackdatingUpdate();
+    }
+
+    match /lineups/{lineupId} {
+      allow read: if true;
+      allow create: if isAuth() && isValidLineupData() && lineupNotOnCooldown();
+      allow update: if isAuth() && (
+        resource.data.get('user_id', '') == request.auth.uid || isModerator()
+      );
+      allow delete: if isAuth() && (
+        resource.data.get('user_id', '') == request.auth.uid || isModerator()
+      );
+
+      match /votes/{uid} {
+        allow read, write: if isOwner(uid);
+        allow read: if isModerator();
+      }
+    }
+
+    match /exclusive_access/{uid} {
+      allow read, write: if isOwner(uid);
+      allow read: if isAdmin();
+    }
+
+    match /favorites/{uid}/items/{lineupId} {
+      allow read, write: if isOwner(uid);
+      allow read: if isAdmin();
+    }
+
+    match /lineup_likes/{lineupId}/users/{uid} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid);
+      allow read: if isAdmin();
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isAuth() && isValidFeedbackData();
+      allow read: if isAuth() && (
+        resource.data.get('user_id', '') == request.auth.uid || isModerator()
+      );
+      allow update: if isAuth() && (
+        resource.data.get('user_id', '') == request.auth.uid || isModerator()
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{uid}/items/{itemId} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    match /users/{uid}/notification_batches/{batchId} {
+      allow read, write: if isOwner(uid) || isAdmin();
+    }
+
+    match /moderator_applications/{uid} {
+      allow create: if isOwner(uid);
+      allow read: if isOwner(uid) || isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /moderator_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isModerator();
+    }
+
+    match /changelog/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /guide_content/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /agents_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /categories/{catId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    match /patches/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /analytics_events/{id} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /ad_events/{id} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /user_sessions/{id} {
+      allow create: if isAuth();
+      allow read: if isAdmin();
+    }
+
+    match /admins/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /collections/{collectionId} {
+      allow read: if isAuth();
+      allow create: if isAuth() && isValidCollectionData();
+      allow update, delete: if isAuth() &&
+        resource.data.get('owner_uid', '') == request.auth.uid;
+      allow read, write: if isAdmin();
+    }
+
+    match /mail/{id} {
+      allow create: if isAuth();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /duels/{duelId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      match /voters/{uid} {
+        allow read: if isAuth();
+        allow write: if isOwner(uid);
+      }
+    }
+
+    match /push_queue/{docId} {
+      allow create: if isAdmin();
+      allow read: if isAdmin();
+      allow update: if isAuth()
+        && request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasOnly(['processed', 'processed_at']);
+    }
+  }
+}
