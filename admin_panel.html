@@ -1567,7 +1567,7 @@ function _renderAgentCards() {
     const isDisabled = _disabledAgents.has(agent.displayName);
     card.className = 'agent-card' + (_selectedAgentName === agent.displayName ? ' sel' : '') + (isDisabled ? ' disabled-agent' : '');
     card.dataset.name = agent.displayName;
-    const icon = agent.displayIcon || agent.displayIconSmall || '';
+    const icon = agent.displayIconSmall || agent.displayIcon || '';
     card.innerHTML = `
       ${icon ? `<img src="${icon}" alt="${agent.displayName}" crossorigin="anonymous" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
       <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
@@ -3021,7 +3021,7 @@ async function loadAgentIcons() {
     }
     for (const ag of agents) {
       if (!ag.displayName) continue;
-      if (ag.displayIcon) AGENT_ICONS[ag.displayName] = ag.displayIcon;
+      AGENT_ICONS[ag.displayName] = ag.displayIconSmall || ag.displayIcon || '';
       AGENT_ABILITY_ICONS[ag.displayName] = {};
       AGENT_ABILITIES[ag.displayName] = [];
       for (const ab of ag.abilities ?? []) {
@@ -3035,7 +3035,7 @@ async function loadAgentIcons() {
     const stale = _apiCacheGetStale('_api_agents') ?? [];
     for (const ag of stale) {
       if (!ag.displayName) continue;
-      if (ag.displayIcon) AGENT_ICONS[ag.displayName] = ag.displayIcon;
+      AGENT_ICONS[ag.displayName] = ag.displayIconSmall || ag.displayIcon || '';
       AGENT_ABILITY_ICONS[ag.displayName] = {};
       AGENT_ABILITIES[ag.displayName] = [];
       for (const ab of ag.abilities ?? []) {
