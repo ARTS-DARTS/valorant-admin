@@ -134,9 +134,36 @@
     .toast.w { background: #451a03; color: #fed7aa; border: 1px solid #c2410c; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* Two-column layout: form + stats sidebar */
+    .form-layout { display: flex; align-items: flex-start; gap: 24px; max-width: 940px; margin: 0 auto; padding: 0 16px; }
+    .main { flex: 1; min-width: 0; padding: 24px 0 60px; }
+
+    /* Stats sidebar */
+    .stats-sidebar { width: 220px; flex-shrink: 0; padding-top: 24px; position: sticky; top: 70px; }
+    .stats-sidebar-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--primary); margin-bottom: 10px; }
+    .sidebar-row { display: flex; flex-direction: column; gap: 10px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+    .stat-icon { font-size: 22px; flex-shrink: 0; }
+    .stat-info { flex: 1; min-width: 0; }
+    .stat-count { font-size: 26px; font-weight: 800; line-height: 1; color: var(--text1); }
+    .stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; font-weight: 600; letter-spacing: .3px; }
+    .stat-card.s-pending  .stat-count { color: var(--orange); }
+    .stat-card.s-approved .stat-count { color: var(--green);  }
+    .stat-card.s-total    .stat-count { color: var(--primary); }
+    .stats-loader { text-align: center; color: var(--text2); font-size: 12px; padding: 20px 0; }
+
+    @media (max-width: 720px) {
+      .form-layout { flex-direction: column; gap: 0; padding: 0 10px; }
+      .stats-sidebar { width: 100%; position: static; padding-top: 16px; padding-bottom: 0; }
+      .stats-sidebar-title { margin-bottom: 8px; }
+      .sidebar-row { flex-direction: row; }
+      .stat-card { flex: 1; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; }
+      .stat-icon { font-size: 18px; }
+      .stat-count { font-size: 22px; }
+      .main { padding: 16px 0 60px; width: 100%; }
+    }
     @media (max-width: 500px) {
       .auth-card { padding: 28px 18px; }
-      .main { padding: 16px 10px 60px; }
     }
   </style>
 </head>
@@ -185,6 +212,34 @@
 
 <!-- Upload form -->
 <div id="form-screen" style="display:none;">
+  <div class="form-layout">
+  <aside class="stats-sidebar" id="stats-sidebar">
+    <div class="stats-sidebar-title">МОЯ СТАТИСТИКА</div>
+    <div class="stats-loader" id="stats-loader">Загрузка…</div>
+    <div id="stats-cards" class="sidebar-row" style="display:none;">
+      <div class="stat-card s-total">
+        <div class="stat-icon">📤</div>
+        <div class="stat-info">
+          <div class="stat-count" id="stat-total">—</div>
+          <div class="stat-label">Отправлено</div>
+        </div>
+      </div>
+      <div class="stat-card s-approved">
+        <div class="stat-icon">✅</div>
+        <div class="stat-info">
+          <div class="stat-count" id="stat-approved">—</div>
+          <div class="stat-label">Принято</div>
+        </div>
+      </div>
+      <div class="stat-card s-pending">
+        <div class="stat-icon">⏳</div>
+        <div class="stat-info">
+          <div class="stat-count" id="stat-pending">—</div>
+          <div class="stat-label">На рассмотрении</div>
+        </div>
+      </div>
+    </div>
+  </aside>
   <div class="main">
     <div class="section-title">🗺 КАРТА</div>
     <div class="card">
@@ -309,7 +364,8 @@
     </div>
 
     <button class="btn-submit" id="btn-submit" disabled>⬆ Отправить лайнап</button>
-  </div>
+  </div><!-- /.main -->
+  </div><!-- /.form-layout -->
 </div>
 
 <!-- Success screen -->
@@ -330,7 +386,8 @@ import { getAuth, GoogleAuthProvider, signInWithPopup,
          signInWithEmailAndPassword, signOut, onAuthStateChanged }
                                              from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, collection, getDoc,
-         writeBatch, serverTimestamp }       from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+         writeBatch, serverTimestamp, onSnapshot,
+         query, where }                      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const cfg = {
   apiKey:            'AIzaSyA1ya7fO5ZSeeokEfRHikWwpBXeXYhm9ww',
@@ -443,6 +500,40 @@ let videoUrl = null;
 let videoXhr = null;
 let screenshots = [];
 
+// ── Stats sidebar ─────────────────────────────────────────────────────────────
+let _statsUnsub = null;
+
+function _subscribeStats(uid) {
+  if (_statsUnsub) { _statsUnsub(); _statsUnsub = null; }
+  const q = query(collection(db, 'lineups'), where('user_id', '==', uid));
+  _statsUnsub = onSnapshot(q, snap => {
+    let total = 0, approved = 0, pending = 0;
+    snap.forEach(d => {
+      total++;
+      const s = d.data().status;
+      if (s === 'approved') approved++;
+      else if (s === 'pending' || !s) pending++;
+    });
+    document.getElementById('stat-total').textContent    = total;
+    document.getElementById('stat-approved').textContent = approved;
+    document.getElementById('stat-pending').textContent  = pending;
+    document.getElementById('stats-loader').style.display = 'none';
+    document.getElementById('stats-cards').style.display  = 'flex';
+  }, () => {
+    document.getElementById('stats-loader').textContent = 'Ошибка загрузки';
+  });
+}
+
+function _unsubscribeStats() {
+  if (_statsUnsub) { _statsUnsub(); _statsUnsub = null; }
+  document.getElementById('stats-loader').style.display = '';
+  document.getElementById('stats-loader').textContent   = 'Загрузка…';
+  document.getElementById('stats-cards').style.display  = 'none';
+  ['stat-total','stat-approved','stat-pending'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+  });
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, user => {
   currentUser = user;
@@ -452,11 +543,13 @@ onAuthStateChanged(auth, user => {
     document.getElementById('success-screen').style.display = 'none';
     document.getElementById('header-user').style.display = 'flex';
     document.getElementById('user-name').textContent = user.displayName || user.email || 'Пользователь';
+    _subscribeStats(user.uid);
     const av = document.getElementById('user-avatar');
     if (user.photoURL) { av.src = user.photoURL; av.style.display = ''; }
     if (!agentsList.length) loadAgents();
     loadMaps();
   } else {
+    _unsubscribeStats();
     document.getElementById('auth-screen').style.display = 'flex';
     document.getElementById('form-screen').style.display = 'none';
     document.getElementById('success-screen').style.display = 'none';
