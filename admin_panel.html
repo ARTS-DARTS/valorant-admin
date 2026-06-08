@@ -238,6 +238,18 @@
     .video-prog-track { flex:1; height:4px; background:rgba(255,255,255,.15); border-radius:2px; overflow:hidden; }
     .video-prog-fill { height:100%; background:var(--primary); border-radius:2px; transition:width .1s linear; }
     .video-prog-pct { font-size:12px; color:var(--text2); min-width:34px; text-align:right; }
+    .vfe-wrap { border-radius:var(--r); overflow:hidden; background:#000; margin-top:9px; }
+    .vfe-wrap video { width:100%; display:block; max-height:270px; }
+    .vfe-controls { display:flex; align-items:center; gap:7px; padding:7px 10px; background:var(--surface); flex-wrap:wrap; }
+    .vfe-play { background:var(--surface2); border:1px solid var(--border); color:var(--text1); padding:4px 10px; border-radius:6px; cursor:pointer; font-size:13px; min-width:30px; transition:.15s; }
+    .vfe-play:hover { border-color:var(--primary); color:var(--primary); }
+    .vfe-scrub { flex:1; min-width:60px; accent-color:var(--primary); cursor:pointer; }
+    .vfe-time { font-size:11px; color:var(--text2); white-space:nowrap; min-width:78px; }
+    .vfe-cap { background:rgba(79,195,247,.12); border:1px solid var(--primary); color:var(--primary); padding:4px 12px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:700; white-space:nowrap; transition:.15s; }
+    .vfe-cap:hover { background:rgba(79,195,247,.22); }
+    .vfe-cap:disabled { opacity:.4; cursor:default; }
+    .vfe-rem { background:transparent; border:1px solid var(--border); color:var(--text2); padding:4px 9px; border-radius:6px; cursor:pointer; font-size:12px; transition:.15s; }
+    .vfe-rem:hover { border-color:var(--red); color:var(--red); }
 
     /* ── Author field + dictionary panel ── */
     .author-wrap { position: relative; }
@@ -2648,8 +2660,16 @@ function _renderSlotVideoPreview(id) {
     wrap.innerHTML=`<div class="video-prog-wrap"><div class="video-prog-track"><div class="video-prog-fill" id="sv${id}-vpb" style="width:${Math.round(vs.progress*100)}%"></div></div><div class="video-prog-pct" id="sv${id}-vpp">${Math.round(vs.progress*100)}%</div><button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="sv${id}-vcnl">✕ Отмена</button></div>`;
     document.getElementById('sv'+id+'-vcnl')?.addEventListener('click',()=>{ vs.xhr?.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
   } else if (vs.status==='done') {
-    wrap.innerHTML=`<div class="video-preview-wrap"><video src="${esc(vs.url)}" controls preload="metadata"></video><button class="video-remove-btn" id="sv${id}-vrem">✕</button></div>`;
-    document.getElementById('sv'+id+'-vrem')?.addEventListener('click',()=>{ s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
+    wrap.innerHTML = _buildVfeHtml('sv'+id, vs.url);
+    _initVfe('sv'+id,
+      () => { s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); },
+      async blob => {
+        const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const item = { uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null, origSize: blob.size, compSize: null };
+        s.screenshots.push(item); _renderSlotPreviews(id);
+        return _processSlotFile(id, blob, item);
+      }
+    );
   } else {
     wrap.innerHTML=`<div style="color:var(--red);font-size:13px;padding:8px 0;">⚠ Ошибка загрузки <button class="btn btn-delete" style="margin-left:8px;padding:4px 10px;font-size:12px;" id="sv${id}-vclr">Попробовать снова</button></div>`;
     document.getElementById('sv'+id+'-vclr')?.addEventListener('click',()=>{ s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
@@ -3680,9 +3700,7 @@ function buildEditForm(id, l) {
   </div>
   <div class="fg full"><label class="flabel">Видео</label>
     <div id="ce-video-wrap-${id}">
-      ${l.video_url ? `
-      <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:270px;display:block;margin-bottom:8px;"></video>
-      <button class="btn btn-delete" id="ce-vrem-${id}" style="width:100%;justify-content:center;">🗑 Удалить видео</button>` : `
+      ${l.video_url ? _buildVfeHtml('cevfe-'+id, l.video_url) : `
       <div class="video-upload-zone" id="ce-vzone-${id}">
         <div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div>
         <div class="uz-hint">MP4 · максимум 50 MB</div>
@@ -4082,6 +4100,60 @@ function uploadVideoToCloudinary(file, onProgress) {
   return promise;
 }
 
+// ── Video frame editor helpers ────────────────────────────────────────────────
+function _buildVfeHtml(prefix, videoSrc) {
+  return `<div class="vfe-wrap">
+    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata" crossorigin="anonymous"></video>
+    <div class="vfe-controls">
+      <button class="vfe-play" id="${prefix}-vplay">▶</button>
+      <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
+      <span class="vfe-time" id="${prefix}-vtime">0:00</span>
+      <button class="vfe-cap" id="${prefix}-vcap">📷 Кадр</button>
+      <button class="vfe-rem" id="${prefix}-vrem">✕ Удалить</button>
+    </div>
+  </div>`;
+}
+
+function _initVfe(prefix, onRemove, onCapture) {
+  const vid   = document.getElementById(prefix+'-vid');
+  const play  = document.getElementById(prefix+'-vplay');
+  const scrub = document.getElementById(prefix+'-vscrub');
+  const time  = document.getElementById(prefix+'-vtime');
+  const cap   = document.getElementById(prefix+'-vcap');
+  const rem   = document.getElementById(prefix+'-vrem');
+  if (!vid) return;
+  const fmt = t => { const m = Math.floor(t/60), s = Math.floor(t%60); return m+':'+(s<10?'0':'')+s; };
+  vid.addEventListener('timeupdate', () => {
+    if (!vid.duration) return;
+    if (scrub) scrub.value = (vid.currentTime / vid.duration) * 100;
+    if (time)  time.textContent = fmt(vid.currentTime) + ' / ' + fmt(vid.duration);
+  });
+  vid.addEventListener('play',  () => { if (play) play.textContent = '⏸'; });
+  vid.addEventListener('pause', () => { if (play) play.textContent = '▶'; });
+  vid.addEventListener('loadedmetadata', () => { if (time && vid.duration) time.textContent = '0:00 / ' + fmt(vid.duration); });
+  scrub?.addEventListener('input', () => { if (vid.duration) vid.currentTime = (scrub.value / 100) * vid.duration; });
+  play?.addEventListener('click', () => vid.paused ? vid.play() : vid.pause());
+  rem?.addEventListener('click', onRemove);
+  cap?.addEventListener('click', async () => {
+    if (!vid.videoWidth) { toast('Видео ещё не готово', 'i'); return; }
+    cap.disabled = true; cap.textContent = '⏳';
+    try {
+      vid.pause();
+      await new Promise(r => setTimeout(r, 50));
+      const canvas = document.createElement('canvas');
+      canvas.width = vid.videoWidth; canvas.height = vid.videoHeight;
+      canvas.getContext('2d').drawImage(vid, 0, 0);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+      await onCapture(blob);
+      toast('Кадр добавлен ✅', 's');
+    } catch (e) {
+      if (e.message !== 'canceled') toast('Ошибка захвата кадра: ' + e.message, 'e');
+    } finally {
+      cap.disabled = false; cap.textContent = '📷 Кадр';
+    }
+  });
+}
+
 function renderAddVideoPreview() {
   const wrap = document.getElementById('add-video-preview');
   const zone = document.getElementById('add-video-zone');
@@ -4150,8 +4222,20 @@ function _handleAddVideoFile(file) {
 
 function initEditVideo(id) {
   const sess = editSessions[id]; if (!sess) return;
-  document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => { sess.videoUrl = ''; _resetEditVideoWrap(id); });
-  _wireEditVideoZone(id);
+  const l = lineups.find(l => l.id === id);
+  if (l?.video_url) {
+    _initVfe('cevfe-'+id,
+      () => { sess.videoUrl = ''; _resetEditVideoWrap(id); },
+      async blob => {
+        const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const item = { type:'new', uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null };
+        sess.screenshots.push(item); renderEditScreenshots(id);
+        return _processEditFile(id, blob, item);
+      }
+    );
+  } else {
+    _wireEditVideoZone(id);
+  }
 }
 function _resetEditVideoWrap(id) {
   const sess = editSessions[id]; if (!sess) return;
@@ -4192,11 +4276,16 @@ function _wireEditVideoZone(id) {
     upload.then(url => {
       sess.videoUrl = url; sess.videoXhr = null;
       const wrap = document.getElementById('ce-video-wrap-'+id);
-      if (wrap) wrap.innerHTML = `<div class="video-preview-wrap">
-        <video src="${esc(url)}" controls preload="metadata"></video>
-        <button class="video-remove-btn" id="ce-vrem-${id}">✕</button>
-      </div>`;
-      document.getElementById('ce-vrem-'+id)?.addEventListener('click', () => { sess.videoUrl = ''; _resetEditVideoWrap(id); });
+      if (wrap) wrap.innerHTML = _buildVfeHtml('cevfe-'+id, url);
+      _initVfe('cevfe-'+id,
+        () => { sess.videoUrl = ''; _resetEditVideoWrap(id); },
+        async blob => {
+          const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+          const item = { type:'new', uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null };
+          sess.screenshots.push(item); renderEditScreenshots(id);
+          return _processEditFile(id, blob, item);
+        }
+      );
     }).catch(err => {
       sess.videoXhr = null;
       if (err.message === 'canceled') return;
