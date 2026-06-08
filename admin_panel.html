@@ -619,6 +619,35 @@
     .dtp-edit-row { display: flex; gap: 6px; }
     .dtp-add-section { border-top: 1px solid var(--border); padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 7px; }
     .dtp-add-label { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
+
+    /* ── Two-column list layout ── */
+    .list-two-col { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; }
+    .list-panel {
+      width: 290px; flex-shrink: 0;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+      display: flex; flex-direction: column; overflow: hidden;
+      position: sticky; top: 76px; max-height: calc(100vh - 90px);
+    }
+    .list-panel-top { padding: 10px 10px 8px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+    .list-panel-scroll { flex: 1; overflow-y: auto; padding: 6px; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+    .list-panel-scroll::-webkit-scrollbar { width: 4px; }
+    .list-panel-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+    .list-panel-count { padding: 6px 10px; font-size: 11px; color: var(--text2); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .list-search-wrap { position: relative; }
+    .list-search-wrap .bi { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 13px; pointer-events: none; }
+    .list-search { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px 7px 30px; font-size: 13px; outline: none; font-family: inherit; }
+    .list-search:focus { border-color: rgba(255,70,85,.5); }
+    .editor-panel { flex: 1; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); min-height: 480px; }
+    .editor-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; color: var(--text2); text-align: center; min-height: 400px; }
+    .editor-empty i { font-size: 52px; opacity: .28; margin-bottom: 14px; display: block; }
+    .editor-empty p { font-size: 14px; }
+    #editor-content { padding: 20px; }
+    .editor-detail-head { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .lcard.selected { background: rgba(255,70,85,.06); border-color: var(--primary) !important; box-shadow: 0 0 0 1px rgba(255,70,85,.18); }
+    .lcard-compact .lcard-head { padding: 10px 12px; }
+    .lcard-compact .ltitle { font-size: 13px; }
+    .lcard-compact .lmeta { font-size: 11px; }
+    .lcard-compact .lcard-head { cursor: pointer; }
   </style>
 </head>
 <body>
@@ -706,6 +735,9 @@
         <i class="bi bi-list-ul"></i>
         <h1>ЛАЙНАПЫ</h1>
       </div>
+
+      <div id="lineup-stats-bar" class="lineup-stats-bar"></div>
+
       <div class="filters">
         <button class="filter-btn active"     data-filter="all">Все</button>
         <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
@@ -714,8 +746,6 @@
         <button class="filter-btn f-archived" data-filter="archived">📦 Архив</button>
         <button class="filter-btn" id="btn-map-panel">📊 Карты</button>
       </div>
-
-      <div id="lineup-stats-bar" class="lineup-stats-bar"></div>
 
       <!-- ── Map Stats Panel (drawer) ── -->
       <div id="map-panel" style="display:none;height:340px;margin-bottom:14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;">
@@ -744,12 +774,35 @@
         </div>
       </div>
 
-      <div class="search-wrap"><i class="bi bi-search"></i><input class="search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search"></div>
-      <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <button class="btn btn-save" id="btn-migrate" style="font-size:12px;padding:7px 14px;">⚡ Мигрировать способности EN→RU</button>
-        <span id="migrate-status" style="font-size:12px;color:var(--text2);"></span>
+      <!-- ── Two-column layout ── -->
+      <div class="list-two-col">
+        <!-- Left: compact list panel -->
+        <div class="list-panel">
+          <div class="list-panel-top">
+            <div class="list-search-wrap">
+              <i class="bi bi-search"></i>
+              <input class="list-search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
+            </div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-save" id="btn-migrate" style="font-size:11px;padding:5px 10px;">⚡ Мигрировать EN→RU</button>
+              <span id="migrate-status" style="font-size:11px;color:var(--text2);"></span>
+            </div>
+          </div>
+          <div class="list-panel-scroll">
+            <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
+          </div>
+          <div class="list-panel-count" id="list-panel-count"></div>
+        </div>
+
+        <!-- Right: editor panel -->
+        <div class="editor-panel" id="editor-panel">
+          <div id="editor-empty" class="editor-empty">
+            <i class="bi bi-arrow-left-circle"></i>
+            <p>Выбери лайнап слева</p>
+          </div>
+          <div id="editor-content" style="display:none;"></div>
+        </div>
       </div>
-      <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
     </div>
 
     <!-- Add tab -->
@@ -1027,8 +1080,6 @@
       </div>
 
     </div>
-
-  </div>
 
   <!-- Duels tab -->
   <div id="tab-duels" style="display:none;">
@@ -2321,11 +2372,19 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
   });
 });
 
-// ── Event delegation для lineup-list (один раз, не перевешивается на каждый рендер) ──
+// ── Event delegation для lineup-list ──
 (function() {
   const list = document.getElementById('lineup-list');
   list.addEventListener('click', e => {
-    // [data-action] в приоритете — некоторые лежат внутри .lcard-head
+    const head = e.target.closest('.lcard-head');
+    if (head) { selectLineup(head.dataset.id); return; }
+  });
+})();
+
+// ── Event delegation для editor-panel ──
+(function() {
+  const panel = document.getElementById('editor-panel');
+  panel.addEventListener('click', e => {
     const actionBtn = e.target.closest('[data-action]');
     if (actionBtn) {
       e.stopPropagation();
@@ -2341,29 +2400,6 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
       if (action === 'detail')       openLineupDetail(id);
       return;
     }
-    // раскрытие карточки
-    const head = e.target.closest('.lcard-head');
-    if (head) {
-      const id     = head.dataset.id;
-      const detail = document.getElementById('ldetail-' + id);
-      const btn    = list.querySelector(`.expand-btn[data-id="${id}"]`);
-      if (detail) {
-        const open = detail.classList.toggle('open');
-        if (btn) btn.classList.toggle('open', open);
-        if (open) {
-          // вставляем video только при первом раскрытии
-          detail.querySelectorAll('.lazy-video[data-src]').forEach(ph => {
-            const src = ph.dataset.src;
-            const vid = document.createElement('video');
-            vid.src = src; vid.controls = true; vid.preload = 'metadata';
-            vid.style.cssText = 'width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;';
-            ph.replaceWith(vid);
-          });
-        }
-      }
-      return;
-    }
-    // лайтбокс
     const lb = e.target.closest('[data-lightbox]');
     if (lb) openLb(lb.dataset.lightbox);
   });
@@ -2419,6 +2455,16 @@ function loadLineups() {
     }
     renderList();
     initMapPanel();
+    if (_selectedId) {
+      const updatedSel = lineups.find(l => l.id === _selectedId);
+      if (!updatedSel) {
+        _selectedId = null;
+        const empty = document.getElementById('editor-empty');
+        const content = document.getElementById('editor-content');
+        if (empty) empty.style.display = '';
+        if (content) { content.style.display = 'none'; content.innerHTML = ''; }
+      }
+    }
   }, e => {
     document.getElementById('lineup-list').innerHTML =
       `<div class="state" style="color:var(--red)">Ошибка загрузки: ${esc(e.message)}<br>
@@ -2460,11 +2506,22 @@ function renderList() {
     }
     return true;
   });
+  const listEl = document.getElementById('lineup-list');
+  const cntEl  = document.getElementById('list-panel-count');
   if (!fl.length) {
-    document.getElementById('lineup-list').innerHTML = '<div class="state">Лайнапы не найдены</div>';
+    listEl.innerHTML = '<div class="state">Лайнапы не найдены</div>';
+    if (cntEl) cntEl.textContent = '0 лайнапов';
     return;
   }
-  document.getElementById('lineup-list').innerHTML = fl.map(cardHtml).join('');
+  listEl.innerHTML = fl.map(cardHtml).join('');
+  if (cntEl) {
+    const n = fl.length;
+    cntEl.textContent = `${n} ${n === 1 ? 'лайнап' : n < 5 ? 'лайнапа' : 'лайнапов'}`;
+  }
+  if (_selectedId) {
+    const card = document.getElementById('lcard-' + _selectedId);
+    if (card) card.classList.add('selected');
+  }
 }
 
 function cardHtml(l) {
@@ -2476,60 +2533,102 @@ function cardHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
-  const date   = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
-  const shots  = Array.isArray(l.screenshots) ? l.screenshots : [];
+  const date = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
   return `
-<div class="lcard" id="lcard-${l.id}" data-status="${l.status ?? 'pending'}">
+<div class="lcard lcard-compact" id="lcard-${l.id}" data-status="${l.status ?? 'pending'}" data-id="${l.id}">
   <div class="lcard-head" data-id="${l.id}">
-    <span class="badge ${bc}">${bl}</span>
     <div class="linfo">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span class="badge ${bc}" style="font-size:9px;padding:2px 6px;">${bl}</span>
+        ${l.is_exclusive ? '<span style="color:#f59e0b;font-size:10px;">👑</span>' : ''}
+      </div>
       <div class="ltitle">${esc(l.title ?? '—')}</div>
       <div class="lmeta">
         <span>🗺 ${esc(l.map ?? '')}</span>
         <span>🎭 ${esc(l.agent ?? '')}</span>
-        <span>⚡ ${esc(l.ability ?? '')}</span>
-        ${l.submitted_by ? `<span style="cursor:pointer;color:var(--primary);text-decoration:underline;" data-action="open-profile" data-uid="${esc(l.user_id??'')}" data-name="${esc(l.submitted_by)}">👤 ${esc(l.submitted_by)}</span>` : ''}
         ${date ? `<span>📅 ${date}</span>` : ''}
-        ${l.is_exclusive ? '<span style="color:#f59e0b;">👑 Эксклюзив</span>' : ''}
       </div>
     </div>
-    <button class="expand-btn" data-id="${l.id}">▾</button>
-  </div>
-  <div class="ldetail" id="ldetail-${l.id}">
-    <div class="row">
-      ${l.status !== 'approved'  ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
-      ${l.status !== 'rejected'  ? `<button class="btn btn-reject"  data-action="reject"  data-id="${l.id}">✕ Отклонить</button>` : ''}
-      ${l.status !== 'archived'
-        ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
-        : `<button class="btn btn-approve"  data-action="restore" data-id="${l.id}">✅ Восстановить</button>`}
-      <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
-      ${l.user_id && l.submitted_by
-        ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
-        : ''}
-      <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
-      <button class="btn" style="padding:6px 12px;font-size:12px;" data-action="detail" data-id="${l.id}">👁 Открыть</button>
-    </div>
-    ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
-    <div class="dgrid">
-      <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(l.category ?? '—')}</div></div>
-      <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
-      <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
-      <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
-    </div>
-    ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
-      <div class="lazy-video" data-src="${esc(l.video_url)}"></div>
-    </div>` : ''}
-    ${shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
-      <div class="ss-grid">${shots.map(u => `
-        <div class="ss-thumb" data-lightbox="${esc(u)}">
-          <img src="${esc(u)}" alt="" loading="lazy"
-               onerror="this.parentElement.innerHTML='<div style=\\'padding:12px;color:var(--text2);font-size:12px;text-align:center;\\'>⚠ Ошибка</div>'">
-        </div>`).join('')}
-      </div>
-    </div>` : ''}
-    <div id="cedit-${l.id}" style="display:none;"></div>
   </div>
 </div>`;
+}
+
+function detailHtml(l) {
+  const badgeMap = {
+    pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
+    approved: ['b-approved', 'ОДОБРЕН'],
+    rejected: ['b-rejected', 'ОТКЛОНЁН'],
+    removed:  ['b-removed',  'УДАЛЁН'],
+    archived: ['b-archived', 'АРХИВ'],
+  };
+  const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
+  const date  = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
+  const shots = Array.isArray(l.screenshots) ? l.screenshots : [];
+  return `
+<div class="editor-detail-head">
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:17px;font-weight:800;margin-bottom:8px;line-height:1.3;">${esc(l.title ?? '—')}</div>
+    <div class="lmeta">
+      <span>🗺 ${esc(l.map ?? '')}</span>
+      <span>🎭 ${esc(l.agent ?? '')}</span>
+      <span>⚡ ${esc(l.ability ?? '')}</span>
+      ${l.submitted_by ? `<span style="cursor:pointer;color:var(--primary);text-decoration:underline;" data-action="open-profile" data-uid="${esc(l.user_id??'')}" data-name="${esc(l.submitted_by)}">👤 ${esc(l.submitted_by)}</span>` : ''}
+      ${date ? `<span>📅 ${date}</span>` : ''}
+      ${l.is_exclusive ? '<span style="color:#f59e0b;">👑 Эксклюзив</span>' : ''}
+    </div>
+  </div>
+  <span class="badge ${bc}" style="flex-shrink:0;">${bl}</span>
+</div>
+<div class="row">
+  ${l.status !== 'approved'  ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
+  ${l.status !== 'rejected'  ? `<button class="btn btn-reject"  data-action="reject"  data-id="${l.id}">✕ Отклонить</button>` : ''}
+  ${l.status !== 'archived'
+    ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
+    : `<button class="btn btn-approve"  data-action="restore" data-id="${l.id}">✅ Восстановить</button>`}
+  <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
+  ${l.user_id && l.submitted_by
+    ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
+    : ''}
+  <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
+  <button class="btn" style="padding:6px 12px;font-size:12px;" data-action="detail" data-id="${l.id}">👁 Открыть</button>
+</div>
+${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
+<div class="dgrid">
+  <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(l.category ?? '—')}</div></div>
+  <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
+  <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
+  <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
+</div>
+${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
+  <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
+</div>` : ''}
+${shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
+  <div class="ss-grid">${shots.map(u => `
+    <div class="ss-thumb" data-lightbox="${esc(u)}">
+      <img src="${esc(u)}" alt="" loading="lazy"
+           onerror="this.parentElement.innerHTML='<div style=\\'padding:12px;color:var(--text2);font-size:12px;text-align:center;\\'>⚠ Ошибка</div>'">
+    </div>`).join('')}
+  </div>
+</div>` : ''}
+<div id="cedit-${l.id}" style="display:none;"></div>`;
+}
+
+let _selectedId = null;
+
+function selectLineup(id) {
+  if (_selectedId) {
+    const prev = document.getElementById('lcard-' + _selectedId);
+    if (prev) prev.classList.remove('selected');
+  }
+  _selectedId = id;
+  const card = document.getElementById('lcard-' + id);
+  if (card) card.classList.add('selected');
+  const l = lineups.find(l => l.id === id);
+  if (!l) return;
+  document.getElementById('editor-empty').style.display = 'none';
+  const content = document.getElementById('editor-content');
+  content.innerHTML = detailHtml(l);
+  content.style.display = 'block';
 }
 
 function bindCardEvents() { /* заменено event delegation на #lineup-list */ }
@@ -2556,6 +2655,12 @@ async function deleteLineup(id) {
   if (!confirm('Удалить лайнап? Это необратимо.')) return;
   try {
     await deleteDoc(doc(db, 'lineups', id));
+    if (_selectedId === id) {
+      _selectedId = null;
+      document.getElementById('editor-empty').style.display = '';
+      const content = document.getElementById('editor-content');
+      content.style.display = 'none'; content.innerHTML = '';
+    }
     lineups = lineups.filter(l => l.id !== id);
     renderList();
     initMapPanel();
@@ -2590,6 +2695,13 @@ function patchStatus(id, status) {
   if (idx !== -1) lineups[idx].status = status;
   renderList();
   initMapPanel();
+  if (_selectedId === id) {
+    const updated = lineups.find(l => l.id === id);
+    if (updated) {
+      const content = document.getElementById('editor-content');
+      if (content) content.innerHTML = detailHtml(updated);
+    }
+  }
 }
 
 // ── Add lineup — multi-slot system ───────────────────────────────────────────
@@ -4185,6 +4297,11 @@ async function saveEditedLineup(id) {
     if (idx !== -1) Object.assign(lineups[idx], updates);
     toast('Изменения сохранены ✅', 's');
     delete editSessions[id]; renderList();
+    const savedL = lineups.find(l => l.id === id);
+    if (savedL && _selectedId === id) {
+      const content = document.getElementById('editor-content');
+      if (content) content.innerHTML = detailHtml(savedL);
+    }
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Сохранить изменения'; }
