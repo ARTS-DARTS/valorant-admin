@@ -1362,7 +1362,7 @@ import {
 import {
   getFirestore, collection, getDocs, getDoc, doc, setDoc,
   updateDoc, deleteDoc, addDoc, query, orderBy, where, limit, startAfter,
-  serverTimestamp, increment, getCountFromServer
+  serverTimestamp, increment, getCountFromServer, onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const cfg = {
@@ -2289,20 +2289,48 @@ document.getElementById('search').addEventListener('input', () => {
   _searchTimer = setTimeout(renderList, 250);
 });
 
-// ── Load ──────────────────────────────────────────────────────────────────────
-async function loadLineups() {
+// ── Real-time lineup listener ─────────────────────────────────────────────────
+let _lineupsUnsub = null;
+let _lineupsReady = false;
+
+function loadLineups() {
+  if (_lineupsUnsub) return; // already listening
   document.getElementById('lineup-list').innerHTML = '<div class="state">Загрузка…</div>';
-  try {
-    const q    = query(collection(db, 'lineups'), orderBy('submitted_at', 'desc'));
-    const snap = await getDocs(q);
-    lineups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const q = query(collection(db, 'lineups'), orderBy('submitted_at', 'desc'));
+  _lineupsUnsub = onSnapshot(q, snap => {
+    const wasReady = _lineupsReady;
+    _lineupsReady = true;
+    snap.docChanges().forEach(change => {
+      const data = { id: change.doc.id, ...change.doc.data() };
+      if (change.type === 'added') {
+        if (wasReady) {
+          // New lineup arrived after initial load
+          lineups.unshift(data);
+          toast(`Новый лайнап: «${esc(data.title || '—')}»  📥`, 'i');
+        } else {
+          lineups.push(data);
+        }
+      } else if (change.type === 'modified') {
+        const idx = lineups.findIndex(l => l.id === data.id);
+        if (idx !== -1) lineups[idx] = data; else lineups.push(data);
+      } else if (change.type === 'removed') {
+        lineups = lineups.filter(l => l.id !== data.id);
+      }
+    });
+    if (!wasReady) {
+      lineups.sort((a, b) => {
+        const ta = a.submitted_at?.toMillis?.() ?? 0;
+        const tb = b.submitted_at?.toMillis?.() ?? 0;
+        return tb - ta;
+      });
+    }
     renderList();
     initMapPanel();
-  } catch (e) {
+  }, e => {
     document.getElementById('lineup-list').innerHTML =
       `<div class="state" style="color:var(--red)">Ошибка загрузки: ${esc(e.message)}<br>
        <button class="reload-btn" onclick="loadLineups()">Повторить</button></div>`;
-  }
+  });
 }
 window.loadLineups = loadLineups;
 
