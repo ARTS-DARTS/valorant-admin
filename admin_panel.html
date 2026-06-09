@@ -2433,9 +2433,15 @@ function loadLineups() {
       const data = { id: change.doc.id, ...change.doc.data() };
       if (change.type === 'added') {
         if (wasReady) {
-          // New lineup arrived after initial load
-          lineups.unshift(data);
-          toast(`Новый лайнап: «${esc(data.title || '—')}»  📥`, 'i');
+          const existIdx = lineups.findIndex(l => l.id === data.id);
+          if (existIdx !== -1) {
+            // Already added locally (admin just saved it) — refresh data, skip toast
+            lineups[existIdx] = data;
+          } else {
+            // New lineup from another source — add and notify
+            lineups.unshift(data);
+            toast(`Новый лайнап: «${esc(data.title || '—')}»  📥`, 'i');
+          }
         } else {
           lineups.push(data);
         }
@@ -2736,7 +2742,7 @@ function _buildSlotHtml(id) {
         <div class="upload-previews" id="slot-${id}-upload-previews"></div>
       </div>
       <div class="fg full">
-        <label class="flabel">Точка на карте — кликни чтобы поставить метку</label>
+        <label class="flabel">Точка на карте — <b>ЛКМ</b> ставит метку · <b>ПКМ</b> добавляет точку траектории</label>
         <div id="slot-${id}-map-wrap" class="map-picker-wrap"><div class="map-ph">Сначала выбери карту ↑</div></div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button id="slot-${id}-mode-pos"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
@@ -2840,6 +2846,7 @@ function initSlotMapWrap(id) {
     s.mapTx = mx*(1-af)+s.mapTx*af; s.mapTy = my*(1-af)+s.mapTy*af;
     s.mapScale = ns; _sClamp(id); _sApply(id);
   }, { passive:false });
+  // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
   wrap.addEventListener('mousedown', e => {
     if (e.button!==0 || !_sCanvas(id)) return; e.preventDefault();
     s._mapDragging = false;
@@ -2860,12 +2867,22 @@ function initSlotMapWrap(id) {
         const ir = _sImgRect(id);
         const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale))/wrap.clientWidth;
         const ny = Math.max(ir.top,  Math.min(ir.top+ir.height,  (cy-s.mapTy)/s.mapScale))/wrap.clientHeight;
-        if (s.mapMode==='position') { s.markerX=nx; s.markerY=ny; renderSlotMarker(id); updateSlotCoords(id); }
-        else { s.trajectory.push({x:nx,y:ny}); renderSlotTraj(id); }
+        s.markerX=nx; s.markerY=ny; renderSlotMarker(id); updateSlotCoords(id);
+        _setSlotMapMode(id, 'position');
       }
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+  });
+  wrap.addEventListener('contextmenu', e => {
+    if (!_sCanvas(id)) return; e.preventDefault();
+    const r2 = wrap.getBoundingClientRect();
+    const cx = e.clientX - r2.left, cy = e.clientY - r2.top;
+    const ir = _sImgRect(id);
+    const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
+    const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
+    s.trajectory.push({x:nx, y:ny}); renderSlotTraj(id);
+    _setSlotMapMode(id, 'trajectory');
   });
   document.getElementById('slot-'+id+'-mode-pos')?.addEventListener('click',  () => _setSlotMapMode(id,'position'));
   document.getElementById('slot-'+id+'-mode-traj')?.addEventListener('click', () => _setSlotMapMode(id,'trajectory'));
@@ -3064,6 +3081,13 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
     });
     const refs=await Promise.all(saves);
     toast(`Добавлено ${_slotCount(slotIds.length)} ✅`,'s');
+    // If saved as approved, increment the author's counter
+    if (status === 'approved') {
+      const authorUid = selectedAuthor?.uid ?? currentUser?.uid ?? '';
+      if (authorUid) {
+        updateDoc(doc(db,'users',authorUid),{approved_lineups:increment(refs.length)}).catch(()=>{});
+      }
+    }
     refs.forEach((ref,i)=>{
       const id=slotIds[i]; const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
@@ -3484,6 +3508,7 @@ function initMapPicker() {
     mapScale = ns; _mapClamp(); _mapApply();
   }, { passive: false });
 
+  // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
   wrap.addEventListener('mousedown', e => {
     if (e.button !== 0 || !_mapCanvas()) return;
     e.preventDefault();
@@ -3505,12 +3530,23 @@ function initMapPicker() {
         const ir = _getImageRect();
         const nx = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale)) / wrap.clientWidth;
         const ny = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale)) / wrap.clientHeight;
-        if (mapMode === 'position') { markerX = nx; markerY = ny; renderMarker(); updateCoordDisplay(); }
-        else { trajectoryPoints.push({ x: nx, y: ny }); renderTrajectory(); }
+        markerX = nx; markerY = ny; renderMarker(); updateCoordDisplay();
+        _setMapMode('position');
       }
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+  });
+  wrap.addEventListener('contextmenu', e => {
+    if (!_mapCanvas()) return;
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    const ir = _getImageRect();
+    const nx = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale)) / wrap.clientWidth;
+    const ny = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale)) / wrap.clientHeight;
+    trajectoryPoints.push({ x: nx, y: ny }); renderTrajectory();
+    _setMapMode('trajectory');
   });
 }
 
@@ -4083,6 +4119,7 @@ function initEditMapInteraction(id, initialMap) {
     s.mapTx = mx*(1-af) + s.mapTx*af; s.mapTy = my*(1-af) + s.mapTy*af;
     s.mapScale = ns; _eClamp(id); _eApply(id);
   }, { passive: false });
+  // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
   wrap.addEventListener('mousedown', e => {
     if (e.button !== 0 || !_eCanvas(id)) return; e.preventDefault();
     s.mapDragging = false;
@@ -4102,11 +4139,21 @@ function initEditMapInteraction(id, initialMap) {
         const ir = _eImgRect(id);
         const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
         const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
-        if (s.mapMode === 'position') { s.markerX = nx; s.markerY = ny; renderEditMarker(id); updateEditCoords(id); }
-        else { s.trajectory.push({ x: nx, y: ny }); renderEditTrajectory(id); }
+        s.markerX = nx; s.markerY = ny; renderEditMarker(id); updateEditCoords(id);
+        _setEditMapMode(id, 'position');
       }
     };
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+  });
+  wrap.addEventListener('contextmenu', e => {
+    if (!_eCanvas(id)) return; e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    const ir = _eImgRect(id);
+    const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
+    const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
+    s.trajectory.push({ x: nx, y: ny }); renderEditTrajectory(id);
+    _setEditMapMode(id, 'trajectory');
   });
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
     s.mapScale = 1; s.mapTx = 0; s.mapTy = 0; s.markerX = null; s.markerY = null; s.trajectory = [];
