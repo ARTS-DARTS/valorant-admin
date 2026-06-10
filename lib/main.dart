@@ -10,7 +10,6 @@ import 'package:valorant_lineups/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'valorant_api.dart';
 import 'map_screen.dart';
 import 'admin_gate_screen.dart';
 import 'submit_lineup_screen.dart';
@@ -966,18 +965,18 @@ class MapPickerScreen extends StatefulWidget {
 
 class _MapPickerScreenState extends State<MapPickerScreen> {
   static const List<Map<String, String>> _allMaps = [
-    {'name': 'Haven',    'file': 'assets/maps/Haven_minimap.png'},
-    {'name': 'Bind',     'file': 'assets/maps/Bind_minimap.png'},
-    {'name': 'Ascent',   'file': 'assets/maps/Ascent_minimap.png'},
-    {'name': 'Split',    'file': 'assets/maps/Split_minimap.png'},
-    {'name': 'Icebox',   'file': 'assets/maps/Icebox_minimap.png'},
-    {'name': 'Breeze',   'file': 'assets/maps/Breeze_minimap.png'},
-    {'name': 'Fracture', 'file': 'assets/maps/Fracture_minimap.png'},
-    {'name': 'Pearl',    'file': 'assets/maps/Pearl_minimap.png'},
-    {'name': 'Lotus',    'file': 'assets/maps/Lotus_minimap.png'},
-    {'name': 'Sunset',   'file': 'assets/maps/Sunset_minimap.png'},
-    {'name': 'Abyss',    'file': 'assets/maps/Abyss_minimap.png'},
-    {'name': 'Corrode',  'file': 'assets/maps/Corrode_minimap.png'},
+    {'name': 'Haven',    'splash': 'https://media.valorant-api.com/maps/2bee0dc9-4bbe-4143-b2b1-1c5d92c14786/splash.png'},
+    {'name': 'Bind',     'splash': 'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/splash.png'},
+    {'name': 'Ascent',   'splash': 'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png'},
+    {'name': 'Split',    'splash': 'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/splash.png'},
+    {'name': 'Icebox',   'splash': 'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/splash.png'},
+    {'name': 'Breeze',   'splash': 'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/splash.png'},
+    {'name': 'Fracture', 'splash': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/splash.png'},
+    {'name': 'Pearl',    'splash': 'https://media.valorant-api.com/maps/33bb57b4-4e5b-8d85-0505-b8c5b8b36136/splash.png'},
+    {'name': 'Lotus',    'splash': 'https://media.valorant-api.com/maps/2fe4ed3a-450a-01bc-1236-069b34a8b785/splash.png'},
+    {'name': 'Sunset',   'splash': 'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39eb02e28435/splash.png'},
+    {'name': 'Abyss',    'splash': 'https://media.valorant-api.com/maps/224b0a95-48b9-d703-cc5f-3e8e0f488ea8/splash.png'},
+    {'name': 'Corrode',  'splash': 'https://media.valorant-api.com/maps/corrode/splash.png'},
   ];
 
   static const _fallbackPool = {'Ascent', 'Breeze', 'Fracture', 'Haven', 'Lotus', 'Pearl', 'Split'};
@@ -986,7 +985,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   bool _countsLoading = true;
   Map<String, int> _mapLineupCounts = {};
   List<String> _favoriteMaps = [];
-  Map<String, String> _mapSplashes = {};
 
   List<Map<String, String>> get _ratedMaps {
     final favNames = _favoriteMaps.where((n) => _ratedPool.contains(n)).toList();
@@ -1008,14 +1006,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     _loadMapPool();
     _loadLineupCounts();
     _loadFavorites();
-    _loadMapSplashes();
-  }
-
-  Future<void> _loadMapSplashes() async {
-    final cached = await ValorantApi.getCachedMaps();
-    if (cached.isNotEmpty && mounted) setState(() => _mapSplashes = cached);
-    final fresh = await ValorantApi.getMaps();
-    if (fresh.isNotEmpty && mounted) setState(() => _mapSplashes = fresh);
   }
 
   Future<void> _loadMapPool() async {
@@ -1107,7 +1097,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 (context, index) => _MapPickerCard(
                   key: ValueKey(_ratedMaps[index]['name']),
                   mapData: _ratedMaps[index],
-                  splashUrl: _mapSplashes[_ratedMaps[index]['name']],
                   category: widget.category,
                   lineupCount: _mapLineupCounts[_ratedMaps[index]['name']] ?? 0,
                   countsLoading: _countsLoading,
@@ -1136,7 +1125,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) => _MapPickerCard(
                   mapData: _otherMaps[index],
-                  splashUrl: _mapSplashes[_otherMaps[index]['name']],
                   category: widget.category,
                   lineupCount: _mapLineupCounts[_otherMaps[index]['name']] ?? 0,
                   countsLoading: _countsLoading,
@@ -1154,7 +1142,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
 class _MapPickerCard extends StatefulWidget {
   final Map<String, dynamic> mapData;
-  final String? splashUrl;
   final String category;
   final int lineupCount;
   final bool countsLoading;
@@ -1164,7 +1151,6 @@ class _MapPickerCard extends StatefulWidget {
   const _MapPickerCard({
     super.key,
     required this.mapData,
-    this.splashUrl,
     required this.category,
     this.lineupCount = 0,
     this.countsLoading = false,
@@ -1218,86 +1204,77 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                     context,
                     MaterialPageRoute(
                       builder: (_) => MapScreen(
-                          mapName: widget.mapData['name'],
-                          mapAsset: widget.mapData['file'],
+                          mapName: widget.mapData['name'] as String,
+                          mapAsset: 'assets/maps/${widget.mapData['name']}_minimap.png',
                           category: widget.category),
                     ),
                   ),
             child: Opacity(
               opacity: isEmpty ? 0.5 : 1.0,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isEmpty ? Colors.grey.withValues(alpha: 0.5) : theme.primary,
-                      width: 1,
-                    ),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: isEmpty ? Colors.grey.withValues(alpha: 0.5) : theme.primary,
+                    width: 1,
                   ),
+                  color: theme.surface,
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Фон: splash из API, тёмный фон пока грузится
-                      if (widget.splashUrl != null)
-                        CachedNetworkImage(
-                          imageUrl: widget.splashUrl!,
-                          fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 300),
-                          placeholder: (_, _) => const ColoredBox(color: Color(0xFF1a1a2e)),
-                          errorWidget: (_, _, _) => const ColoredBox(color: Color(0xFF1a1a2e)),
-                        )
-                      else
-                        const ColoredBox(color: Color(0xFF1a1a2e)),
-                      // Градиент снизу для читаемости текста
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: isEmpty ? 0.75 : 0.55),
-                            ],
-                            stops: const [0.35, 1.0],
-                          ),
-                        ),
-                      ),
-                      // Название карты — внизу слева
-                      Positioned(
-                        left: 10,
-                        bottom: 10,
-                        right: 36,
-                        child: Text(
-                          widget.mapData['name'].toUpperCase(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.5,
-                            shadows: [Shadow(color: Colors.black, blurRadius: 6)],
-                          ),
-                        ),
-                      ),
-                      // Звёздочка — вверху справа
-                      if (widget.onToggleFavorite != null)
-                        Positioned(
-                          top: 6,
-                          right: 6,
-                          child: GestureDetector(
-                            onTap: _onStarTap,
-                            behavior: HitTestBehavior.opaque,
-                            child: ScaleTransition(
-                              scale: _starScale,
-                              child: Icon(
-                                widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                                color: widget.isFavorite ? Colors.amber : Colors.white.withValues(alpha: 0.75),
-                                size: 22,
-                                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-                              ),
+                      CachedNetworkImage(
+                        imageUrl: widget.mapData['splash'] as String,
+                        fit: BoxFit.cover,
+                        color: Colors.black.withValues(alpha: isEmpty ? 0.6 : 0.4),
+                        colorBlendMode: BlendMode.darken,
+                        placeholder: (context, url) => ColoredBox(color: theme.surface2),
+                        errorWidget: (context, url, err) => ColoredBox(
+                          color: theme.surface2,
+                          child: Center(
+                            child: Text(
+                              widget.mapData['name'] as String,
+                              style: TextStyle(color: theme.textSecondary),
                             ),
                           ),
                         ),
+                      ),
+                      Stack(
+                        children: [
+                          Center(
+                            child: Text(
+                              (widget.mapData['name'] as String).toUpperCase(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                                shadows: [Shadow(color: Colors.black, blurRadius: 8)],
+                              ),
+                            ),
+                          ),
+                          if (widget.onToggleFavorite != null)
+                            Positioned(
+                              top: 4,
+                              left: 4,
+                              child: GestureDetector(
+                                onTap: _onStarTap,
+                                behavior: HitTestBehavior.opaque,
+                                child: ScaleTransition(
+                                  scale: _starScale,
+                                  child: Icon(
+                                    widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                                    color: widget.isFavorite ? Colors.amber : Colors.white.withValues(alpha: 0.75),
+                                    size: 22,
+                                    shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
