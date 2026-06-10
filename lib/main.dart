@@ -965,18 +965,18 @@ class MapPickerScreen extends StatefulWidget {
 
 class _MapPickerScreenState extends State<MapPickerScreen> {
   static const List<Map<String, String>> _allMaps = [
-    {'name': 'Haven',    'splash': 'https://media.valorant-api.com/maps/2bee0dc9-4bbe-4143-b2b1-1c5d92c14786/splash.png'},
-    {'name': 'Bind',     'splash': 'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/splash.png'},
-    {'name': 'Ascent',   'splash': 'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png'},
-    {'name': 'Split',    'splash': 'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/splash.png'},
-    {'name': 'Icebox',   'splash': 'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/splash.png'},
-    {'name': 'Breeze',   'splash': 'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/splash.png'},
-    {'name': 'Fracture', 'splash': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/splash.png'},
-    {'name': 'Pearl',    'splash': 'https://media.valorant-api.com/maps/33bb57b4-4e5b-8d85-0505-b8c5b8b36136/splash.png'},
-    {'name': 'Lotus',    'splash': 'https://media.valorant-api.com/maps/2fe4ed3a-450a-01bc-1236-069b34a8b785/splash.png'},
-    {'name': 'Sunset',   'splash': 'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39eb02e28435/splash.png'},
-    {'name': 'Abyss',    'splash': 'https://media.valorant-api.com/maps/224b0a95-48b9-d703-cc5f-3e8e0f488ea8/splash.png'},
-    {'name': 'Corrode',  'splash': 'https://media.valorant-api.com/maps/corrode/splash.png'},
+    {'name': 'Haven',    'splash': 'https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/listviewicon.png'},
+    {'name': 'Bind',     'splash': 'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/listviewicon.png'},
+    {'name': 'Ascent',   'splash': 'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/listviewicon.png'},
+    {'name': 'Split',    'splash': 'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/listviewicon.png'},
+    {'name': 'Icebox',   'splash': 'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/listviewicon.png'},
+    {'name': 'Breeze',   'splash': 'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/listviewicon.png'},
+    {'name': 'Fracture', 'splash': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/listviewicon.png'},
+    {'name': 'Pearl',    'splash': 'https://media.valorant-api.com/maps/fd267378-4d1d-484f-ff52-77821ed10dc2/listviewicon.png'},
+    {'name': 'Lotus',    'splash': 'https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/listviewicon.png'},
+    {'name': 'Sunset',   'splash': 'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/listviewicon.png'},
+    {'name': 'Abyss',    'splash': 'https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/listviewicon.png'},
+    {'name': 'Corrode',  'splash': 'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/listviewicon.png'},
   ];
 
   static const _fallbackPool = {'Ascent', 'Breeze', 'Fracture', 'Haven', 'Lotus', 'Pearl', 'Split'};
@@ -1241,40 +1241,52 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                           ),
                         ),
                       ),
-                      Stack(
-                        children: [
-                          Center(
-                            child: Text(
-                              (widget.mapData['name'] as String).toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2,
-                                shadows: [Shadow(color: Colors.black, blurRadius: 8)],
+                      Positioned.fill(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [Colors.black87, Colors.transparent],
+                                  stops: [0.0, 0.6],
+                                ),
                               ),
-                            ),
-                          ),
-                          if (widget.onToggleFavorite != null)
-                            Positioned(
-                              top: 4,
-                              left: 4,
-                              child: GestureDetector(
-                                onTap: _onStarTap,
-                                behavior: HitTestBehavior.opaque,
-                                child: ScaleTransition(
-                                  scale: _starScale,
-                                  child: Icon(
-                                    widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                                    color: widget.isFavorite ? Colors.amber : Colors.white.withValues(alpha: 0.75),
-                                    size: 22,
-                                    shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-                                  ),
+                              padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
+                              child: Text(
+                                (widget.mapData['name'] as String).toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
                                 ),
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
+                      if (widget.onToggleFavorite != null)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: _onStarTap,
+                            behavior: HitTestBehavior.opaque,
+                            child: ScaleTransition(
+                              scale: _starScale,
+                              child: Icon(
+                                widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                                color: widget.isFavorite ? Colors.amber : Colors.white.withValues(alpha: 0.75),
+                                size: 22,
+                                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
