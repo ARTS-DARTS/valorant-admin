@@ -1220,12 +1220,12 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                   ),
                   color: theme.surface,
                 ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(7),
-                      child: CachedNetworkImage(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(7),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
                         imageUrl: widget.mapData['splash'] as String,
                         fit: BoxFit.cover,
                         color: Colors.black.withValues(alpha: isEmpty ? 0.6 : 0.4),
@@ -1241,58 +1241,55 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                           ),
                         ),
                       ),
-                    ),
-                    Positioned.fill(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [Colors.black87, Colors.transparent],
-                                stops: [0.0, 0.6],
-                              ),
-                            ),
-                            padding: const EdgeInsets.fromLTRB(10, 20, 10, 10),
-                            child: Text(
-                              (widget.mapData['name'] as String).toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2,
-                                shadows: [
-                                  Shadow(color: Colors.black, blurRadius: 8, offset: Offset(0, 2)),
-                                  Shadow(color: Colors.black54, blurRadius: 16),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (widget.onToggleFavorite != null)
                       Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: _onStarTap,
-                          behavior: HitTestBehavior.opaque,
-                          child: ScaleTransition(
-                            scale: _starScale,
-                            child: Icon(
-                              widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
-                              color: widget.isFavorite ? Colors.amber : Colors.white.withValues(alpha: 0.75),
-                              size: 22,
-                              shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 80,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.center,
+                              colors: [Colors.black87, Colors.transparent],
                             ),
                           ),
                         ),
                       ),
-                  ],
+                      Positioned(
+                        bottom: 10,
+                        left: 10,
+                        child: Text(
+                          (widget.mapData['name'] as String).toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                            shadows: [Shadow(color: Colors.black, blurRadius: 4)],
+                          ),
+                        ),
+                      ),
+                      if (widget.onToggleFavorite != null)
+                        Positioned(
+                          top: 4,
+                          right: 4,
+                          child: GestureDetector(
+                            onTap: _onStarTap,
+                            behavior: HitTestBehavior.opaque,
+                            child: ScaleTransition(
+                              scale: _starScale,
+                              child: Icon(
+                                widget.isFavorite ? Icons.star_rounded : Icons.star_border_rounded,
+                                color: widget.isFavorite ? Colors.amber : Colors.white.withValues(alpha: 0.75),
+                                size: 22,
+                                shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
