@@ -412,13 +412,12 @@ class _LightningLayerState extends State<_LightningLayer>
   AudioPlayer? _zapPlayer;    // короткие искры / стримеры
   AudioPlayer? _arcPlayer;    // дуги между агентами
   AudioPlayer? _chargePlayer; // вспышка при 100%
-  int _arcSoundCooldown = 0;
-  int _zapSoundCooldown = 0;
-  bool _arcToggle = false;
+  bool _zapPlayed    = false;
+  bool _arcPlayed    = false;
+  bool _chargePlayed = false;
 
   static const _sndZap    = 'sounds/electricity_us849kj.mp3';
   static const _sndArc1   = 'sounds/electricity_1FwUPLn.mp3';
-  static const _sndArc2   = 'sounds/electricity-2.mp3';
   static const _sndCharge = 'sounds/electricity-charge-sound-effect.mp3';
 
   @override
@@ -467,9 +466,6 @@ class _LightningLayerState extends State<_LightningLayer>
       if (_bolts[i].isDead) _bolts.removeAt(i);
     }
 
-    if (_arcSoundCooldown > 0) _arcSoundCooldown--;
-    if (_zapSoundCooldown > 0) _zapSoundCooldown--;
-
     // Вероятность спауна растёт вместе с прогрессом
     final chance = 0.028 + widget.progress * 0.065;
     if (_bolts.length < 14 && _rng.nextDouble() < chance) {
@@ -504,23 +500,24 @@ class _LightningLayerState extends State<_LightningLayer>
   }
 
   Future<void> _playArc() async {
-    if (_arcSoundCooldown > 0) return;
-    _arcSoundCooldown = 38; // ~0.6 сек между дугами
-    _arcToggle = !_arcToggle;
+    if (_arcPlayed) return;
+    _arcPlayed = true;
     try {
-      await _arcPlayer?.play(AssetSource(_arcToggle ? _sndArc1 : _sndArc2));
+      await _arcPlayer?.play(AssetSource(_sndArc1));
     } catch (_) {}
   }
 
   Future<void> _playZap() async {
-    if (_zapSoundCooldown > 0) return;
-    _zapSoundCooldown = 18; // ~0.3 сек между зап-звуками
+    if (_zapPlayed) return;
+    _zapPlayed = true;
     try {
       await _zapPlayer?.play(AssetSource(_sndZap));
     } catch (_) {}
   }
 
   Future<void> _playCharge() async {
+    if (_chargePlayed) return;
+    _chargePlayed = true;
     try {
       await _chargePlayer?.play(AssetSource(_sndCharge));
     } catch (_) {}

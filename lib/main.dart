@@ -1238,17 +1238,17 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Фон: splash из API или fallback миникарта
+                      // Фон: splash из API, тёмный фон пока грузится
                       if (widget.splashUrl != null)
                         CachedNetworkImage(
                           imageUrl: widget.splashUrl!,
                           fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 200),
-                          placeholder: (_, _) => Image.asset(widget.mapData['file'], fit: BoxFit.cover),
-                          errorWidget: (_, _, _) => Image.asset(widget.mapData['file'], fit: BoxFit.cover),
+                          fadeInDuration: const Duration(milliseconds: 300),
+                          placeholder: (_, _) => const ColoredBox(color: Color(0xFF1a1a2e)),
+                          errorWidget: (_, _, _) => const ColoredBox(color: Color(0xFF1a1a2e)),
                         )
                       else
-                        Image.asset(widget.mapData['file'], fit: BoxFit.cover),
+                        const ColoredBox(color: Color(0xFF1a1a2e)),
                       // Градиент снизу для читаемости текста
                       DecoratedBox(
                         decoration: BoxDecoration(
