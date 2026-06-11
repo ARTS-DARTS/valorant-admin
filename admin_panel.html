@@ -4586,6 +4586,8 @@ async function saveEditedLineup(id) {
     const idx = lineups.findIndex(l => l.id === id);
     if (idx !== -1) Object.assign(lineups[idx], updates);
     toast('Изменения сохранены ✅', 's');
+    // Сбросить кнопку ДО перерисовки DOM
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Сохранить изменения'; }
     delete editSessions[id]; renderList();
     const savedL = lineups.find(l => l.id === id);
     if (savedL && _selectedId === id) {
