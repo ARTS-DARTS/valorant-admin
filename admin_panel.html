@@ -2496,9 +2496,11 @@ function loadLineups() {
             // Already added locally (admin just saved it) — refresh data, skip toast
             lineups[existIdx] = data;
           } else {
-            // New lineup from another source — add and notify
             lineups.unshift(data);
-            toast(`Новый лайнап: «${esc(data.title || '—')}»  📥`, 'i');
+            // Only notify for lineups written by other clients (not local optimistic writes)
+            if (!change.doc.metadata.hasPendingWrites) {
+              toast(`Новый лайнап: «${esc(data.title || '—')}»  📥`, 'i');
+            }
           }
         } else {
           lineups.push(data);
@@ -3323,14 +3325,6 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
         updateDoc(doc(db,'users',authorUid),{approved_lineups:increment(refs.length)}).catch(()=>{});
       }
     }
-    refs.forEach((ref,i)=>{
-      const id=slotIds[i]; const s=addSlotSessions[id];
-      const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
-      const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
-      const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
-      const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
-      lineups.unshift({id:ref.id,map,agent,ability,category,title,description:desc,video_url:videoUrl,screenshots,position_x:s.markerX??0,position_y:s.markerY??0,status,is_exclusive:excl,submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin'});
-    });
     renderList(); resetForm();
   } catch(e) { toast('Ошибка: '+e.message,'e'); }
   finally { btn.disabled=false; _updateSaveBtn(); }
