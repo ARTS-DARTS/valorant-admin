@@ -1,0 +1,273 @@
+{
+  "@@locale": "en",
+
+  "appSubtitle": "Interactive lineups for everyone",
+
+  "tabMaps": "Maps",
+  "tabFavorites": "Favorites",
+  "tabCollections": "Collections",
+  "tabProfile": "Profile",
+
+  "cancel": "Cancel",
+  "ok": "OK",
+  "or": "or",
+  "back": "← Back",
+  "continueBtn": "CONTINUE",
+  "start": "START",
+  "comingSoon": "Coming soon",
+  "noInternet": "No internet connection",
+  "errorOccurred": "An error occurred. Try again later",
+  "connectionError": "Connection error. Check your internet.",
+
+  "welcome": "Welcome!",
+  "loginToAccount": "Sign in to account",
+  "signIn": "SIGN IN",
+  "register": "REGISTER",
+  "nickname": "Nickname",
+  "password": "Password",
+  "email": "Email",
+  "signInWithGoogle": "Sign in with Google",
+  "enterNickname": "Enter nickname",
+  "enterPassword": "Enter password",
+  "userNotFound": "User with this nickname not found",
+  "wrongPassword": "Wrong password",
+  "loginFailed": "Could not sign in. Try again later",
+  "googleLoginFailed": "Could not sign in with Google. Try again",
+
+  "chooseAppTheme": "Choose app theme",
+  "canChangeInProfile": "Can be changed in profile later",
+  "createNicknameDesc": "Create a unique nickname to get started",
+  "checkingNickname": "Checking nickname...",
+  "nicknameFree": "Nickname is available!",
+  "nicknameTaken": "Nickname is taken",
+  "mustAcceptTerms": "You must accept the Terms of Service",
+  "nameRules": "Name must be 2–20 characters.\nLetters, numbers, _ and - only",
+  "nameTaken": "This name is already taken. Try another!",
+  "nameCheckError": "Name check error. No connection?",
+  "nameHint": "• 2 to 20 characters\n• Letters, numbers, _ and -\n• Unique — no one can take it",
+  "iAgreePrefix": "I have read and accept the ",
+  "termsOfService": "Terms of Service",
+  "changeTheme": "← Change theme",
+  "createPassword": "Create password",
+  "passwordNeeded": "You'll need it to sign in",
+  "passwordHint": "Password (minimum 6 characters)",
+  "repeatPassword": "Repeat password",
+  "passwordMinSix": "Password must be at least 6 characters",
+  "passwordsMismatch": "Passwords do not match",
+  "accountCreationFailed": "Could not create account. Try again later",
+  "passwordTooSimple": "Password is too simple. Minimum 6 characters",
+  "emailAlreadyInUse": "This email is already in use",
+
+  "suggestLineup": "Suggest lineup",
+  "newsTooltip": "News",
+  "ratingMapPool": "RATING MAP POOL",
+  "otherMaps": "OTHER MAPS",
+  "categoryLineups": "Lineups",
+  "categoryLineupsDesc": "Catch the enemy off guard!",
+  "categoryCombo": "Combo",
+  "categoryComboDesc": "Great agent combos!",
+  "categorySmoky": "Smokes",
+  "categorySmokyDesc": "Learn the best smokes for your agents!",
+  "categoryDefense": "Defense",
+  "categoryDefenseDesc": "Don't let the enemy take the site easily!",
+  "noLineupsYet": "No lineups here yet, but they'll be added soon!",
+  "lineupCountLabel": "{count, plural, =0{No lineups} one{{count} lineup} other{{count} lineups}}",
+  "@lineupCountLabel": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "exclusiveAccessActive": "Exclusive access active for 1 hour",
+  "patchLabel": "Patch {patch}",
+  "@patchLabel": {
+    "placeholders": {
+      "patch": { "type": "String" }
+    }
+  },
+
+  "accountDeleted": "Account deleted",
+  "accountDeletedDesc": "All data deleted. You can create a new account.",
+  "mainMenu": "MAIN MENU",
+
+  "profileTitle": "PROFILE",
+  "topAuthors": "Top authors",
+  "signOutDialogTitle": "Sign out?",
+  "signOutDialogMessage": "You'll need your nickname and password to sign in again.",
+  "signOutBtn": "Sign out",
+  "deleteAccountTitle": "Delete account?",
+  "deleteAccountIrreversible": "This action is irreversible!",
+  "deleteAccountContent": "Will be deleted:\n• Your nickname\n• Level and progress\n• All pending lineups\n\nApproved lineups will remain.",
+  "deleteForever": "Delete forever",
+  "linkEmailPassword": "Link email and password",
+  "linkEmailDesc": "Link email and password to your Google account to sign in either way.",
+  "newPassword": "New password",
+  "fillAllFields": "Fill in all fields",
+  "enterValidEmail": "Enter a valid email",
+  "passwordMinSixSymbols": "Password — minimum 6 characters",
+  "emailPasswordLinked": "Email and password linked ✅",
+  "emailAlreadyUsedByOther": "This email is already used by another account",
+  "emailAlreadyLinked": "This email is already linked to another account",
+  "changePassword": "Change password",
+  "currentPassword": "Current password",
+  "repeatNewPassword": "Repeat new password",
+  "newPasswordMinSix": "New password must be at least 6 characters",
+  "passwordChanged": "Password changed ✅",
+  "currentPasswordWrong": "Current password is incorrect",
+  "appTheme": "App theme",
+  "approvedCount": "Approved: {count}",
+  "@approvedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "toNextLevel": "To {name}: {count}",
+  "@toNextLevel": {
+    "placeholders": {
+      "name": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "maximum": "MAXIMUM",
+  "levelPrivileges": "Level privileges",
+  "cooldownMinutes": "Cooldown: {minutes} min",
+  "@cooldownMinutes": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "borderColor": "Border color: {name}",
+  "@borderColor": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "animatedProfile": "Animated profile",
+  "topAuthorPosition": "Position in top authors",
+  "allLevels": "All levels",
+  "currentLevel": "Current",
+  "levelRequirements": "{lineups} lineups • CD {cd}m",
+  "@levelRequirements": {
+    "placeholders": {
+      "lineups": { "type": "int" },
+      "cd": { "type": "int" }
+    }
+  },
+  "aboutApp": "About app",
+  "aboutAppContent": "Free app with interactive lineups for Valorant.\n\nNot affiliated with Riot Games.",
+  "feedback": "Feedback",
+  "viewTutorial": "View tutorial",
+  "signOutMenuTitle": "Sign out of account",
+  "dangerZone": "Danger zone",
+  "dangerZoneDesc": "Deleting account is irreversible. All progress and level will be lost.",
+  "deleteMyAccount": "DELETE MY ACCOUNT",
+  "notifications": "Notifications",
+  "noNotifications": "No notifications",
+  "nextLineupIn": "Next lineup in {minutes} min.",
+  "@nextLineupIn": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "approvedStat": "Approved",
+  "totalStat": "Total",
+  "cooldownStat": "CD",
+  "newCount": "{count} new",
+  "@newCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "link": "Link",
+  "change": "Change",
+  "defaultPlayer": "Player",
+  "favorites": "Favorites",
+
+  "addToCollection": "Add to collection",
+  "removeFromFavorites": "Remove from favorites",
+  "addToFavorites": "Add to favorites",
+  "lineupFrom": "Lineup by:",
+  "description": "Description",
+  "screenshots": "Screenshots",
+  "possiblyOutdated": "Possibly outdated — users report inaccuracy",
+  "isRelevant": "Relevant?",
+  "needLevel2": "Need level 2",
+  "loginRequired": "Sign in to account",
+  "votingFromLevel2": "Voting is available from level 2.\n\nBut you can watch an ad — and your vote will count!",
+  "howToGetLevel2": "How to get level 2? →",
+  "loginToVote": "Sign in to vote.",
+  "watchAd": "📺 Watch ad",
+  "yourVote": "Your vote",
+  "isLineupRelevant": "Is the lineup relevant?",
+  "outdated": "Outdated",
+  "relevant": "Relevant",
+  "authorProfileUnavailable": "Author profile unavailable",
+  "alreadyVoted": "You already voted on this lineup",
+  "adLoading": "Ad is loading, try in a second...",
+  "voteAccepted": "✅ Vote counted!",
+  "voteSaveError": "Error saving vote",
+  "watchAdFull": "Watch the ad to the end",
+  "adUnavailable": "Ad unavailable, try later",
+  "watchAdForAccess": "Watch the ad to the end to get access",
+  "adLabel": "📺 ad",
+  "downloadingPercent": "Loading {percent}%...",
+  "@downloadingPercent": {
+    "placeholders": {
+      "percent": { "type": "String" }
+    }
+  },
+  "loadingAd": "Loading ad...",
+  "savingVideo": "Saving video...",
+  "savedOffline": "Saved — available offline",
+  "onlineOnly": "Online only",
+  "saveOffline": "Save offline",
+  "videoSaved": "Video saved",
+  "videoLoadError": "Could not load video",
+  "videoComingSoon": "Video coming soon",
+  "videoSavedSuccess": "✅ Video saved — available offline!",
+  "downloadError": "Download error, try again",
+  "needExclusiveForLike": "Exclusive access needed to like",
+  "exclusiveLineup": "Exclusive lineup",
+  "watchAdForExclusive": "Watch an ad to unlock all exclusive lineups for 1 hour",
+  "watchAdAccessBtn": "▶ Watch ad → access for 1 hour",
+  "watchAdForSave": "Watch the ad to the end to save video",
+  "thanksForAd": "Thanks for watching the ad!",
+  "adHelpsUs": "It helps us develop the app 💪",
+  "patchVersion": "Patch {version}",
+  "@patchVersion": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+  "difficultyEasy": "Easy",
+  "difficultyMedium": "Medium",
+  "difficultyHard": "Hard",
+  "screenshotN": "Screenshot {n}",
+  "@screenshotN": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "exclusiveTag": "⭐ EXCLUSIVE",
+  "howToGetLevel2Title": "How to get level 2?",
+  "xpDesc": "Post lineups in the app — you earn XP for each one. Earn enough XP and your level will increase.",
+  "lineupRequirementsTitle": "📋 Lineup requirements",
+  "gotItWillPost": "Got it, I'll post!",
+  "tabMolly": "Mollies",
+  "tabReveal": "Reveal",
+  "tabSmoky": "Smokes",
+  "timingsSectionTitle": "⏱ Timings",
+
+  "searchLineups": "Search lineups...",
+  "nothingFound": "Nothing found 🔍",
+
+  "language": "Language",
+  "languageTitle": "Language / Язык",
+
+  "favoritesLoadError": "Could not load data. Check your internet and try again",
+  "favoritesEmpty": "No saved lineups yet",
+  "favoritesEmptyDesc": "Tap the bookmark icon on any lineup to save it",
+
+  "feedbackTitle": "FEEDBACK",
+  "feedbackSendTab": "Send",
+  "feedbackMyMessages": "My messages"
+}
