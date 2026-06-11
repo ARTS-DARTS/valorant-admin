@@ -1,0 +1,75 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Firebase Service Account keys — contain private keys, never commit
+assets/service_account.json
+valorant-linemaps-firebase-adminsdk*.json
+
+# Firebase platform config — contains API key, regenerate from Firebase Console
+**/google-services.json
+**/GoogleService-Info.plist
+
+# OneSignal credentials — contains REST API Key, never commit
+lib/config/constants.dart
+
+# Android signing — never commit passwords or keystore
+android/key.properties
+android/**/*.jks
+android/**/*.keystore
+
+# Claude Code local settings — may contain API keys
+.claude/settings.local.json
+
+# Archives — may contain sensitive project files
+*.zip
+
+# Dart/Flutter sources — should not be tracked in admin repo
+*.dart
+*.dart.js
+*.dart.js.deps
+*.dart.js.map
+pubspec.yaml
+pubspec.lock
