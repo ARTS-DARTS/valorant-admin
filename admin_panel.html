@@ -642,7 +642,23 @@
     .editor-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; color: var(--text2); text-align: center; min-height: 400px; }
     .editor-empty i { font-size: 52px; opacity: .28; margin-bottom: 14px; display: block; }
     .editor-empty p { font-size: 14px; }
-    #editor-content { padding: 20px; }
+    #editor-content { padding: 0; }
+    .editor-columns { display: grid; grid-template-columns: 55% 45%; gap: 0; min-height: 100%; }
+    .editor-main { padding: 20px; border-right: 1px solid var(--border); overflow-y: auto; }
+    .editor-audit { padding: 16px; overflow-y: auto; background: var(--bg); }
+    .audit-title { font-size: 11px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+    .audit-item { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+    .audit-item:last-child { border-bottom: none; }
+    .audit-action { font-size: 12px; font-weight: 600; color: var(--text); }
+    .audit-action.approved { color: var(--green); }
+    .audit-action.rejected { color: #ef4444; }
+    .audit-action.archived { color: #f59e0b; }
+    .audit-action.edited   { color: var(--primary); }
+    .audit-action.restored { color: var(--text2); }
+    .audit-action.deleted  { color: #ef4444; }
+    .audit-meta { font-size: 11px; color: var(--text2); }
+    .audit-changes { font-size: 11px; color: var(--text2); background: rgba(255,255,255,.04); border-radius: 4px; padding: 4px 8px; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+    .audit-empty { color: var(--text2); font-size: 12px; text-align: center; padding: 32px 0; }
     .editor-detail-head { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
     .lcard.selected { background: rgba(255,70,85,.06); border-color: var(--primary) !important; box-shadow: 0 0 0 1px rgba(255,70,85,.18); }
     .lcard-compact .lcard-head { padding: 10px 12px; }
@@ -735,6 +751,7 @@
       <div class="page-title-bar">
         <i class="bi bi-list-ul"></i>
         <h1>ЛАЙНАПЫ</h1>
+        <button class="btn" onclick="showNewPatchDialog()" style="margin-left:auto;padding:6px 14px;font-size:13px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);color:#f59e0b;">⚠️ Новый патч</button>
       </div>
 
       <div id="lineup-stats-bar" class="lineup-stats-bar"></div>
@@ -1505,9 +1522,9 @@ import {
   signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
-  getFirestore, collection, getDocs, getDoc, doc, setDoc,
+  getFirestore, collection, collectionGroup, getDocs, getDoc, doc, setDoc,
   updateDoc, deleteDoc, addDoc, query, orderBy, where, limit, startAfter,
-  serverTimestamp, increment, getCountFromServer, onSnapshot
+  serverTimestamp, increment, getCountFromServer, onSnapshot, writeBatch
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const cfg = {
@@ -2634,18 +2651,114 @@ function selectLineup(id) {
   if (!l) return;
   document.getElementById('editor-empty').style.display = 'none';
   const content = document.getElementById('editor-content');
-  content.innerHTML = detailHtml(l);
   content.style.display = 'block';
+  content.innerHTML = `
+    <div class="editor-columns">
+      <div class="editor-main">${detailHtml(l)}</div>
+      <div class="editor-audit" id="audit-panel-${id}">
+        <div class="audit-title">📋 Журнал аудита</div>
+        <div id="audit-log-${id}"><div class="audit-empty">Загрузка…</div></div>
+      </div>
+    </div>
+  `;
+  loadAuditLog(id);
 }
 
 function bindCardEvents() { /* заменено event delegation на #lineup-list */ }
 
+// ── Текущий патч ──────────────────────────────────────────────────────────────
+let currentPatchVersion = '';
+
+(async () => {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'current_patch'));
+    if (snap.exists()) currentPatchVersion = snap.data().version ?? '';
+  } catch (_) {}
+})();
+
+async function showNewPatchDialog() {
+  const newPatch = prompt('Укажи номер нового патча (например: 10.07):', currentPatchVersion);
+  if (!newPatch || !newPatch.trim()) return;
+  const patchTrimmed = newPatch.trim();
+  if (!confirm(`Пометить все лайнапы (кроме патча ${patchTrimmed}) как устаревшие?`)) return;
+  await markOutdated(patchTrimmed);
+}
+
+async function markOutdated(newPatch) {
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('status', '==', 'approved'),
+      where('is_outdated', '==', false)
+    ));
+    const toMark = snap.docs.filter(d => d.data().patch_version !== newPatch);
+
+    const BATCH_SIZE = 500;
+    for (let i = 0; i < toMark.length; i += BATCH_SIZE) {
+      const batch = writeBatch(db);
+      toMark.slice(i, i + BATCH_SIZE).forEach(d => {
+        batch.update(d.ref, { is_outdated: true, outdated_since_patch: newPatch });
+      });
+      await batch.commit();
+    }
+
+    await setDoc(doc(db, 'settings', 'current_patch'), {
+      version: newPatch,
+      updated_at: serverTimestamp(),
+    });
+    currentPatchVersion = newPatch;
+
+    toast(`✅ Помечено ${toMark.length} лайнапов как устаревшие (патч ${newPatch})`, 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
 // ── Actions ───────────────────────────────────────────────────────────────────
+async function notifySubscribers(lineup) {
+  try {
+    const agent = lineup.agent_name || lineup.agentName || '';
+    const map   = lineup.map_name   || lineup.mapName   || '';
+    if (!agent || !map) return;
+
+    const subId = `${agent}_${map}`.replace(/ /g, '_').toLowerCase();
+    const snap = await getDocs(query(
+      collectionGroup(db, 'subscriptions'),
+      where('type', '==', 'agent_map'),
+      where('agent', '==', agent),
+      where('map',   '==', map),
+    ));
+
+    const batch = writeBatch(db);
+    snap.docs.forEach(subDoc => {
+      const uid = subDoc.ref.parent.parent.id;
+      const notifRef = doc(collection(db, 'users', uid, 'notifications'));
+      batch.set(notifRef, {
+        type: 'new_lineup',
+        lineup_id: lineup.id,
+        agent, map,
+        title: lineup.title || '',
+        created_at: serverTimestamp(),
+        read: false,
+      });
+    });
+    if (!snap.empty) await batch.commit();
+  } catch (e) { console.warn('notifySubscribers:', e.message); }
+}
+
 async function approveLineup(id, userId) {
   if (!confirm('Одобрить лайнап?')) return;
   try {
-    await updateDoc(doc(db, 'lineups', id), { status: 'approved' });
+    const updateData = { status: 'approved' };
+    if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
+    await updateDoc(doc(db, 'lineups', id), updateData);
     if (userId) await updateDoc(doc(db, 'users', userId), { approved_lineups: increment(1) });
+
+    // Уведомляем подписчиков
+    const lineupSnap = await getDoc(doc(db, 'lineups', id));
+    if (lineupSnap.exists()) {
+      await notifySubscribers({ id, ...lineupSnap.data() });
+    }
+
+    await writeAudit(id, 'approved');
     patchStatus(id, 'approved');
     toast('Лайнап одобрен ✅', 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
@@ -2654,6 +2767,7 @@ async function rejectLineup(id) {
   if (!confirm('Отклонить лайнап?')) return;
   try {
     await updateDoc(doc(db, 'lineups', id), { status: 'rejected' });
+    await writeAudit(id, 'rejected');
     patchStatus(id, 'rejected');
     toast('Лайнап отклонён', 'i');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
@@ -2661,6 +2775,7 @@ async function rejectLineup(id) {
 async function deleteLineup(id) {
   if (!confirm('Удалить лайнап? Это необратимо.')) return;
   try {
+    await writeAudit(id, 'deleted');
     await deleteDoc(doc(db, 'lineups', id));
     if (_selectedId === id) {
       _selectedId = null;
@@ -2678,6 +2793,7 @@ async function archiveLineup(id) {
   if (!confirm('Перенести лайнап в архив? Он больше не будет виден пользователям.')) return;
   try {
     await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
+    await writeAudit(id, 'archived');
     patchStatus(id, 'archived');
     toast('Лайнап перемещён в архив 📦', 'i');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
@@ -2686,10 +2802,72 @@ async function restoreLineup(id) {
   if (!confirm('Восстановить лайнап? Статус вернётся к «На проверке».')) return;
   try {
     await updateDoc(doc(db, 'lineups', id), { status: 'pending' });
+    await writeAudit(id, 'restored');
     patchStatus(id, 'pending');
     toast('Лайнап восстановлен ✅', 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+async function writeAudit(lineupId, action, changes = null) {
+  try {
+    const entry = {
+      action,
+      by_uid: currentUser?.uid ?? 'unknown',
+      by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      at: serverTimestamp(),
+    };
+    if (changes && Object.keys(changes).length > 0) entry.changes = changes;
+    await addDoc(collection(db, 'lineups', lineupId, 'audit_log'), entry);
+  } catch (e) { console.warn('writeAudit:', e.message); }
+}
+
+async function loadAuditLog(lineupId) {
+  const container = document.getElementById('audit-log-' + lineupId);
+  if (!container) return;
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'lineups', lineupId, 'audit_log'), orderBy('at', 'desc'))
+    );
+    if (snap.empty) {
+      container.innerHTML = '<div class="audit-empty">История действий пуста</div>';
+      return;
+    }
+    const actionLabels = {
+      approved: '✅ Одобрен',
+      rejected: '❌ Отклонён',
+      archived: '📦 Архивирован',
+      restored: '🔄 Восстановлен',
+      edited:   '✏️ Отредактирован',
+      deleted:  '🗑 Удалён',
+    };
+    container.innerHTML = snap.docs.map(d => {
+      const data = d.data();
+      const at = data.at?.toDate ? data.at.toDate() : null;
+      const dateStr = at
+        ? at.toLocaleDateString('ru') + ' ' + at.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+        : '—';
+      const label = actionLabels[data.action] ?? data.action;
+      let changesHtml = '';
+      if (data.changes && Object.keys(data.changes).length > 0) {
+        const lines = Object.entries(data.changes)
+          .map(([field, val]) => `${field}: «${val.from}» → «${val.to}»`)
+          .join('\n');
+        changesHtml = `<div class="audit-changes">${esc(lines)}</div>`;
+      }
+      return `
+        <div class="audit-item">
+          <div class="audit-action ${esc(data.action)}">${label}</div>
+          <div class="audit-meta">👤 ${esc(data.by_name ?? '—')} · ${dateStr}</div>
+          ${changesHtml}
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="audit-empty">Ошибка загрузки: ${esc(e.message)}</div>`;
+  }
+}
+
 async function banUser(userId, username) {
   if (!confirm(`Заблокировать ${username}?`)) return;
   try {
@@ -2705,8 +2883,13 @@ function patchStatus(id, status) {
   if (_selectedId === id) {
     const updated = lineups.find(l => l.id === id);
     if (updated) {
-      const content = document.getElementById('editor-content');
-      if (content) content.innerHTML = detailHtml(updated);
+      const mainPanel = document.querySelector('#editor-content .editor-main');
+      if (mainPanel) {
+        mainPanel.innerHTML = detailHtml(updated);
+      } else {
+        const content = document.getElementById('editor-content');
+        if (content) content.innerHTML = detailHtml(updated);
+      }
     }
   }
 }
@@ -4340,15 +4523,30 @@ async function saveEditedLineup(id) {
       position_y: sess.markerY ?? l.position_y ?? 0,
       trajectory: sess.trajectory,
     };
+    const changes = {};
+    if ((l.title ?? '') !== title) changes.title = { from: (l.title ?? '').slice(0, 80), to: title.slice(0, 80) };
+    if ((l.description ?? '') !== desc) changes.description = { from: (l.description ?? '').slice(0, 80), to: desc.slice(0, 80) };
+    if ((l.category ?? '') !== category) changes.category = { from: l.category ?? '', to: category };
+    if ((l.map ?? '') !== map) changes.map = { from: l.map ?? '', to: map };
+    if ((l.agent ?? '') !== sess.agent) changes.agent = { from: l.agent ?? '', to: sess.agent };
+    if ((l.ability ?? '') !== sess.ability) changes.ability = { from: l.ability ?? '', to: sess.ability };
+
     await updateDoc(doc(db, 'lineups', id), updates);
+    await writeAudit(id, 'edited', changes);
     const idx = lineups.findIndex(l => l.id === id);
     if (idx !== -1) Object.assign(lineups[idx], updates);
     toast('Изменения сохранены ✅', 's');
     delete editSessions[id]; renderList();
     const savedL = lineups.find(l => l.id === id);
     if (savedL && _selectedId === id) {
-      const content = document.getElementById('editor-content');
-      if (content) content.innerHTML = detailHtml(savedL);
+      const mainPanel = document.querySelector('#editor-content .editor-main');
+      if (mainPanel) {
+        mainPanel.innerHTML = detailHtml(savedL);
+        loadAuditLog(id);
+      } else {
+        const content = document.getElementById('editor-content');
+        if (content) content.innerHTML = detailHtml(savedL);
+      }
     }
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');

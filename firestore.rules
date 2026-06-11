@@ -69,6 +69,15 @@ service cloud.firestore {
       allow create: if isOwner(uid);
       allow update: if isOwner(uid) || isModerator();
       allow delete: if isOwner(uid) || isAdmin();
+
+      match /subscriptions/{subId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /notifications/{notifId} {
+        allow read, write: if isOwner(uid);
+        allow write: if isAdmin();
+      }
     }
 
     // ── Rate limits (server-enforced timestamps, owner-only) ─────────────────
@@ -91,6 +100,12 @@ service cloud.firestore {
       match /votes/{uid} {
         allow read, write: if isOwner(uid);
         allow read: if isModerator();
+      }
+
+      match /audit_log/{entryId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin();
+        allow update, delete: if false;
       }
     }
 
