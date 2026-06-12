@@ -6782,7 +6782,7 @@ async function searchUsers(query) {
       const role = u.role && u.role !== 'user'
         ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:6px;">${u.role}</span>`
         : '';
-      return `<div onclick="openUserProfile('${d.id}')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      return `<div onclick="openUserProfilePanel('${d.id}')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
         <span style="font-size:13px;font-weight:500;color:var(--text);">${isBanned}${esc(u.name || '—')}</span>
         ${role}
         <span style="font-size:11px;color:var(--text2);margin-left:auto;">${esc(u.user_email || '')}</span>
@@ -6793,7 +6793,7 @@ async function searchUsers(query) {
   }
 }
 
-async function openUserProfile(uid) {
+async function openUserProfilePanel(uid) {
   const panel = document.getElementById('user-profile-panel');
   panel.style.display = 'block';
   panel.innerHTML = '<div style="color:var(--text2);padding:16px;">Загрузка…</div>';
@@ -6935,14 +6935,14 @@ async function banUser(uid, name) {
   await updateDoc(doc(db, 'users', uid), { is_banned: true });
   toast(`${name} заблокирован 🚫`, 'w');
   addAuditLog(`Заблокирован пользователь: ${name}`);
-  openUserProfile(uid);
+  openUserProfilePanel(uid);
 }
 
 async function unbanUser(uid, name) {
   await updateDoc(doc(db, 'users', uid), { is_banned: false });
   toast(`${name} разблокирован ✅`, 's');
   addAuditLog(`Разблокирован пользователь: ${name}`);
-  openUserProfile(uid);
+  openUserProfilePanel(uid);
 }
 
 async function deleteUserAccount(uid, name) {
@@ -6970,7 +6970,7 @@ async function sendMessageToUser(uid, name) {
 }
 
 // Expose user functions to global scope for onclick handlers
-window.openUserProfile   = openUserProfile;
+window.openUserProfilePanel = openUserProfilePanel;
 window.saveUserName      = saveUserName;
 window.saveUserRole      = saveUserRole;
 window.resetUserPassword = resetUserPassword;
