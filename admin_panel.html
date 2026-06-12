@@ -1184,6 +1184,42 @@
         </div>
       </div>
 
+      <!-- ── Section: Storage ── -->
+      <div class="an-section">
+        <div class="form-title">☁️ ХРАНИЛИЩА</div>
+        <div class="an-cards" id="storage-stat-cards">
+          <div class="an-card" id="bunny-storage-card">
+            <div class="an-val an-loading">…</div>
+            <div class="an-lbl">Bunny Storage</div>
+            <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
+              <div id="bunny-storage-bar" style="height:4px;border-radius:2px;background:var(--primary);width:0%;transition:width 0.5s;"></div>
+            </div>
+            <div id="bunny-storage-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+          </div>
+          <div class="an-card" id="cloudinary-storage-card">
+            <div class="an-val an-loading">…</div>
+            <div class="an-lbl">Cloudinary (скрины)</div>
+            <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
+              <div id="cloudinary-storage-bar" style="height:4px;border-radius:2px;background:#4FC3F7;width:0%;transition:width 0.5s;"></div>
+            </div>
+            <div id="cloudinary-storage-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+          </div>
+          <div class="an-card" id="bunny-bandwidth-card">
+            <div class="an-val an-loading">…</div>
+            <div class="an-lbl">Bunny Bandwidth (месяц)</div>
+            <div id="bunny-bandwidth-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+          </div>
+          <div class="an-card" id="cloudinary-bandwidth-card">
+            <div class="an-val an-loading">…</div>
+            <div class="an-lbl">Cloudinary Credits (месяц)</div>
+            <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
+              <div id="cloudinary-credits-bar" style="height:4px;border-radius:2px;background:#FF4655;width:0%;transition:width 0.5s;"></div>
+            </div>
+            <div id="cloudinary-bandwidth-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   <!-- Duels tab -->
@@ -5440,6 +5476,7 @@ let analyticsLoaded = false;
 async function loadAnalytics() {
   if (analyticsLoaded) return;
   analyticsLoaded = true;
+  loadStorageStats();
 
   const now   = Date.now();
   const d30   = new Date(now - 30 * 864e5);
@@ -6971,6 +7008,91 @@ async function sendMessageToUser(uid, name) {
 
 // Expose user functions to global scope for onclick handlers
 window.openUserProfilePanel = openUserProfilePanel;
+
+// ── Storage stats ─────────────────────────────────────────────────────────────
+async function loadStorageStats() {
+  // ── Bunny Storage ──
+  try {
+    const res = await fetch(`${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/`, {
+      headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Accept': 'application/json' },
+    });
+    if (res.ok) {
+      const files = await res.json();
+      const totalBytes = Array.isArray(files) ? files.reduce((s, f) => s + (f.Length || f.Size || 0), 0) : 0;
+      const usedGB  = (totalBytes / 1073741824).toFixed(2);
+      const limitGB = 10;
+      const pct     = Math.min((usedGB / limitGB) * 100, 100).toFixed(0);
+      const color   = pct > 80 ? '#FF4655' : pct > 60 ? '#FFA726' : 'var(--primary)';
+      document.querySelector('#bunny-storage-card .an-val').textContent = `${usedGB} GB`;
+      document.querySelector('#bunny-storage-card .an-val').classList.remove('an-loading');
+      document.getElementById('bunny-storage-bar').style.cssText += `;width:${pct}%;background:${color}`;
+      document.getElementById('bunny-storage-sub').textContent = `${pct}% из ${limitGB} GB`;
+    } else {
+      document.querySelector('#bunny-storage-card .an-val').textContent = 'Нет доступа';
+      document.querySelector('#bunny-storage-card .an-val').classList.remove('an-loading');
+    }
+  } catch(_) {
+    document.querySelector('#bunny-storage-card .an-val').textContent = 'Ошибка';
+    document.querySelector('#bunny-storage-card .an-val').classList.remove('an-loading');
+  }
+
+  // ── Bunny Bandwidth ──
+  try {
+    const from = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+    const to   = new Date().toISOString().split('T')[0];
+    const res  = await fetch(
+      `https://api.bunny.net/statistics?dateFrom=${from}&dateTo=${to}&pullZone=valorant-lineups-cdn`,
+      { headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Accept': 'application/json' } }
+    );
+    if (res.ok) {
+      const data  = await res.json();
+      const usedGB = ((data.TotalBandwidthUsed || 0) / 1073741824).toFixed(2);
+      document.querySelector('#bunny-bandwidth-card .an-val').textContent = `${usedGB} GB`;
+      document.getElementById('bunny-bandwidth-sub').textContent = 'Бесплатно ∞';
+    } else {
+      document.querySelector('#bunny-bandwidth-card .an-val').textContent = '—';
+      document.getElementById('bunny-bandwidth-sub').textContent = 'Нет данных';
+    }
+    document.querySelector('#bunny-bandwidth-card .an-val').classList.remove('an-loading');
+  } catch(_) {
+    document.querySelector('#bunny-bandwidth-card .an-val').textContent = 'Ошибка';
+    document.querySelector('#bunny-bandwidth-card .an-val').classList.remove('an-loading');
+  }
+
+  // ── Cloudinary (из Firestore, обновляется вручную) ──
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'cloudinary_usage'));
+    if (snap.exists()) {
+      const d           = snap.data();
+      const usedCredits = d.credits_used  || 0;
+      const limitCredits= d.credits_limit || 25;
+      const storageGb   = d.storage_gb    || 0;
+      const pctCred     = Math.min((usedCredits / limitCredits) * 100, 100).toFixed(0);
+      const pctStore    = Math.min((storageGb   / 25)           * 100, 100).toFixed(0);
+      const colorCred   = pctCred > 80 ? '#FF4655' : pctCred > 60 ? '#FFA726' : '#4FC3F7';
+
+      document.querySelector('#cloudinary-storage-card .an-val').textContent = `${storageGb} GB`;
+      document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
+      document.getElementById('cloudinary-storage-sub').textContent = `из 25 GB`;
+
+      document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `${usedCredits} / ${limitCredits}`;
+      document.getElementById('cloudinary-credits-bar').style.cssText += `;width:${pctCred}%;background:${colorCred}`;
+      document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctCred}% использовано`;
+    } else {
+      document.querySelector('#cloudinary-storage-card .an-val').textContent = '—';
+      document.getElementById('cloudinary-storage-sub').textContent = 'Обновите вручную';
+      document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = '—';
+      document.getElementById('cloudinary-bandwidth-sub').textContent = 'Обновите вручную';
+    }
+    document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
+    document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+  } catch(_) {
+    document.querySelector('#cloudinary-storage-card .an-val').textContent = 'Ошибка';
+    document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
+    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = 'Ошибка';
+    document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+  }
+}
 window.saveUserName      = saveUserName;
 window.saveUserRole      = saveUserRole;
 window.resetUserPassword = resetUserPassword;
