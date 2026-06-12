@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -1054,12 +1054,14 @@
         <!-- ПРАВАЯ: поиск пользователей + профиль -->
         <div>
           <div class="form-wrap" style="max-width:100%;margin-bottom:16px;">
-            <div class="form-title">👥 ПОЛЬЗОВАТЕЛИ</div>
-            <div style="display:flex;gap:8px;margin-bottom:12px;">
-              <input class="finput" id="user-search" placeholder="Поиск по нику или email…" style="flex:1;">
-              <button class="btn btn-save" id="btn-user-search" style="padding:8px 16px;">Найти</button>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div class="form-title" style="margin:0;">👥 ПОЛЬЗОВАТЕЛИ</div>
+              <span id="users-count" style="font-size:11px;color:var(--text2);"></span>
             </div>
-            <div id="user-search-results" style="max-height:220px;overflow-y:auto;"></div>
+            <input class="finput" id="user-search" placeholder="Быстрый поиск по нику или email…" style="margin-bottom:10px;">
+            <div id="user-search-results" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+              <div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>
+            </div>
           </div>
           <div id="user-profile-panel" style="display:none;"></div>
         </div>
@@ -1824,6 +1826,7 @@ function switchTab(t) {
   if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
+  if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
   if (t === 'logs')  loadLogsTab();
 }
@@ -6742,93 +6745,64 @@ async function runMigration() {
         headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Content-Type': 'application/octet-stream', 'Accept': '*/*' },
         body: blob,
       });
-      if (!uploadRes.ok) throw new Error('Bunny upload ' + uploadRes.status);
 
-      const newUrl = `${BUNNY_CDN_URL}/lineups_videos/${fileName}`;
-      await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
+let _allUsers = [];
 
-      success++;
-      _migLog('ok', '✅', `${label}`);
-    } catch(e) {
-      failed++;
-      console.error('Migration failed for', docId, e);
-      _migLog('err', '✕', `${label} — ${e.message}`);
-    }
-
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  bar.style.width = '100%';
-  bar.classList.toggle('done', failed === 0);
-  statusText.textContent = `Готово: ${success} успешно, ${failed} ошибок`;
-  heading.textContent    = failed === 0 ? '✅ Миграция завершена' : `⚠️ Завершено с ${failed} ошибками`;
-  _migLog(failed === 0 ? 'ok' : 'err', failed === 0 ? '🎉' : '⚠️', `Итого: ${success} успешно, ${failed} ошибок`);
-  doneBtn.disabled = false;
-
-  toast(`Миграция: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
-  addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
-}
-
-// Migration modal wiring (one-time, inside module scope)
-{
-  const modal     = document.getElementById('migration-modal');
-  const closeModal = () => { modal.style.display = 'none'; };
-  document.getElementById('mig-sidebar-btn').addEventListener('click', migrateCloudinaToBunny);
-  document.getElementById('mig-start-btn').addEventListener('click', runMigration);
-  document.getElementById('mig-cancel-btn').addEventListener('click', closeModal);
-  document.getElementById('mig-close-x').addEventListener('click', closeModal);
-  document.getElementById('mig-done-btn').addEventListener('click', closeModal);
-  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-}
-
-// ── Пользователи ──────────────────────────────────────────────────────────────
-
-let _userSearchTimeout = null;
-
-document.getElementById('user-search').addEventListener('input', e => {
-  clearTimeout(_userSearchTimeout);
-  _userSearchTimeout = setTimeout(() => searchUsers(e.target.value.trim()), 400);
-});
-
-document.getElementById('btn-user-search').addEventListener('click', () => {
-  searchUsers(document.getElementById('user-search').value.trim());
-});
-
-async function searchUsers(query) {
+async function loadAllUsers() {
   const resultsEl = document.getElementById('user-search-results');
-  if (!query || query.length < 2) {
-    resultsEl.innerHTML = '';
-    return;
-  }
-  resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Поиск…</div>';
+  const countEl   = document.getElementById('users-count');
+  if (!resultsEl) return;
+  resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>';
   try {
-    const q = query(
-      collection(db, 'users'),
-      where('name_lower', '>=', query.toLowerCase()),
-      where('name_lower', '<=', query.toLowerCase() + ''),
-      limit(10)
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Не найдено</div>';
-      return;
-    }
-    resultsEl.innerHTML = snap.docs.map(d => {
-      const u = d.data();
-      const isBanned = u.is_banned ? '🚫 ' : '';
-      const role = u.role && u.role !== 'user'
-        ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:6px;">${u.role}</span>`
-        : '';
-      return `<div onclick="openUserProfilePanel('${d.id}')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
-        <span style="font-size:13px;font-weight:500;color:var(--text);">${isBanned}${esc(u.name || '—')}</span>
-        ${role}
-        <span style="font-size:11px;color:var(--text2);margin-left:auto;">${esc(u.user_email || '')}</span>
-      </div>`;
-    }).join('');
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc')));
+    _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (countEl) countEl.textContent = `${_allUsers.length} пользователей`;
+    renderUsersList(_allUsers);
   } catch(e) {
     resultsEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px;">Ошибка: ${e.message}</div>`;
   }
 }
+
+function renderUsersList(users) {
+  const resultsEl = document.getElementById('user-search-results');
+  if (!users.length) {
+    resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Не найдено</div>';
+    return;
+  }
+  resultsEl.innerHTML = users.map(u => {
+    const isBanned  = u.is_banned;
+    const role      = u.role && u.role !== 'user'
+      ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:4px;">${u.role}</span>`
+      : '';
+    const bannedTag = isBanned
+      ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,0.15);color:#FF4655;margin-left:4px;">бан</span>`
+      : '';
+    const initial = esc((u.name || '?')[0].toUpperCase());
+    return `<div onclick="openUserProfilePanel('${u.id}')"
+        style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;"
+        onmouseover="this.style.background='var(--surface2)'"
+        onmouseout="this.style.background=''">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:var(--text);">${initial}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;color:${isBanned ? '#FF4655' : 'var(--text)'};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
+          ${isBanned ? '🚫 ' : ''}${esc(u.name || '—')}${role}${bannedTag}
+        </div>
+        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.user_email || '')}</div>
+      </div>
+      <div style="font-size:10px;color:var(--text2);flex-shrink:0;">${u.approved_lineups ?? 0} лайн.</div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('user-search').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) { renderUsersList(_allUsers); return; }
+  renderUsersList(_allUsers.filter(u =>
+    (u.name || '').toLowerCase().includes(q) ||
+    (u.user_email || '').toLowerCase().includes(q)
+  ));
+});
+
 
 async function openUserProfilePanel(uid) {
   const panel = document.getElementById('user-profile-panel');
