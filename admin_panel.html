@@ -1638,7 +1638,7 @@ const db   = getFirestore(app);
 const BUNNY_STORAGE_ZONE = 'valorant-lineups1';
 const BUNNY_API_KEY      = 'fc600980-14fc-40e0-b320651320f6-1a31-4b61';
 const BUNNY_CDN_URL      = 'https://cdn.vlineups.tech';
-const BUNNY_STORAGE_URL  = 'https://storage.bunnycdn.com';
+const BUNNY_STORAGE_URL  = 'https://se.storage.bunnycdn.com';
 
 let lineups       = [];
 let currentFilter = 'all';
@@ -6681,7 +6681,7 @@ async function runMigration() {
 
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream' },
+        headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream', 'Accept': '*/*' },
         body: blob,
       });
       if (!uploadRes.ok) throw new Error('Bunny upload ' + uploadRes.status);
