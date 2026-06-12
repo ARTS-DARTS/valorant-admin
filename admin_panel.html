@@ -4673,8 +4673,9 @@ function uploadVideoToBunny(file, onProgress) {
   const promise = new Promise((resolve, reject) => {
     xhr = new XMLHttpRequest();
     xhr.open('PUT', uploadUrl);
-    xhr.setRequestHeader('AccessKey', BUNNY_API_KEY);
+    xhr.setRequestHeader('AccessKey', 'fc600980-14fc-40e0-b320651320f6-1a31-4b61');
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    xhr.setRequestHeader('Accept', '*/*');
     xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -6681,7 +6682,7 @@ async function runMigration() {
 
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
-        headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream', 'Accept': '*/*' },
+        headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Content-Type': 'application/octet-stream', 'Accept': '*/*' },
         body: blob,
       });
       if (!uploadRes.ok) throw new Error('Bunny upload ' + uploadRes.status);
