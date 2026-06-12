@@ -806,7 +806,7 @@
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
       </div>
-      <button onclick="migrateCloudinaToBunny()" style="margin:8px 12px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
+      <button id="mig-sidebar-btn" style="margin:8px 12px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
         🚀 Мигрировать видео → Bunny
       </button>
     </nav>
@@ -6597,23 +6597,15 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
 
 // ── Миграция Cloudinary → Bunny ───────────────────────────────────────────────
 function migrateCloudinaToBunny() {
-  const modal = document.getElementById('migration-modal');
   document.getElementById('mig-step-confirm').style.display  = '';
   document.getElementById('mig-step-progress').style.display = 'none';
-  document.getElementById('mig-heading').textContent = '⏳ Миграция…';
-  document.getElementById('mig-bar').style.width = '0%';
-  document.getElementById('mig-bar').className   = 'mig-bar';
-  document.getElementById('mig-status-text').textContent = 'Подготовка…';
-  document.getElementById('mig-log').innerHTML = '';
-  document.getElementById('mig-done-btn').disabled = true;
-  modal.style.display = 'flex';
-
-  const closeModal = () => { modal.style.display = 'none'; };
-  document.getElementById('mig-close-x').onclick    = closeModal;
-  document.getElementById('mig-cancel-btn').onclick = closeModal;
-  document.getElementById('mig-done-btn').onclick   = closeModal;
-  modal.onclick = e => { if (e.target === modal) closeModal(); };
-  document.getElementById('mig-start-btn').onclick  = runMigration;
+  document.getElementById('mig-heading').textContent          = '⏳ Миграция…';
+  document.getElementById('mig-bar').style.width              = '0%';
+  document.getElementById('mig-bar').className                = 'mig-bar';
+  document.getElementById('mig-status-text').textContent      = 'Подготовка…';
+  document.getElementById('mig-log').innerHTML                = '';
+  document.getElementById('mig-done-btn').disabled            = true;
+  document.getElementById('migration-modal').style.display    = 'flex';
 }
 
 function _migLog(type, icon, text) {
@@ -6719,8 +6711,17 @@ async function runMigration() {
   addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
 }
 
-window.migrateCloudinaToBunny = migrateCloudinaToBunny;
-window.runMigration            = runMigration;
+// Migration modal wiring (one-time, inside module scope)
+{
+  const modal     = document.getElementById('migration-modal');
+  const closeModal = () => { modal.style.display = 'none'; };
+  document.getElementById('mig-sidebar-btn').addEventListener('click', migrateCloudinaToBunny);
+  document.getElementById('mig-start-btn').addEventListener('click', runMigration);
+  document.getElementById('mig-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('mig-close-x').addEventListener('click', closeModal);
+  document.getElementById('mig-done-btn').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+}
 </script>
 </body>
 </html>
