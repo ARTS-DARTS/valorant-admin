@@ -781,6 +781,9 @@
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
       </div>
+      <button onclick="migrateCloudinaToBunny()" style="margin:8px 12px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
+        🚀 Мигрировать видео → Bunny
+      </button>
     </nav>
 
     <div class="main">
@@ -1578,6 +1581,11 @@ const cfg = {
 const app  = initializeApp(cfg);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+
+const BUNNY_STORAGE_ZONE = 'valorant-lineups1';
+const BUNNY_API_KEY      = 'fc600980-14fc-40e0-b320651320f6-1a31-4b61';
+const BUNNY_CDN_URL      = 'https://cdn.vlineups.tech';
+const BUNNY_STORAGE_URL  = 'https://storage.bunnycdn.com';
 
 let lineups       = [];
 let currentFilter = 'all';
@@ -3161,7 +3169,7 @@ function _handleSlotVideoFile(id, file) {
   const vs=s.videoState; if(vs.xhr)vs.xhr.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl);
   s.videoState={status:'uploading',url:null,localUrl:URL.createObjectURL(file),progress:0,xhr:null};
   _renderSlotVideoPreview(id);
-  const upload=uploadVideoToCloudinary(file,pct=>{
+  const upload=uploadVideoToBunny(file,pct=>{
     s.videoState.progress=pct;
     const bar=document.getElementById('sv'+id+'-vpb'); const lbl=document.getElementById('sv'+id+'-vpp');
     if(bar)bar.style.width=Math.round(pct*100)+'%'; if(lbl)lbl.textContent=Math.round(pct*100)+'%';
@@ -4605,22 +4613,26 @@ async function saveEditedLineup(id) {
 }
 
 // ── Video upload ──────────────────────────────────────────────────────────────
-function uploadVideoToCloudinary(file, onProgress) {
-  const fd = new FormData();
-  fd.append('file', file); fd.append('upload_preset', 'ml_default'); fd.append('folder', 'lineups_videos');
+function uploadVideoToBunny(file, onProgress) {
+  const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${fileName}`;
   let xhr;
   const promise = new Promise((resolve, reject) => {
     xhr = new XMLHttpRequest();
-    xhr.open('POST', 'https://api.cloudinary.com/v1_1/dtz0ouvk0/video/upload');
+    xhr.open('PUT', uploadUrl);
+    xhr.setRequestHeader('AccessKey', BUNNY_API_KEY);
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
     xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        try { resolve(JSON.parse(xhr.responseText).secure_url); } catch { reject(new Error('Неверный ответ Cloudinary')); }
-      } else { reject(new Error('Cloudinary ' + xhr.status)); }
+        resolve(`${BUNNY_CDN_URL}/lineups_videos/${fileName}`);
+      } else {
+        reject(new Error('Bunny upload error: ' + xhr.status + ' ' + xhr.responseText));
+      }
     };
-    xhr.onerror  = () => reject(new Error('Сетевая ошибка'));
-    xhr.onabort  = () => reject(new Error('canceled'));
-    xhr.send(fd);
+    xhr.onerror = () => reject(new Error('Сетевая ошибка'));
+    xhr.onabort = () => reject(new Error('canceled'));
+    xhr.send(file);
   });
   promise.abort = () => xhr?.abort();
   return promise;
@@ -4726,7 +4738,7 @@ function _handleAddVideoFile(file) {
   if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
   addVideoState = { status:'uploading', url:null, localUrl:URL.createObjectURL(file), progress:0, xhr:null };
   renderAddVideoPreview();
-  const upload = uploadVideoToCloudinary(file, pct => {
+  const upload = uploadVideoToBunny(file, pct => {
     addVideoState.progress = pct;
     const bar = document.getElementById('add-vpb');
     const lbl = document.getElementById('add-vpp');
@@ -4792,7 +4804,7 @@ function _wireEditVideoZone(id) {
       <button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="ce-vcnl-${id}">✕ Отмена</button>
     </div>`;
     document.getElementById('ce-vcnl-'+id)?.addEventListener('click', () => { sess.videoXhr?.abort(); sess.videoXhr = null; _resetEditVideoWrap(id); });
-    const upload = uploadVideoToCloudinary(file, pct => {
+    const upload = uploadVideoToBunny(file, pct => {
       const bar = document.getElementById('ce-vpb-'+id);
       const lbl = document.getElementById('ce-vpp-'+id);
       if (bar) bar.style.width = Math.round(pct*100) + '%';
@@ -6529,6 +6541,78 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
     else overlay.style.display = 'none';
   }
 });
+
+// ── Миграция Cloudinary → Bunny ───────────────────────────────────────────────
+async function migrateCloudinaToBunny() {
+  const ok = confirm('Мигрировать все видео с Cloudinary на Bunny.net?\n\nЭто скачает каждое видео и перезальёт на Bunny. Может занять несколько минут.');
+  if (!ok) return;
+
+  const { collection, getDocs, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
+
+  toast('Начинаем миграцию…', 'i');
+
+  let snap;
+  try {
+    snap = await getDocs(collection(db, 'lineups'));
+  } catch(e) {
+    toast('Ошибка получения лайнапов: ' + e.message, 'e');
+    return;
+  }
+
+  const toMigrate = snap.docs.filter(d => {
+    const url = d.data().video_url || '';
+    return url.includes('cloudinary.com') && url.includes('dtz0ouvk0');
+  });
+
+  if (toMigrate.length === 0) {
+    toast('Нет видео для миграции — все уже на Bunny ✅', 's');
+    return;
+  }
+
+  toast(`Найдено ${toMigrate.length} видео для миграции`, 'i');
+
+  let success = 0;
+  let failed = 0;
+
+  for (const docSnap of toMigrate) {
+    const data = docSnap.data();
+    const cloudinaryUrl = data.video_url;
+    const docId = docSnap.id;
+
+    try {
+      const response = await fetch(cloudinaryUrl);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const blob = await response.blob();
+
+      const urlParts = cloudinaryUrl.split('/');
+      const originalName = urlParts[urlParts.length - 1].split('?')[0];
+      const fileName = `migrated_${docId}_${originalName}`;
+
+      const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${fileName}`;
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream' },
+        body: blob,
+      });
+      if (!uploadRes.ok) throw new Error('Bunny upload ' + uploadRes.status);
+
+      const newUrl = `${BUNNY_CDN_URL}/lineups_videos/${fileName}`;
+      await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
+
+      success++;
+      toast(`✅ ${data.title || docId} — мигрировано (${success}/${toMigrate.length})`, 's');
+    } catch(e) {
+      failed++;
+      console.error('Migration failed for', docId, e);
+      toast(`❌ ${data.title || docId} — ошибка: ${e.message}`, 'e');
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  toast(`Миграция завершена: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
+  addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
+}
 </script>
 </body>
 </html>
