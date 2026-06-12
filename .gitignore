@@ -67,9 +67,21 @@ android/**/*.keystore
 *.zip
 
 # Dart/Flutter sources — should not be tracked in admin repo
+lib/
+assets/
+android/
+ios/
+linux/
+macos/
+windows/
+test/
+tool/
 *.dart
 *.dart.js
 *.dart.js.deps
 *.dart.js.map
 pubspec.yaml
 pubspec.lock
+*.arb
+*.yaml
+!.gitignore
