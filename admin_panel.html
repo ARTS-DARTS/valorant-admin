@@ -797,7 +797,7 @@
       <div class="sidebar-section-label">Контент</div>
       <div class="tabs">
         <button class="tab"        id="tab-btn-changelog"><i class="bi bi-newspaper"></i><span>Новости</span></button>
-        <button class="tab"        id="tab-btn-admins"><i class="bi bi-people"></i><span>Администраторы</span></button>
+        <button class="tab"        id="tab-btn-admins"><i class="bi bi-people"></i><span>Пользователи</span></button>
         <button class="tab"        id="tab-btn-analytics"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></button>
       </div>
       <div class="sidebar-divider"></div>
@@ -1013,38 +1013,58 @@
 
     <!-- Admins tab -->
     <div id="tab-admins" style="display:none;">
-      <div class="form-wrap" style="max-width:700px;margin-bottom:22px;">
-        <div class="form-title">ДОБАВИТЬ АДМИНИСТРАТОРА</div>
-        <div class="fgrid">
-          <div class="fg">
-            <label class="flabel">Email</label>
-            <input class="finput" id="adm-email" type="email" placeholder="admin@example.com">
-          </div>
-          <div class="fg">
-            <label class="flabel">Пароль</label>
-            <input class="finput" id="adm-pass" type="password" placeholder="Минимум 6 символов">
-          </div>
-          <div class="fg">
-            <label class="flabel">Имя</label>
-            <input class="finput" id="adm-name" placeholder="Имя администратора">
-          </div>
-          <div class="fg">
-            <label class="flabel">Роль</label>
-            <select class="fselect" id="adm-role">
-              <option value="admin">admin</option>
-              <option value="moderator">moderator</option>
-            </select>
-          </div>
-          <div class="fg full" style="margin-top:4px;">
-            <button class="btn btn-save" id="btn-add-admin" style="width:100%;justify-content:center;padding:11px;">
-              Создать аккаунт и выдать доступ
-            </button>
-          </div>
-        </div>
-      </div>
+      <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start;">
 
-      <div class="form-title" style="margin-bottom:12px;">ТЕКУЩИЕ АДМИНИСТРАТОРЫ</div>
-      <div class="adm-list" id="admins-list"><div class="state">Загрузка…</div></div>
+        <!-- ЛЕВАЯ: форма добавления + список администраторов -->
+        <div>
+          <div class="form-wrap" style="max-width:100%;margin-bottom:22px;">
+            <div class="form-title">ДОБАВИТЬ АДМИНИСТРАТОРА</div>
+            <div class="fgrid">
+              <div class="fg">
+                <label class="flabel">Email</label>
+                <input class="finput" id="adm-email" type="email" placeholder="admin@example.com">
+              </div>
+              <div class="fg">
+                <label class="flabel">Пароль</label>
+                <input class="finput" id="adm-pass" type="password" placeholder="Минимум 6 символов">
+              </div>
+              <div class="fg">
+                <label class="flabel">Имя</label>
+                <input class="finput" id="adm-name" placeholder="Имя администратора">
+              </div>
+              <div class="fg">
+                <label class="flabel">Роль</label>
+                <select class="fselect" id="adm-role">
+                  <option value="admin">admin</option>
+                  <option value="moderator">moderator</option>
+                </select>
+              </div>
+              <div class="fg full" style="margin-top:4px;">
+                <button class="btn btn-save" id="btn-add-admin" style="width:100%;justify-content:center;padding:11px;">
+                  Создать аккаунт и выдать доступ
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-title" style="margin-bottom:12px;">ТЕКУЩИЕ АДМИНИСТРАТОРЫ</div>
+          <div class="adm-list" id="admins-list"><div class="state">Загрузка…</div></div>
+        </div>
+
+        <!-- ПРАВАЯ: поиск пользователей + профиль -->
+        <div>
+          <div class="form-wrap" style="max-width:100%;margin-bottom:16px;">
+            <div class="form-title">👥 ПОЛЬЗОВАТЕЛИ</div>
+            <div style="display:flex;gap:8px;margin-bottom:12px;">
+              <input class="finput" id="user-search" placeholder="Поиск по нику или email…" style="flex:1;">
+              <button class="btn btn-save" id="btn-user-search" style="padding:8px 16px;">Найти</button>
+            </div>
+            <div id="user-search-results" style="max-height:220px;overflow-y:auto;"></div>
+          </div>
+          <div id="user-profile-panel" style="display:none;"></div>
+        </div>
+
+      </div>
     </div>
 
     <!-- Changelog tab -->
@@ -6723,6 +6743,241 @@ async function runMigration() {
   document.getElementById('mig-done-btn').addEventListener('click', closeModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 }
+
+// ── Пользователи ──────────────────────────────────────────────────────────────
+
+let _userSearchTimeout = null;
+
+document.getElementById('user-search').addEventListener('input', e => {
+  clearTimeout(_userSearchTimeout);
+  _userSearchTimeout = setTimeout(() => searchUsers(e.target.value.trim()), 400);
+});
+
+document.getElementById('btn-user-search').addEventListener('click', () => {
+  searchUsers(document.getElementById('user-search').value.trim());
+});
+
+async function searchUsers(query) {
+  const resultsEl = document.getElementById('user-search-results');
+  if (!query || query.length < 2) {
+    resultsEl.innerHTML = '';
+    return;
+  }
+  resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Поиск…</div>';
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('name_lower', '>=', query.toLowerCase()),
+      where('name_lower', '<=', query.toLowerCase() + ''),
+      limit(10)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Не найдено</div>';
+      return;
+    }
+    resultsEl.innerHTML = snap.docs.map(d => {
+      const u = d.data();
+      const isBanned = u.is_banned ? '🚫 ' : '';
+      const role = u.role && u.role !== 'user'
+        ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:6px;">${u.role}</span>`
+        : '';
+      return `<div onclick="openUserProfile('${d.id}')" style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;gap:8px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+        <span style="font-size:13px;font-weight:500;color:var(--text);">${isBanned}${esc(u.name || '—')}</span>
+        ${role}
+        <span style="font-size:11px;color:var(--text2);margin-left:auto;">${esc(u.user_email || '')}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    resultsEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px;">Ошибка: ${e.message}</div>`;
+  }
+}
+
+async function openUserProfile(uid) {
+  const panel = document.getElementById('user-profile-panel');
+  panel.style.display = 'block';
+  panel.innerHTML = '<div style="color:var(--text2);padding:16px;">Загрузка…</div>';
+  try {
+    const userDoc = await getDoc(doc(db, 'users', uid));
+    if (!userDoc.exists()) { panel.innerHTML = '<div style="color:var(--red);">Пользователь не найден</div>'; return; }
+    const u = userDoc.data();
+
+    const lineupsSnap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('user_id', '==', uid),
+      orderBy('submitted_at', 'desc'),
+      limit(5)
+    ));
+    const lineups = lineupsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    let feedbacks = [];
+    try {
+      const fbSnap = await getDocs(query(collection(db, 'feedback'), where('user_id', '==', uid), limit(5)));
+      feedbacks = fbSnap.docs.map(d => d.data());
+    } catch(_) {}
+
+    const hasPassword = u.user_email && !u.user_email.includes('google');
+    const createdAt = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
+    const isBanned  = !!u.is_banned;
+
+    panel.innerHTML = `
+      <div class="form-wrap" style="max-width:100%;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="form-title" style="margin:0;">👤 ${esc(u.name || '—')}</div>
+          <span style="font-size:11px;color:var(--text2);">uid: ${uid.slice(0,8)}…</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Email</div>
+            <div style="font-size:13px;color:var(--text);">${esc(u.user_email || '—')}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Никнейм</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input class="finput" id="up-name-${uid}" value="${esc(u.name || '')}" style="font-size:13px;padding:5px 8px;flex:1;">
+              <button class="btn btn-save" onclick="saveUserName('${uid}')" style="padding:5px 10px;font-size:12px;">💾</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Роль</div>
+            <select class="fselect" id="up-role-${uid}" style="font-size:13px;padding:5px 8px;" onchange="saveUserRole('${uid}')">
+              <option value="user"      ${(!u.role || u.role==='user')       ? 'selected' : ''}>user</option>
+              <option value="moderator" ${u.role==='moderator'               ? 'selected' : ''}>moderator</option>
+              <option value="admin"     ${u.role==='admin'                   ? 'selected' : ''}>admin</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Регистрация</div>
+            <div style="font-size:13px;color:var(--text);">${createdAt}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Одобрено лайнапов</div>
+            <div style="font-size:13px;color:var(--text);">${u.approved_lineups ?? 0}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Статус</div>
+            <div style="font-size:13px;color:${isBanned ? 'var(--red)' : 'var(--green)'};">${isBanned ? '🚫 Заблокирован' : '✅ Активен'}</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Привязки</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${[
+              ['📧 Email',   !!u.user_email],
+              ['🔑 Пароль',  hasPassword],
+              ['🔔 Push',    !!u.fcm_token],
+            ].map(([label, ok]) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};">${label} ${ok?'✓':'✗'}</span>`).join('')
+            }
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          ${hasPassword ? `<button class="btn" onclick="resetUserPassword('${esc(u.user_email||'')}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🔑 Сбросить пароль</button>` : ''}
+          <button class="btn" onclick="sendMessageToUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">💬 Сообщение</button>
+          ${!isBanned
+            ? `<button class="btn btn-reject" onclick="banUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🚫 Заблокировать</button>`
+            : `<button class="btn btn-approve" onclick="unbanUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">✅ Разблокировать</button>`
+          }
+          <button class="btn btn-delete" onclick="deleteUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🗑 Удалить аккаунт</button>
+        </div>
+
+        ${lineups.length ? `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Последние лайнапы (${lineups.length})</div>
+          ${lineups.map(l => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+              <span style="font-size:12px;color:var(--text);flex:1;">${esc(l.title||'—')}</span>
+              <span style="font-size:10px;color:var(--text2);">${esc(l.map||'')} · ${esc(l.agent||'')}</span>
+              <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${l.status==='approved'?'rgba(34,197,94,.12)':'var(--surface2)'};color:${l.status==='approved'?'var(--green)':'var(--text2)'};">${l.status||'—'}</span>
+            </div>`).join('')}
+        </div>` : ''}
+
+        ${feedbacks.length ? `
+        <div>
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Обращения</div>
+          ${feedbacks.map(f => `<div style="padding:6px 8px;border-radius:var(--r);background:var(--surface2);margin-bottom:6px;font-size:12px;color:var(--text2);">${esc(f.text||f.message||'—')}</div>`).join('')}
+        </div>` : ''}
+      </div>`;
+  } catch(e) {
+    panel.innerHTML = `<div style="color:var(--red);padding:16px;">Ошибка: ${e.message}</div>`;
+  }
+}
+
+async function saveUserName(uid) {
+  const name = document.getElementById('up-name-' + uid)?.value?.trim();
+  if (!name) return;
+  await updateDoc(doc(db, 'users', uid), { name, name_lower: name.toLowerCase() });
+  toast('Никнейм обновлён ✅', 's');
+  addAuditLog(`Сменён никнейм пользователя → ${name}`);
+}
+
+async function saveUserRole(uid) {
+  const role = document.getElementById('up-role-' + uid)?.value;
+  if (!role) return;
+  await updateDoc(doc(db, 'users', uid), { role });
+  toast(`Роль обновлена → ${role} ✅`, 's');
+  addAuditLog(`Изменена роль пользователя ${uid} → ${role}`);
+}
+
+async function resetUserPassword(email, name) {
+  if (!email) { toast('Email не указан', 'e'); return; }
+  if (!confirm(`Отправить письмо для сброса пароля на ${email}?`)) return;
+  const { sendPasswordResetEmail } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+  await sendPasswordResetEmail(auth, email);
+  toast(`Письмо отправлено на ${email} ✅`, 's');
+  addAuditLog(`Запрошен сброс пароля для ${name} (${email})`);
+}
+
+async function banUser(uid, name) {
+  if (!confirm(`Заблокировать пользователя ${name}?`)) return;
+  await updateDoc(doc(db, 'users', uid), { is_banned: true });
+  toast(`${name} заблокирован 🚫`, 'w');
+  addAuditLog(`Заблокирован пользователь: ${name}`);
+  openUserProfile(uid);
+}
+
+async function unbanUser(uid, name) {
+  await updateDoc(doc(db, 'users', uid), { is_banned: false });
+  toast(`${name} разблокирован ✅`, 's');
+  addAuditLog(`Разблокирован пользователь: ${name}`);
+  openUserProfile(uid);
+}
+
+async function deleteUserAccount(uid, name) {
+  if (!confirm(`УДАЛИТЬ аккаунт ${name}? Это действие необратимо!`)) return;
+  if (!confirm(`Подтверди ещё раз: удалить ${name} навсегда?`)) return;
+  await deleteDoc(doc(db, 'users', uid));
+  toast(`Аккаунт ${name} удалён 🗑`, 'w');
+  addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
+  document.getElementById('user-profile-panel').style.display = 'none';
+}
+
+async function sendMessageToUser(uid, name) {
+  const msg = prompt(`Сообщение для ${name}:`);
+  if (!msg) return;
+  await addDoc(collection(db, 'push_queue'), {
+    type: 'admin_message',
+    title: '💬 Сообщение от администратора',
+    body: msg,
+    target_uid: uid,
+    processed: false,
+    created_at: serverTimestamp(),
+  });
+  toast(`Сообщение отправлено ${name} ✅`, 's');
+  addAuditLog(`Отправлено сообщение пользователю ${name}: ${msg.slice(0, 50)}`);
+}
+
+// Expose user functions to global scope for onclick handlers
+window.openUserProfile   = openUserProfile;
+window.saveUserName      = saveUserName;
+window.saveUserRole      = saveUserRole;
+window.resetUserPassword = resetUserPassword;
+window.banUser           = banUser;
+window.unbanUser         = unbanUser;
+window.deleteUserAccount = deleteUserAccount;
+window.sendMessageToUser = sendMessageToUser;
 </script>
 </body>
 </html>
