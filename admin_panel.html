@@ -6877,8 +6877,8 @@ async function openUserProfilePanel(uid) {
           ${hasPassword ? `<button class="btn" onclick="resetUserPassword('${esc(u.user_email||'')}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🔑 Сбросить пароль</button>` : ''}
           <button class="btn" onclick="sendMessageToUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">💬 Сообщение</button>
           ${!isBanned
-            ? `<button class="btn btn-reject" onclick="banUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🚫 Заблокировать</button>`
-            : `<button class="btn btn-approve" onclick="unbanUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">✅ Разблокировать</button>`
+            ? `<button class="btn btn-reject" onclick="banUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🚫 Заблокировать</button>`
+            : `<button class="btn btn-approve" onclick="unbanUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">✅ Разблокировать</button>`
           }
           <button class="btn btn-delete" onclick="deleteUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🗑 Удалить аккаунт</button>
         </div>
@@ -6930,7 +6930,7 @@ async function resetUserPassword(email, name) {
   addAuditLog(`Запрошен сброс пароля для ${name} (${email})`);
 }
 
-async function banUser(uid, name) {
+async function banUserAccount(uid, name) {
   if (!confirm(`Заблокировать пользователя ${name}?`)) return;
   await updateDoc(doc(db, 'users', uid), { is_banned: true });
   toast(`${name} заблокирован 🚫`, 'w');
@@ -6938,7 +6938,7 @@ async function banUser(uid, name) {
   openUserProfilePanel(uid);
 }
 
-async function unbanUser(uid, name) {
+async function unbanUserAccount(uid, name) {
   await updateDoc(doc(db, 'users', uid), { is_banned: false });
   toast(`${name} разблокирован ✅`, 's');
   addAuditLog(`Разблокирован пользователь: ${name}`);
@@ -6974,8 +6974,8 @@ window.openUserProfilePanel = openUserProfilePanel;
 window.saveUserName      = saveUserName;
 window.saveUserRole      = saveUserRole;
 window.resetUserPassword = resetUserPassword;
-window.banUser           = banUser;
-window.unbanUser         = unbanUser;
+window.banUserAccount    = banUserAccount;
+window.unbanUserAccount  = unbanUserAccount;
 window.deleteUserAccount = deleteUserAccount;
 window.sendMessageToUser = sendMessageToUser;
 </script>
