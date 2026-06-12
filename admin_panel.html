@@ -441,6 +441,31 @@
       font-size: 12px; text-align: center;
     }
 
+    /* ── Migration modal ── */
+    .mig-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:540px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
+    .mig-title { font-size:17px; font-weight:800; margin-bottom:6px; }
+    .mig-sub   { font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.5; }
+    .mig-bar-wrap { background:var(--surface2); border-radius:6px; height:8px; overflow:hidden; margin-bottom:8px; }
+    .mig-bar  { height:8px; border-radius:6px; background:var(--primary); width:0%; transition:width .25s; }
+    .mig-bar.done { background:var(--green); }
+    .mig-status { font-size:12px; color:var(--text2); margin-bottom:10px; }
+    .mig-log  { background:var(--surface3); border:1px solid var(--border); border-radius:var(--r); padding:10px 12px; max-height:220px; overflow-y:auto; font-size:11px; font-family:'Consolas','Courier New',monospace; display:flex; flex-direction:column; gap:3px; }
+    .mig-log-line { display:flex; gap:6px; }
+    .mig-log-line.ok   .mig-icon { color:var(--green); }
+    .mig-log-line.err  .mig-icon { color:var(--red); }
+    .mig-log-line.info .mig-icon { color:var(--text2); }
+    .mig-log-line .mig-icon { flex-shrink:0; width:14px; }
+    .mig-log-line .mig-text { color:var(--text2); }
+    .mig-log-line.ok  .mig-text { color:var(--text); }
+    .mig-log-line.err .mig-text { color:#fca5a5; }
+    .mig-btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+    .mig-btn { padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; border:none; transition:opacity .15s; }
+    .mig-btn:disabled { opacity:.4; cursor:default; }
+    .mig-btn.secondary { background:var(--surface2); color:var(--text2); border:1px solid var(--border); }
+    .mig-btn.primary   { background:var(--primary); color:#fff; }
+    .mig-btn.secondary:hover:not(:disabled) { color:var(--text); }
+    .mig-btn.primary:hover:not(:disabled)   { opacity:.85; }
+
     /* ── Profile modal ── */
     .profile-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
     .profile-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:400px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
@@ -1542,6 +1567,34 @@
   <div class="profile-modal" id="profile-modal-body">
     <button class="pm-close" id="pm-close-btn">✕</button>
     <div class="state">Загрузка…</div>
+  </div>
+</div>
+
+<!-- Migration modal -->
+<div id="migration-modal" class="profile-overlay" style="display:none;">
+  <div class="mig-modal">
+    <button class="pm-close" id="mig-close-x">✕</button>
+
+    <!-- Step 1: confirm -->
+    <div id="mig-step-confirm">
+      <div class="mig-title">🚀 Миграция видео → Bunny.net</div>
+      <div class="mig-sub">Все видео с Cloudinary будут скачаны и перезалиты на Bunny.net CDN.<br>Ссылки в Firestore обновятся автоматически. Может занять несколько минут.</div>
+      <div class="mig-btn-row">
+        <button class="mig-btn secondary" id="mig-cancel-btn">Отмена</button>
+        <button class="mig-btn primary"   id="mig-start-btn">Начать миграцию</button>
+      </div>
+    </div>
+
+    <!-- Step 2: progress + log -->
+    <div id="mig-step-progress" style="display:none;">
+      <div class="mig-title" id="mig-heading">⏳ Миграция…</div>
+      <div class="mig-bar-wrap"><div class="mig-bar" id="mig-bar"></div></div>
+      <div class="mig-status" id="mig-status-text">Подготовка…</div>
+      <div class="mig-log"   id="mig-log"></div>
+      <div class="mig-btn-row">
+        <button class="mig-btn primary" id="mig-done-btn" disabled>Закрыть</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -6543,19 +6596,53 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
 });
 
 // ── Миграция Cloudinary → Bunny ───────────────────────────────────────────────
-async function migrateCloudinaToBunny() {
-  const ok = confirm('Мигрировать все видео с Cloudinary на Bunny.net?\n\nЭто скачает каждое видео и перезальёт на Bunny. Может занять несколько минут.');
-  if (!ok) return;
+function migrateCloudinaToBunny() {
+  const modal = document.getElementById('migration-modal');
+  document.getElementById('mig-step-confirm').style.display  = '';
+  document.getElementById('mig-step-progress').style.display = 'none';
+  document.getElementById('mig-heading').textContent = '⏳ Миграция…';
+  document.getElementById('mig-bar').style.width = '0%';
+  document.getElementById('mig-bar').className   = 'mig-bar';
+  document.getElementById('mig-status-text').textContent = 'Подготовка…';
+  document.getElementById('mig-log').innerHTML = '';
+  document.getElementById('mig-done-btn').disabled = true;
+  modal.style.display = 'flex';
 
-  const { collection, getDocs, doc, updateDoc } = await import('https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js');
+  const closeModal = () => { modal.style.display = 'none'; };
+  document.getElementById('mig-close-x').onclick    = closeModal;
+  document.getElementById('mig-cancel-btn').onclick = closeModal;
+  document.getElementById('mig-done-btn').onclick   = closeModal;
+  modal.onclick = e => { if (e.target === modal) closeModal(); };
+  document.getElementById('mig-start-btn').onclick  = runMigration;
+}
 
-  toast('Начинаем миграцию…', 'i');
+function _migLog(type, icon, text) {
+  const log  = document.getElementById('mig-log');
+  const line = document.createElement('div');
+  line.className = 'mig-log-line ' + type;
+  line.innerHTML = `<span class="mig-icon">${icon}</span><span class="mig-text">${text}</span>`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function runMigration() {
+  document.getElementById('mig-step-confirm').style.display  = 'none';
+  document.getElementById('mig-step-progress').style.display = '';
+
+  const bar        = document.getElementById('mig-bar');
+  const statusText = document.getElementById('mig-status-text');
+  const heading    = document.getElementById('mig-heading');
+  const doneBtn    = document.getElementById('mig-done-btn');
+
+  _migLog('info', '⏳', 'Получаем список лайнапов…');
 
   let snap;
   try {
     snap = await getDocs(collection(db, 'lineups'));
   } catch(e) {
-    toast('Ошибка получения лайнапов: ' + e.message, 'e');
+    _migLog('err', '✕', 'Ошибка Firestore: ' + e.message);
+    heading.textContent = '❌ Ошибка';
+    doneBtn.disabled = false;
     return;
   }
 
@@ -6565,30 +6652,41 @@ async function migrateCloudinaToBunny() {
   });
 
   if (toMigrate.length === 0) {
-    toast('Нет видео для миграции — все уже на Bunny ✅', 's');
+    _migLog('ok', '✅', 'Нет видео для миграции — все уже на Bunny');
+    heading.textContent = '✅ Нечего мигрировать';
+    statusText.textContent = '0 / 0';
+    bar.style.width = '100%';
+    bar.classList.add('done');
+    doneBtn.disabled = false;
     return;
   }
 
-  toast(`Найдено ${toMigrate.length} видео для миграции`, 'i');
+  _migLog('info', 'ℹ', `Найдено ${toMigrate.length} видео для миграции`);
 
   let success = 0;
-  let failed = 0;
+  let failed  = 0;
+  const total = toMigrate.length;
 
-  for (const docSnap of toMigrate) {
-    const data = docSnap.data();
+  for (let i = 0; i < toMigrate.length; i++) {
+    const docSnap = toMigrate[i];
+    const data    = docSnap.data();
+    const label   = data.title || docSnap.id;
     const cloudinaryUrl = data.video_url;
-    const docId = docSnap.id;
+    const docId   = docSnap.id;
+
+    statusText.textContent = `${i + 1} / ${total} — ${label}`;
+    bar.style.width = Math.round(((i) / total) * 100) + '%';
 
     try {
       const response = await fetch(cloudinaryUrl);
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const blob = await response.blob();
 
-      const urlParts = cloudinaryUrl.split('/');
+      const urlParts    = cloudinaryUrl.split('/');
       const originalName = urlParts[urlParts.length - 1].split('?')[0];
-      const fileName = `migrated_${docId}_${originalName}`;
+      const fileName    = `migrated_${docId}_${originalName}`;
+      const uploadUrl   = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${fileName}`;
 
-      const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${fileName}`;
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         headers: { 'AccessKey': BUNNY_API_KEY, 'Content-Type': 'application/octet-stream' },
@@ -6600,17 +6698,24 @@ async function migrateCloudinaToBunny() {
       await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
 
       success++;
-      toast(`✅ ${data.title || docId} — мигрировано (${success}/${toMigrate.length})`, 's');
+      _migLog('ok', '✅', `${label}`);
     } catch(e) {
       failed++;
       console.error('Migration failed for', docId, e);
-      toast(`❌ ${data.title || docId} — ошибка: ${e.message}`, 'e');
+      _migLog('err', '✕', `${label} — ${e.message}`);
     }
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 300));
   }
 
-  toast(`Миграция завершена: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
+  bar.style.width = '100%';
+  bar.classList.toggle('done', failed === 0);
+  statusText.textContent = `Готово: ${success} успешно, ${failed} ошибок`;
+  heading.textContent    = failed === 0 ? '✅ Миграция завершена' : `⚠️ Завершено с ${failed} ошибками`;
+  _migLog(failed === 0 ? 'ok' : 'err', failed === 0 ? '🎉' : '⚠️', `Итого: ${success} успешно, ${failed} ошибок`);
+  doneBtn.disabled = false;
+
+  toast(`Миграция: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
   addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
 }
 </script>
