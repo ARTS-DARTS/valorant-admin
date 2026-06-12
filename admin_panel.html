@@ -1696,6 +1696,7 @@ const db   = getFirestore(app);
 const BUNNY_STORAGE_ZONE = 'valorant-lineups1';
 const BUNNY_API_KEY      = 'fc600980-14fc-40e0-b320651320f6-1a31-4b61';
 const BUNNY_CDN_URL      = 'https://cdn.vlineups.tech';
+const BUNNY_ACCOUNT_API_KEY = '9a67622f-93a5-4e86-b16e-d5c5543902a5af32ab4e-bd93-4263-93ad-ed619837ed1b';
 const BUNNY_STORAGE_URL  = 'https://se.storage.bunnycdn.com';
 
 let lineups       = [];
@@ -6745,6 +6746,46 @@ async function runMigration() {
         headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Content-Type': 'application/octet-stream', 'Accept': '*/*' },
         body: blob,
       });
+      if (!uploadRes.ok) throw new Error('Bunny upload ' + uploadRes.status);
+
+      const newUrl = `${BUNNY_CDN_URL}/lineups_videos/${fileName}`;
+      await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
+
+      success++;
+      _migLog('ok', '✅', `${label}`);
+    } catch(e) {
+      failed++;
+      console.error('Migration failed for', docId, e);
+      _migLog('err', '✕', `${label} — ${e.message}`);
+    }
+
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  bar.style.width = '100%';
+  bar.classList.toggle('done', failed === 0);
+  statusText.textContent = `Готово: ${success} успешно, ${failed} ошибок`;
+  heading.textContent    = failed === 0 ? '✅ Миграция завершена' : `⚠️ Завершено с ${failed} ошибками`;
+  _migLog(failed === 0 ? 'ok' : 'err', failed === 0 ? '🎉' : '⚠️', `Итого: ${success} успешно, ${failed} ошибок`);
+  doneBtn.disabled = false;
+
+  toast(`Миграция: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
+  addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
+}
+
+// Migration modal wiring (one-time, inside module scope)
+{
+  const modal      = document.getElementById('migration-modal');
+  const closeModal = () => { modal.style.display = 'none'; };
+  document.getElementById('mig-sidebar-btn').addEventListener('click', migrateCloudinaToBunny);
+  document.getElementById('mig-start-btn').addEventListener('click', runMigration);
+  document.getElementById('mig-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('mig-close-x').addEventListener('click', closeModal);
+  document.getElementById('mig-done-btn').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+}
+
+// ── Пользователи ──────────────────────────────────────────────────────────────
 
 let _allUsers = [];
 
@@ -7016,7 +7057,7 @@ async function loadStorageStats() {
     const to   = new Date().toISOString().split('T')[0];
     const res  = await fetch(
       `https://api.bunny.net/statistics?dateFrom=${from}&dateTo=${to}&pullZone=valorant-lineups-cdn`,
-      { headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Accept': 'application/json' } }
+      { headers: { 'AccessKey': BUNNY_ACCOUNT_API_KEY, 'Accept': 'application/json' } }
     );
     if (res.ok) {
       const data  = await res.json();
