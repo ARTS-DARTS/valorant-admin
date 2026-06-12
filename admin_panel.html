@@ -6718,6 +6718,9 @@ async function runMigration() {
   toast(`Миграция: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
   addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
 }
+
+window.migrateCloudinaToBunny = migrateCloudinaToBunny;
+window.runMigration            = runMigration;
 </script>
 </body>
 </html>
