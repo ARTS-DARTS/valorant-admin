@@ -7637,7 +7637,7 @@ window.rngListSelect = function(map,agent,ability,radius,idx) {
   document.getElementById('rng-lp-fill').setAttribute('r',pxR);
   document.getElementById('rng-lp-border').setAttribute('r',pxR);
   const meters=(radius/0.007).toFixed(1);
-  info.innerHTML=`<b>\</b> · \<br><span style="color:var(--primary)">\</span> ≈ \ м · \`;
+  info.innerHTML='<b>'+agent+'</b> · '+ability+'<br><span style="color:var(--primary)">'+radius.toFixed(3)+'</span> ≈ '+meters+' м · '+map;
   document.querySelectorAll('[id^="rng-row-"]').forEach(r=>r.style.background='');
   const row=document.getElementById('rng-row-'+idx); if(row) row.style.background='var(--surface2)';
 };
@@ -7674,7 +7674,7 @@ window.rngApplyEntry = async function(map,agent,ability,idx) {
     const batch=writeBatch(db);
     refs.forEach(ref=>batch.update(ref,{range_radius:val}));
     await batch.commit();
-    toast(`✅ Обновлено \ лайнапов`);
+    toast('✅ Обновлено ' + refs.length + ' лайнапов');
     addAuditLog('range_radius_apply',{map,agent,ability,value:val,count:refs.length});
     document.getElementById('rng-edit-'+idx).style.display='none';
     rngLoadList();
