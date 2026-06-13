@@ -7450,7 +7450,7 @@ function _rngUpdateApplyInfo() {
 async function rngApplyToLineups() {
   const map = document.getElementById('rng-map').value;
   const val = parseFloat(document.getElementById('rng-slider').value) || 0;
-  if (!_rngAgent || !_rngAbility || !map) return showToast('Выбери карту, агента и способность', 'error');
+  if (!_rngAgent || !_rngAbility || !map) return toast('Выбери карту, агента и способность', 'e');
   const btn = document.getElementById('rng-apply-btn');
   btn.disabled = true; btn.textContent = '⏳ Применяю…';
   try {
@@ -7463,15 +7463,15 @@ async function rngApplyToLineups() {
       const data = d.data();
       if (data.agent === _rngAgent && data.ability === _rngAbility) matched.push(d.ref);
     });
-    if (!matched.length) { showToast('Лайнапы не найдены для этой комбинации', 'error'); return; }
+    if (!matched.length) { toast('Лайнапы не найдены для этой комбинации', 'e'); return; }
     const batch = writeBatch(db);
     matched.forEach(ref => batch.update(ref, { range_radius: val }));
     await batch.commit();
-    showToast(`✅ Обновлено ${matched.length} лайнапов`);
+    toast(`✅ Обновлено ${matched.length} лайнапов`);
     addAuditLog('range_radius_apply', { map, agent: _rngAgent, ability: _rngAbility, value: val, count: matched.length });
   } catch(e) {
     console.error('rngApplyToLineups error', e);
-    showToast('Ошибка: ' + e.message, 'error');
+    toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = '💾 Применить к лайнапам';
   }
@@ -7526,7 +7526,7 @@ function _rngWireEvents() {
   document.getElementById('rng-apply-btn').addEventListener('click', rngApplyToLineups);
 
   document.getElementById('rng-preview-lineup-btn').addEventListener('click', () => {
-    showToast('Предпросмотр: радиус ' + (parseFloat(document.getElementById('rng-slider').value)||0).toFixed(3) + ' — без сохранения');
+    toast('Предпросмотр: радиус ' + (parseFloat(document.getElementById('rng-slider').value)||0).toFixed(3) + ' — без сохранения');
   });
 
   document.getElementById('rng-shot-file').addEventListener('change', e => {
