@@ -810,7 +810,7 @@
       <button id="mig-sidebar-btn" style="margin:8px 12px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
         🚀 Мигрировать видео → Bunny
       </button>
-      <button onclick="migrateBunnyToSelectel()" style="margin:4px 12px 8px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
+      <button id="mig-sel-sidebar-btn" style="margin:4px 12px 8px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
         🚀 Bunny → Selectel
       </button>
     </nav>
@@ -7317,6 +7317,7 @@ async function runMigration() {
   const modal      = document.getElementById('migration-modal');
   const closeModal = () => { modal.style.display = 'none'; };
   document.getElementById('mig-sidebar-btn').addEventListener('click', migrateCloudinaToBunny);
+  document.getElementById('mig-sel-sidebar-btn').addEventListener('click', migrateBunnyToSelectel);
   document.getElementById('mig-start-btn').addEventListener('click', runMigration);
   document.getElementById('mig-cancel-btn').addEventListener('click', closeModal);
   document.getElementById('mig-close-x').addEventListener('click', closeModal);
