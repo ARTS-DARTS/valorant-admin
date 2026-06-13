@@ -1495,8 +1495,22 @@
           <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
         </div>
-        <div id="rng-list-body" style="min-height:40px;">
-          <div style="color:var(--text2);font-size:13px;">Загрузка…</div>
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
+          <div id="rng-list-body" style="min-height:40px;">
+            <div style="color:var(--text2);font-size:13px;">Загрузка…</div>
+          </div>
+          <div>
+            <div id="rng-lp-container" style="position:relative;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;aspect-ratio:1/1;">
+              <img id="rng-lp-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
+              <svg style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;" xmlns="http://www.w3.org/2000/svg">
+                <circle id="rng-lp-fill"   cx="50%" cy="50%" r="0" fill="rgba(255,70,85,0.18)"/>
+                <circle id="rng-lp-border" cx="50%" cy="50%" r="0" fill="none" stroke="rgba(255,70,85,0.75)" stroke-width="1.5" stroke-dasharray="5,3"/>
+                <circle id="rng-lp-dot"    cx="50%" cy="50%" r="4"  fill="rgba(255,70,85,1)" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+              </svg>
+              <div id="rng-lp-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:12px;pointer-events:none;">Выбери строку</div>
+            </div>
+            <div id="rng-lp-info" style="font-size:12px;margin-top:8px;line-height:1.6;color:var(--text2);text-align:center;min-height:36px;"></div>
+          </div>
         </div>
       </div>
 
@@ -7585,7 +7599,7 @@ async function rngApplyToLineups() {
     } else {
       toast('✅ Заготовка сохранена (без лайнапов)');
     }
-    addAuditLog('range_radius_apply', { map, agent: _rngAgent, ability: _rngAbility, value: val, count: matched.length });
+    if (typeof addAuditLog === 'function') addAuditLog('range_radius_apply', { map, agent: _rngAgent, ability: _rngAbility, value: val, count: matched.length });
   } catch(e) {
     console.error('rngApplyToLineups', e);
     toast('Ошибка: ' + e.message, 'e');
@@ -7642,17 +7656,23 @@ async function rngLoadList() {
   }
 }
 window.rngListSelect = function(map,agent,ability,radius,idx) {
-  const img=document.getElementById('rng-lp-img'), hint=document.getElementById('rng-lp-hint'), info=document.getElementById('rng-lp-info');
-  const container=document.getElementById('rng-lp-container');
-  if (MAP_IMAGES[map]) { img.src=MAP_IMAGES[map]; hint.style.display='none'; }
-  const pxR = radius*(container.offsetWidth||300);
-  ['rng-lp-fill','rng-lp-border','rng-lp-dot'].forEach(id=>{ document.getElementById(id).setAttribute('cx','50%'); document.getElementById(id).setAttribute('cy','50%'); });
-  document.getElementById('rng-lp-fill').setAttribute('r',pxR);
-  document.getElementById('rng-lp-border').setAttribute('r',pxR);
-  const meters=(radius/0.007).toFixed(1);
-  info.innerHTML='<b>'+agent+'</b> · '+ability+'<br><span style="color:var(--primary)">'+radius.toFixed(3)+'</span> ≈ '+meters+' м · '+map;
-  document.querySelectorAll('[id^="rng-row-"]').forEach(r=>r.style.background='');
-  const row=document.getElementById('rng-row-'+idx); if(row) row.style.background='var(--surface2)';
+  const img       = document.getElementById('rng-lp-img');
+  const hint      = document.getElementById('rng-lp-hint');
+  const info      = document.getElementById('rng-lp-info');
+  const container = document.getElementById('rng-lp-container');
+  if (img && MAP_IMAGES[map]) { img.src = MAP_IMAGES[map]; }
+  if (hint) hint.style.display = MAP_IMAGES[map] ? 'none' : '';
+  const pxR = radius * ((container ? container.offsetWidth : 0) || 260);
+  ['rng-lp-fill','rng-lp-border','rng-lp-dot'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    el.setAttribute('cx','50%'); el.setAttribute('cy','50%');
+  });
+  const fill = document.getElementById('rng-lp-fill');   if (fill)   fill.setAttribute('r', pxR);
+  const bord = document.getElementById('rng-lp-border'); if (bord)   bord.setAttribute('r', pxR);
+  const meters = (radius / 0.007).toFixed(1);
+  if (info) info.innerHTML = '<b>'+agent+'</b> · '+ability+'<br><span style="color:var(--primary)">'+radius.toFixed(3)+'</span> ≈ '+meters+' м · '+map;
+  document.querySelectorAll('[id^="rng-row-"]').forEach(r => r.style.background = '');
+  const row = document.getElementById('rng-row-'+idx); if (row) row.style.background = 'var(--surface2)';
 };
 
 window.rngListToggleEdit = function(idx,map,agent,ability,radius) {
@@ -7668,9 +7688,10 @@ window.rngEditSync = function(idx,val,fromNumber) {
   if(!fromNumber) document.getElementById('rng-en-'+idx).value=numVal.toFixed(3);
   document.getElementById('rng-es-'+idx).value=numVal;
   document.getElementById('rng-em-'+idx).textContent='≈ '+(numVal/0.007).toFixed(1)+' м';
-  const pxR=numVal*(document.getElementById('rng-lp-container').offsetWidth||300);
-  document.getElementById('rng-lp-fill').setAttribute('r',pxR);
-  document.getElementById('rng-lp-border').setAttribute('r',pxR);
+  const lpCont = document.getElementById('rng-lp-container');
+  const pxR = numVal * ((lpCont ? lpCont.offsetWidth : 0) || 260);
+  const lpFill = document.getElementById('rng-lp-fill');   if (lpFill)   lpFill.setAttribute('r', pxR);
+  const lpBord = document.getElementById('rng-lp-border'); if (lpBord)   lpBord.setAttribute('r', pxR);
   const rv=document.getElementById('rng-rv-'+idx), rm=document.getElementById('rng-rm-'+idx);
   if(rv) rv.textContent=numVal.toFixed(3);
   if(rm) rm.textContent='≈ '+(numVal/0.007).toFixed(1)+' м';
@@ -7694,7 +7715,7 @@ window.rngApplyEntry = async function(map, agent, ability, idx, cfgId) {
     } else {
       toast('✅ Заготовка сохранена (без лайнапов)');
     }
-    addAuditLog('range_radius_apply', { map, agent, ability, value: val, count: refs.length });
+    if (typeof addAuditLog === 'function') addAuditLog('range_radius_apply', { map, agent, ability, value: val, count: refs.length });
     document.getElementById('rng-edit-' + idx).style.display = 'none';
     rngLoadList();
   } catch(e) { console.error('rngApplyEntry', e); toast('Ошибка: ' + e.message, 'e'); }
