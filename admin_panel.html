@@ -7362,6 +7362,96 @@ async function loadRangesTab() {
   rngLoadList();
 }
 
+function _rngWireEvents() {
+  document.getElementById('rng-map').addEventListener('change', function() {
+    const map = this.value;
+    const img  = document.getElementById('rng-map-img');
+    const hint = document.getElementById('rng-map-hint');
+    const lbl  = document.getElementById('rng-preview-label');
+    if (map && MAP_IMAGES[map]) {
+      img.src = MAP_IMAGES[map]; hint.style.display = 'none'; lbl.textContent = map;
+    } else {
+      img.src = ''; hint.style.display = 'flex'; lbl.textContent = 'выберите карту и агента';
+    }
+    _rngUpdateApplyInfo();
+  });
+
+  document.getElementById('rng-slider').addEventListener('input', rngUpdateCircle);
+
+  document.getElementById('rng-value').addEventListener('input', function() {
+    const v = Math.max(0, Math.min(0.3, parseFloat(this.value) || 0));
+    document.getElementById('rng-slider').value = v;
+    rngUpdateCircle();
+  });
+
+  document.getElementById('rng-map-container').addEventListener('click', function(e) {
+    const r = this.getBoundingClientRect();
+    _rngCx = (e.clientX - r.left) / r.width;
+    _rngCy = (e.clientY - r.top)  / r.height;
+    rngUpdateCircle();
+  });
+
+  document.getElementById('rng-apply-btn').addEventListener('click', rngApplyToLineups);
+
+  document.getElementById('rng-preview-lineup-btn').addEventListener('click', function() {
+    const map = document.getElementById('rng-map').value;
+    if (!map) return;
+    document.getElementById('rng-preview-label').textContent = (_rngAgent ? _rngAgent + ' · ' : '') + map;
+  });
+
+  document.getElementById('rng-list-reload').addEventListener('click', rngLoadList);
+
+  document.getElementById('rng-shot-file').addEventListener('change', function() {
+    const file = this.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const si = document.getElementById('rng-shot-img');
+      si.src = ev.target.result; si.style.display = '';
+      document.getElementById('rng-shot-clear').style.display   = '';
+      document.getElementById('rng-shot-sliders').style.display = '';
+      document.getElementById('rng-shot-hint').style.display    = 'none';
+      _rngApplyShotTransform();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById('rng-shot-clear').addEventListener('click', function() {
+    const si = document.getElementById('rng-shot-img');
+    si.src = ''; si.style.display = 'none';
+    document.getElementById('rng-shot-file').value              = '';
+    document.getElementById('rng-shot-clear').style.display     = 'none';
+    document.getElementById('rng-shot-sliders').style.display   = 'none';
+    document.getElementById('rng-shot-hint').style.display      = '';
+  });
+
+  document.getElementById('rng-shot-scale').addEventListener('input', function() {
+    document.getElementById('rng-shot-scale-val').textContent = Math.round(parseFloat(this.value) * 100) + '%';
+    _rngApplyShotTransform();
+  });
+  document.getElementById('rng-shot-opacity').addEventListener('input', function() {
+    document.getElementById('rng-shot-opacity-val').textContent = Math.round(parseFloat(this.value) * 100) + '%';
+    document.getElementById('rng-shot-img').style.opacity = this.value;
+  });
+  document.getElementById('rng-shot-x').addEventListener('input', function() {
+    document.getElementById('rng-shot-x-val').textContent = this.value + '%';
+    _rngApplyShotTransform();
+  });
+  document.getElementById('rng-shot-y').addEventListener('input', function() {
+    document.getElementById('rng-shot-y-val').textContent = this.value + '%';
+    _rngApplyShotTransform();
+  });
+}
+
+function _rngApplyShotTransform() {
+  const scale   = parseFloat(document.getElementById('rng-shot-scale').value)   || 1;
+  const x       = parseFloat(document.getElementById('rng-shot-x').value)       || 0;
+  const y       = parseFloat(document.getElementById('rng-shot-y').value)       || 0;
+  const opacity = parseFloat(document.getElementById('rng-shot-opacity').value) || 0.5;
+  const si = document.getElementById('rng-shot-img');
+  si.style.transform = `scale(${scale}) translate(${x}%, ${y}%)`;
+  si.style.opacity   = opacity;
+}
+
 function _rngBuildMapSelector() {
   const sel = document.getElementById('rng-map');
   if (sel.options.length > 1) return;
