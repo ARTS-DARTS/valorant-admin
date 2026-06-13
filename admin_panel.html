@@ -6935,6 +6935,21 @@ async function openUserProfilePanel(uid) {
           <button class="btn btn-delete" onclick="deleteUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🗑 Удалить аккаунт</button>
         </div>
 
+        <div style="margin-bottom:14px;">
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Бейджи</div>
+          <div id="badges-list-${uid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:28px;"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            ${['pioneer','youtuber','twitch','tiktok','sponsor'].map(type => `
+              <button onclick="grantBadge('${uid}','${type}')"
+                      style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;"
+                      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
+                + ${type}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+
         ${lineups.length ? `
         <div style="margin-bottom:14px;">
           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Последние лайнапы (${lineups.length})</div>
@@ -6952,10 +6967,76 @@ async function openUserProfilePanel(uid) {
           ${feedbacks.map(f => `<div style="padding:6px 8px;border-radius:var(--r);background:var(--surface2);margin-bottom:6px;font-size:12px;color:var(--text2);">${esc(f.text||f.message||'—')}</div>`).join('')}
         </div>` : ''}
       </div>`;
+  loadUserBadges(uid);
   } catch(e) {
     panel.innerHTML = `<div style="color:var(--red);padding:16px;">Ошибка: ${e.message}</div>`;
   }
 }
+
+async function loadUserBadges(uid) {
+  const snap = await getDoc(doc(db, 'user_badges', uid));
+  const badges = snap.exists() ? (snap.data().badges || []) : [];
+  renderUserBadges(uid, badges);
+  return badges;
+}
+
+const BADGE_EMOJI = { pioneer:'🚀', youtuber:'🎥', twitch:'🟣', tiktok:'🎵', sponsor:'💎' };
+const BADGE_COLOR = { pioneer:'#FF4655', youtuber:'#FF0000', twitch:'#9147FF', tiktok:'#69C9D0', sponsor:'#FFD700' };
+
+function renderUserBadges(uid, badges) {
+  const el = document.getElementById('badges-list-' + uid);
+  if (!el) return;
+  if (!badges.length) {
+    el.innerHTML = '<span style="font-size:11px;color:var(--text2);">Нет бейджей</span>';
+    return;
+  }
+  el.innerHTML = badges.map(b => `
+    <div style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;border:1px solid ${BADGE_COLOR[b.type] || '#888'};background:${BADGE_COLOR[b.type] || '#888'}22;">
+      <span>${BADGE_EMOJI[b.type] || '⭐'}</span>
+      <span style="font-size:11px;color:${BADGE_COLOR[b.type] || '#ccc'};">${b.type}</span>
+      <span onclick="revokeBadge('${uid}','${b.type}')" style="cursor:pointer;color:var(--text2);margin-left:2px;font-size:12px;" title="Убрать">✕</span>
+    </div>
+  `).join('');
+}
+
+async function grantBadge(uid, type) {
+  let url = null;
+  if (['youtuber','twitch','tiktok'].includes(type)) {
+    url = prompt(`Ссылка на ${type} канал пользователя:`);
+    if (url === null) return;
+  }
+
+  const ref = doc(db, 'user_badges', uid);
+  const snap = await getDoc(ref);
+  const existing = snap.exists() ? (snap.data().badges || []) : [];
+
+  if (existing.some(b => b.type === type)) { toast(`Бейдж ${type} уже выдан`, 'w'); return; }
+
+  const badge = { type, url: url || null, granted_by: auth.currentUser?.uid, granted_at: new Date() };
+  await setDoc(ref, { badges: [...existing, badge] }, { merge: true });
+
+  toast(`Бейдж ${BADGE_EMOJI[type] || ''} ${type} выдан ✅`, 's');
+  addAuditLog(`Выдан бейдж ${type} пользователю ${uid}${url ? ' → ' + url : ''}`);
+  loadUserBadges(uid);
+}
+
+async function revokeBadge(uid, type) {
+  if (!confirm(`Убрать бейдж ${type}?`)) return;
+
+  const ref = doc(db, 'user_badges', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return;
+  const badges = (snap.data().badges || []).filter(b => b.type !== type);
+  await setDoc(ref, { badges }, { merge: false });
+
+  toast(`Бейдж ${type} удалён`, 'w');
+  addAuditLog(`Удалён бейдж ${type} у пользователя ${uid}`);
+  loadUserBadges(uid);
+}
+
+window.grantBadge  = grantBadge;
+window.revokeBadge = revokeBadge;
+
 
 async function saveUserName(uid) {
   const name = document.getElementById('up-name-' + uid)?.value?.trim();
