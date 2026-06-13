@@ -444,6 +444,30 @@
 
     /* ── Profile modal ── */
     .profile-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
+    /* ── Migration modal ── */
+    .mig-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:540px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
+    .mig-title { font-size:17px; font-weight:800; margin-bottom:6px; }
+    .mig-sub   { font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.5; }
+    .mig-bar-wrap { background:var(--surface2); border-radius:6px; height:8px; overflow:hidden; margin-bottom:8px; }
+    .mig-bar  { height:8px; border-radius:6px; background:var(--primary); width:0%; transition:width .25s; }
+    .mig-bar.done { background:var(--green); }
+    .mig-status { font-size:12px; color:var(--text2); margin-bottom:10px; }
+    .mig-log  { background:var(--surface3); border:1px solid var(--border); border-radius:var(--r); padding:10px 12px; max-height:220px; overflow-y:auto; font-size:11px; font-family:'Consolas','Courier New',monospace; display:flex; flex-direction:column; gap:3px; }
+    .mig-log-line { display:flex; gap:6px; }
+    .mig-log-line.ok   .mig-icon { color:var(--green); }
+    .mig-log-line.err  .mig-icon { color:var(--red); }
+    .mig-log-line.info .mig-icon { color:var(--text2); }
+    .mig-log-line .mig-icon { flex-shrink:0; width:14px; }
+    .mig-log-line .mig-text { color:var(--text2); }
+    .mig-log-line.ok  .mig-text { color:var(--text); }
+    .mig-log-line.err .mig-text { color:#fca5a5; }
+    .mig-btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+    .mig-btn { padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; border:none; transition:opacity .15s; }
+    .mig-btn:disabled { opacity:.4; cursor:default; }
+    .mig-btn.secondary { background:var(--surface2); color:var(--text2); border:1px solid var(--border); }
+    .mig-btn.primary   { background:var(--primary); color:#fff; }
+    .mig-btn.secondary:hover:not(:disabled) { color:var(--text); }
+    .mig-btn.primary:hover:not(:disabled)   { opacity:.85; }
     .profile-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:400px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
     .pm-close { position:absolute; top:10px; right:12px; background:transparent; border:none; color:var(--text2); font-size:20px; cursor:pointer; line-height:1; padding:4px 6px; }
     .pm-close:hover { color:var(--text); }
@@ -1819,6 +1843,30 @@
 </div>
 
 <!-- Profile modal -->
+<!-- Bunny → Selectel migration modal -->
+<div id="sel-mig-modal" class="profile-overlay" style="display:none;">
+  <div class="mig-modal">
+    <button class="pm-close" id="sel-mig-close-x">✕</button>
+    <div id="sel-mig-step-confirm">
+      <div class="mig-title">🚀 Миграция видео Bunny → Selectel</div>
+      <div class="mig-sub">Все видео с Bunny CDN будут скачаны и перезалиты на Selectel S3.<br>Ссылки в Firestore обновятся автоматически. Может занять несколько минут.</div>
+      <div class="mig-btn-row">
+        <button class="mig-btn secondary" id="sel-mig-cancel-btn">Отмена</button>
+        <button class="mig-btn primary"   id="sel-mig-start-btn">Начать миграцию</button>
+      </div>
+    </div>
+    <div id="sel-mig-step-progress" style="display:none;">
+      <div class="mig-title" id="sel-mig-heading">⏳ Миграция…</div>
+      <div class="mig-bar-wrap"><div class="mig-bar" id="sel-mig-bar"></div></div>
+      <div class="mig-status" id="sel-mig-status">Подготовка…</div>
+      <div class="mig-log"   id="sel-mig-log"></div>
+      <div class="mig-btn-row">
+        <button class="mig-btn primary" id="sel-mig-done-btn" disabled>Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="profile-modal" class="profile-overlay" style="display:none;">
   <div class="profile-modal" id="profile-modal-body">
     <button class="pm-close" id="pm-close-btn">✕</button>
@@ -7083,16 +7131,45 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
 
 
 // ── Миграция Bunny → Selectel ─────────────────────────────────────────────────
-async function migrateBunnyToSelectel() {
-  if (!confirm('Перенести все видео с Bunny CDN на Selectel S3?\nМожет занять несколько минут.')) return;
+function migrateBunnyToSelectel() {
+  document.getElementById('sel-mig-step-confirm').style.display  = '';
+  document.getElementById('sel-mig-step-progress').style.display = 'none';
+  document.getElementById('sel-mig-heading').textContent         = '⏳ Миграция…';
+  document.getElementById('sel-mig-bar').style.width             = '0%';
+  document.getElementById('sel-mig-bar').className               = 'mig-bar';
+  document.getElementById('sel-mig-status').textContent          = 'Подготовка…';
+  document.getElementById('sel-mig-log').innerHTML               = '';
+  document.getElementById('sel-mig-done-btn').disabled           = true;
+  document.getElementById('sel-mig-modal').style.display         = 'flex';
+}
 
-  toast('Начинаем миграцию Bunny → Selectel…', 'i');
+function _selMigLog(type, icon, text) {
+  const log  = document.getElementById('sel-mig-log');
+  const line = document.createElement('div');
+  line.className = 'mig-log-line ' + type;
+  line.innerHTML = `<span class="mig-icon">${icon}</span><span class="mig-text">${text}</span>`;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function runSelMigration() {
+  document.getElementById('sel-mig-step-confirm').style.display  = 'none';
+  document.getElementById('sel-mig-step-progress').style.display = '';
+
+  const bar     = document.getElementById('sel-mig-bar');
+  const status  = document.getElementById('sel-mig-status');
+  const heading = document.getElementById('sel-mig-heading');
+  const doneBtn = document.getElementById('sel-mig-done-btn');
+
+  _selMigLog('info', '⏳', 'Получаем список лайнапов…');
 
   let snap;
   try {
     snap = await getDocs(collection(db, 'lineups'));
   } catch(e) {
-    toast('Ошибка Firestore: ' + e.message, 'e');
+    _selMigLog('err', '✕', 'Ошибка Firestore: ' + e.message);
+    heading.textContent = '❌ Ошибка';
+    doneBtn.disabled = false;
     return;
   }
 
@@ -7102,48 +7179,80 @@ async function migrateBunnyToSelectel() {
   });
 
   if (toMigrate.length === 0) {
-    toast('Нет видео для миграции ✅', 's');
+    _selMigLog('ok', '✅', 'Нет видео для миграции — все уже на Selectel');
+    heading.textContent = '✅ Нечего мигрировать';
+    status.textContent = '0 / 0';
+    bar.style.width = '100%';
+    bar.classList.add('done');
+    doneBtn.disabled = false;
     return;
   }
 
-  toast(`Найдено ${toMigrate.length} видео`, 'i');
+  _selMigLog('info', 'ℹ', `Найдено ${toMigrate.length} видео для миграции`);
 
   let success = 0, failed = 0;
+  const total = toMigrate.length;
 
-  for (const docSnap of toMigrate) {
-    const data = docSnap.data();
-    const bunnyUrl = data.video_url;
-    const docId = docSnap.id;
-    const label = data.title || docId;
+  for (let i = 0; i < toMigrate.length; i++) {
+    const docSnap  = toMigrate[i];
+    const data     = docSnap.data();
+    const label    = data.title || docSnap.id;
+    const cdnUrl   = data.video_url;
+    const docId    = docSnap.id;
+
+    status.textContent = `${i + 1} / ${total} — ${label}`;
+    bar.style.width = Math.round((i / total) * 100) + '%';
 
     try {
-      const response = await fetch(bunnyUrl);
-      if (!response.ok) throw new Error('HTTP ' + response.status);
+      // CDN блокирует CORS — скачиваем через Storage API с AccessKey
+      const filename   = cdnUrl.split('/lineups_videos/')[1]?.split('?')[0];
+      if (!filename) throw new Error('Не удалось определить имя файла');
+      const storageUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${filename}`;
+
+      const response = await fetch(storageUrl, {
+        headers: { 'AccessKey': BUNNY_API_KEY }
+      });
+      if (!response.ok) throw new Error('Bunny storage HTTP ' + response.status);
       const blob = await response.blob();
 
-      const urlParts = bunnyUrl.split('/');
-      const origName = urlParts[urlParts.length - 1].split('?')[0];
-      const file = new File([blob], origName, { type: 'video/mp4' });
-
+      const file   = new File([blob], filename, { type: blob.type || 'video/mp4' });
       const newUrl = await uploadToSelectel(file, 'lineups_videos', null);
       await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
 
       success++;
-      toast(`✅ ${label} (${success}/${toMigrate.length})`, 's');
+      _selMigLog('ok', '✅', label);
     } catch(e) {
       failed++;
       console.error('Migration failed', docId, e);
-      toast(`❌ ${label}: ${e.message}`, 'e');
+      _selMigLog('err', '✕', `${label} — ${e.message}`);
     }
 
     await new Promise(r => setTimeout(r, 300));
   }
 
-  toast(`Миграция завершена: ${success} ✅ ${failed} ❌`, failed === 0 ? 's' : 'e');
+  bar.style.width = '100%';
+  bar.classList.toggle('done', failed === 0);
+  status.textContent  = `Готово: ${success} успешно, ${failed} ошибок`;
+  heading.textContent = failed === 0 ? '✅ Миграция завершена' : `⚠️ Завершено с ${failed} ошибками`;
+  _selMigLog(failed === 0 ? 'ok' : 'err', failed === 0 ? '🎉' : '⚠️',
+    `Итого: ${success} успешно, ${failed} ошибок`);
+  doneBtn.disabled = false;
+
+  toast(`Миграция: ${success} успешно, ${failed} ошибок`, failed === 0 ? 's' : 'e');
   addAuditLog(`Миграция Bunny → Selectel: ${success} успешно, ${failed} ошибок`);
 }
 
-document.getElementById('mig-sel-sidebar-btn').addEventListener('click', migrateBunnyToSelectel);
+// Wiring
+{
+  const modal      = document.getElementById('sel-mig-modal');
+  const closeModal = () => { modal.style.display = 'none'; };
+  document.getElementById('mig-sel-sidebar-btn').addEventListener('click', migrateBunnyToSelectel);
+  document.getElementById('sel-mig-start-btn').addEventListener('click', runSelMigration);
+  document.getElementById('sel-mig-cancel-btn').addEventListener('click', closeModal);
+  document.getElementById('sel-mig-close-x').addEventListener('click', closeModal);
+  document.getElementById('sel-mig-done-btn').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+}
 
 // ── Пользователи ──────────────────────────────────────────────────────────────
 
