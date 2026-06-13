@@ -1850,6 +1850,11 @@
     <div id="sel-mig-step-confirm">
       <div class="mig-title">🚀 Миграция видео Bunny → Selectel</div>
       <div class="mig-sub">Все видео с Bunny CDN будут скачаны и перезалиты на Selectel S3.<br>Ссылки в Firestore обновятся автоматически. Может занять несколько минут.</div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Storage Zone Password (Bunny Dashboard → Storage → FTP & API Access)</label>
+        <input id="sel-mig-bunny-key" type="password" value="fc600980-14fc-40e0-b320651320f6-1a31-4b61"
+          style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:13px;font-family:monospace;">
+      </div>
       <div class="mig-btn-row">
         <button class="mig-btn secondary" id="sel-mig-cancel-btn">Отмена</button>
         <button class="mig-btn primary"   id="sel-mig-start-btn">Начать миграцию</button>
@@ -7153,6 +7158,9 @@ function _selMigLog(type, icon, text) {
 }
 
 async function runSelMigration() {
+  const bunnyStorageKey = document.getElementById('sel-mig-bunny-key').value.trim();
+  if (!bunnyStorageKey) { toast('Введи Storage Zone Password', 'e'); return; }
+
   document.getElementById('sel-mig-step-confirm').style.display  = 'none';
   document.getElementById('sel-mig-step-progress').style.display = '';
 
@@ -7210,7 +7218,7 @@ async function runSelMigration() {
       const storageUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${filename}`;
 
       const response = await fetch(storageUrl, {
-        headers: { 'AccessKey': BUNNY_API_KEY }
+        headers: { 'AccessKey': bunnyStorageKey }
       });
       if (!response.ok) throw new Error('Bunny storage HTTP ' + response.status);
       const blob = await response.blob();
