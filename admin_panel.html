@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -790,6 +790,7 @@
         <button class="tab active" id="tab-btn-list"><i class="bi bi-list-ul"></i><span>Лайнапы</span></button>
         <button class="tab"        id="tab-btn-add"><i class="bi bi-plus-circle"></i><span>Добавить</span></button>
         <button class="tab"        id="tab-btn-agents"><i class="bi bi-person-badge"></i><span>Агенты</span></button>
+        <button class="tab"        id="tab-btn-ranges"><i class="bi bi-bullseye"></i><span>Радиусы</span></button>
         <button class="tab"        id="tab-btn-duels"><i class="bi bi-trophy"></i><span>Дуэли</span></button>
         <button class="tab"        id="tab-btn-guides"><i class="bi bi-book"></i><span>Гайды</span></button>
       </div>
@@ -1366,6 +1367,96 @@
     </div>
   </div>
 
+
+  <!-- Ranges tab -->
+  <div id="tab-ranges" style="display:none;">
+    <div style="max-width:1200px;padding-bottom:20px;">
+      <div class="form-title">🎯 РАДИУСЫ СПОСОБНОСТЕЙ</div>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">Выбери карту, агента и способность. Настрой размер круга ползунком — он отображается на миникарте когда анимация траектории завершается.</p>
+
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start;">
+
+        <!-- ── Левая колонка: выборы + контролы ── -->
+        <div>
+
+          <!-- Карта -->
+          <div style="margin-bottom:16px;">
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Карта</div>
+            <select id="rng-map" class="fselect"></select>
+          </div>
+
+          <!-- Агент -->
+          <div style="margin-bottom:16px;">
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Агент</div>
+            <div id="rng-agent-grid" style="display:grid;grid-template-columns:repeat(6,40px);gap:4px;">
+              <div style="color:var(--text2);font-size:12px;grid-column:1/-1;padding:8px 0;">Загрузка…</div>
+            </div>
+          </div>
+
+          <!-- Способность -->
+          <div id="rng-ability-wrap" style="display:none;margin-bottom:16px;">
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Способность</div>
+            <div id="rng-ability-row" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
+
+          <!-- Ползунок -->
+          <div style="margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">Радиус</div>
+              <span id="rng-meters" style="font-size:12px;color:var(--primary);font-weight:600;">≈ 10.0 м</span>
+            </div>
+            <input type="range" id="rng-slider" min="0" max="0.3" step="0.001" value="0.07"
+                   style="width:100%;accent-color:var(--primary);height:4px;margin-bottom:10px;cursor:pointer;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="number" id="rng-value" class="finput" min="0" max="0.3" step="0.005" value="0.07" style="flex:1;font-size:13px;">
+              <span style="font-size:11px;color:var(--text2);">норм.</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);margin-top:8px;line-height:1.6;">
+              0.035 ≈ 3.5м &nbsp;·&nbsp; 0.05 ≈ 5м &nbsp;·&nbsp; 0.07 ≈ 7м<br>
+              0.10 ≈ 10м &nbsp;·&nbsp; 0.15 ≈ 15м
+            </div>
+          </div>
+
+          <!-- Применить -->
+          <div id="rng-apply-wrap" style="display:none;">
+            <div id="rng-apply-info" style="font-size:11px;color:var(--text2);margin-bottom:8px;padding:8px 10px;border-radius:var(--r);background:var(--surface2);border:1px solid var(--border);"></div>
+            <button class="btn btn-save" id="rng-apply-btn" style="width:100%;padding:10px;">💾 Применить к лайнапам</button>
+            <button class="btn" id="rng-preview-lineup-btn" style="width:100%;margin-top:6px;border:1px solid var(--border);color:var(--text2);">👁 Только посмотреть (не сохранять)</button>
+          </div>
+
+        </div>
+
+        <!-- ── Правая колонка: карта-превью ── -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">Предпросмотр</div>
+            <span id="rng-preview-label" style="font-size:11px;color:var(--text2);">выберите карту и агента</span>
+          </div>
+
+          <div id="rng-map-container" style="position:relative;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;cursor:crosshair;aspect-ratio:1/1;max-width:580px;user-select:none;">
+            <img id="rng-map-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
+            <svg id="rng-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;" xmlns="http://www.w3.org/2000/svg">
+              <circle id="rng-circle-fill"   cx="50%" cy="50%" r="0" fill="rgba(255,70,85,0.18)"/>
+              <circle id="rng-circle-border" cx="50%" cy="50%" r="0" fill="none" stroke="rgba(255,70,85,0.75)" stroke-width="1.5" stroke-dasharray="5,3"/>
+              <circle id="rng-center-dot"    cx="50%" cy="50%" r="4"  fill="rgba(255,70,85,1)" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+            </svg>
+            <!-- Hint overlay when no map -->
+            <div id="rng-map-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text2);pointer-events:none;">
+              <div style="font-size:32px;opacity:0.3;">🗺️</div>
+              <div style="font-size:12px;">Выбери карту</div>
+            </div>
+          </div>
+
+          <div style="font-size:10px;color:var(--text2);margin-top:6px;">
+            Кликни на карту чтобы переместить центр круга
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
   <!-- Notifications tab -->
   <div id="tab-notif" style="display:none;">
     <div style="max-width:1160px;">
@@ -1814,6 +1905,7 @@ function switchTab(t) {
   document.getElementById('tab-agents').style.display    = t === 'agents'    ? 'block' : 'none';
   document.getElementById('tab-notif').style.display     = t === 'notif'     ? 'block' : 'none';
   document.getElementById('tab-logs').style.display      = t === 'logs'      ? 'block' : 'none';
+  document.getElementById('tab-ranges').style.display     = t === 'ranges'    ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -1824,12 +1916,14 @@ function switchTab(t) {
   document.getElementById('tab-btn-agents').classList.toggle('active',    t === 'agents');
   document.getElementById('tab-btn-notif').classList.toggle('active',     t === 'notif');
   document.getElementById('tab-btn-logs').classList.toggle('active',      t === 'logs');
+  document.getElementById('tab-btn-ranges').classList.toggle('active',    t === 'ranges');
   if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
   if (t === 'logs')  loadLogsTab();
+  if (t === 'ranges') loadRangesTab();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
@@ -1855,6 +1949,7 @@ document.getElementById('tab-btn-guides').addEventListener('click',    () => swi
 document.getElementById('tab-btn-agents').addEventListener('click',    () => switchTab('agents'));
 document.getElementById('tab-btn-notif').addEventListener('click',     () => switchTab('notif'));
 document.getElementById('tab-btn-logs').addEventListener('click',      () => switchTab('logs'));
+document.getElementById('tab-btn-ranges').addEventListener('click',    () => switchTab('ranges'));
 
 // ── Agents config editor ──────────────────────────────────────────────────────
 const sanitizeAgentId = name => name.replaceAll('/', '_');
@@ -7204,6 +7299,182 @@ window.banUserAccount    = banUserAccount;
 window.unbanUserAccount  = unbanUserAccount;
 window.deleteUserAccount = deleteUserAccount;
 window.sendMessageToUser = sendMessageToUser;
+
+// ── Ranges tab ─────────────────────────────────────────────────────────────
+let _rngInited  = false;
+let _rngAgent   = '';
+let _rngAbility = '';
+let _rngCx = 0.5;
+let _rngCy = 0.5;
+
+async function loadRangesTab() {
+  await _ensureIconsLoaded();
+  _rngBuildMapSelector();
+  _rngBuildAgentGrid();
+  if (!_rngInited) { _rngWireEvents(); _rngInited = true; }
+}
+
+function _rngBuildMapSelector() {
+  const sel = document.getElementById('rng-map');
+  if (sel.options.length > 1) return;
+  sel.innerHTML = '<option value="">— выберите карту —</option>';
+  Object.keys(MAP_IMAGES).sort().forEach(m => {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    sel.appendChild(o);
+  });
+}
+
+function _rngBuildAgentGrid() {
+  const grid = document.getElementById('rng-agent-grid');
+  if (grid.querySelectorAll('img').length > 0) return;
+  grid.innerHTML = '';
+  Object.keys(AGENT_ICONS).sort().forEach(agent => {
+    const div = document.createElement('div');
+    div.style.cssText = 'width:40px;height:40px;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s;';
+    div.title = agent; div.dataset.agent = agent;
+    const img = document.createElement('img');
+    img.src = AGENT_ICONS[agent] || '';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+    img.onerror = () => { div.style.background = 'var(--surface3)'; img.style.display = 'none'; };
+    div.appendChild(img);
+    div.addEventListener('click', () => rngSelectAgent(agent));
+    grid.appendChild(div);
+  });
+}
+
+function rngSelectAgent(agent) {
+  _rngAgent = agent; _rngAbility = '';
+  document.querySelectorAll('#rng-agent-grid > div').forEach(d => {
+    d.style.borderColor = d.dataset.agent === agent ? 'var(--primary)' : 'transparent';
+  });
+  const abilities = AGENT_ABILITIES[agent] || [];
+  const row = document.getElementById('rng-ability-row');
+  row.innerHTML = '';
+  abilities.forEach(ab => {
+    const btn = document.createElement('div');
+    btn.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px;border-radius:6px;border:2px solid transparent;transition:border-color .15s;';
+    btn.dataset.ability = ab;
+    const icon = AGENT_ABILITY_ICONS[agent]?.[ab];
+    if (icon) {
+      const img = document.createElement('img');
+      img.src = icon; img.style.cssText = 'width:32px;height:32px;object-fit:contain;';
+      btn.appendChild(img);
+    }
+    const label = document.createElement('div');
+    label.textContent = ab;
+    label.style.cssText = 'font-size:9px;color:var(--text2);text-align:center;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    btn.appendChild(label);
+    btn.addEventListener('click', () => rngSelectAbility(ab));
+    row.appendChild(btn);
+  });
+  document.getElementById('rng-ability-wrap').style.display = abilities.length ? 'block' : 'none';
+  _rngUpdateApplyInfo();
+}
+
+function rngSelectAbility(ab) {
+  _rngAbility = ab;
+  document.querySelectorAll('#rng-ability-row > div').forEach(d => {
+    d.style.borderColor = d.dataset.ability === ab ? 'var(--primary)' : 'transparent';
+  });
+  _rngUpdateApplyInfo();
+}
+
+function rngUpdateCircle() {
+  const val    = parseFloat(document.getElementById('rng-slider').value) || 0;
+  const meters = (val / 0.007).toFixed(1);
+  document.getElementById('rng-meters').textContent = '≈ ' + meters + ' м';
+  document.getElementById('rng-value').value = val.toFixed(3);
+
+  const container = document.getElementById('rng-map-container');
+  const w   = container.offsetWidth || 580;
+  const pxR = val * w;
+  const cxPct = (_rngCx * 100).toFixed(2) + '%';
+  const cyPct = (_rngCy * 100).toFixed(2) + '%';
+
+  ['rng-circle-fill','rng-circle-border','rng-center-dot'].forEach(id => {
+    document.getElementById(id).setAttribute('cx', cxPct);
+    document.getElementById(id).setAttribute('cy', cyPct);
+  });
+  document.getElementById('rng-circle-fill').setAttribute('r', pxR);
+  document.getElementById('rng-circle-border').setAttribute('r', pxR);
+}
+
+function _rngUpdateApplyInfo() {
+  const wrap = document.getElementById('rng-apply-wrap');
+  const info = document.getElementById('rng-apply-info');
+  const map  = document.getElementById('rng-map').value;
+  if (!_rngAgent || !_rngAbility || !map) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const val    = parseFloat(document.getElementById('rng-slider').value) || 0;
+  const meters = (val / 0.007).toFixed(1);
+  info.textContent = `${_rngAgent} · ${_rngAbility} · ${map} — радиус ${val.toFixed(3)} (≈ ${meters} м)`;
+}
+
+async function rngApplyToLineups() {
+  const map = document.getElementById('rng-map').value;
+  const val = parseFloat(document.getElementById('rng-slider').value) || 0;
+  if (!_rngAgent || !_rngAbility || !map) return showToast('Выбери карту, агента и способность', 'error');
+  const btn = document.getElementById('rng-apply-btn');
+  btn.disabled = true; btn.textContent = '⏳ Применяю…';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('map', '==', map),
+      where('agent', '==', _rngAgent),
+      where('ability', '==', _rngAbility)
+    ));
+    if (snap.empty) { showToast('Лайнапы не найдены для этой комбинации', 'error'); return; }
+    const batch = writeBatch(db);
+    snap.forEach(d => batch.update(d.ref, { range_radius: val }));
+    await batch.commit();
+    showToast(`✅ Обновлено ${snap.size} лайнапов`);
+    addAuditLog('range_radius_apply', { map, agent: _rngAgent, ability: _rngAbility, value: val, count: snap.size });
+  } catch(e) {
+    showToast('Ошибка: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Применить к лайнапам';
+  }
+}
+
+function _rngWireEvents() {
+  document.getElementById('rng-map').addEventListener('change', () => {
+    const map  = document.getElementById('rng-map').value;
+    const img  = document.getElementById('rng-map-img');
+    const hint = document.getElementById('rng-map-hint');
+    if (map && MAP_IMAGES[map]) {
+      img.src = MAP_IMAGES[map];
+      hint.style.display = 'none';
+      document.getElementById('rng-preview-label').textContent = map;
+    } else {
+      img.src = ''; hint.style.display = 'flex';
+      document.getElementById('rng-preview-label').textContent = 'выберите карту и агента';
+    }
+    _rngUpdateApplyInfo();
+  });
+
+  document.getElementById('rng-slider').addEventListener('input', () => {
+    rngUpdateCircle(); _rngUpdateApplyInfo();
+  });
+
+  document.getElementById('rng-value').addEventListener('input', () => {
+    document.getElementById('rng-slider').value = document.getElementById('rng-value').value;
+    rngUpdateCircle(); _rngUpdateApplyInfo();
+  });
+
+  document.getElementById('rng-map-container').addEventListener('click', e => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    _rngCx = (e.clientX - rect.left) / rect.width;
+    _rngCy = (e.clientY - rect.top)  / rect.height;
+    rngUpdateCircle();
+  });
+
+  document.getElementById('rng-apply-btn').addEventListener('click', rngApplyToLineups);
+
+  document.getElementById('rng-preview-lineup-btn').addEventListener('click', () => {
+    showToast('Предпросмотр: радиус ' + (parseFloat(document.getElementById('rng-slider').value)||0).toFixed(3) + ' — без сохранения');
+  });
+}
 </script>
 </body>
 </html>
