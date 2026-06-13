@@ -1489,6 +1489,17 @@
         </div>
 
       </div>
+      <!-- Configured radii list -->
+      <div style="margin-top:28px;border-top:1px solid var(--border);padding-top:20px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
+          <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
+        </div>
+        <div id="rng-list-body" style="min-height:40px;">
+          <div style="color:var(--text2);font-size:13px;">Загрузка…</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -7348,6 +7359,7 @@ async function loadRangesTab() {
   _rngBuildMapSelector();
   _rngBuildAgentGrid();
   if (!_rngInited) { _rngWireEvents(); _rngInited = true; }
+  rngLoadList();
 }
 
 function _rngBuildMapSelector() {
@@ -7558,7 +7570,71 @@ function _rngWireEvents() {
   document.getElementById('rng-shot-opacity').addEventListener('input', _rngUpdateShot);
   document.getElementById('rng-shot-x').addEventListener('input', _rngUpdateShot);
   document.getElementById('rng-shot-y').addEventListener('input', _rngUpdateShot);
+  document.getElementById('rng-list-reload').addEventListener('click', rngLoadList);
 }
+
+async function rngLoadList() {
+  await _ensureIconsLoaded();
+  const body = document.getElementById('rng-list-body');
+  body.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка…</div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('range_radius', '>', 0)
+    ));
+    if (snap.empty) {
+      body.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:12px 0;">Нет лайнапов с настроенным радиусом</div>';
+      return;
+    }
+    const groups = {};
+    snap.forEach(d => {
+      const data = d.data();
+      const key = `${data.map}||${data.agent}||${data.ability}`;
+      if (!groups[key]) groups[key] = { map: data.map, agent: data.agent, ability: data.ability, radius: data.range_radius, count: 0 };
+      groups[key].count++;
+    });
+    const rows = Object.values(groups).sort((a,b) => (a.map+a.agent+a.ability).localeCompare(b.map+b.agent+b.ability));
+    let html = '<table style="width:100%;border-collapse:collapse;">';
+    html += '<thead><tr style="border-bottom:1px solid var(--border);">';
+    ['Карта','Агент','Способность','Радиус','Метры','Лайнапов',''].forEach(h => {
+      html += `<th style="text-align:left;padding:8px 10px;font-size:10px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:1px;">${h}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    rows.forEach(r => {
+      const meters = (r.radius / 0.007).toFixed(1);
+      const agentImg  = AGENT_ICONS[r.agent] ? `<img src="${AGENT_ICONS[r.agent]}" style="width:24px;height:24px;border-radius:4px;object-fit:cover;vertical-align:middle;margin-right:6px;">` : '';
+      const abilityImg = AGENT_ABILITY_ICONS[r.agent]?.[r.ability] ? `<img src="${AGENT_ABILITY_ICONS[r.agent][r.ability]}" style="width:20px;height:20px;object-fit:contain;vertical-align:middle;margin-right:5px;">` : '';
+      html += `<tr style="border-bottom:1px solid var(--border);transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">`;
+      html += `<td style="padding:9px 10px;font-size:13px;">${r.map||'—'}</td>`;
+      html += `<td style="padding:9px 10px;font-size:13px;">${agentImg}${r.agent||'—'}</td>`;
+      html += `<td style="padding:9px 10px;font-size:13px;">${abilityImg}${r.ability||'—'}</td>`;
+      html += `<td style="padding:9px 10px;font-size:13px;color:var(--primary);font-weight:600;">${r.radius.toFixed(3)}</td>`;
+      html += `<td style="padding:9px 10px;font-size:13px;color:var(--text2);">≈ ${meters} м</td>`;
+      html += `<td style="padding:9px 10px;font-size:13px;color:var(--text2);">${r.count}</td>`;
+      html += `<td style="padding:9px 10px;text-align:right;"><button class="btn" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);color:var(--text2);" onclick="rngEditFromList('${r.map}','${r.agent}','${r.ability}',${r.radius})">✎ Изменить</button></td>`;
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    body.innerHTML = html;
+  } catch(e) {
+    console.error('rngLoadList', e);
+    body.innerHTML = `<div style="color:var(--red);font-size:13px;">Ошибка: ${e.message}</div>`;
+  }
+}
+
+window.rngEditFromList = function(map, agent, ability, radius) {
+  document.getElementById('rng-map').value = map;
+  document.getElementById('rng-map').dispatchEvent(new Event('change'));
+  rngSelectAgent(agent);
+  setTimeout(() => {
+    rngSelectAbility(ability);
+    document.getElementById('rng-slider').value = radius;
+    document.getElementById('rng-value').value = radius.toFixed(3);
+    rngUpdateCircle();
+    _rngUpdateApplyInfo();
+  }, 50);
+  document.getElementById('tab-ranges').scrollIntoView({ behavior: 'smooth' });
+};
 </script>
 </body>
 </html>
