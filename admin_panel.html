@@ -1435,6 +1435,7 @@
 
           <div id="rng-map-container" style="position:relative;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;cursor:crosshair;aspect-ratio:1/1;max-width:580px;user-select:none;">
             <img id="rng-map-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
+            <img id="rng-shot-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;pointer-events:none;display:none;transform-origin:center;transition:opacity .1s;" src="" alt="">
             <svg id="rng-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;" xmlns="http://www.w3.org/2000/svg">
               <circle id="rng-circle-fill"   cx="50%" cy="50%" r="0" fill="rgba(255,70,85,0.18)"/>
               <circle id="rng-circle-border" cx="50%" cy="50%" r="0" fill="none" stroke="rgba(255,70,85,0.75)" stroke-width="1.5" stroke-dasharray="5,3"/>
@@ -1449,6 +1450,31 @@
 
           <div style="font-size:10px;color:var(--text2);margin-top:6px;">
             Кликни на карту чтобы переместить центр круга
+          </div>
+
+          <!-- Screenshot overlay -->
+          <div style="margin-top:10px;padding:12px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;flex:1;">Скриншот-оверлей</div>
+              <label style="cursor:pointer;">
+                <input type="file" id="rng-shot-file" accept="image/*" style="display:none;">
+                <span style="font-size:11px;padding:4px 10px;border-radius:var(--r);border:1px solid var(--border);color:var(--text2);cursor:pointer;white-space:nowrap;">📷 Загрузить</span>
+              </label>
+              <button id="rng-shot-clear" style="display:none;background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;line-height:1;" title="Убрать">✕</button>
+            </div>
+            <div id="rng-shot-hint" style="font-size:11px;color:var(--text2);line-height:1.5;">Загрузи скриншот из игры — он наложится на карту, помогая откалибровать радиус</div>
+            <div id="rng-shot-sliders" style="display:none;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                <span style="font-size:10px;color:var(--text2);">Масштаб</span>
+                <span id="rng-shot-scale-val" style="font-size:11px;color:var(--primary);font-weight:600;">100%</span>
+              </div>
+              <input type="range" id="rng-shot-scale" min="0.5" max="3" step="0.05" value="1" style="width:100%;accent-color:var(--primary);height:4px;margin-bottom:10px;cursor:pointer;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+                <span style="font-size:10px;color:var(--text2);">Прозрачность</span>
+                <span id="rng-shot-opacity-val" style="font-size:11px;color:var(--primary);font-weight:600;">50%</span>
+              </div>
+              <input type="range" id="rng-shot-opacity" min="0.05" max="1" step="0.05" value="0.5" style="width:100%;accent-color:var(--primary);height:4px;cursor:pointer;">
+            </div>
           </div>
         </div>
 
@@ -7437,6 +7463,16 @@ async function rngApplyToLineups() {
   }
 }
 
+function _rngUpdateShot() {
+  const scale   = parseFloat(document.getElementById('rng-shot-scale').value);
+  const opacity = parseFloat(document.getElementById('rng-shot-opacity').value);
+  const si = document.getElementById('rng-shot-img');
+  si.style.transform = `scale(${scale})`;
+  si.style.opacity   = opacity;
+  document.getElementById('rng-shot-scale-val').textContent   = Math.round(scale * 100) + '%';
+  document.getElementById('rng-shot-opacity-val').textContent = Math.round(opacity * 100) + '%';
+}
+
 function _rngWireEvents() {
   document.getElementById('rng-map').addEventListener('change', () => {
     const map  = document.getElementById('rng-map').value;
@@ -7474,6 +7510,31 @@ function _rngWireEvents() {
   document.getElementById('rng-preview-lineup-btn').addEventListener('click', () => {
     showToast('Предпросмотр: радиус ' + (parseFloat(document.getElementById('rng-slider').value)||0).toFixed(3) + ' — без сохранения');
   });
+
+  document.getElementById('rng-shot-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const si = document.getElementById('rng-shot-img');
+      si.src = ev.target.result; si.style.display = 'block';
+      document.getElementById('rng-shot-clear').style.display  = 'block';
+      document.getElementById('rng-shot-sliders').style.display = 'block';
+      document.getElementById('rng-shot-hint').style.display   = 'none';
+      _rngUpdateShot();
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('rng-shot-clear').addEventListener('click', () => {
+    const si = document.getElementById('rng-shot-img');
+    si.src = ''; si.style.display = 'none';
+    document.getElementById('rng-shot-clear').style.display   = 'none';
+    document.getElementById('rng-shot-sliders').style.display = 'none';
+    document.getElementById('rng-shot-hint').style.display    = 'block';
+    document.getElementById('rng-shot-file').value = '';
+  });
+  document.getElementById('rng-shot-scale').addEventListener('input', _rngUpdateShot);
+  document.getElementById('rng-shot-opacity').addEventListener('input', _rngUpdateShot);
 }
 </script>
 </body>
