@@ -1468,7 +1468,7 @@
                 <span style="font-size:10px;color:var(--text2);">Масштаб</span>
                 <span id="rng-shot-scale-val" style="font-size:11px;color:var(--primary);font-weight:600;">100%</span>
               </div>
-              <input type="range" id="rng-shot-scale" min="0.5" max="3" step="0.01" value="1" style="width:100%;accent-color:var(--primary);height:4px;margin-bottom:10px;cursor:pointer;">
+              <input type="range" id="rng-shot-scale" min="0.5" max="3" step="0.005" value="1" style="width:100%;accent-color:var(--primary);height:4px;margin-bottom:10px;cursor:pointer;">
               <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
                 <span style="font-size:10px;color:var(--text2);">Прозрачность</span>
                 <span id="rng-shot-opacity-val" style="font-size:11px;color:var(--primary);font-weight:600;">50%</span>
@@ -1478,12 +1478,12 @@
                 <span style="font-size:10px;color:var(--text2);">Сдвиг ↔ X</span>
                 <span id="rng-shot-x-val" style="font-size:11px;color:var(--primary);font-weight:600;">0%</span>
               </div>
-              <input type="range" id="rng-shot-x" min="-100" max="100" step="1" value="0" style="width:100%;accent-color:var(--primary);height:4px;margin-bottom:10px;cursor:pointer;">
+              <input type="range" id="rng-shot-x" min="-100" max="100" step="0.5" value="0" style="width:100%;accent-color:var(--primary);height:4px;margin-bottom:10px;cursor:pointer;">
               <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
                 <span style="font-size:10px;color:var(--text2);">Сдвиг ↕ Y</span>
                 <span id="rng-shot-y-val" style="font-size:11px;color:var(--primary);font-weight:600;">0%</span>
               </div>
-              <input type="range" id="rng-shot-y" min="-100" max="100" step="1" value="0" style="width:100%;accent-color:var(--primary);height:4px;cursor:pointer;">
+              <input type="range" id="rng-shot-y" min="-100" max="100" step="0.5" value="0" style="width:100%;accent-color:var(--primary);height:4px;cursor:pointer;">
             </div>
           </div>
         </div>
@@ -7412,7 +7412,44 @@ function _rngWireEvents() {
     rngUpdateCircle();
   });
 
-  document.getElementById('rng-map-container').addEventListener('click', function(e) {
+  // Drag screenshot overlay; fall through to circle-move on plain click
+  let _shotDragging = false, _shotDragged = false;
+  let _shotDragStartX = 0, _shotDragStartY = 0;
+  let _shotValX = 0, _shotValY = 0;
+  const _shotActive = () => {
+    const si = document.getElementById('rng-shot-img');
+    return si && si.src && si.style.display !== 'none';
+  };
+  const mapCont = document.getElementById('rng-map-container');
+  mapCont.addEventListener('mousedown', function(e) {
+    if (!_shotActive()) return;
+    e.preventDefault();
+    _shotDragging = true; _shotDragged = false;
+    _shotDragStartX = e.clientX; _shotDragStartY = e.clientY;
+    _shotValX = parseFloat(document.getElementById('rng-shot-x').value) || 0;
+    _shotValY = parseFloat(document.getElementById('rng-shot-y').value) || 0;
+    mapCont.style.cursor = 'grabbing';
+  });
+  window.addEventListener('mousemove', function(e) {
+    if (!_shotDragging) return;
+    const dx = e.clientX - _shotDragStartX, dy = e.clientY - _shotDragStartY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) _shotDragged = true;
+    const scale = parseFloat(document.getElementById('rng-shot-scale').value) || 1;
+    const W = mapCont.offsetWidth || 300, H = mapCont.offsetHeight || 300;
+    const nx = Math.max(-100, Math.min(100, _shotValX + (dx / W) * 100 / scale));
+    const ny = Math.max(-100, Math.min(100, _shotValY + (dy / H) * 100 / scale));
+    document.getElementById('rng-shot-x').value = nx;
+    document.getElementById('rng-shot-y').value = ny;
+    document.getElementById('rng-shot-x-val').textContent = nx.toFixed(1) + '%';
+    document.getElementById('rng-shot-y-val').textContent = ny.toFixed(1) + '%';
+    _rngApplyShotTransform();
+  });
+  window.addEventListener('mouseup', function() {
+    if (_shotDragging) { _shotDragging = false; mapCont.style.cursor = ''; }
+  });
+
+  mapCont.addEventListener('click', function(e) {
+    if (_shotDragged) { _shotDragged = false; return; }
     const r = this.getBoundingClientRect();
     _rngCx = (e.clientX - r.left) / r.width;
     _rngCy = (e.clientY - r.top)  / r.height;
@@ -7453,7 +7490,7 @@ function _rngWireEvents() {
   });
 
   document.getElementById('rng-shot-scale').addEventListener('input', function() {
-    document.getElementById('rng-shot-scale-val').textContent = Math.round(parseFloat(this.value) * 100) + '%';
+    document.getElementById('rng-shot-scale-val').textContent = (parseFloat(this.value) * 100).toFixed(1) + '%';
     _rngApplyShotTransform();
   });
   document.getElementById('rng-shot-opacity').addEventListener('input', function() {
@@ -7461,11 +7498,11 @@ function _rngWireEvents() {
     document.getElementById('rng-shot-img').style.opacity = this.value;
   });
   document.getElementById('rng-shot-x').addEventListener('input', function() {
-    document.getElementById('rng-shot-x-val').textContent = this.value + '%';
+    document.getElementById('rng-shot-x-val').textContent = parseFloat(this.value).toFixed(1) + '%';
     _rngApplyShotTransform();
   });
   document.getElementById('rng-shot-y').addEventListener('input', function() {
-    document.getElementById('rng-shot-y-val').textContent = this.value + '%';
+    document.getElementById('rng-shot-y-val').textContent = parseFloat(this.value).toFixed(1) + '%';
     _rngApplyShotTransform();
   });
 }
