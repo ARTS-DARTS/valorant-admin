@@ -1494,6 +1494,7 @@
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
           <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
+          <button id="rng-fill-missing-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;" title="Считает среднее по каждому агенту+способности и заполняет Pearl, Split, Sunset">✨ Заполнить Pearl / Split / Sunset</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -7794,6 +7795,67 @@ window.rngApplyEntry = async function(map, agent, ability, idx, cfgId) {
   } catch(e) { console.error('rngApplyEntry', e); toast('Ошибка: ' + e.message, 'e'); }
   finally { btn.disabled = false; btn.textContent = '💾 Применить'; }
 };
+
+// ── Fill missing maps (Pearl / Split / Sunset) with averaged radii ──────────
+document.getElementById('rng-fill-missing-btn').addEventListener('click', async function() {
+  const TARGET_MAPS = ['Pearl', 'Split', 'Sunset'];
+  const btn = this;
+  btn.disabled = true; btn.textContent = '⏳ Считаю…';
+  try {
+    const snap = await getDocs(collection(db, 'range_config'));
+    const existing = {};   // key → true  (already exists)
+    const sums    = {};   // agent__ability → { total, count }
+
+    snap.forEach(d => {
+      const { map, agent, ability, range_radius } = d.data();
+      if (!agent || !ability || !range_radius) return;
+      const key = `${map}__${agent}__${ability}`;
+      existing[key] = true;
+      const ak = `${agent}__${ability}`;
+      if (!sums[ak]) sums[ak] = { total: 0, count: 0 };
+      sums[ak].total += range_radius;
+      sums[ak].count += 1;
+    });
+
+    // Build list of (map, agent, ability, avgRadius) that are missing
+    const toWrite = [];
+    for (const [ak, { total, count }] of Object.entries(sums)) {
+      const [agent, ability] = ak.split('__');
+      const avg = total / count;
+      for (const map of TARGET_MAPS) {
+        const key = `${map}__${agent}__${ability}`;
+        if (!existing[key]) toWrite.push({ map, agent, ability, avg });
+      }
+    }
+
+    if (!toWrite.length) {
+      toast('Все комбинации уже заполнены ✅', 's');
+      btn.disabled = false; btn.textContent = '✨ Заполнить Pearl / Split / Sunset';
+      return;
+    }
+
+    // Write in batches of 500
+    for (let i = 0; i < toWrite.length; i += 500) {
+      const batch = writeBatch(db);
+      toWrite.slice(i, i + 500).forEach(({ map, agent, ability, avg }) => {
+        const cfgKey = `${map}__${agent}__${ability}`.replace(/[\\/. ]/g, '_');
+        batch.set(doc(db, 'range_config', cfgKey), {
+          map, agent, ability, range_radius: avg, updatedAt: serverTimestamp()
+        });
+      });
+      await batch.commit();
+    }
+
+    toast(`✅ Добавлено ${toWrite.length} записей (среднее по ${Object.keys(sums).length} комбинациям)`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('range_fill_missing', { maps: TARGET_MAPS, count: toWrite.length });
+    rngLoadList();
+  } catch(e) {
+    console.error('rng-fill-missing', e);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ Заполнить Pearl / Split / Sunset';
+  }
+});
 </script>
 </body>
 </html>
