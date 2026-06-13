@@ -3125,6 +3125,20 @@ async function restoreLineup(id) {
 }
 
 // ── Audit log ─────────────────────────────────────────────────────────────────
+function addAuditLog(actionOrMsg, data) {
+  try {
+    const entry = {
+      at:      serverTimestamp(),
+      by_uid:  auth.currentUser?.uid  || null,
+      by_name: auth.currentUser?.email || null,
+      action:  typeof data === 'undefined' ? 'admin_action' : actionOrMsg,
+      message: typeof data === 'undefined' ? actionOrMsg : null,
+      data:    typeof data === 'undefined' ? null : data,
+    };
+    addDoc(collection(db, 'admin_log'), entry).catch(() => {});
+  } catch (e) { console.warn('addAuditLog:', e.message); }
+}
+
 async function writeAudit(lineupId, action, changes = null) {
   try {
     const entry = {
