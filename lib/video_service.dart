@@ -8,12 +8,13 @@ import 'auth_service.dart';
 class VideoService {
   VideoService._();
 
-  static const _accessKey = '6eac43cff0e4498c864fc36fdcd27a64';
-  static const _secretKey = 'e2ffe93a51ba4c05abadc810d9c0edfc';
+  static const _accessKey = '593e98c47f3f44ba8c19ab31aa65fbfc';
+  static const _secretKey = '72b0e462bc594ccd95c500d4b4a99605';
   static const _bucket    = 'valorant-lineups-video';
   static const _endpoint  = 's3.ru-3.storage.selcloud.ru';
   static const _region    = 'ru-3';
   static const _host      = '$_bucket.$_endpoint';
+  static const _cdnHost   = 'd5adab93-7400-49ad-b1f9-66966c03d203.selstorage.ru';
 
   // ── AWS4 helpers ───────────────────────────────────────────────────────────
   static List<int> _hmac(List<int> key, String data) =>
@@ -42,16 +43,20 @@ class VideoService {
     required String objectKey,
     required List<int> body,
     String contentType = '',
+    String acl = '',
   }) {
     final now         = DateTime.now().toUtc();
     final dateStamp   = _awsDate(now);
     final amzDate     = _awsDateTime(now);
     final payloadHash = _hexHash(body);
     final hasCT       = contentType.isNotEmpty;
+    final hasAcl      = acl.isNotEmpty;
 
+    // Canonical headers must be sorted alphabetically
     final signedHeaders = [
       if (hasCT) 'content-type',
       'host',
+      if (hasAcl) 'x-amz-acl',
       'x-amz-content-sha256',
       'x-amz-date',
     ].join(';');
@@ -59,6 +64,7 @@ class VideoService {
     final canonicalHeaders = [
       if (hasCT) 'content-type:$contentType',
       'host:$_host',
+      if (hasAcl) 'x-amz-acl:$acl',
       'x-amz-content-sha256:$payloadHash',
       'x-amz-date:$amzDate',
     ].map((h) => '$h\n').join();
@@ -78,6 +84,7 @@ class VideoService {
     return {
       'Authorization':        auth,
       if (hasCT) 'Content-Type': contentType,
+      if (hasAcl) 'x-amz-acl':  acl,
       'x-amz-content-sha256': payloadHash,
       'x-amz-date':           amzDate,
     };
@@ -117,6 +124,7 @@ class VideoService {
         objectKey:   objectKey,
         body:        bytes,
         contentType: 'video/mp4',
+        acl:         'public-read',
       )..['Content-Length'] = bytes.length.toString();
 
       final res = await http.put(
@@ -130,7 +138,7 @@ class VideoService {
       if (res.statusCode < 200 || res.statusCode >= 300) return null;
 
       onProgress?.call(1.0);
-      return 'https://$_host/$objectKey';
+      return 'https://$_cdnHost/$objectKey';
     } catch (_) {
       return null;
     } finally {
@@ -138,17 +146,19 @@ class VideoService {
     }
   }
 
-  /// Удаляет видео с Selectel S3 по URL.
+  /// Удаляет видео с Selectel S3 по URL (поддерживает оба формата: s3 и selstorage CDN).
   static Future<void> deleteByUrl(String url) async {
     try {
-      final uri       = Uri.parse(url);
+      final uri = Uri.parse(url);
+      // Извлекаем object key из пути (работает для обоих URL форматов)
       final objectKey = uri.path.substring(1);
+      final s3Uri     = Uri.parse('https://$_host/$objectKey');
       final headers   = _sign(
         method:    'DELETE',
         objectKey: objectKey,
         body:      const [],
       );
-      await http.delete(uri, headers: headers);
+      await http.delete(s3Uri, headers: headers);
     } catch (_) {}
   }
 

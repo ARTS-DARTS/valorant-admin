@@ -1049,12 +1049,12 @@ class _TrajectoryPainter extends CustomPainter {
       final radiusPx = rangeRadius * size.width;
 
       final rangeFillPaint = Paint()
-        ..color = color.withValues(alpha: 0.12 * rangeProgress)
+        ..color = color.withValues(alpha: 0.28 * rangeProgress)
         ..style = PaintingStyle.fill;
 
       final rangeBorderPaint = Paint()
-        ..color = color.withValues(alpha: 0.55 * rangeProgress)
-        ..strokeWidth = 1.5
+        ..color = color.withValues(alpha: 0.9 * rangeProgress)
+        ..strokeWidth = 2.5
         ..style = PaintingStyle.stroke;
 
       canvas.drawCircle(center, radiusPx, rangeFillPaint);
