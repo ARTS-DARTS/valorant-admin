@@ -807,9 +807,6 @@
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
       </div>
-      <button id="mig-sel-sidebar-btn" style="margin:4px 12px 8px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
-        🚀 Bunny → Selectel
-      </button>
     </nav>
 
     <div class="main">
@@ -1843,35 +1840,6 @@
 </div>
 
 <!-- Profile modal -->
-<!-- Bunny → Selectel migration modal -->
-<div id="sel-mig-modal" class="profile-overlay" style="display:none;">
-  <div class="mig-modal">
-    <button class="pm-close" id="sel-mig-close-x">✕</button>
-    <div id="sel-mig-step-confirm">
-      <div class="mig-title">🚀 Миграция видео Bunny → Selectel</div>
-      <div class="mig-sub">Все видео с Bunny CDN будут скачаны и перезалиты на Selectel S3.<br>Ссылки в Firestore обновятся автоматически. Может занять несколько минут.</div>
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;color:var(--text2);display:block;margin-bottom:4px;">Storage Zone Password (Bunny Dashboard → Storage → FTP & API Access)</label>
-        <input id="sel-mig-bunny-key" type="password" value="fc600980-14fc-40e0-b320651320f6-1a31-4b61"
-          style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:13px;font-family:monospace;">
-      </div>
-      <div class="mig-btn-row">
-        <button class="mig-btn secondary" id="sel-mig-cancel-btn">Отмена</button>
-        <button class="mig-btn primary"   id="sel-mig-start-btn">Начать миграцию</button>
-      </div>
-    </div>
-    <div id="sel-mig-step-progress" style="display:none;">
-      <div class="mig-title" id="sel-mig-heading">⏳ Миграция…</div>
-      <div class="mig-bar-wrap"><div class="mig-bar" id="sel-mig-bar"></div></div>
-      <div class="mig-status" id="sel-mig-status">Подготовка…</div>
-      <div class="mig-log"   id="sel-mig-log"></div>
-      <div class="mig-btn-row">
-        <button class="mig-btn primary" id="sel-mig-done-btn" disabled>Закрыть</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div id="profile-modal" class="profile-overlay" style="display:none;">
   <div class="profile-modal" id="profile-modal-body">
     <button class="pm-close" id="pm-close-btn">✕</button>
@@ -7135,133 +7103,6 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
 });
 
 
-// ── Миграция Bunny → Selectel ─────────────────────────────────────────────────
-function migrateBunnyToSelectel() {
-  document.getElementById('sel-mig-step-confirm').style.display  = '';
-  document.getElementById('sel-mig-step-progress').style.display = 'none';
-  document.getElementById('sel-mig-heading').textContent         = '⏳ Миграция…';
-  document.getElementById('sel-mig-bar').style.width             = '0%';
-  document.getElementById('sel-mig-bar').className               = 'mig-bar';
-  document.getElementById('sel-mig-status').textContent          = 'Подготовка…';
-  document.getElementById('sel-mig-log').innerHTML               = '';
-  document.getElementById('sel-mig-done-btn').disabled           = true;
-  document.getElementById('sel-mig-modal').style.display         = 'flex';
-}
-
-function _selMigLog(type, icon, text) {
-  const log  = document.getElementById('sel-mig-log');
-  const line = document.createElement('div');
-  line.className = 'mig-log-line ' + type;
-  line.innerHTML = `<span class="mig-icon">${icon}</span><span class="mig-text">${text}</span>`;
-  log.appendChild(line);
-  log.scrollTop = log.scrollHeight;
-}
-
-async function runSelMigration() {
-  const bunnyStorageKey = document.getElementById('sel-mig-bunny-key').value.trim();
-  if (!bunnyStorageKey) { toast('Введи Storage Zone Password', 'e'); return; }
-
-  document.getElementById('sel-mig-step-confirm').style.display  = 'none';
-  document.getElementById('sel-mig-step-progress').style.display = '';
-
-  const bar     = document.getElementById('sel-mig-bar');
-  const status  = document.getElementById('sel-mig-status');
-  const heading = document.getElementById('sel-mig-heading');
-  const doneBtn = document.getElementById('sel-mig-done-btn');
-
-  _selMigLog('info', '⏳', 'Получаем список лайнапов…');
-
-  let snap;
-  try {
-    snap = await getDocs(collection(db, 'lineups'));
-  } catch(e) {
-    _selMigLog('err', '✕', 'Ошибка Firestore: ' + e.message);
-    heading.textContent = '❌ Ошибка';
-    doneBtn.disabled = false;
-    return;
-  }
-
-  const toMigrate = snap.docs.filter(d => {
-    const url = d.data().video_url || '';
-    return url.includes('cdn.vlineups.tech') || url.includes('bunnycdn.com');
-  });
-
-  if (toMigrate.length === 0) {
-    _selMigLog('ok', '✅', 'Нет видео для миграции — все уже на Selectel');
-    heading.textContent = '✅ Нечего мигрировать';
-    status.textContent = '0 / 0';
-    bar.style.width = '100%';
-    bar.classList.add('done');
-    doneBtn.disabled = false;
-    return;
-  }
-
-  _selMigLog('info', 'ℹ', `Найдено ${toMigrate.length} видео для миграции`);
-
-  let success = 0, failed = 0;
-  const total = toMigrate.length;
-
-  for (let i = 0; i < toMigrate.length; i++) {
-    const docSnap  = toMigrate[i];
-    const data     = docSnap.data();
-    const label    = data.title || docSnap.id;
-    const cdnUrl   = data.video_url;
-    const docId    = docSnap.id;
-
-    status.textContent = `${i + 1} / ${total} — ${label}`;
-    bar.style.width = Math.round((i / total) * 100) + '%';
-
-    try {
-      // CDN блокирует CORS — скачиваем через Storage API с AccessKey
-      const filename   = cdnUrl.split('/lineups_videos/')[1]?.split('?')[0];
-      if (!filename) throw new Error('Не удалось определить имя файла');
-      const storageUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${filename}`;
-
-      const response = await fetch(storageUrl, {
-        headers: { 'AccessKey': bunnyStorageKey }
-      });
-      if (!response.ok) throw new Error('Bunny storage HTTP ' + response.status);
-      const blob = await response.blob();
-
-      const file   = new File([blob], filename, { type: blob.type || 'video/mp4' });
-      const newUrl = await uploadToSelectel(file, 'lineups_videos', null);
-      await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
-
-      success++;
-      _selMigLog('ok', '✅', label);
-    } catch(e) {
-      failed++;
-      console.error('Migration failed', docId, e);
-      _selMigLog('err', '✕', `${label} — ${e.message}`);
-    }
-
-    await new Promise(r => setTimeout(r, 300));
-  }
-
-  bar.style.width = '100%';
-  bar.classList.toggle('done', failed === 0);
-  status.textContent  = `Готово: ${success} успешно, ${failed} ошибок`;
-  heading.textContent = failed === 0 ? '✅ Миграция завершена' : `⚠️ Завершено с ${failed} ошибками`;
-  _selMigLog(failed === 0 ? 'ok' : 'err', failed === 0 ? '🎉' : '⚠️',
-    `Итого: ${success} успешно, ${failed} ошибок`);
-  doneBtn.disabled = false;
-
-  toast(`Миграция: ${success} успешно, ${failed} ошибок`, failed === 0 ? 's' : 'e');
-  addAuditLog(`Миграция Bunny → Selectel: ${success} успешно, ${failed} ошибок`);
-}
-
-// Wiring
-{
-  const modal      = document.getElementById('sel-mig-modal');
-  const closeModal = () => { modal.style.display = 'none'; };
-  document.getElementById('mig-sel-sidebar-btn').addEventListener('click', migrateBunnyToSelectel);
-  document.getElementById('sel-mig-start-btn').addEventListener('click', runSelMigration);
-  document.getElementById('sel-mig-cancel-btn').addEventListener('click', closeModal);
-  document.getElementById('sel-mig-close-x').addEventListener('click', closeModal);
-  document.getElementById('sel-mig-done-btn').addEventListener('click', closeModal);
-  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-}
-
 // ── Пользователи ──────────────────────────────────────────────────────────────
 
 let _allUsers = [];
@@ -7766,7 +7607,39 @@ function _rngWireEvents() {
     document.getElementById('rng-preview-label').textContent = (_rngAgent ? _rngAgent + ' · ' : '') + map;
   });
 
-  document.getElementById('rng-list-reload').addEventListener('click', rngLoadList);
+  document.getElementById('rng-list-reload').addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true; btn.textContent = '⏳…';
+    try {
+      await rngLoadList();
+      // Применяем все range_config к лайнапам
+      const snap = await getDocs(collection(db, 'range_config'));
+      const cfgMap = {}; // "map__agent__ability" → range_radius
+      snap.forEach(d => {
+        const { map, agent, ability, range_radius } = d.data();
+        if (map && agent && ability && range_radius) cfgMap[`${map}__${agent}__${ability}`] = range_radius;
+      });
+
+      const maps = [...new Set(Object.keys(cfgMap).map(k => k.split('__')[0]))];
+      const lineupSnaps = await Promise.all(
+        maps.map(map => getDocs(query(collection(db, 'lineups'), where('map', '==', map))))
+      );
+      const toUpdate = [];
+      lineupSnaps.forEach(s => s.forEach(d => {
+        const dt = d.data();
+        const r  = cfgMap[`${dt.map}__${dt.agent}__${dt.ability}`];
+        if (r && r !== dt.range_radius) toUpdate.push({ ref: d.ref, r });
+      }));
+
+      for (let i = 0; i < toUpdate.length; i += 500) {
+        const batch = writeBatch(db);
+        toUpdate.slice(i, i + 500).forEach(({ ref, r }) => batch.update(ref, { range_radius: r }));
+        await batch.commit();
+      }
+      toast(toUpdate.length ? `✅ Обновлено ${toUpdate.length} лайнапов` : '✅ Всё актуально', 's');
+    } catch(e) { toast('Ошибка: ' + e.message, 'e'); }
+    finally { btn.disabled = false; btn.textContent = '↻ Обновить'; }
+  });
 
   document.getElementById('rng-shot-file').addEventListener('change', function() {
     const file = this.files[0]; if (!file) return;
@@ -8144,7 +8017,7 @@ document.getElementById('rng-fill-missing-btn').addEventListener('click', async 
       await batch.commit();
     }
 
-    toast(`✅ Добавлено ${toWrite.length} записей (среднее по ${Object.keys(sums).length} комбинациям)`, 's');
+    toast(`✅ Добавлено ${toWrite.length} записей — нажми ↻ Обновить чтобы применить к лайнапам`, 's');
     if (typeof addAuditLog === 'function') addAuditLog('range_fill_missing', { maps: TARGET_MAPS, count: toWrite.length });
     rngLoadList();
   } catch(e) {
