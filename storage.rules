@@ -1,0 +1,29 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Видео лайнапов — публичное чтение, запись только своя папка
+    match /lineups_video/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 500 * 1024 * 1024
+                   && request.resource.contentType.matches('video/.*');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Скриншоты лайнапов — публичное чтение, запись авторизованным
+    match /lineups_screenshots/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Всё остальное — только чтение авторизованным, запись запрещена
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}
