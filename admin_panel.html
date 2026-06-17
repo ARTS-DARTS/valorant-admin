@@ -1275,7 +1275,7 @@
           </div>
           <div class="an-card" id="cloudinary-bandwidth-card">
             <div class="an-val an-loading">…</div>
-            <div class="an-lbl">Cloudinary Credits (месяц)</div>
+            <div class="an-lbl">Cloudinary (объём)</div>
             <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
               <div id="cloudinary-credits-bar" style="height:4px;border-radius:2px;background:#FF4655;width:0%;transition:width 0.5s;"></div>
             </div>
@@ -7466,50 +7466,36 @@ window.openUserProfilePanel = openUserProfilePanel;
 
 // ── Storage stats ─────────────────────────────────────────────────────────────
 async function loadStorageStats() {
-  // ── Selectel CDN: считаем видео из Firestore ──
   try {
-    const snap      = await getDocs(collection(db, 'lineups'));
+    const snap = await getDocs(collection(db, 'lineups'));
+
+    // Selectel CDN — считаем лайнапы с видео
     const withVideo = snap.docs.filter(d => d.data().video_url).length;
     document.getElementById('selectel-storage-val').textContent = `${withVideo} видео`;
     document.getElementById('selectel-storage-val').classList.remove('an-loading');
     document.getElementById('selectel-storage-sub').textContent = `${withVideo} лайнапов с видео`;
-  } catch(_) {
-    document.getElementById('selectel-storage-val').textContent = 'Ошибка';
-    document.getElementById('selectel-storage-val').classList.remove('an-loading');
-  }
 
-  // ── Cloudinary (из Firestore, обновляется вручную) ──
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'cloudinary_usage'));
-    if (snap.exists()) {
-      const d           = snap.data();
-      const usedCredits = d.credits_used  || 0;
-      const limitCredits= d.credits_limit || 25;
-      const storageGb   = d.storage_gb    || 0;
-      const pctCred     = Math.min((usedCredits / limitCredits) * 100, 100).toFixed(0);
-      const pctStore    = Math.min((storageGb   / 25)           * 100, 100).toFixed(0);
-      const colorCred   = pctCred > 80 ? '#FF4655' : pctCred > 60 ? '#FFA726' : '#4FC3F7';
-
-      document.querySelector('#cloudinary-storage-card .an-val').textContent = `${storageGb} GB`;
-      document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
-      document.getElementById('cloudinary-storage-sub').textContent = `из 25 GB`;
-
-      document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `${usedCredits} / ${limitCredits}`;
-      document.getElementById('cloudinary-credits-bar').style.cssText += `;width:${pctCred}%;background:${colorCred}`;
-      document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctCred}% использовано`;
-    } else {
-      document.querySelector('#cloudinary-storage-card .an-val').textContent = '—';
-      document.getElementById('cloudinary-storage-sub').textContent = 'Обновите вручную';
-      document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = '—';
-      document.getElementById('cloudinary-bandwidth-sub').textContent = 'Обновите вручную';
-    }
+    // Cloudinary — считаем скрины из Firestore
+    let totalShots = 0, withShots = 0;
+    snap.docs.forEach(d => {
+      const shots = d.data().screenshots;
+      if (Array.isArray(shots) && shots.length > 0) { withShots++; totalShots += shots.length; }
+    });
+    document.querySelector('#cloudinary-storage-card .an-val').textContent = `${totalShots} скринов`;
     document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
+    const pctStore = Math.min((totalShots / 500) * 100, 100).toFixed(0);
+    document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
+    document.getElementById('cloudinary-storage-sub').textContent = `в ${withShots} лайнапах`;
+
+    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `${(totalShots * 0.15).toFixed(1)} MB`;
     document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+    document.getElementById('cloudinary-credits-bar').style.width = `${pctStore}%`;
+    document.getElementById('cloudinary-bandwidth-sub').textContent = `~${(totalShots * 0.15 / 1024).toFixed(2)} GB est.`;
   } catch(_) {
-    document.querySelector('#cloudinary-storage-card .an-val').textContent = 'Ошибка';
-    document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
-    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = 'Ошибка';
-    document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+    ['selectel-storage-val','#cloudinary-storage-card .an-val','#cloudinary-bandwidth-card .an-val'].forEach(sel => {
+      const el = sel.startsWith('#') ? document.querySelector(sel) : document.getElementById(sel);
+      if (el) { el.textContent = 'Ошибка'; el.classList.remove('an-loading'); }
+    });
   }
 }
 window.saveUserName      = saveUserName;
