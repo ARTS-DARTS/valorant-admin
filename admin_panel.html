@@ -808,7 +808,7 @@
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
       </div>
       <button id="mig-sidebar-btn" style="margin:8px 12px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
-        🚀 Мигрировать видео → Bunny
+        🔍 Найти старые видео (Bunny/Cloudinary)
       </button>
     </nav>
 
@@ -1260,13 +1260,10 @@
       <div class="an-section">
         <div class="form-title">☁️ ХРАНИЛИЩА</div>
         <div class="an-cards" id="storage-stat-cards">
-          <div class="an-card" id="bunny-storage-card">
-            <div class="an-val an-loading">…</div>
-            <div class="an-lbl">Bunny Storage</div>
-            <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
-              <div id="bunny-storage-bar" style="height:4px;border-radius:2px;background:var(--primary);width:0%;transition:width 0.5s;"></div>
-            </div>
-            <div id="bunny-storage-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
+          <div class="an-card" id="selectel-storage-card">
+            <div class="an-val an-loading" id="selectel-storage-val">…</div>
+            <div class="an-lbl">Selectel CDN (видео)</div>
+            <div id="selectel-storage-sub" style="font-size:10px;color:var(--text2);margin-top:4px;">Ru-3 · selstorage.ru</div>
           </div>
           <div class="an-card" id="cloudinary-storage-card">
             <div class="an-val an-loading">…</div>
@@ -1275,11 +1272,6 @@
               <div id="cloudinary-storage-bar" style="height:4px;border-radius:2px;background:#4FC3F7;width:0%;transition:width 0.5s;"></div>
             </div>
             <div id="cloudinary-storage-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
-          </div>
-          <div class="an-card" id="bunny-bandwidth-card">
-            <div class="an-val an-loading">…</div>
-            <div class="an-lbl">Bunny Bandwidth (месяц)</div>
-            <div id="bunny-bandwidth-sub" style="font-size:10px;color:var(--text2);margin-top:4px;"></div>
           </div>
           <div class="an-card" id="cloudinary-bandwidth-card">
             <div class="an-val an-loading">…</div>
@@ -1857,11 +1849,11 @@
 
     <!-- Step 1: confirm -->
     <div id="mig-step-confirm">
-      <div class="mig-title">🚀 Миграция видео → Bunny.net</div>
-      <div class="mig-sub">Все видео с Cloudinary будут скачаны и перезалиты на Bunny.net CDN.<br>Ссылки в Firestore обновятся автоматически. Может занять несколько минут.</div>
+      <div class="mig-title">🔍 Проверка старых видео</div>
+      <div class="mig-sub">Поиск лайнапов с видео на Bunny CDN или Cloudinary.<br>Если найдены — нужно запустить <code>node migrate_to_selectel.js</code> чтобы перенести их на Selectel.</div>
       <div class="mig-btn-row">
         <button class="mig-btn secondary" id="mig-cancel-btn">Отмена</button>
-        <button class="mig-btn primary"   id="mig-start-btn">Начать миграцию</button>
+        <button class="mig-btn primary"   id="mig-start-btn">Проверить</button>
       </div>
     </div>
 
@@ -1915,11 +1907,12 @@ const app  = initializeApp(cfg);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-const BUNNY_STORAGE_ZONE = 'valorant-lineups1';
-const BUNNY_API_KEY      = 'fc600980-14fc-40e0-b320651320f6-1a31-4b61';
-const BUNNY_CDN_URL      = 'https://cdn.vlineups.tech';
-const BUNNY_ACCOUNT_API_KEY = '9a67622f-93a5-4e86-b16e-d5c5543902a5af32ab4e-bd93-4263-93ad-ed619837ed1b';
-const BUNNY_STORAGE_URL  = 'https://se.storage.bunnycdn.com';
+const SEL_ACCESS_KEY = '6eac43cff0e4498c864fc36fdcd27a64';
+const SEL_SECRET_KEY = 'e2ffe93a51ba4c05abadc810d9c0edfc';
+const SEL_BUCKET     = 'valorant-lineups-video';
+const SEL_S3_HOST    = 'valorant-lineups-video.s3.ru-3.storage.selcloud.ru';
+const SEL_REGION     = 'ru-3';
+const SEL_CDN_URL    = 'https://d5adab93-7400-49ad-b1f9-66966c03d203.selstorage.ru';
 
 let lineups       = [];
 let currentFilter = 'all';
@@ -3500,9 +3493,9 @@ function _renderSlotVideoPreview(id) {
     wrap.innerHTML=`<div class="video-prog-wrap"><div class="video-prog-track"><div class="video-prog-fill" id="sv${id}-vpb" style="width:${Math.round(vs.progress*100)}%"></div></div><div class="video-prog-pct" id="sv${id}-vpp">${Math.round(vs.progress*100)}%</div><button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="sv${id}-vcnl">✕ Отмена</button></div>`;
     document.getElementById('sv'+id+'-vcnl')?.addEventListener('click',()=>{ vs.xhr?.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
   } else if (vs.status==='done') {
-    wrap.innerHTML = _buildVfeHtml('sv'+id, vs.url);
+    wrap.innerHTML = _buildVfeHtml('sv'+id, vs.localUrl || vs.url);
     _initVfe('sv'+id,
-      () => { s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); },
+      () => { if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); },
       async blob => {
         const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const item = { uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null, origSize: blob.size, compSize: null };
@@ -3522,14 +3515,14 @@ function _handleSlotVideoFile(id, file) {
   const vs=s.videoState; if(vs.xhr)vs.xhr.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl);
   s.videoState={status:'uploading',url:null,localUrl:URL.createObjectURL(file),progress:0,xhr:null};
   _renderSlotVideoPreview(id);
-  const upload=uploadVideoToBunny(file,pct=>{
+  const upload=uploadVideoToSelectel(file,pct=>{
     s.videoState.progress=pct;
     const bar=document.getElementById('sv'+id+'-vpb'); const lbl=document.getElementById('sv'+id+'-vpp');
     if(bar)bar.style.width=Math.round(pct*100)+'%'; if(lbl)lbl.textContent=Math.round(pct*100)+'%';
   });
   s.videoState.xhr=upload;
-  upload.then(url=>{ s.videoState={status:'done',url,localUrl:null,progress:1,xhr:null}; _renderSlotVideoPreview(id); })
-        .catch(err=>{ if(err.message==='canceled')return; s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); toast('Ошибка загрузки видео','e'); });
+  upload.then(url=>{ const lo=s.videoState.localUrl; s.videoState={status:'done',url,localUrl:lo,progress:1,xhr:null}; _renderSlotVideoPreview(id); })
+        .catch(err=>{ if(err.message==='canceled')return; if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); toast('Ошибка загрузки видео','e'); });
 }
 
 function _renderSlotPreviews(id) {
@@ -4973,37 +4966,81 @@ async function saveEditedLineup(id) {
   }
 }
 
+// ── AWS4 helpers (SubtleCrypto) ───────────────────────────────────────────────
+async function _sha256Hex(data) {
+  const buf = await crypto.subtle.digest('SHA-256', typeof data === 'string' ? new TextEncoder().encode(data) : data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function _hmacSha256(key, data) {
+  const k = typeof key === 'string' ? new TextEncoder().encode(key) : key;
+  const d = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  const kObj = await crypto.subtle.importKey('raw', k, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', kObj, d));
+}
+function _selPadZ(n) { return String(n).padStart(2, '0'); }
+function _selAwsDate(d) { return `${d.getUTCFullYear()}${_selPadZ(d.getUTCMonth()+1)}${_selPadZ(d.getUTCDate())}`; }
+function _selAwsDateTime(d) { return `${_selAwsDate(d)}T${_selPadZ(d.getUTCHours())}${_selPadZ(d.getUTCMinutes())}${_selPadZ(d.getUTCSeconds())}Z`; }
+async function _selSigningKey(dateStamp) {
+  let k = await _hmacSha256('AWS4' + SEL_SECRET_KEY, dateStamp);
+  k = await _hmacSha256(k, SEL_REGION);
+  k = await _hmacSha256(k, 's3');
+  k = await _hmacSha256(k, 'aws4_request');
+  return k;
+}
+
 // ── Video upload ──────────────────────────────────────────────────────────────
-function uploadVideoToBunny(file, onProgress) {
-  const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-  const uploadUrl = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${fileName}`;
-  let xhr;
-  const promise = new Promise((resolve, reject) => {
-    xhr = new XMLHttpRequest();
-    xhr.open('PUT', uploadUrl);
-    xhr.setRequestHeader('AccessKey', 'fc600980-14fc-40e0-b320651320f6-1a31-4b61');
-    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
-    xhr.setRequestHeader('Accept', '*/*');
-    xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(`${BUNNY_CDN_URL}/lineups_videos/${fileName}`);
-      } else {
-        reject(new Error('Bunny upload error: ' + xhr.status + ' ' + xhr.responseText));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Сетевая ошибка'));
-    xhr.onabort = () => reject(new Error('canceled'));
-    xhr.send(file);
+function uploadVideoToSelectel(file, onProgress) {
+  const fileName  = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const objectKey = `lineups_videos/${fileName}`;
+  let xhr = null;
+  let aborted = false;
+
+  const promise = new Promise(async (resolve, reject) => {
+    try {
+      const now         = new Date();
+      const dateStamp   = _selAwsDate(now);
+      const amzDate     = _selAwsDateTime(now);
+      const buffer      = await file.arrayBuffer();
+      if (aborted) { reject(new Error('canceled')); return; }
+
+      const contentType    = file.type || 'video/mp4';
+      const payloadHash    = await _sha256Hex(buffer);
+      const signedHeaders  = 'content-type;host;x-amz-content-sha256;x-amz-date';
+      const canonHeaders   = `content-type:${contentType}\nhost:${SEL_S3_HOST}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+      const canonRequest   = ['PUT', `/${objectKey}`, '', canonHeaders, signedHeaders, payloadHash].join('\n');
+      const credScope      = `${dateStamp}/${SEL_REGION}/s3/aws4_request`;
+      const strToSign      = ['AWS4-HMAC-SHA256', amzDate, credScope, await _sha256Hex(canonRequest)].join('\n');
+      const signingKey     = await _selSigningKey(dateStamp);
+      const signature      = (await _hmacSha256(signingKey, strToSign)).reduce((s, b) => s + b.toString(16).padStart(2, '0'), '');
+      const auth           = `AWS4-HMAC-SHA256 Credential=${SEL_ACCESS_KEY}/${credScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+      if (aborted) { reject(new Error('canceled')); return; }
+
+      xhr = new XMLHttpRequest();
+      xhr.open('PUT', `https://${SEL_S3_HOST}/${objectKey}`);
+      xhr.setRequestHeader('Authorization', auth);
+      xhr.setRequestHeader('Content-Type', contentType);
+      xhr.setRequestHeader('x-amz-content-sha256', payloadHash);
+      xhr.setRequestHeader('x-amz-date', amzDate);
+      xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(`${SEL_CDN_URL}/${objectKey}`);
+        else reject(new Error('Selectel upload error: ' + xhr.status + ' ' + xhr.responseText));
+      };
+      xhr.onerror = () => reject(new Error('Сетевая ошибка'));
+      xhr.onabort = () => reject(new Error('canceled'));
+      xhr.send(buffer);
+    } catch (e) { reject(e); }
   });
-  promise.abort = () => xhr?.abort();
+
+  promise.abort = () => { aborted = true; xhr?.abort(); };
   return promise;
 }
 
 // ── Video frame editor helpers ────────────────────────────────────────────────
 function _buildVfeHtml(prefix, videoSrc) {
   return `<div class="vfe-wrap">
-    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata"></video>
+    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata" crossorigin="anonymous"></video>
     <div class="vfe-controls">
       <button class="vfe-play" id="${prefix}-vplay">▶</button>
       <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
@@ -5100,7 +5137,7 @@ function _handleAddVideoFile(file) {
   if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
   addVideoState = { status:'uploading', url:null, localUrl:URL.createObjectURL(file), progress:0, xhr:null };
   renderAddVideoPreview();
-  const upload = uploadVideoToBunny(file, pct => {
+  const upload = uploadVideoToSelectel(file, pct => {
     addVideoState.progress = pct;
     const bar = document.getElementById('add-vpb');
     const lbl = document.getElementById('add-vpp');
@@ -5158,7 +5195,9 @@ function _wireEditVideoZone(id) {
     if (!file || !file.type.startsWith('video/')) { toast('Выбери видеофайл', 'e'); return; }
     if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
     if (sess.videoXhr) sess.videoXhr.abort();
+    if (sess._videoLocalUrl) { URL.revokeObjectURL(sess._videoLocalUrl); sess._videoLocalUrl = null; }
     zone.style.display = 'none';
+    sess._videoLocalUrl = URL.createObjectURL(file);
     const prog = document.getElementById('ce-vprog-'+id);
     if (prog) prog.innerHTML = `<div class="video-prog-wrap">
       <div class="video-prog-track"><div class="video-prog-fill" id="ce-vpb-${id}" style="width:0%"></div></div>
@@ -5166,7 +5205,7 @@ function _wireEditVideoZone(id) {
       <button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="ce-vcnl-${id}">✕ Отмена</button>
     </div>`;
     document.getElementById('ce-vcnl-'+id)?.addEventListener('click', () => { sess.videoXhr?.abort(); sess.videoXhr = null; _resetEditVideoWrap(id); });
-    const upload = uploadVideoToBunny(file, pct => {
+    const upload = uploadVideoToSelectel(file, pct => {
       const bar = document.getElementById('ce-vpb-'+id);
       const lbl = document.getElementById('ce-vpp-'+id);
       if (bar) bar.style.width = Math.round(pct*100) + '%';
@@ -5176,9 +5215,10 @@ function _wireEditVideoZone(id) {
     upload.then(url => {
       sess.videoUrl = url; sess.videoXhr = null;
       const wrap = document.getElementById('ce-video-wrap-'+id);
-      if (wrap) wrap.innerHTML = _buildVfeHtml('cevfe-'+id, url);
+      const vfeSrc = sess._videoLocalUrl || url;
+      if (wrap) wrap.innerHTML = _buildVfeHtml('cevfe-'+id, vfeSrc);
       _initVfe('cevfe-'+id,
-        () => { sess.videoUrl = ''; _resetEditVideoWrap(id); },
+        () => { if(sess._videoLocalUrl){URL.revokeObjectURL(sess._videoLocalUrl);sess._videoLocalUrl=null;} sess.videoUrl = ''; _resetEditVideoWrap(id); },
         async blob => {
           const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
           const item = { type:'new', uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null };
@@ -6306,7 +6346,7 @@ function _renderLineupDetail(l) {
       ${l.video_url && !l.video_url.match(/youtube\.com|youtu\.be/) ? `
       <div class="section" id="ld-vid-editor">
         <div class="dlabel" style="margin-bottom:8px;">📷 Скриншоты из видео</div>
-        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
+        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" crossorigin="anonymous" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
           <button id="ld-frame-btn" class="btn btn-save" style="padding:6px 14px;font-size:12px;">📷 Сделать кадр</button>
           <span id="ld-frame-status" style="font-size:12px;color:var(--text2);"></span>
@@ -7021,11 +7061,11 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
   }
 });
 
-// ── Миграция Cloudinary → Bunny ───────────────────────────────────────────────
+// ── Проверка старых видео (Bunny / Cloudinary) ────────────────────────────────
 function migrateCloudinaToBunny() {
   document.getElementById('mig-step-confirm').style.display  = '';
   document.getElementById('mig-step-progress').style.display = 'none';
-  document.getElementById('mig-heading').textContent          = '⏳ Миграция…';
+  document.getElementById('mig-heading').textContent          = '⏳ Проверка…';
   document.getElementById('mig-bar').style.width              = '0%';
   document.getElementById('mig-bar').className                = 'mig-bar';
   document.getElementById('mig-status-text').textContent      = 'Подготовка…';
@@ -7052,7 +7092,7 @@ async function runMigration() {
   const heading    = document.getElementById('mig-heading');
   const doneBtn    = document.getElementById('mig-done-btn');
 
-  _migLog('info', '⏳', 'Получаем список лайнапов…');
+  _migLog('info', '⏳', 'Сканируем лайнапы…');
 
   let snap;
   try {
@@ -7064,77 +7104,32 @@ async function runMigration() {
     return;
   }
 
-  const toMigrate = snap.docs.filter(d => {
-    const url = d.data().video_url || '';
-    return url.includes('cloudinary.com') && url.includes('dtz0ouvk0');
-  });
-
-  if (toMigrate.length === 0) {
-    _migLog('ok', '✅', 'Нет видео для миграции — все уже на Bunny');
-    heading.textContent = '✅ Нечего мигрировать';
-    statusText.textContent = '0 / 0';
-    bar.style.width = '100%';
-    bar.classList.add('done');
-    doneBtn.disabled = false;
-    return;
-  }
-
-  _migLog('info', 'ℹ', `Найдено ${toMigrate.length} видео для миграции`);
-
-  let success = 0;
-  let failed  = 0;
-  const total = toMigrate.length;
-
-  for (let i = 0; i < toMigrate.length; i++) {
-    const docSnap = toMigrate[i];
-    const data    = docSnap.data();
-    const label   = data.title || docSnap.id;
-    const cloudinaryUrl = data.video_url;
-    const docId   = docSnap.id;
-
-    statusText.textContent = `${i + 1} / ${total} — ${label}`;
-    bar.style.width = Math.round(((i) / total) * 100) + '%';
-
-    try {
-      const response = await fetch(cloudinaryUrl);
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const blob = await response.blob();
-
-      const urlParts    = cloudinaryUrl.split('/');
-      const originalName = urlParts[urlParts.length - 1].split('?')[0];
-      const fileName    = `migrated_${docId}_${originalName}`;
-      const uploadUrl   = `${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/lineups_videos/${fileName}`;
-
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Content-Type': 'application/octet-stream', 'Accept': '*/*' },
-        body: blob,
-      });
-      if (!uploadRes.ok) throw new Error('Bunny upload ' + uploadRes.status);
-
-      const newUrl = `${BUNNY_CDN_URL}/lineups_videos/${fileName}`;
-      await updateDoc(doc(db, 'lineups', docId), { video_url: newUrl });
-
-      success++;
-      _migLog('ok', '✅', `${label}`);
-    } catch(e) {
-      failed++;
-      console.error('Migration failed for', docId, e);
-      _migLog('err', '✕', `${label} — ${e.message}`);
-    }
-
-    await new Promise(r => setTimeout(r, 300));
-  }
+  const oldBunny      = snap.docs.filter(d => (d.data().video_url || '').includes('cdn.vlineups.tech') || (d.data().video_url || '').includes('bunnycdn.com'));
+  const oldCloudinary = snap.docs.filter(d => (d.data().video_url || '').includes('cloudinary.com'));
+  const onSelectel    = snap.docs.filter(d => (d.data().video_url || '').includes('selstorage.ru'));
+  const noVideo       = snap.docs.filter(d => !d.data().video_url);
 
   bar.style.width = '100%';
-  bar.classList.toggle('done', failed === 0);
-  statusText.textContent = `Готово: ${success} успешно, ${failed} ошибок`;
-  heading.textContent    = failed === 0 ? '✅ Миграция завершена' : `⚠️ Завершено с ${failed} ошибками`;
-  _migLog(failed === 0 ? 'ok' : 'err', failed === 0 ? '🎉' : '⚠️', `Итого: ${success} успешно, ${failed} ошибок`);
-  doneBtn.disabled = false;
+  bar.classList.toggle('done', oldBunny.length === 0 && oldCloudinary.length === 0);
+  statusText.textContent = `Готово`;
 
-  toast(`Миграция: ${success} успешно, ${failed} ошибок`, success > 0 ? 's' : 'e');
-  addAuditLog(`Миграция видео Cloudinary → Bunny: ${success} успешно, ${failed} ошибок`);
+  _migLog('info', '📊', `Всего лайнапов: ${snap.docs.length}`);
+  _migLog('ok',   '✅', `Selectel CDN: ${onSelectel.length}`);
+  _migLog(oldBunny.length > 0 ? 'err' : 'ok',      oldBunny.length > 0 ? '⚠️' : '✅', `Bunny CDN (старые): ${oldBunny.length}`);
+  _migLog(oldCloudinary.length > 0 ? 'err' : 'ok', oldCloudinary.length > 0 ? '⚠️' : '✅', `Cloudinary (старые): ${oldCloudinary.length}`);
+  _migLog('info', 'ℹ', `Без видео: ${noVideo.length}`);
+
+  if (oldBunny.length > 0 || oldCloudinary.length > 0) {
+    _migLog('err', '⚠️', `Есть старые ссылки! Запусти node migrate_to_selectel.js`);
+    heading.textContent = '⚠️ Найдены старые ссылки';
+    oldBunny.forEach(d => _migLog('err', '🐰', d.data().title || d.id));
+    oldCloudinary.forEach(d => _migLog('err', '☁️', d.data().title || d.id));
+  } else {
+    _migLog('ok', '🎉', 'Все видео уже на Selectel CDN!');
+    heading.textContent = '✅ Всё на Selectel';
+  }
+
+  doneBtn.disabled = false;
 }
 
 // Migration modal wiring (one-time, inside module scope)
@@ -7471,52 +7466,16 @@ window.openUserProfilePanel = openUserProfilePanel;
 
 // ── Storage stats ─────────────────────────────────────────────────────────────
 async function loadStorageStats() {
-  // ── Bunny Storage ──
+  // ── Selectel CDN: считаем видео из Firestore ──
   try {
-    const res = await fetch(`${BUNNY_STORAGE_URL}/${BUNNY_STORAGE_ZONE}/`, {
-      headers: { 'AccessKey': 'fc600980-14fc-40e0-b320651320f6-1a31-4b61', 'Accept': 'application/json' },
-    });
-    if (res.ok) {
-      const files = await res.json();
-      const totalBytes = Array.isArray(files) ? files.reduce((s, f) => s + (f.Length || f.Size || 0), 0) : 0;
-      const usedGB  = (totalBytes / 1073741824).toFixed(2);
-      const limitGB = 10;
-      const pct     = Math.min((usedGB / limitGB) * 100, 100).toFixed(0);
-      const color   = pct > 80 ? '#FF4655' : pct > 60 ? '#FFA726' : 'var(--primary)';
-      document.querySelector('#bunny-storage-card .an-val').textContent = `${usedGB} GB`;
-      document.querySelector('#bunny-storage-card .an-val').classList.remove('an-loading');
-      document.getElementById('bunny-storage-bar').style.cssText += `;width:${pct}%;background:${color}`;
-      document.getElementById('bunny-storage-sub').textContent = `${pct}% из ${limitGB} GB`;
-    } else {
-      document.querySelector('#bunny-storage-card .an-val').textContent = 'Нет доступа';
-      document.querySelector('#bunny-storage-card .an-val').classList.remove('an-loading');
-    }
+    const snap      = await getDocs(collection(db, 'lineups'));
+    const withVideo = snap.docs.filter(d => d.data().video_url).length;
+    document.getElementById('selectel-storage-val').textContent = `${withVideo} видео`;
+    document.getElementById('selectel-storage-val').classList.remove('an-loading');
+    document.getElementById('selectel-storage-sub').textContent = `${withVideo} лайнапов с видео`;
   } catch(_) {
-    document.querySelector('#bunny-storage-card .an-val').textContent = 'Ошибка';
-    document.querySelector('#bunny-storage-card .an-val').classList.remove('an-loading');
-  }
-
-  // ── Bunny Bandwidth ──
-  try {
-    const from = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-    const to   = new Date().toISOString().split('T')[0];
-    const res  = await fetch(
-      `https://api.bunny.net/statistics?dateFrom=${from}&dateTo=${to}&pullZone=valorant-lineups-cdn`,
-      { headers: { 'AccessKey': BUNNY_ACCOUNT_API_KEY, 'Accept': 'application/json' } }
-    );
-    if (res.ok) {
-      const data  = await res.json();
-      const usedGB = ((data.TotalBandwidthUsed || 0) / 1073741824).toFixed(2);
-      document.querySelector('#bunny-bandwidth-card .an-val').textContent = `${usedGB} GB`;
-      document.getElementById('bunny-bandwidth-sub').textContent = 'Бесплатно ∞';
-    } else {
-      document.querySelector('#bunny-bandwidth-card .an-val').textContent = '—';
-      document.getElementById('bunny-bandwidth-sub').textContent = 'Нет данных';
-    }
-    document.querySelector('#bunny-bandwidth-card .an-val').classList.remove('an-loading');
-  } catch(_) {
-    document.querySelector('#bunny-bandwidth-card .an-val').textContent = 'Ошибка';
-    document.querySelector('#bunny-bandwidth-card .an-val').classList.remove('an-loading');
+    document.getElementById('selectel-storage-val').textContent = 'Ошибка';
+    document.getElementById('selectel-storage-val').classList.remove('an-loading');
   }
 
   // ── Cloudinary (из Firestore, обновляется вручную) ──
