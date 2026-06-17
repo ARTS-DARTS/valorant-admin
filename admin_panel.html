@@ -7483,14 +7483,17 @@ async function loadStorageStats() {
     });
     document.querySelector('#cloudinary-storage-card .an-val').textContent = `${totalShots} скринов`;
     document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
-    const pctStore = Math.min((totalShots / 500) * 100, 100).toFixed(0);
-    document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
     document.getElementById('cloudinary-storage-sub').textContent = `в ${withShots} лайнапах`;
 
-    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `${(totalShots * 0.15).toFixed(1)} MB`;
+    const estMb = totalShots * 0.15;
+    const limitMb = 25 * 1024;
+    const pctStore = Math.min((estMb / limitMb) * 100, 100).toFixed(1);
+    document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
+
+    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `~${estMb < 1024 ? estMb.toFixed(0) + ' MB' : (estMb/1024).toFixed(2) + ' GB'}`;
     document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
     document.getElementById('cloudinary-credits-bar').style.width = `${pctStore}%`;
-    document.getElementById('cloudinary-bandwidth-sub').textContent = `~${(totalShots * 0.15 / 1024).toFixed(2)} GB est.`;
+    document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctStore}% из 25 GB`;
   } catch(_) {
     ['selectel-storage-val','#cloudinary-storage-card .an-val','#cloudinary-bandwidth-card .an-val'].forEach(sel => {
       const el = sel.startsWith('#') ? document.querySelector(sel) : document.getElementById(sel);
