@@ -3493,9 +3493,9 @@ function _renderSlotVideoPreview(id) {
     wrap.innerHTML=`<div class="video-prog-wrap"><div class="video-prog-track"><div class="video-prog-fill" id="sv${id}-vpb" style="width:${Math.round(vs.progress*100)}%"></div></div><div class="video-prog-pct" id="sv${id}-vpp">${Math.round(vs.progress*100)}%</div><button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="sv${id}-vcnl">✕ Отмена</button></div>`;
     document.getElementById('sv'+id+'-vcnl')?.addEventListener('click',()=>{ vs.xhr?.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
   } else if (vs.status==='done') {
-    wrap.innerHTML = _buildVfeHtml('sv'+id, vs.url);
+    wrap.innerHTML = _buildVfeHtml('sv'+id, vs.localUrl || vs.url);
     _initVfe('sv'+id,
-      () => { s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); },
+      () => { if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); },
       async blob => {
         const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const item = { uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null, origSize: blob.size, compSize: null };
@@ -3521,8 +3521,8 @@ function _handleSlotVideoFile(id, file) {
     if(bar)bar.style.width=Math.round(pct*100)+'%'; if(lbl)lbl.textContent=Math.round(pct*100)+'%';
   });
   s.videoState.xhr=upload;
-  upload.then(url=>{ s.videoState={status:'done',url,localUrl:null,progress:1,xhr:null}; _renderSlotVideoPreview(id); })
-        .catch(err=>{ if(err.message==='canceled')return; s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); toast('Ошибка загрузки видео','e'); });
+  upload.then(url=>{ const lo=s.videoState.localUrl; s.videoState={status:'done',url,localUrl:lo,progress:1,xhr:null}; _renderSlotVideoPreview(id); })
+        .catch(err=>{ if(err.message==='canceled')return; if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); toast('Ошибка загрузки видео','e'); });
 }
 
 function _renderSlotPreviews(id) {
@@ -5040,7 +5040,7 @@ function uploadVideoToSelectel(file, onProgress) {
 // ── Video frame editor helpers ────────────────────────────────────────────────
 function _buildVfeHtml(prefix, videoSrc) {
   return `<div class="vfe-wrap">
-    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata"></video>
+    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata" crossorigin="anonymous"></video>
     <div class="vfe-controls">
       <button class="vfe-play" id="${prefix}-vplay">▶</button>
       <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
@@ -5195,7 +5195,9 @@ function _wireEditVideoZone(id) {
     if (!file || !file.type.startsWith('video/')) { toast('Выбери видеофайл', 'e'); return; }
     if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
     if (sess.videoXhr) sess.videoXhr.abort();
+    if (sess._videoLocalUrl) { URL.revokeObjectURL(sess._videoLocalUrl); sess._videoLocalUrl = null; }
     zone.style.display = 'none';
+    sess._videoLocalUrl = URL.createObjectURL(file);
     const prog = document.getElementById('ce-vprog-'+id);
     if (prog) prog.innerHTML = `<div class="video-prog-wrap">
       <div class="video-prog-track"><div class="video-prog-fill" id="ce-vpb-${id}" style="width:0%"></div></div>
@@ -5213,9 +5215,10 @@ function _wireEditVideoZone(id) {
     upload.then(url => {
       sess.videoUrl = url; sess.videoXhr = null;
       const wrap = document.getElementById('ce-video-wrap-'+id);
-      if (wrap) wrap.innerHTML = _buildVfeHtml('cevfe-'+id, url);
+      const vfeSrc = sess._videoLocalUrl || url;
+      if (wrap) wrap.innerHTML = _buildVfeHtml('cevfe-'+id, vfeSrc);
       _initVfe('cevfe-'+id,
-        () => { sess.videoUrl = ''; _resetEditVideoWrap(id); },
+        () => { if(sess._videoLocalUrl){URL.revokeObjectURL(sess._videoLocalUrl);sess._videoLocalUrl=null;} sess.videoUrl = ''; _resetEditVideoWrap(id); },
         async blob => {
           const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
           const item = { type:'new', uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null };
@@ -6343,7 +6346,7 @@ function _renderLineupDetail(l) {
       ${l.video_url && !l.video_url.match(/youtube\.com|youtu\.be/) ? `
       <div class="section" id="ld-vid-editor">
         <div class="dlabel" style="margin-bottom:8px;">📷 Скриншоты из видео</div>
-        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
+        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" crossorigin="anonymous" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
           <button id="ld-frame-btn" class="btn btn-save" style="padding:6px 14px;font-size:12px;">📷 Сделать кадр</button>
           <span id="ld-frame-status" style="font-size:12px;color:var(--text2);"></span>
