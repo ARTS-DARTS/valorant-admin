@@ -2171,7 +2171,7 @@ function _msLoadMap(uuid) {
     } catch(_) { msg.textContent = 'Предпросмотр недоступен (CORS)'; }
   };
   img.onerror = () => { msg.textContent = 'Не удалось загрузить карту'; };
-  img.src = `https://media.valorant-api.com/maps/${uuid}/minimap.png`;
+  img.src = `https://media.valorant-api.com/maps/${uuid}/displayicon.png`;
 }
 
 function _msSetTint(r, g, b) {
