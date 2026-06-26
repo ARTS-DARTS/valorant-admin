@@ -592,6 +592,10 @@
     .nc-title    { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
     .nc-desc     { font-size: 12px; color: var(--text2); line-height: 1.4; }
     .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
+    .ac-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; transition:.15s; }
+    .ac-card:hover { border-color:var(--border2); }
+    .ac-dot { width:28px; height:28px; border-radius:50%; flex-shrink:0; transition:.2s; }
+    .ac-picker { width:26px; height:26px; border:none; border-radius:6px; cursor:pointer; padding:2px; background:var(--surface2); flex-shrink:0; }
     .ms-sw { width:34px; height:34px; border-radius:8px; border:2px solid rgba(255,255,255,.2); cursor:pointer; transition:.15s; flex-shrink:0; }
     .ms-sw:hover { transform:scale(1.12); border-color:rgba(255,255,255,.6); }
     .ms-sw.active { outline:3px solid #fff; outline-offset:2px; border-color:transparent; }
@@ -1331,6 +1335,22 @@
   <!-- Agents tab -->
   <div id="tab-agents" style="display:none;">
     <div style="max-width:1200px;padding-bottom:20px;">
+
+      <!-- ── Agent Colors ────────────────────────────────────────────────── -->
+      <div id="ac-section" style="margin-bottom:32px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div>
+            <div class="form-title" style="margin:0 0 4px;">🎨 Цвета агентов</div>
+            <div style="font-size:12px;color:var(--text2);">Цвет траектории и круга дальности. Сохраняется в Firestore — вступает в силу без обновления.</div>
+          </div>
+          <button id="ac-save-btn" class="btn btn-save" style="padding:9px 22px;flex-shrink:0;">Сохранить</button>
+        </div>
+        <div id="ac-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;">
+          <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
+        </div>
+        <div style="height:1px;background:var(--border);margin-top:28px;"></div>
+      </div>
+
       <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">Выберите агента и настройте доступные абилки для создания лайнапов.</p>
 
@@ -2065,7 +2085,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-logs').classList.toggle('active',      t === 'logs');
   document.getElementById('tab-btn-ranges').classList.toggle('active',    t === 'ranges');
   document.getElementById('tab-btn-mapstyle').classList.toggle('active',  t === 'mapstyle');
-  if (t === 'agents') loadAgentsForConfig();
+  if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection(); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
@@ -2234,6 +2254,103 @@ document.getElementById('ms-save-btn').addEventListener('click', async function(
     console.error('ms-save', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = 'Сохранить настройки';
+  }
+});
+
+// ── Agent Colors ──────────────────────────────────────────────────────────────
+// Firestore: settings/agent_colors { "Sova": "#5B8DB8", ... }
+// Flutter: MapData.agentColor() checks Firestore overrides first, then hardcode.
+
+const AC_AGENTS = [
+  { name: 'Sova',      hex: '#5B8DB8' },
+  { name: 'Viper',     hex: '#4CAF50' },
+  { name: 'Brimstone', hex: '#FF6B35' },
+  { name: 'KAY/O',     hex: '#BA68C8' },
+  { name: 'Killjoy',   hex: '#FFC107' },
+  { name: 'Fade',      hex: '#9C27B0' },
+  { name: 'Harbor',    hex: '#00BCD4' },
+  { name: 'Astra',     hex: '#CE93D8' },
+  { name: 'Omen',      hex: '#7B1FA2' },
+  { name: 'Sage',      hex: '#69F0AE' },
+  { name: 'Clove',     hex: '#E8A0BF' },
+  { name: 'Deadlock',  hex: '#2979FF' },
+  { name: 'Skye',      hex: '#66BB6A' },
+  { name: 'Gekko',     hex: '#CDDC39' },
+  { name: 'Breach',    hex: '#FF7043' },
+  { name: 'Raze',      hex: '#FF4081' },
+  { name: 'Phoenix',   hex: '#FF5722' },
+  { name: 'Cypher',    hex: '#90A4AE' },
+  { name: 'Neon',      hex: '#00E5FF' },
+  { name: 'Vyse',      hex: '#5C6BC0' },
+  { name: 'Iso',       hex: '#C62828' },
+  { name: 'Yoru',      hex: '#1565C0' },
+  { name: 'Chamber',   hex: '#FFD54F' },
+  { name: 'Reyna',     hex: '#AD1457' },
+  { name: 'Jett',      hex: '#80DEEA' },
+];
+
+let _acColors  = {};  // { agentName: '#RRGGBB' } — current session state
+let _acLoaded  = false;
+
+function _acDotStyle(hex) {
+  return `background:${hex};box-shadow:0 0 8px 3px ${hex}66;`;
+}
+
+function _acRender() {
+  const grid = document.getElementById('ac-grid');
+  grid.innerHTML = '';
+  for (const agent of AC_AGENTS) {
+    const hex = _acColors[agent.name] ?? agent.hex;
+    const card = document.createElement('div');
+    card.className = 'ac-card';
+    card.innerHTML = `
+      <div class="ac-dot" style="${_acDotStyle(hex)}"></div>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--text);
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+           title="${apEsc(agent.name)}">${apEsc(agent.name)}</div>
+      <input type="color" class="ac-picker" value="${hex}" title="${apEsc(agent.name)}">
+    `;
+    const picker = card.querySelector('.ac-picker');
+    const dot    = card.querySelector('.ac-dot');
+    picker.addEventListener('input', e => {
+      const v = e.target.value;
+      _acColors[agent.name] = v;
+      dot.style.cssText = _acDotStyle(v);
+    });
+    grid.appendChild(card);
+  }
+}
+
+async function loadAgentColorsSection() {
+  if (_acLoaded) { _acRender(); return; }
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'agent_colors'));
+    if (snap.exists()) {
+      _acColors = { ...snap.data() };
+    } else {
+      // First time — populate with hardcoded defaults
+      _acColors = Object.fromEntries(AC_AGENTS.map(a => [a.name, a.hex]));
+    }
+  } catch(e) {
+    console.warn('agent_colors load:', e);
+    _acColors = Object.fromEntries(AC_AGENTS.map(a => [a.name, a.hex]));
+  }
+  _acLoaded = true;
+  _acRender();
+}
+
+document.getElementById('ac-save-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('ac-save-btn');
+  btn.disabled = true; btn.textContent = '⏳ Сохраняю…';
+  try {
+    await setDoc(doc(db, 'settings', 'agent_colors'), _acColors);
+    toast('✅ Цвета агентов сохранены — вступят в силу при следующем открытии карты', 's');
+    if (typeof addAuditLog === 'function')
+      addAuditLog('agent_colors_updated', { count: Object.keys(_acColors).length });
+  } catch(e) {
+    console.error('ac-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Сохранить';
   }
 });
 
