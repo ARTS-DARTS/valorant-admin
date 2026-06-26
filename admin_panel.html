@@ -814,6 +814,7 @@
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
+        <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
       </div>
     </nav>
 
@@ -1804,6 +1805,23 @@
   </div>
 </div>
 
+<!-- ── Agent Colors Tab ──────────────────────────────────────────────────────── -->
+<div id="tab-agentcolors" style="display:none;padding:20px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <h3 style="margin:0;color:var(--text);">🎨 Стиль абилок — цвета агентов</h3>
+      <button id="ac-save-btn2" class="btn btn-save" style="padding:10px 24px;">Сохранить</button>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
+      Цвет траектории, маркеров и круга дальности для каждого агента.
+      Сохраняется в Firestore — вступает в силу без обновления приложения.
+    </p>
+    <div id="ac-grid2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;">
+      <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
+    </div>
+  </div>
+</div>
+
     </div><!-- /.main -->
   </div><!-- /.app-body -->
 </div><!-- /#screen-app -->
@@ -2072,7 +2090,8 @@ function switchTab(t) {
   document.getElementById('tab-notif').style.display     = t === 'notif'     ? 'block' : 'none';
   document.getElementById('tab-logs').style.display      = t === 'logs'      ? 'block' : 'none';
   document.getElementById('tab-ranges').style.display     = t === 'ranges'    ? 'block' : 'none';
-  document.getElementById('tab-mapstyle').style.display   = t === 'mapstyle'  ? 'block' : 'none';
+  document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
+  document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -2084,8 +2103,9 @@ function switchTab(t) {
   document.getElementById('tab-btn-notif').classList.toggle('active',     t === 'notif');
   document.getElementById('tab-btn-logs').classList.toggle('active',      t === 'logs');
   document.getElementById('tab-btn-ranges').classList.toggle('active',    t === 'ranges');
-  document.getElementById('tab-btn-mapstyle').classList.toggle('active',  t === 'mapstyle');
-  if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection(); }
+  document.getElementById('tab-btn-mapstyle').classList.toggle('active',     t === 'mapstyle');
+  document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
+  if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
@@ -2093,6 +2113,7 @@ function switchTab(t) {
   if (t === 'logs')  loadLogsTab();
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
+  if (t === 'agentcolors') loadAgentColorsSection('ac-grid2');
   if (t === 'notif' && !apLoaded) loadAuthorPanelUsers();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
@@ -2120,7 +2141,8 @@ document.getElementById('tab-btn-agents').addEventListener('click',    () => swi
 document.getElementById('tab-btn-notif').addEventListener('click',     () => switchTab('notif'));
 document.getElementById('tab-btn-logs').addEventListener('click',      () => switchTab('logs'));
 document.getElementById('tab-btn-ranges').addEventListener('click',    () => switchTab('ranges'));
-document.getElementById('tab-btn-mapstyle').addEventListener('click',  () => switchTab('mapstyle'));
+document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => switchTab('mapstyle'));
+document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
 
 // ── Map Style ─────────────────────────────────────────────────────────────────
 // Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
@@ -2296,8 +2318,9 @@ function _acDotStyle(hex) {
   return `background:${hex};box-shadow:0 0 8px 3px ${hex}66;`;
 }
 
-function _acRender() {
-  const grid = document.getElementById('ac-grid');
+function _acRender(gridId = 'ac-grid') {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
   grid.innerHTML = '';
   for (const agent of AC_AGENTS) {
     const hex = _acColors[agent.name] ?? agent.hex;
@@ -2321,14 +2344,13 @@ function _acRender() {
   }
 }
 
-async function loadAgentColorsSection() {
-  if (_acLoaded) { _acRender(); return; }
+async function loadAgentColorsSection(gridId = 'ac-grid') {
+  if (_acLoaded) { _acRender(gridId); return; }
   try {
     const snap = await getDoc(doc(db, 'settings', 'agent_colors'));
     if (snap.exists()) {
       _acColors = { ...snap.data() };
     } else {
-      // First time — populate with hardcoded defaults
       _acColors = Object.fromEntries(AC_AGENTS.map(a => [a.name, a.hex]));
     }
   } catch(e) {
@@ -2336,12 +2358,11 @@ async function loadAgentColorsSection() {
     _acColors = Object.fromEntries(AC_AGENTS.map(a => [a.name, a.hex]));
   }
   _acLoaded = true;
-  _acRender();
+  _acRender(gridId);
 }
 
-document.getElementById('ac-save-btn').addEventListener('click', async () => {
-  const btn = document.getElementById('ac-save-btn');
-  btn.disabled = true; btn.textContent = '⏳ Сохраняю…';
+async function _acSave(btnEl) {
+  btnEl.disabled = true; btnEl.textContent = '⏳ Сохраняю…';
   try {
     await setDoc(doc(db, 'settings', 'agent_colors'), _acColors);
     toast('✅ Цвета агентов сохранены — вступят в силу при следующем открытии карты', 's');
@@ -2350,9 +2371,12 @@ document.getElementById('ac-save-btn').addEventListener('click', async () => {
   } catch(e) {
     console.error('ac-save', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
-    btn.disabled = false; btn.textContent = 'Сохранить';
+    btnEl.disabled = false; btnEl.textContent = 'Сохранить';
   }
-});
+}
+
+document.getElementById('ac-save-btn').addEventListener('click', function() { _acSave(this); });
+document.getElementById('ac-save-btn2').addEventListener('click', function() { _acSave(this); });
 
 // ── Agents config editor ──────────────────────────────────────────────────────
 const sanitizeAgentId = name => name.replaceAll('/', '_');
