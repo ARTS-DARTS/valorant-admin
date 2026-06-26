@@ -923,7 +923,7 @@
               <option>Haven</option><option>Bind</option><option>Ascent</option>
               <option>Split</option><option>Icebox</option><option>Breeze</option>
               <option>Fracture</option><option>Pearl</option><option>Lotus</option>
-              <option>Sunset</option><option>Abyss</option><option>Corrode</option>
+              <option>Sunset</option><option>Abyss</option><option>Corrode</option><option>Summit</option>
             </select>
           </div>
 
@@ -1717,6 +1717,7 @@
       <option value="Sunset">Sunset</option>
       <option value="Abyss">Abyss</option>
       <option value="Corrode">Corrode</option>
+      <option value="Summit">Summit</option>
     </select>
   </div>
   <div id="dtp-list" class="dtp-list"></div>
@@ -1737,6 +1738,7 @@
       <option value="Sunset">Sunset</option>
       <option value="Abyss">Abyss</option>
       <option value="Corrode">Corrode</option>
+      <option value="Summit">Summit</option>
     </select>
     <button class="btn btn-save" id="dtp-save-btn" style="padding:7px 14px;font-size:13px;">Сохранить</button>
   </div>
@@ -4418,7 +4420,7 @@ function _getEditSession(id, l) {
 }
 
 function buildEditForm(id, l) {
-  const maps = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode'];
+  const maps = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode','Summit'];
   const cats = ['lineup','combo','smoke','defense'];
   const mapOpts = maps.map(m => `<option value="${m}"${m === (l.map ?? '') ? ' selected' : ''}>${m}</option>`).join('');
   const catOpts = cats.map(c => `<option value="${c}"${c === (l.category ?? '') ? ' selected' : ''}>${c}</option>`).join('');
