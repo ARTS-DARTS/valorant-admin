@@ -1488,6 +1488,7 @@
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
           <button id="rng-fill-missing-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;" title="Считает среднее по каждому агенту+способности и заполняет Pearl, Split, Sunset">✨ Заполнить Pearl / Split / Sunset</button>
           <button id="rng-gen-defaults-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);" title="Генерирует дефолтные радиусы для всех 13 карт и 30 способностей по данным из игры. Не перезаписывает уже настроенные значения.">🔧 Все дефолты (13 карт × 43 спос.)</button>
+          <button id="rng-apply-all-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;background:#1a3a1a;border:1px solid #2d6a2d;" title="Применяет все настроенные радиусы из range_config ко всем лайнапам в базе">⚡ Применить ВСЁ к лайнапам</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -7911,6 +7912,56 @@ document.getElementById('rng-gen-defaults-btn').addEventListener('click', async 
     toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = '🔧 Все дефолты (13 карт × 43 спос.)';
+  }
+});
+
+// ── Apply ALL range_config entries to lineups in one click ───────────────────
+document.getElementById('rng-apply-all-btn').addEventListener('click', async function() {
+  if (!confirm('Применить ВСЕ настроенные радиусы ко всем лайнапам?\nЭто обновит range_radius у каждого лайнапа у которого есть совпадение в range_config.')) return;
+  const btn = this;
+  btn.disabled = true; btn.textContent = '⏳ Читаю range_config…';
+  try {
+    // Загружаем все настроенные радиусы
+    const cfgSnap = await getDocs(collection(db, 'range_config'));
+    if (cfgSnap.empty) { toast('range_config пуст — сначала нажми «Все дефолты»', 'e'); return; }
+
+    // Строим lookup: "map__agent__ability" → range_radius
+    const lookup = {};
+    cfgSnap.forEach(d => {
+      const { map, agent, ability, range_radius } = d.data();
+      if (map && agent && ability && range_radius > 0) {
+        lookup[`${map}||${agent}||${ability}`] = range_radius;
+      }
+    });
+
+    btn.textContent = '⏳ Читаю лайнапы…';
+    const lineupSnap = await getDocs(collection(db, 'lineups'));
+    const toUpdate = [];
+    lineupSnap.forEach(d => {
+      const dt = d.data();
+      const key = `${dt.map}||${dt.agent}||${dt.ability}`;
+      const radius = lookup[key];
+      if (radius && radius > 0 && dt.range_radius !== radius) {
+        toUpdate.push({ ref: d.ref, radius });
+      }
+    });
+
+    if (!toUpdate.length) { toast('Все лайнапы уже актуальны ✅', 's'); return; }
+
+    btn.textContent = `⏳ Обновляю ${toUpdate.length} лайнапов…`;
+    for (let i = 0; i < toUpdate.length; i += 500) {
+      const batch = writeBatch(db);
+      toUpdate.slice(i, i + 500).forEach(({ ref, radius }) => batch.update(ref, { range_radius: radius }));
+      await batch.commit();
+    }
+
+    toast(`✅ Обновлено ${toUpdate.length} лайнапов`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('range_apply_all', { count: toUpdate.length });
+  } catch(e) {
+    console.error('rng-apply-all', e);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Применить ВСЁ к лайнапам';
   }
 });
 </script>
