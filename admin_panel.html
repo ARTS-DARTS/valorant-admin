@@ -1487,6 +1487,7 @@
           <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
           <button id="rng-fill-missing-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;" title="Считает среднее по каждому агенту+способности и заполняет Pearl, Split, Sunset">✨ Заполнить Pearl / Split / Sunset</button>
+          <button id="rng-gen-defaults-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);" title="Генерирует дефолтные радиусы для всех 13 карт и 30 способностей по данным из игры. Не перезаписывает уже настроенные значения.">🔧 Все дефолты (13 карт × 30 спос.)</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -7804,6 +7805,102 @@ document.getElementById('rng-fill-missing-btn').addEventListener('click', async 
     toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = '✨ Заполнить Pearl / Split / Sunset';
+  }
+});
+
+// ── Generate ALL default radii (all 13 maps × 30 abilities) ─────────────────
+document.getElementById('rng-gen-defaults-btn').addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true; btn.textContent = '⏳ Генерирую…';
+  try {
+    const MAP_CFG = [
+      {name:'Haven',    xMult:7.5e-5},
+      {name:'Bind',     xMult:5.9e-5},
+      {name:'Ascent',   xMult:7.0e-5},
+      {name:'Split',    xMult:7.8e-5},
+      {name:'Icebox',   xMult:7.2e-5},
+      {name:'Breeze',   xMult:7.0e-5},
+      {name:'Fracture', xMult:7.8e-5},
+      {name:'Pearl',    xMult:7.8e-5},
+      {name:'Lotus',    xMult:7.2e-5},
+      {name:'Sunset',   xMult:7.8e-5},
+      {name:'Abyss',    xMult:8.1e-5},
+      {name:'Corrode',  xMult:7.0e-5},
+      {name:'Summit',   xMult:7.5e-5},
+    ];
+    // ability → { agent, gameUnits } — зеркало map_data.dart::abilityRangesGU
+    const ABILITIES = {
+      'Recon Bolt':         {agent:'Sova',      gu:1000},
+      'Shock Bolt':         {agent:'Sova',      gu:150},
+      'Poison Cloud':       {agent:'Viper',     gu:375},
+      'Snakebite':          {agent:'Viper',     gu:175},
+      "Viper's Pit":        {agent:'Viper',     gu:1000},
+      'Sky Smoke':          {agent:'Brimstone', gu:250},
+      'Incendiary':         {agent:'Brimstone', gu:250},
+      'Orbital Strike':     {agent:'Brimstone', gu:275},
+      'Stim Beacon':        {agent:'Brimstone', gu:600},
+      'ZERO/point':         {agent:'KAY/O',     gu:1100},
+      'FRAG/ment':          {agent:'KAY/O',     gu:350},
+      'NULL/cmd':           {agent:'KAY/O',     gu:1000},
+      'Nanoswarm':          {agent:'Killjoy',   gu:175},
+      'Lockdown':           {agent:'Killjoy',   gu:750},
+      'Alarmbot':           {agent:'Killjoy',   gu:700},
+      'Haunt':              {agent:'Fade',      gu:1000},
+      'Seize':              {agent:'Fade',      gu:400},
+      'Cove':               {agent:'Harbor',    gu:400},
+      'Reckoning':          {agent:'Harbor',    gu:500},
+      'Nebula / Dissipate': {agent:'Astra',     gu:325},
+      'Nova Pulse':         {agent:'Astra',     gu:375},
+      'Gravity Well':       {agent:'Astra',     gu:375},
+      'Dark Cover':         {agent:'Omen',      gu:500},
+      'Slow Orb':           {agent:'Sage',      gu:350},
+      'Meddle':             {agent:'Clove',     gu:450},
+      'GravNet':            {agent:'Deadlock',  gu:400},
+      'Annihilation':       {agent:'Deadlock',  gu:700},
+      'Regrowth':           {agent:'Skye',      gu:600},
+      'Trailblazer':        {agent:'Skye',      gu:350},
+      'Mosh Pit':           {agent:'Gekko',     gu:350},
+    };
+
+    // Загружаем существующие ключи — не перезаписываем вручную настроенные
+    const snap = await getDocs(collection(db, 'range_config'));
+    const existing = new Set();
+    snap.forEach(d => existing.add(d.id));
+
+    const toWrite = [];
+    for (const map of MAP_CFG) {
+      for (const [ability, {agent, gu}] of Object.entries(ABILITIES)) {
+        const range_radius = Math.round(gu * map.xMult * 10000) / 10000;
+        const cfgKey = `${map.name}__${agent}__${ability}`.replace(/[\\/. ]/g, '_');
+        if (!existing.has(cfgKey)) {
+          toWrite.push({cfgKey, map: map.name, agent, ability, range_radius});
+        }
+      }
+    }
+
+    if (!toWrite.length) {
+      toast('Все дефолты уже заполнены ✅', 's');
+      return;
+    }
+
+    for (let i = 0; i < toWrite.length; i += 500) {
+      const batch = writeBatch(db);
+      toWrite.slice(i, i + 500).forEach(({cfgKey, map, agent, ability, range_radius}) => {
+        batch.set(doc(db, 'range_config', cfgKey), {
+          map, agent, ability, range_radius, updatedAt: serverTimestamp()
+        });
+      });
+      await batch.commit();
+    }
+
+    toast(`✅ Добавлено ${toWrite.length} записей (${MAP_CFG.length} карт × ${Object.keys(ABILITIES).length} способностей)`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('range_gen_defaults', {count: toWrite.length});
+    rngLoadList();
+  } catch(e) {
+    console.error('rng-gen-defaults', e);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = '🔧 Все дефолты (13 карт × 30 спос.)';
   }
 });
 </script>
