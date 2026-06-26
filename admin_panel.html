@@ -1487,7 +1487,7 @@
           <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
           <button id="rng-fill-missing-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;" title="Считает среднее по каждому агенту+способности и заполняет Pearl, Split, Sunset">✨ Заполнить Pearl / Split / Sunset</button>
-          <button id="rng-gen-defaults-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);" title="Генерирует дефолтные радиусы для всех 13 карт и 30 способностей по данным из игры. Не перезаписывает уже настроенные значения.">🔧 Все дефолты (13 карт × 30 спос.)</button>
+          <button id="rng-gen-defaults-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;background:var(--surface2);border:1px solid var(--border2);" title="Генерирует дефолтные радиусы для всех 13 карт и 30 способностей по данным из игры. Не перезаписывает уже настроенные значения.">🔧 Все дефолты (13 карт × 43 спос.)</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -7860,6 +7860,24 @@ document.getElementById('rng-gen-defaults-btn').addEventListener('click', async 
       'Regrowth':           {agent:'Skye',      gu:600},
       'Trailblazer':        {agent:'Skye',      gu:350},
       'Mosh Pit':           {agent:'Gekko',     gu:350},
+      // ── Breach ──
+      'Aftershock':         {agent:'Breach',    gu:300},
+      'Fault Line':         {agent:'Breach',    gu:350},
+      'Rolling Thunder':    {agent:'Breach',    gu:500},
+      // ── Raze ──
+      'Paint Shells':       {agent:'Raze',      gu:200},
+      'Showstopper':        {agent:'Raze',      gu:150},
+      // ── Phoenix ──
+      'Hot Hands':          {agent:'Phoenix',   gu:250},
+      // ── Cypher ──
+      'Cyber Cage':         {agent:'Cypher',    gu:350},
+      // ── Neon ──
+      'Relay Bolt':         {agent:'Neon',      gu:150},
+      // ── Vyse ──
+      'Arc Rose':           {agent:'Vyse',      gu:275},
+      'Steel Garden':       {agent:'Vyse',      gu:400},
+      // ── Iso ──
+      'Undercut':           {agent:'Iso',       gu:300},
     };
 
     // Загружаем существующие ключи — не перезаписываем вручную настроенные
