@@ -7808,117 +7808,109 @@ document.getElementById('rng-fill-missing-btn').addEventListener('click', async 
   }
 });
 
-// ── Generate ALL default radii (all 13 maps × 30 abilities) ─────────────────
+// ── Generate ALL default radii using Russian ability names from the API ───────
+// Важно: используем AGENT_ABILITIES (ru-RU из valorant-api.com) — те же имена,
+// что хранятся в Firestore. English-имена не совпадали с лайнапами.
 document.getElementById('rng-gen-defaults-btn').addEventListener('click', async function() {
   const btn = this;
-  btn.disabled = true; btn.textContent = '⏳ Генерирую…';
+  btn.disabled = true; btn.textContent = '⏳ Загружаю агентов…';
   try {
+    await _ensureIconsLoaded(); // заполняет AGENT_ABILITIES русскими именами из API
+
     const MAP_CFG = [
-      {name:'Haven',    xMult:7.5e-5},
-      {name:'Bind',     xMult:5.9e-5},
-      {name:'Ascent',   xMult:7.0e-5},
-      {name:'Split',    xMult:7.8e-5},
-      {name:'Icebox',   xMult:7.2e-5},
-      {name:'Breeze',   xMult:7.0e-5},
-      {name:'Fracture', xMult:7.8e-5},
-      {name:'Pearl',    xMult:7.8e-5},
-      {name:'Lotus',    xMult:7.2e-5},
-      {name:'Sunset',   xMult:7.8e-5},
-      {name:'Abyss',    xMult:8.1e-5},
-      {name:'Corrode',  xMult:7.0e-5},
-      {name:'Summit',   xMult:7.5e-5},
+      {name:'Haven',xMult:7.5e-5},{name:'Bind',xMult:5.9e-5},{name:'Ascent',xMult:7.0e-5},
+      {name:'Split',xMult:7.8e-5},{name:'Icebox',xMult:7.2e-5},{name:'Breeze',xMult:7.0e-5},
+      {name:'Fracture',xMult:7.8e-5},{name:'Pearl',xMult:7.8e-5},{name:'Lotus',xMult:7.2e-5},
+      {name:'Sunset',xMult:7.8e-5},{name:'Abyss',xMult:8.1e-5},{name:'Corrode',xMult:7.0e-5},
+      {name:'Summit',xMult:7.5e-5},
     ];
-    // ability → { agent, gameUnits } — зеркало map_data.dart::abilityRangesGU
-    const ABILITIES = {
-      'Recon Bolt':         {agent:'Sova',      gu:1000},
-      'Shock Bolt':         {agent:'Sova',      gu:150},
-      'Poison Cloud':       {agent:'Viper',     gu:375},
-      'Snakebite':          {agent:'Viper',     gu:175},
-      "Viper's Pit":        {agent:'Viper',     gu:1000},
-      'Sky Smoke':          {agent:'Brimstone', gu:250},
-      'Incendiary':         {agent:'Brimstone', gu:250},
-      'Orbital Strike':     {agent:'Brimstone', gu:275},
-      'Stim Beacon':        {agent:'Brimstone', gu:600},
-      'ZERO/point':         {agent:'KAY/O',     gu:1100},
-      'FRAG/ment':          {agent:'KAY/O',     gu:350},
-      'NULL/cmd':           {agent:'KAY/O',     gu:1000},
-      'Nanoswarm':          {agent:'Killjoy',   gu:175},
-      'Lockdown':           {agent:'Killjoy',   gu:750},
-      'Alarmbot':           {agent:'Killjoy',   gu:700},
-      'Haunt':              {agent:'Fade',      gu:1000},
-      'Seize':              {agent:'Fade',      gu:400},
-      'Cove':               {agent:'Harbor',    gu:400},
-      'Reckoning':          {agent:'Harbor',    gu:500},
-      'Nebula / Dissipate': {agent:'Astra',     gu:325},
-      'Nova Pulse':         {agent:'Astra',     gu:375},
-      'Gravity Well':       {agent:'Astra',     gu:375},
-      'Dark Cover':         {agent:'Omen',      gu:500},
-      'Slow Orb':           {agent:'Sage',      gu:350},
-      'Meddle':             {agent:'Clove',     gu:450},
-      'GravNet':            {agent:'Deadlock',  gu:400},
-      'Annihilation':       {agent:'Deadlock',  gu:700},
-      'Regrowth':           {agent:'Skye',      gu:600},
-      'Trailblazer':        {agent:'Skye',      gu:350},
-      'Mosh Pit':           {agent:'Gekko',     gu:350},
-      // ── Breach ──
-      'Aftershock':         {agent:'Breach',    gu:300},
-      'Fault Line':         {agent:'Breach',    gu:350},
-      'Rolling Thunder':    {agent:'Breach',    gu:500},
-      // ── Raze ──
-      'Paint Shells':       {agent:'Raze',      gu:200},
-      'Showstopper':        {agent:'Raze',      gu:150},
-      // ── Phoenix ──
-      'Hot Hands':          {agent:'Phoenix',   gu:250},
-      // ── Cypher ──
-      'Cyber Cage':         {agent:'Cypher',    gu:350},
-      // ── Neon ──
-      'Relay Bolt':         {agent:'Neon',      gu:150},
-      // ── Vyse ──
-      'Arc Rose':           {agent:'Vyse',      gu:275},
-      'Steel Garden':       {agent:'Vyse',      gu:400},
-      // ── Iso ──
-      'Undercut':           {agent:'Iso',       gu:300},
+
+    // Радиусы в GU по русским именам — совпадают с именами из API и Firestore
+    const ABILITY_GU = {
+      'Стрела разведки':1000,
+      'Шок-стрела':150,
+      'Ядовитое облако':375,
+      'Укус змеи':175,
+      'Логово Viper':1000,
+      'Небесный дым':250,
+      'Зажигательная граната':250,
+      'Орбитальный удар':275,
+      'Маяк стимуляции':600,
+      'ЭПИ/центр':1100,
+      'ОСК/олок':350,
+      'НОЛЬ/команда':1000,
+      'Рой нанитов':175,
+      'Удержание':750,
+      'Бот-сигнализация':700,
+      'Призрак':1000,
+      'Захват':400,
+      'Бухта':400,
+      'Расплата':500,
+      'Туманность':325,
+      'Импульс Новой':375,
+      'Гравитационный колодец':375,
+      'Тёмный покров':500,
+      'Шар замедления':350,
+      'Вмешательство':450,
+      'Грависеть':400,
+      'Аннигиляция':700,
+      'Исцеление':600,
+      'Первопроходец':350,
+      'Мэш-пит':350,
+      'Встряска':300,
+      'Линия разлома':350,
+      'Раскаты грома':500,
+      'Кассетный снаряд':200,
+      'Гранатомёт':150,
+      'Горячие руки':250,
+      'Кибер-клетка':350,
+      'Реле-болт':150,
+      'Дуговая роза':275,
+      'Стальной сад':400,
+      'Подрезка':300,
     };
 
-    // Загружаем существующие ключи — не перезаписываем вручную настроенные
+    btn.textContent = '⏳ Читаю Firestore…';
     const snap = await getDocs(collection(db, 'range_config'));
     const existing = new Set();
     snap.forEach(d => existing.add(d.id));
 
+    btn.textContent = '⏳ Генерирую…';
     const toWrite = [];
-    for (const map of MAP_CFG) {
-      for (const [ability, {agent, gu}] of Object.entries(ABILITIES)) {
-        const range_radius = Math.round(gu * map.xMult * 10000) / 10000;
-        const cfgKey = `${map.name}__${agent}__${ability}`.replace(/[\\/. ]/g, '_');
-        if (!existing.has(cfgKey)) {
-          toWrite.push({cfgKey, map: map.name, agent, ability, range_radius});
+    let abCount = 0;
+    for (const [agent, abilities] of Object.entries(AGENT_ABILITIES)) {
+      for (const ability of abilities) {
+        const gu = ABILITY_GU[ability];
+        if (!gu) continue;
+        abCount++;
+        for (const map of MAP_CFG) {
+          const range_radius = Math.round(gu * map.xMult * 10000) / 10000;
+          const cfgKey = `${map.name}__${agent}__${ability}`.replace(/[\\/. \-]/g, '_');
+          if (!existing.has(cfgKey)) {
+            toWrite.push({cfgKey, map: map.name, agent, ability, range_radius});
+          }
         }
       }
     }
 
-    if (!toWrite.length) {
-      toast('Все дефолты уже заполнены ✅', 's');
-      return;
-    }
+    if (!toWrite.length) { toast('Все дефолты уже заполнены ✅', 's'); return; }
 
     for (let i = 0; i < toWrite.length; i += 500) {
       const batch = writeBatch(db);
       toWrite.slice(i, i + 500).forEach(({cfgKey, map, agent, ability, range_radius}) => {
-        batch.set(doc(db, 'range_config', cfgKey), {
-          map, agent, ability, range_radius, updatedAt: serverTimestamp()
-        });
+        batch.set(doc(db, 'range_config', cfgKey), { map, agent, ability, range_radius, updatedAt: serverTimestamp() });
       });
       await batch.commit();
     }
 
-    toast(`✅ Добавлено ${toWrite.length} записей (${MAP_CFG.length} карт × ${Object.keys(ABILITIES).length} способностей)`, 's');
+    toast(`✅ Добавлено ${toWrite.length} записей (${MAP_CFG.length} карт × ${abCount} способностей)`, 's');
     if (typeof addAuditLog === 'function') addAuditLog('range_gen_defaults', {count: toWrite.length});
     rngLoadList();
   } catch(e) {
     console.error('rng-gen-defaults', e);
     toast('Ошибка: ' + e.message, 'e');
   } finally {
-    btn.disabled = false; btn.textContent = '🔧 Все дефолты (13 карт × 30 спос.)';
+    btn.disabled = false; btn.textContent = '🔧 Все дефолты (13 карт × 43 спос.)';
   }
 });
 </script>
