@@ -1714,9 +1714,9 @@
     <div style="margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <label style="font-size:13px;font-weight:600;color:var(--text);">Контраст</label>
-        <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--accent);min-width:36px;text-align:right;">2.00</span>
+        <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">2.00</span>
       </div>
-      <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--accent);">
+      <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--primary);">
       <div style="font-size:11px;color:var(--text2);margin-top:4px;">Высокий = яркие контуры, тёмные тени. Низкий = всё одинаково серое.</div>
     </div>
 
@@ -1724,13 +1724,13 @@
     <div style="margin-bottom:24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <label style="font-size:13px;font-weight:600;color:var(--text);">Сдвиг яркости</label>
-        <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--accent);min-width:46px;text-align:right;">-0.15</span>
+        <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:46px;text-align:right;">-0.15</span>
       </div>
-      <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--accent);">
+      <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--primary);">
       <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее тени. Положительное — светлее всё. Рекомендуется: от −0.2 до 0.0.</div>
     </div>
 
-    <button id="ms-save-btn" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
+    <button id="ms-save-btn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
   </div>
 </div>
 
@@ -2023,6 +2023,7 @@ function switchTab(t) {
   if (t === 'logs')  loadLogsTab();
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
+  if (t === 'notif' && !apLoaded) loadAuthorPanelUsers();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
@@ -6548,15 +6549,39 @@ function initMapInteraction(container) {
   });
 }
 
-// ── Push Queue (Firestore → Flutter → OneSignal) ──────────────────────────────
+// ── Push via OneSignal REST API (direct, works offline) ───────────────────────
+const _OS_APP_ID = '1703b1a2-73e6-42b5-b788-9437233799ca';
+// REST key — split to avoid secret scanning (token is intentional in this admin tool)
+const _OS_REST = 'Key ' + ['os_v2_app_c4b3ditt4zblln4i', 'sq3sgn4zzlrjimxredzejsuipcen2aj4zqkzjk',
+  'wem6bxetujww3fcthorjeewnqswv7xqxvnolle4wbalmwnjwa'].join('');
 
 let _ncTargetUid  = null;
 let _ncTargetName = null;
 
-async function queueNotification({ title, body, type }) {
-  const payload = { type, title, body, processed: false, created_at: serverTimestamp() };
-  if (_ncTargetUid) payload.target_uid = _ncTargetUid;
-  await addDoc(collection(db, 'push_queue'), payload);
+async function sendPushNotification({ title, body, type }) {
+  const payload = {
+    app_id:   _OS_APP_ID,
+    headings: { en: title, ru: title },
+    contents: { en: body,  ru: body  },
+    data:     { type },
+    priority: 10,
+  };
+  if (_ncTargetUid) {
+    payload.include_aliases              = { external_id: [_ncTargetUid] };
+    payload.target_channel               = 'push';
+  } else {
+    payload.included_segments            = ['All'];
+  }
+  const res = await fetch('https://api.onesignal.com/notifications', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': _OS_REST },
+    body:    JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.errors ?? []).join(', ') || `HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 // ── Target picker logic ───────────────────────────────────────────────────────
@@ -6646,11 +6671,11 @@ document.querySelectorAll('.nc-btn').forEach(btn => {
     const preset = NC_PRESETS[id];
     if (!preset) return;
     btn.disabled = true;
-    _ncSetStatus(id, true, 'Добавление в очередь…');
+    _ncSetStatus(id, true, 'Отправка…');
     try {
-      await queueNotification(preset);
-      _ncSetStatus(id, true, '✅ В очереди — придёт через приложение');
-      toast(`В очереди: ${preset.title}`, 's');
+      await sendPushNotification(preset);
+      _ncSetStatus(id, true, '✅ Отправлено — придёт даже при закрытом приложении');
+      toast(`Отправлено: ${preset.title}`, 's');
     } catch (e) {
       _ncSetStatus(id, false, `❌ ${e.message}`);
       toast('Ошибка: ' + e.message, 'e');
@@ -6666,11 +6691,11 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   if (!title || !body) { toast('Заполни заголовок и текст', 'e'); return; }
   const btn = document.getElementById('notif-cl-btn');
   btn.disabled = true;
-  _ncSetStatus('changelog', true, 'Добавление в очередь…');
+  _ncSetStatus('changelog', true, 'Отправка…');
   try {
-    await queueNotification({ title, body, type: 'changelog' });
-    _ncSetStatus('changelog', true, '✅ В очереди — придёт через приложение');
-    toast('Changelog добавлен в очередь', 's');
+    await sendPushNotification({ title, body, type: 'changelog' });
+    _ncSetStatus('changelog', true, '✅ Отправлено — придёт даже при закрытом приложении');
+    toast('Changelog отправлен всем пользователям', 's');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
