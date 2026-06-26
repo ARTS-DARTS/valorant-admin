@@ -806,6 +806,7 @@
       <div class="tabs">
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
+        <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
       </div>
     </nav>
 
@@ -1691,6 +1692,48 @@
   <div id="logs-list"></div>
 </div>
 
+<!-- ── Map Style Tab ───────────────────────────────────────────────────────── -->
+<div id="tab-mapstyle" style="display:none;padding:20px;">
+  <div style="max-width:560px;margin:0 auto;">
+    <h3 style="margin:0 0 6px;color:var(--text);">🗺️ Стиль тактической карты</h3>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
+      Управляет яркостью и контрастом миникарты в приложении.<br>
+      Изменения применяются при следующем открытии карты пользователем.
+    </p>
+
+    <!-- Live preview gradient -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Предпросмотр — градиент от тени до контура</div>
+      <div id="ms-preview" style="height:52px;border-radius:10px;border:1px solid var(--border2);"></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:4px;">
+        <span>Тень (тёмная часть)</span><span>Стены / пол</span><span>Контуры (яркие)</span>
+      </div>
+    </div>
+
+    <!-- Contrast slider -->
+    <div style="margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text);">Контраст</label>
+        <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--accent);min-width:36px;text-align:right;">2.00</span>
+      </div>
+      <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--accent);">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Высокий = яркие контуры, тёмные тени. Низкий = всё одинаково серое.</div>
+    </div>
+
+    <!-- Brightness offset slider -->
+    <div style="margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text);">Сдвиг яркости</label>
+        <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--accent);min-width:46px;text-align:right;">-0.15</span>
+      </div>
+      <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--accent);">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее тени. Положительное — светлее всё. Рекомендуется: от −0.2 до 0.0.</div>
+    </div>
+
+    <button id="ms-save-btn" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
+  </div>
+</div>
+
     </div><!-- /.main -->
   </div><!-- /.app-body -->
 </div><!-- /#screen-app -->
@@ -1959,6 +2002,7 @@ function switchTab(t) {
   document.getElementById('tab-notif').style.display     = t === 'notif'     ? 'block' : 'none';
   document.getElementById('tab-logs').style.display      = t === 'logs'      ? 'block' : 'none';
   document.getElementById('tab-ranges').style.display     = t === 'ranges'    ? 'block' : 'none';
+  document.getElementById('tab-mapstyle').style.display   = t === 'mapstyle'  ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -1970,6 +2014,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-notif').classList.toggle('active',     t === 'notif');
   document.getElementById('tab-btn-logs').classList.toggle('active',      t === 'logs');
   document.getElementById('tab-btn-ranges').classList.toggle('active',    t === 'ranges');
+  document.getElementById('tab-btn-mapstyle').classList.toggle('active',  t === 'mapstyle');
   if (t === 'agents') loadAgentsForConfig();
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
@@ -1977,6 +2022,7 @@ function switchTab(t) {
   if (t === 'duels') loadDuelsTab();
   if (t === 'logs')  loadLogsTab();
   if (t === 'ranges') loadRangesTab();
+  if (t === 'mapstyle') loadMapStyleTab();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
@@ -2003,6 +2049,63 @@ document.getElementById('tab-btn-agents').addEventListener('click',    () => swi
 document.getElementById('tab-btn-notif').addEventListener('click',     () => switchTab('notif'));
 document.getElementById('tab-btn-logs').addEventListener('click',      () => switchTab('logs'));
 document.getElementById('tab-btn-ranges').addEventListener('click',    () => switchTab('ranges'));
+document.getElementById('tab-btn-mapstyle').addEventListener('click',  () => switchTab('mapstyle'));
+
+// ── Map Style ─────────────────────────────────────────────────────────────────
+// Firestore: settings/map_style { contrast: float, brightness: float }
+// Flutter reads this on InteractiveMapScreen open and applies to ColorFilter.matrix.
+
+const MS_PREVIEW_PRIMARY = [255, 70, 85]; // approximation of app primary red
+
+function _msUpdatePreview() {
+  const c = parseFloat(document.getElementById('ms-contrast').value);
+  const b = parseFloat(document.getElementById('ms-brightness').value);
+  document.getElementById('ms-contrast-val').textContent  = c.toFixed(2);
+  document.getElementById('ms-brightness-val').textContent = (b >= 0 ? '+' : '') + b.toFixed(2);
+  // Build gradient: luminance 0→1 mapped through L*contrast+brightness, colored by primary
+  const [pr, pg, pb] = MS_PREVIEW_PRIMARY;
+  const stops = [];
+  for (let i = 0; i <= 20; i++) {
+    const L = i / 20;
+    const L2 = Math.max(0, Math.min(1, L * c + b));
+    stops.push(`rgb(${Math.round(L2*pr)},${Math.round(L2*pg)},${Math.round(L2*pb)}) ${i*5}%`);
+  }
+  document.getElementById('ms-preview').style.background =
+    `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+async function loadMapStyleTab() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'map_style'));
+    if (snap.exists()) {
+      const d = snap.data();
+      document.getElementById('ms-contrast').value   = d.contrast   ?? 2.0;
+      document.getElementById('ms-brightness').value = d.brightness ?? -0.15;
+    }
+  } catch(e) { console.error('loadMapStyleTab', e); }
+  _msUpdatePreview();
+}
+
+document.getElementById('ms-contrast').addEventListener('input',    _msUpdatePreview);
+document.getElementById('ms-brightness').addEventListener('input',  _msUpdatePreview);
+
+document.getElementById('ms-save-btn').addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true; btn.textContent = '⏳ Сохраняю…';
+  try {
+    const contrast   = parseFloat(document.getElementById('ms-contrast').value);
+    const brightness = parseFloat(document.getElementById('ms-brightness').value);
+    await setDoc(doc(db, 'settings', 'map_style'), {
+      contrast, brightness, updatedAt: serverTimestamp()
+    });
+    toast('✅ Стиль карты сохранён — вступит в силу при следующем открытии карты', 's');
+    if (typeof addAuditLog === 'function') addAuditLog('map_style_updated', { contrast, brightness });
+  } catch(e) {
+    console.error('ms-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Сохранить настройки';
+  }
+});
 
 // ── Agents config editor ──────────────────────────────────────────────────────
 const sanitizeAgentId = name => name.replaceAll('/', '_');
