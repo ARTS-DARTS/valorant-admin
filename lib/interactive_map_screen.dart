@@ -11,11 +11,12 @@ import 'app_theme.dart';
 import 'app_snack_bar.dart';
 import 'exclusive_service.dart';
 import 'ad_service.dart';
+import 'config/map_data.dart';
 
 class InteractiveMapScreen extends StatefulWidget {
   final String mapName;
   final String agentName;
-  final String mapAsset;
+  final String mapAsset; // локальный asset как fallback при офлайн
   final List<Map<String, dynamic>> abilities;
   final String category;
   final List<Map<String, dynamic>>? preloadedLineups;
@@ -25,7 +26,7 @@ class InteractiveMapScreen extends StatefulWidget {
     super.key,
     required this.mapName,
     required this.agentName,
-    required this.mapAsset,
+    this.mapAsset = '',
     required this.abilities,
     required this.category,
     this.preloadedLineups,
@@ -38,7 +39,7 @@ class InteractiveMapScreen extends StatefulWidget {
 
 class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     with TickerProviderStateMixin {
-  static const Color _selectedColor = Color(0xFF4CAF50);
+  Color get _agentColor => MapData.agentColor(widget.agentName);
 
   String? selectedAbility;
   List<Map<String, dynamic>> allLineups = [];
@@ -53,6 +54,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
   // Pulse animation for selected marker
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
+
+  // Tracks InteractiveViewer transform for inverse-scale on markers
+  final TransformationController _transformController = TransformationController();
 
   @override
   void initState() {
@@ -86,6 +90,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     loadAllLineups();
     _loadExclusiveAccess();
     _loadAbilitiesConfig();
+    _loadMapStyle();
+    _loadAgentColors();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       for (final ability in widget.abilities) {
@@ -103,6 +109,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     _trajectoryAnim.dispose();
     _rangeAnim.dispose();
     _pulseCtrl.dispose();
+    _transformController.dispose();
     ExclusiveService.accessNotifier.removeListener(_onAccessChanged);
     super.dispose();
   }
@@ -235,7 +242,16 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     if (_activeLineupId == null) return [];
     try {
       final lineup = allLineups.firstWhere((l) => l['id'] == _activeLineupId);
-      return _parseTrajectory(lineup);
+      final pts = _parseTrajectory(lineup);
+      if (pts.isEmpty) return [];
+      // Snap first point to marker center so the trajectory always starts
+      // exactly at the player position, even if admin drew it slightly off.
+      final snapped = List<Map<String, dynamic>>.from(pts);
+      snapped[0] = {
+        'x': (lineup['position_x'] as num?)?.toDouble() ?? pts[0]['x'],
+        'y': (lineup['position_y'] as num?)?.toDouble() ?? pts[0]['y'],
+      };
+      return snapped;
     } catch (_) {
       return [];
     }
@@ -245,7 +261,13 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     if (_activeLineupId == null) return 0.0;
     try {
       final lineup = allLineups.firstWhere((l) => l['id'] == _activeLineupId);
-      return (lineup['range_radius'] as num?)?.toDouble() ?? 0.0;
+      final stored = (lineup['range_radius'] as num?)?.toDouble() ?? 0.0;
+      if (stored > 0) return stored;
+      // Fallback: вычисляем из игровых данных если в Firestore 0 или не задан
+      return MapData.rangeForAbility(
+        (lineup['ability'] as String?) ?? '',
+        widget.mapName,
+      );
     } catch (_) {
       return 0.0;
     }
@@ -393,10 +415,10 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: isSelected ? _selectedColor.withValues(alpha: 0.12) : t.surface2,
+                      color: isSelected ? _agentColor.withValues(alpha: 0.12) : t.surface2,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: isSelected ? _selectedColor : t.border,
+                          color: isSelected ? _agentColor : t.border,
                           width: isSelected ? 1.5 : 1),
                     ),
                     child: Row(
@@ -405,7 +427,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                           child: Text(
                             lineup['title'] ?? '',
                             style: TextStyle(
-                              color: isSelected ? _selectedColor : t.textPrimary,
+                              color: isSelected ? _agentColor : t.textPrimary,
                               fontSize: 14,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
@@ -417,9 +439,9 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                             child: Text('👑', style: TextStyle(fontSize: 12)),
                           ),
                         if (isSelected)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Icon(Icons.check, color: _selectedColor, size: 16),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Icon(Icons.check, color: _agentColor, size: 16),
                           ),
                       ],
                     ),
@@ -591,38 +613,50 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     final iconUrl = ability['displayIcon'] ?? '';
 
     final borderColor = isSelected
-        ? _selectedColor
+        ? _agentColor
         : isExclusive
-            ? (isActive ? Colors.amber : Colors.amber.withValues(alpha: 0.4))
+            ? (isActive ? Colors.amber : Colors.amber.withValues(alpha: 0.5))
             : (isActive ? t.primary : Colors.white38);
 
+    final glowColor = isSelected
+        ? _agentColor
+        : isExclusive
+            ? Colors.amber
+            : t.primary;
+
     final marker = Container(
-      width: 20,
-      height: 20,
+      width: 26,
+      height: 26,
       decoration: BoxDecoration(
-        color: t.surface,
+        color: t.surface.withValues(alpha: 0.92),
         shape: BoxShape.circle,
-        border: Border.all(color: borderColor, width: isSelected ? 2.5 : 2),
-        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4)],
+        border: Border.all(color: borderColor, width: isSelected ? 2.5 : 1.8),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 4, spreadRadius: 0),
+          if (isActive || isSelected)
+            BoxShadow(color: glowColor.withValues(alpha: 0.55), blurRadius: 8, spreadRadius: 1),
+        ],
       ),
       child: ClipOval(
-        child: Opacity(
-          opacity: isActive || isSelected ? 1.0 : 0.3,
-          child: ColorFiltered(
-            colorFilter: isActive || isSelected
-                ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
-                : const ColorFilter.matrix([
-                    0.2126, 0.7152, 0.0722, 0, 0,
-                    0.2126, 0.7152, 0.0722, 0, 0,
-                    0.2126, 0.7152, 0.0722, 0, 0,
-                    0,      0,      0,      1, 0,
-                  ]),
+        child: ColorFiltered(
+          colorFilter: isActive || isSelected
+              ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+              : const ColorFilter.matrix([
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0,      0,      0,      1, 0,
+                ]),
+          child: Opacity(
+            opacity: isActive || isSelected ? 1.0 : 0.28,
             child: iconUrl.isNotEmpty
                 ? CachedNetworkImage(
-                    imageUrl: iconUrl, cacheManager: AppImageCache.manager, width: 20, height: 20, fit: BoxFit.cover,
-                    placeholder: (_, _) => Container(color: Colors.transparent),
-                    errorWidget: (_, _, _) => Icon(Icons.place, color: t.textPrimary, size: 12))
-                : Icon(Icons.place, color: t.textPrimary, size: 12),
+                    imageUrl: iconUrl, cacheManager: AppImageCache.manager,
+                    width: 26, height: 26, fit: BoxFit.cover,
+                    fadeInDuration: Duration.zero,
+                    placeholder: (_, _) => const SizedBox.shrink(),
+                    errorWidget: (_, _, _) => Icon(Icons.place, color: t.textPrimary, size: 14))
+                : Icon(Icons.place, color: t.textPrimary, size: 14),
           ),
         ),
       ),
@@ -635,8 +669,8 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
       children: [
         marker,
         const Positioned(
-          top: -8, right: -8,
-          child: Text('⭐', style: TextStyle(fontSize: 10)),
+          top: -6, right: -6,
+          child: Text('⭐', style: TextStyle(fontSize: 9)),
         ),
       ],
     );
@@ -715,14 +749,14 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                     overflow: TextOverflow.ellipsis,
                   ),
                 const SizedBox(height: 4),
-                const Row(
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.touch_app_rounded, color: _selectedColor, size: 15),
-                    SizedBox(width: 6),
+                    Icon(Icons.touch_app_rounded, color: _agentColor, size: 15),
+                    const SizedBox(width: 6),
                     Text(
                       'Нажмите ещё раз чтобы открыть',
-                      style: TextStyle(color: _selectedColor, fontSize: 12),
+                      style: TextStyle(color: _agentColor, fontSize: 12),
                     ),
                   ],
                 ),
@@ -806,6 +840,78 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
     );
   }
 
+  // Map style loaded from Firestore settings/map_style (cached per session).
+  static double _mapContrast   = 2.0;
+  static double _mapBrightness = -0.15;
+  static double _mapIntensity  = 1.0;
+  static int    _mapTintR      = 255;
+  static int    _mapTintG      = 70;
+  static int    _mapTintB      = 85;
+  static bool   _mapStyleLoaded    = false;
+  static bool   _agentColorsLoaded = false;
+
+  Future<void> _loadMapStyle() async {
+    if (_mapStyleLoaded) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('map_style')
+          .get();
+      if (snap.exists) {
+        final d = snap.data()!;
+        _mapContrast   = (d['contrast']   as num?)?.toDouble() ?? 2.0;
+        _mapBrightness = (d['brightness'] as num?)?.toDouble() ?? -0.15;
+        _mapIntensity  = (d['intensity']  as num?)?.toDouble() ?? 1.0;
+        _mapTintR      = (d['tint_r']     as num?)?.toInt()    ?? 255;
+        _mapTintG      = (d['tint_g']     as num?)?.toInt()    ?? 70;
+        _mapTintB      = (d['tint_b']     as num?)?.toInt()    ?? 85;
+      }
+      _mapStyleLoaded = true;
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
+
+  Future<void> _loadAgentColors() async {
+    if (_agentColorsLoaded) return;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('agent_colors')
+          .get();
+      if (snap.exists) {
+        final d = snap.data()!;
+        final overrides = <String, Color>{};
+        d.forEach((k, v) {
+          if (v is String && v.startsWith('#') && v.length == 7) {
+            final hex = int.tryParse(v.substring(1), radix: 16);
+            if (hex != null) overrides[k] = Color(hex | 0xFF000000);
+          }
+        });
+        MapData.setAgentColorOverrides(overrides);
+      }
+      _agentColorsLoaded = true;
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
+
+  // Recolors the minimap: luminance → tint color with contrast/brightness/intensity.
+  // intensity blends between neutral white (0) and full tint color (1).
+  // NOTE: Flutter ColorFilter.matrix bias column is in [0,255] range,
+  // so brightness (stored as [0,1] in Firestore) must be multiplied by 255.
+  static List<double> _minimapColorMatrix(
+      double contrast, double brightness, int tintR, int tintG, int tintB, double intensity) {
+    final r = (tintR * intensity + 255 * (1 - intensity)) / 255.0;
+    final g = (tintG * intensity + 255 * (1 - intensity)) / 255.0;
+    final b = (tintB * intensity + 255 * (1 - intensity)) / 255.0;
+    final bias = brightness * 255;
+    return [
+      0.299 * contrast * r, 0.587 * contrast * r, 0.114 * contrast * r, 0.0, bias * r,
+      0.299 * contrast * g, 0.587 * contrast * g, 0.114 * contrast * g, 0.0, bias * g,
+      0.299 * contrast * b, 0.587 * contrast * b, 0.114 * contrast * b, 0.0, bias * b,
+      0.0,                  0.0,                  0.0,                  1.0, 0.0,
+    ];
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -848,6 +954,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                       final activePoints = _getActiveTrajectoryPoints();
 
                       return InteractiveViewer(
+                        transformationController: _transformController,
                         minScale: 0.5,
                         maxScale: 4.0,
                         child: Stack(
@@ -858,11 +965,36 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                               onTap: () {
                                 if (_activeLineupId != null) _clearTrajectory();
                               },
-                              child: Image.asset(
-                                widget.mapAsset,
-                                width: constraints.maxWidth,
-                                height: constraints.maxHeight,
-                                fit: BoxFit.contain,
+                              // RepaintBoundary caches the color-filtered minimap as a GPU
+                              // texture — ColorFiltered runs saveLayer only once, not per frame.
+                              child: RepaintBoundary(
+                                child: ColorFiltered(
+                                  colorFilter: ColorFilter.matrix(
+                                    _minimapColorMatrix(_mapContrast, _mapBrightness, _mapTintR, _mapTintG, _mapTintB, _mapIntensity),
+                                  ),
+                                  child: CachedNetworkImage(
+                                    imageUrl: MapData.minimapUrl(widget.mapName),
+                                    cacheManager: AppImageCache.manager,
+                                    width: constraints.maxWidth,
+                                    height: constraints.maxHeight,
+                                    fit: BoxFit.contain,
+                                    fadeInDuration: Duration.zero,
+                                    fadeOutDuration: Duration.zero,
+                                    placeholder: (_, _) => Center(
+                                      child: SizedBox(
+                                        width: 28,
+                                        height: 28,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: _agentColor.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ),
+                                    errorWidget: (_, _, _) => widget.mapAsset.isNotEmpty
+                                        ? Image.asset(widget.mapAsset, fit: BoxFit.contain)
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ),
                               ),
                             ),
 
@@ -870,7 +1002,7 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                             if (activePoints.length >= 2)
                               IgnorePointer(
                                 child: AnimatedBuilder(
-                                  animation: Listenable.merge([_trajectoryAnim, _rangeAnim]),
+                                  animation: Listenable.merge([_trajectoryAnim, _rangeAnim, _transformController]),
                                   builder: (context, _) => SizedBox(
                                     width: constraints.maxWidth,
                                     height: constraints.maxHeight,
@@ -878,48 +1010,62 @@ class _InteractiveMapScreenState extends State<InteractiveMapScreen>
                                       painter: _TrajectoryPainter(
                                         points: activePoints,
                                         progress: _trajectoryAnim.value,
-                                        color: _selectedColor,
+                                        color: _agentColor,
                                         rangeRadius: _activeRangeRadius,
                                         rangeProgress: _rangeAnim.value,
+                                        scale: _transformController.value.getMaxScaleOnAxis(),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
 
-                            // Markers (layer 3)
-                            ...groups.map((group) {
-                              final x = (group.first['position_x'] ?? 0.5) as double;
-                              final y = (group.first['position_y'] ?? 0.5) as double;
-                              final isAllMode = selectedAbility == null;
-                              final isActive = !isAllMode &&
-                                  group.any((l) => l['ability'] == selectedAbility);
+                            // Markers (layer 3) — scale inversely with zoom so
+                            // each marker keeps a constant size on screen.
+                            ValueListenableBuilder<Matrix4>(
+                              valueListenable: _transformController,
+                              builder: (_, matrix, __) {
+                                final scale = matrix.getMaxScaleOnAxis().clamp(0.5, 4.0);
+                                return Stack(
+                                  children: groups.map((group) {
+                                    final x = (group.first['position_x'] ?? 0.5) as double;
+                                    final y = (group.first['position_y'] ?? 0.5) as double;
+                                    final isAllMode = selectedAbility == null;
+                                    final isActive = !isAllMode &&
+                                        group.any((l) => l['ability'] == selectedAbility);
 
-                              return Positioned(
-                                left: x * constraints.maxWidth - 10,
-                                top: y * constraints.maxHeight - 10,
-                                child: GestureDetector(
-                                  onTap: () async {
-                                    if (isAllMode) {
-                                      showSelectAbilityHint();
-                                      return;
-                                    }
-                                    if (!isActive) return;
+                                    return Positioned(
+                                      // Center the 26px marker on the map coordinate
+                                      left: x * constraints.maxWidth - 13,
+                                      top: y * constraints.maxHeight - 13,
+                                      child: Transform.scale(
+                                        scale: 1.0 / scale,
+                                        child: GestureDetector(
+                                          onTap: () async {
+                                            if (isAllMode) {
+                                              showSelectAbilityHint();
+                                              return;
+                                            }
+                                            if (!isActive) return;
 
-                                    final activeInGroup = group
-                                        .where((l) => l['ability'] == selectedAbility)
-                                        .toList();
+                                            final activeInGroup = group
+                                                .where((l) => l['ability'] == selectedAbility)
+                                                .toList();
 
-                                    if (activeInGroup.length > 1) {
-                                      _showGroupSheet(context, t, activeInGroup);
-                                    } else {
-                                      await _onLineupTap(activeInGroup.first);
-                                    }
-                                  },
-                                  child: _groupMarkerWidget(t, group, isActive),
-                                ),
-                              );
-                            }),
+                                            if (activeInGroup.length > 1) {
+                                              _showGroupSheet(context, t, activeInGroup);
+                                            } else {
+                                              await _onLineupTap(activeInGroup.first);
+                                            }
+                                          },
+                                          child: _groupMarkerWidget(t, group, isActive),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       );
@@ -966,6 +1112,9 @@ class _TrajectoryPainter extends CustomPainter {
   final Color color;
   final double rangeRadius;
   final double rangeProgress;
+  // Current map zoom scale — divide pixel sizes by this to keep them
+  // constant in screen pixels as the user zooms in/out.
+  final double scale;
 
   const _TrajectoryPainter({
     required this.points,
@@ -973,6 +1122,7 @@ class _TrajectoryPainter extends CustomPainter {
     required this.color,
     this.rangeRadius = 0.0,
     this.rangeProgress = 0.0,
+    this.scale = 1.0,
   });
 
   @override
@@ -998,21 +1148,50 @@ class _TrajectoryPainter extends CustomPainter {
 
     final targetLen = totalLen * progress;
 
+    // ── Glow layer (drawn under the line) ────────────────────────────────────
+    final glowPaint = Paint()
+      ..color = color.withValues(alpha: 0.22)
+      ..strokeWidth = 9 / scale
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 / scale);
+
+    // ── Main line ─────────────────────────────────────────────────────────────
     final linePaint = Paint()
-      ..color = color.withValues(alpha: 0.9)
-      ..strokeWidth = 2.5
+      ..color = color.withValues(alpha: 0.95)
+      ..strokeWidth = 2.8 / scale
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
     final fillPaint = Paint()
-      ..color = color.withValues(alpha: 0.9)
+      ..color = color.withValues(alpha: 0.95)
       ..style = PaintingStyle.fill;
 
-    // Draw animated line segments
+    // Draw animated line segments (glow first, then line on top)
     double drawn = 0;
     Offset currentEnd = pts.first;
     Offset segmentStart = pts.first;
 
+    for (int i = 0; i < pts.length - 1; i++) {
+      if (drawn >= targetLen) break;
+      final segLen = segments[i];
+      final remaining = targetLen - drawn;
+      segmentStart = pts[i];
+
+      if (remaining >= segLen) {
+        canvas.drawLine(pts[i], pts[i + 1], glowPaint);
+        drawn += segLen;
+        currentEnd = pts[i + 1];
+      } else {
+        final frac = remaining / segLen;
+        currentEnd = Offset.lerp(pts[i], pts[i + 1], frac)!;
+        canvas.drawLine(pts[i], currentEnd, glowPaint);
+        drawn = targetLen;
+      }
+    }
+
+    drawn = 0;
+    currentEnd = pts.first;
     for (int i = 0; i < pts.length - 1; i++) {
       if (drawn >= targetLen) break;
       final segLen = segments[i];
@@ -1031,50 +1210,100 @@ class _TrajectoryPainter extends CustomPainter {
       }
     }
 
-    // Dots at each waypoint that has been reached
+    // Waypoint dots
     double d = 0;
     for (int i = 0; i < pts.length; i++) {
-      if (d <= targetLen) canvas.drawCircle(pts[i], 3.5, fillPaint);
+      if (d <= targetLen) {
+        // glow dot
+        canvas.drawCircle(pts[i], 5.5 / scale, Paint()
+          ..color = color.withValues(alpha: 0.2)
+          ..style = PaintingStyle.fill
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2 / scale));
+        // solid dot
+        canvas.drawCircle(pts[i], 3.5 / scale, fillPaint);
+        // white center
+        canvas.drawCircle(pts[i], 1.2 / scale, Paint()
+          ..color = Colors.white.withValues(alpha: 0.8)
+          ..style = PaintingStyle.fill);
+      }
       if (i < segments.length) d += segments[i];
     }
 
-    // Arrowhead at the current animation endpoint
+    // Arrowhead
     if ((currentEnd - segmentStart).distance > 1) {
-      _drawArrow(canvas, segmentStart, currentEnd, fillPaint);
+      _drawArrow(canvas, segmentStart, currentEnd, fillPaint, scale);
     }
 
-    // Range radius circle — appears with fade-in when trajectory is complete
+    // ── Range radius circle ───────────────────────────────────────────────────
     if (rangeProgress > 0 && rangeRadius > 0.0 && pts.isNotEmpty) {
       final center = pts.last;
       final radiusPx = rangeRadius * size.width;
 
-      final rangeFillPaint = Paint()
-        ..color = color.withValues(alpha: 0.28 * rangeProgress)
-        ..style = PaintingStyle.fill;
+      // 1. Expanding pulse ring (0 → radiusPx as rangeProgress 0→0.8)
+      if (rangeProgress < 0.85) {
+        final t = rangeProgress / 0.85;
+        final pulseR = radiusPx * t;
+        final pulseAlpha = (1.0 - t) * 0.75;
+        canvas.drawCircle(center, pulseR, Paint()
+          ..color = color.withValues(alpha: pulseAlpha)
+          ..strokeWidth = 2.5 / scale
+          ..style = PaintingStyle.stroke);
+      }
 
-      final rangeBorderPaint = Paint()
-        ..color = color.withValues(alpha: 0.9 * rangeProgress)
-        ..strokeWidth = 2.5
-        ..style = PaintingStyle.stroke;
+      // 2. Static circle — fades in after pulse
+      final staticAlpha = ((rangeProgress - 0.5) / 0.5).clamp(0.0, 1.0);
+      if (staticAlpha > 0) {
+        // Radial gradient fill (edge more opaque than center)
+        final shader = RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.04 * staticAlpha),
+            color.withValues(alpha: 0.28 * staticAlpha),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: radiusPx));
+        canvas.drawCircle(center, radiusPx, Paint()
+          ..shader = shader
+          ..style = PaintingStyle.fill);
 
-      canvas.drawCircle(center, radiusPx, rangeFillPaint);
-      canvas.drawCircle(center, radiusPx, rangeBorderPaint);
+        // Border with glow
+        canvas.drawCircle(center, radiusPx, Paint()
+          ..color = color.withValues(alpha: 0.25 * staticAlpha)
+          ..strokeWidth = 6 / scale
+          ..style = PaintingStyle.stroke
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 / scale));
+        canvas.drawCircle(center, radiusPx, Paint()
+          ..color = color.withValues(alpha: 0.9 * staticAlpha)
+          ..strokeWidth = 1.8 / scale
+          ..style = PaintingStyle.stroke);
+      }
     }
   }
 
-  void _drawArrow(Canvas canvas, Offset from, Offset to, Paint paint) {
+  void _drawArrow(Canvas canvas, Offset from, Offset to, Paint paint, double scale) {
     final dx = to.dx - from.dx;
     final dy = to.dy - from.dy;
     final len = math.sqrt(dx * dx + dy * dy);
     if (len < 0.01) return;
     final ux = dx / len;
     final uy = dy / len;
-    const s = 8.0;
-    const hw = 4.0;
+    final s = 9.0 / scale;
+    final hw = 4.5 / scale;
     final bx = to.dx - s * ux;
     final by = to.dy - s * uy;
     final left = Offset(bx - hw * uy, by + hw * ux);
     final right = Offset(bx + hw * uy, by - hw * ux);
+    // Glow
+    canvas.drawPath(
+      Path()
+        ..moveTo(to.dx, to.dy)
+        ..lineTo(left.dx, left.dy)
+        ..lineTo(right.dx, right.dy)
+        ..close(),
+      Paint()
+        ..color = paint.color.withValues(alpha: 0.3)
+        ..style = PaintingStyle.fill
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 3 / scale),
+    );
+    // Solid
     canvas.drawPath(
       Path()
         ..moveTo(to.dx, to.dy)
@@ -1091,5 +1320,6 @@ class _TrajectoryPainter extends CustomPainter {
       old.points.length != points.length ||
       old.color != color ||
       old.rangeRadius != rangeRadius ||
-      old.rangeProgress != rangeProgress;
+      old.rangeProgress != rangeProgress ||
+      old.scale != scale;
 }

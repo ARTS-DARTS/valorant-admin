@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'config/constants.dart';
+import 'config/map_data.dart';
 import 'services/image_cache_service.dart';
 import 'package:valorant_lineups/l10n/app_localizations.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -625,6 +626,25 @@ class _MapsTabState extends State<_MapsTab> {
     _loadExclusiveAccess();
     ExclusiveService.accessNotifier.addListener(_onAccessChanged);
     _subscribeDuelBadge();
+    // Качаем изображения карт на диск пока пользователь на главном экране.
+    // downloadFile — только HTTP→диск, без декодирования в GPU, поэтому не лагает.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prewarmMapImages());
+  }
+
+  static Future<void> _prewarmMapImages() async {
+    // Фаза 1: splash-изображения для пикера карт (крупные, ~500KB каждый)
+    for (final map in MapPickerScreen.allMaps) {
+      try {
+        await AppImageCache.manager.downloadFile(map['splash']!);
+      } catch (_) {}
+    }
+    // Фаза 2: миниматы для экрана карты (маленькие, ~30KB) — чтобы при открытии
+    // карты минимат уже лежал на диске и отображался мгновенно без чёрного экрана
+    for (final mapCfg in MapData.all) {
+      try {
+        await AppImageCache.manager.downloadFile(mapCfg.minimapUrl);
+      } catch (_) {}
+    }
   }
 
   @override
@@ -1011,12 +1031,8 @@ class MapPickerScreen extends StatefulWidget {
   final String categoryName;
   const MapPickerScreen({super.key, required this.category, required this.categoryName});
 
-  @override
-  State<MapPickerScreen> createState() => _MapPickerScreenState();
-}
-
-class _MapPickerScreenState extends State<MapPickerScreen> {
-  static const List<Map<String, String>> _allMaps = [
+  // Публичный список — используется для фонового прогрева кэша из _MapsTabState
+  static const allMaps = <Map<String, String>>[
     {'name': 'Haven',    'splash': 'https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/splash.png'},
     {'name': 'Bind',     'splash': 'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/splash.png'},
     {'name': 'Ascent',   'splash': 'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/splash.png'},
@@ -1029,52 +1045,86 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     {'name': 'Sunset',   'splash': 'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/splash.png'},
     {'name': 'Abyss',    'splash': 'https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/splash.png'},
     {'name': 'Corrode',  'splash': 'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/splash.png'},
+    {'name': 'Summit',   'splash': 'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/splash.png'},
   ];
 
-  static const _fallbackPool = {'Ascent', 'Breeze', 'Fracture', 'Haven', 'Lotus', 'Pearl', 'Split'};
+  @override
+  State<MapPickerScreen> createState() => _MapPickerScreenState();
+}
 
-  Set<String> _ratedPool = _fallbackPool;
+class _MapPickerScreenState extends State<MapPickerScreen> with TickerProviderStateMixin {
+  static const _pool = {'Ascent', 'Bind', 'Breeze', 'Haven', 'Lotus', 'Split', 'Summit', 'Sunset'};
+
+  // Вход: 1800ms, stagger 55ms между элементами, каждый элемент занимает 280ms
+  late final AnimationController _entranceCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  )..forward();
+
   bool _countsLoading = true;
   Map<String, int> _mapLineupCounts = {};
   List<String> _favoriteMaps = [];
+  // Кэшированные списки — пересчитываются только при изменении избранного
+  late List<Map<String, String>> _rated;
+  late List<Map<String, String>> _other;
 
-  List<Map<String, String>> get _ratedMaps {
-    final favNames = _favoriteMaps.where((n) => _ratedPool.contains(n)).toList();
-    final nonFavs = _allMaps
-        .where((m) => _ratedPool.contains(m['name']) && !_favoriteMaps.contains(m['name']))
+  void _rebuildLists() {
+    final favNames = _favoriteMaps.where((n) => _pool.contains(n)).toList();
+    final nonFavs = MapPickerScreen.allMaps
+        .where((m) => _pool.contains(m['name']) && !_favoriteMaps.contains(m['name']))
         .toList();
     final favMaps = favNames
-        .map((n) => _allMaps.firstWhere((m) => m['name'] == n, orElse: () => <String, String>{}))
+        .map((n) => MapPickerScreen.allMaps.firstWhere((m) => m['name'] == n, orElse: () => <String, String>{}))
         .where((m) => m.isNotEmpty)
         .toList();
-    return [...favMaps, ...nonFavs];
+    _rated = [...favMaps, ...nonFavs];
+    _other = MapPickerScreen.allMaps.where((m) => !_pool.contains(m['name'])).toList();
   }
 
-  List<Map<String, String>> get _otherMaps => _allMaps.where((m) => !_ratedPool.contains(m['name'])).toList();
+  // globalIndex: порядковый номер элемента на экране (учитывая заголовки секций)
+  Animation<double> _itemAnim(int globalIndex) {
+    const span = 0.28;
+    const stagger = 0.055;
+    final start = (globalIndex * stagger).clamp(0.0, 1.0 - span);
+    return CurvedAnimation(
+      parent: _entranceCtrl,
+      curve: Interval(start, start + span, curve: Curves.easeOutCubic),
+    );
+  }
+
+  Widget _fadeSlide(int globalIndex, Widget child) {
+    final anim = _itemAnim(globalIndex);
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween(begin: const Offset(0, 0.06), end: Offset.zero).animate(anim),
+        child: child,
+      ),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadMapPool();
+    _rebuildLists();
     _loadLineupCounts();
     _loadFavorites();
   }
 
-  Future<void> _loadMapPool() async {
-    try {
-      final doc = await FirebaseFirestore.instance.collection('settings').doc('map_pool').get();
-      if (doc.exists) {
-        final maps = List<String>.from(doc.data()?['maps'] ?? []);
-        if (maps.isNotEmpty && mounted) setState(() => _ratedPool = Set.from(maps));
-      }
-    } catch (_) {}
+  @override
+  void dispose() {
+    _entranceCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString('favorite_maps_order');
     if (json != null && mounted) {
-      setState(() => _favoriteMaps = List<String>.from(jsonDecode(json) as List));
+      setState(() {
+        _favoriteMaps = List<String>.from(jsonDecode(json) as List);
+        _rebuildLists();
+      });
     }
   }
 
@@ -1085,7 +1135,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     } else {
       newFavs.insert(0, name);
     }
-    setState(() => _favoriteMaps = newFavs);
+    setState(() {
+      _favoriteMaps = newFavs;
+      _rebuildLists();
+    });
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('favorite_maps_order', jsonEncode(newFavs));
   }
@@ -1125,10 +1178,17 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: CustomScrollView(
+        child: AnimatedBuilder(
+          animation: _entranceCtrl,
+          builder: (context, child) => AbsorbPointer(
+            absorbing: _entranceCtrl.value < 0.8,
+            child: child!,
+          ),
+          child: CustomScrollView(
           slivers: [
+            // globalIndex 0 — заголовок "Рейтинговый пул"
             SliverToBoxAdapter(
-              child: Padding(
+              child: _fadeSlide(0, Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
                   children: [
@@ -1140,26 +1200,32 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                     ),
                   ],
                 ),
-              ),
+              )),
             ),
+            // globalIndex 1.._rated.length — карточки рейтингового пула
             SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.95),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _MapPickerCard(
-                  key: ValueKey(_ratedMaps[index]['name']),
-                  mapData: _ratedMaps[index],
-                  category: widget.category,
-                  lineupCount: _mapLineupCounts[_ratedMaps[index]['name']] ?? 0,
-                  countsLoading: _countsLoading,
-                  isFavorite: _favoriteMaps.contains(_ratedMaps[index]['name']),
-                  onToggleFavorite: () => _toggleFavorite(_ratedMaps[index]['name']!),
+                (context, index) => _fadeSlide(index + 1,
+                  RepaintBoundary(
+                    child: _MapPickerCard(
+                      key: ValueKey(_rated[index]['name']),
+                      mapData: _rated[index],
+                      category: widget.category,
+                      lineupCount: _mapLineupCounts[_rated[index]['name']] ?? 0,
+                      countsLoading: _countsLoading,
+                      isFavorite: _favoriteMaps.contains(_rated[index]['name']),
+                      onToggleFavorite: () => _toggleFavorite(_rated[index]['name']!),
+                    ),
+                  ),
                 ),
-                childCount: _ratedMaps.length,
+                childCount: _rated.length,
               ),
             ),
+            // globalIndex _rated.length + 1 — заголовок "Другие карты"
             SliverToBoxAdapter(
-              child: Padding(
+              child: _fadeSlide(_rated.length + 1, Padding(
                 padding: const EdgeInsets.only(top: 20, bottom: 10),
                 child: Row(
                   children: [
@@ -1169,23 +1235,30 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                         style: TextStyle(color: theme.textSecondary, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1)),
                   ],
                 ),
-              ),
+              )),
             ),
+            // globalIndex _rated.length + 2.. — карточки других карт
             SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.95),
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _MapPickerCard(
-                  mapData: _otherMaps[index],
-                  category: widget.category,
-                  lineupCount: _mapLineupCounts[_otherMaps[index]['name']] ?? 0,
-                  countsLoading: _countsLoading,
+                (context, index) => _fadeSlide(_rated.length + 2 + index,
+                  RepaintBoundary(
+                    child: _MapPickerCard(
+                      key: ValueKey(_other[index]['name']),
+                      mapData: _other[index],
+                      category: widget.category,
+                      lineupCount: _mapLineupCounts[_other[index]['name']] ?? 0,
+                      countsLoading: _countsLoading,
+                    ),
+                  ),
                 ),
-                childCount: _otherMaps.length,
+                childCount: _other.length,
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
           ],
+        ),
         ),
       ),
     );
@@ -1250,7 +1323,9 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
       children: [
         Expanded(
           child: GestureDetector(
-            onTap: isEmpty
+            onTap: widget.countsLoading
+                ? null
+                : isEmpty
                 ? () => AppSnackBar.show(context, AppLocalizations.of(context)!.noLineupsYet)
                 : () => Navigator.push(
                     context,
@@ -1261,54 +1336,55 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                           category: widget.category),
                     ),
                   ),
-            child: Opacity(
-              opacity: isEmpty ? 0.5 : 1.0,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isEmpty ? Colors.grey.withValues(alpha: 0.5) : theme.primary,
-                    width: 1,
-                  ),
-                  color: theme.surface,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isEmpty ? Colors.grey.withValues(alpha: 0.5) : theme.primary,
+                  width: 1,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(7),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: widget.mapData['splash'] as String,
-                        cacheManager: AppImageCache.manager,
-                        fit: BoxFit.cover,
-                        color: Colors.black.withValues(alpha: isEmpty ? 0.55 : 0.15),
-                        colorBlendMode: BlendMode.darken,
-                        placeholder: (context, url) => ColoredBox(color: theme.surface2),
-                        errorWidget: (context, url, err) => ColoredBox(
-                          color: theme.surface2,
-                          child: Center(
-                            child: Text(
-                              widget.mapData['name'] as String,
-                              style: TextStyle(color: theme.textSecondary),
-                            ),
+                color: theme.surface,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(7),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: widget.mapData['splash'] as String,
+                      cacheManager: AppImageCache.manager,
+                      fit: BoxFit.cover,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                      placeholder: (context, url) => ColoredBox(color: theme.surface2),
+                      errorWidget: (context, url, err) => ColoredBox(
+                        color: theme.surface2,
+                        child: Center(
+                          child: Text(
+                            widget.mapData['name'] as String,
+                            style: TextStyle(color: theme.textSecondary),
                           ),
                         ),
                       ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        height: 56,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [Colors.black.withValues(alpha: 0.75), Colors.transparent],
-                            ),
+                    ),
+                    // Overlay вместо Opacity + color/colorBlendMode на image —
+                    // оба вызывали saveLayer (offscreen render) при каждом кадре скролла
+                    ColoredBox(color: Colors.black.withValues(alpha: isEmpty ? 0.55 : 0.15)),
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 56,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [Colors.black.withValues(alpha: 0.75), Colors.transparent],
                           ),
                         ),
                       ),
+                    ),
                       Positioned(
                         bottom: 10,
                         left: 10,
@@ -1345,7 +1421,6 @@ class _MapPickerCardState extends State<_MapPickerCard> with SingleTickerProvide
                   ),
                 ),
               ),
-            ),
           ),
         ),
         SizedBox(

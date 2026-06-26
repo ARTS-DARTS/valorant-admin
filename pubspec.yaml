@@ -1,8 +1,8 @@
-name: valorant_lineups
+﻿name: valorant_lineups
 description: "Бесплатные интерактивные лайнапы для Valorant — видео-гайды, карты, агенты, XP."
 publish_to: "none"
 
-version: 1.0.31+736772
+version: 1.0.34+736775
 
 environment:
   sdk: ^3.11.5

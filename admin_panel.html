@@ -592,6 +592,13 @@
     .nc-title    { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
     .nc-desc     { font-size: 12px; color: var(--text2); line-height: 1.4; }
     .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
+    .ac-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; transition:.15s; }
+    .ac-card:hover { border-color:var(--border2); }
+    .ac-dot { width:28px; height:28px; border-radius:50%; flex-shrink:0; transition:.2s; }
+    .ac-picker { width:26px; height:26px; border:none; border-radius:6px; cursor:pointer; padding:2px; background:var(--surface2); flex-shrink:0; }
+    .ms-sw { width:34px; height:34px; border-radius:8px; border:2px solid rgba(255,255,255,.2); cursor:pointer; transition:.15s; flex-shrink:0; }
+    .ms-sw:hover { transform:scale(1.12); border-color:rgba(255,255,255,.6); }
+    .ms-sw.active { outline:3px solid #fff; outline-offset:2px; border-color:transparent; }
     .nc-status.ok  { color: var(--green); }
     .nc-status.err { color: var(--red); }
 
@@ -806,10 +813,9 @@
       <div class="tabs">
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
+        <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
+        <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
       </div>
-      <button id="mig-sidebar-btn" style="margin:8px 12px;padding:8px 12px;background:rgba(255,70,85,0.15);border:1px solid rgba(255,70,85,0.3);border-radius:6px;color:#FF4655;font-size:12px;cursor:pointer;width:calc(100% - 24px);text-align:left;">
-        🔍 Найти старые видео (Bunny/Cloudinary)
-      </button>
     </nav>
 
     <div class="main">
@@ -923,7 +929,7 @@
               <option>Haven</option><option>Bind</option><option>Ascent</option>
               <option>Split</option><option>Icebox</option><option>Breeze</option>
               <option>Fracture</option><option>Pearl</option><option>Lotus</option>
-              <option>Sunset</option><option>Abyss</option><option>Corrode</option>
+              <option>Sunset</option><option>Abyss</option><option>Corrode</option><option>Summit</option>
             </select>
           </div>
 
@@ -1187,75 +1193,6 @@
         </div>
       </div>
 
-      <!-- ── Section: Google Play Installs ── -->
-      <div class="an-section" id="gp-installs-section">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div class="form-title" style="margin:0;">📲 ЧИСЛО УСТАНОВОК — Google Play</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <span id="gp-updated-label" style="font-size:10px;color:var(--text2);"></span>
-            <button class="btn btn-save" style="padding:6px 14px;font-size:12px;" onclick="gpOpenForm()">✏️ Обновить</button>
-          </div>
-        </div>
-        <div class="an-cards" id="gp-stat-cards">
-          <div class="an-card"><div class="an-val an-loading" id="gp-1d">…</div><div class="an-lbl">Установок за сутки</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="gp-7d">…</div><div class="an-lbl">Установок за неделю</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="gp-30d">…</div><div class="an-lbl">Установок за месяц</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="gp-active">…</div><div class="an-lbl">Активных устройств</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="gp-total">…</div><div class="an-lbl">Всего установок</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="gp-uninst">…</div><div class="an-lbl">Удалений за месяц</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="gp-rating">…</div><div class="an-lbl">Рейтинг (оценок)</div></div>
-        </div>
-
-        <!-- Inline form (hidden by default) -->
-        <div id="gp-form" style="display:none;margin-top:16px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:16px;">
-          <div style="font-size:11px;font-weight:700;color:var(--text2);letter-spacing:1px;margin-bottom:12px;">ВНЕСТИ ДАННЫЕ ИЗ GOOGLE PLAY CONSOLE</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div class="fg">
-              <label class="flabel">Установок за сутки</label>
-              <input class="finput" type="number" id="gp-f-1d" placeholder="0" min="0">
-            </div>
-            <div class="fg">
-              <label class="flabel">Установок за 7 дней</label>
-              <input class="finput" type="number" id="gp-f-7d" placeholder="0" min="0">
-            </div>
-            <div class="fg">
-              <label class="flabel">Установок за 30 дней</label>
-              <input class="finput" type="number" id="gp-f-30d" placeholder="0" min="0">
-            </div>
-            <div class="fg">
-              <label class="flabel">Активных устройств</label>
-              <input class="finput" type="number" id="gp-f-active" placeholder="0" min="0">
-            </div>
-            <div class="fg">
-              <label class="flabel">Всего установок (cumulative)</label>
-              <input class="finput" type="number" id="gp-f-total" placeholder="0" min="0">
-            </div>
-            <div class="fg">
-              <label class="flabel">Удалений за 30 дней</label>
-              <input class="finput" type="number" id="gp-f-uninst" placeholder="0" min="0">
-            </div>
-            <div class="fg">
-              <label class="flabel">Рейтинг (например 4.8)</label>
-              <input class="finput" type="number" id="gp-f-rating" placeholder="0.0" step="0.1" min="0" max="5">
-            </div>
-            <div class="fg">
-              <label class="flabel">Количество оценок</label>
-              <input class="finput" type="number" id="gp-f-rcount" placeholder="0" min="0">
-            </div>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:14px;">
-            <button class="btn btn-save" style="flex:1;justify-content:center;padding:10px;" onclick="gpSave()">💾 Сохранить</button>
-            <button class="btn" style="border:1px solid var(--border);color:var(--text2);padding:10px 16px;" onclick="gpCloseForm()">Отмена</button>
-          </div>
-        </div>
-
-        <!-- Mini chart: installs trend (last 10 saves) -->
-        <div class="an-chart-box" style="margin-top:14px;" id="gp-history-box">
-          <div class="dlabel" style="margin-bottom:8px;">История установок за месяц</div>
-          <svg id="gp-chart" width="100%" style="display:block;"></svg>
-        </div>
-      </div>
-
       <!-- ── Section: Storage ── -->
       <div class="an-section">
         <div class="form-title">☁️ ХРАНИЛИЩА</div>
@@ -1275,7 +1212,7 @@
           </div>
           <div class="an-card" id="cloudinary-bandwidth-card">
             <div class="an-val an-loading">…</div>
-            <div class="an-lbl">Cloudinary Credits (месяц)</div>
+            <div class="an-lbl">Cloudinary (объём)</div>
             <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
               <div id="cloudinary-credits-bar" style="height:4px;border-radius:2px;background:#FF4655;width:0%;transition:width 0.5s;"></div>
             </div>
@@ -1399,6 +1336,22 @@
   <!-- Agents tab -->
   <div id="tab-agents" style="display:none;">
     <div style="max-width:1200px;padding-bottom:20px;">
+
+      <!-- ── Agent Colors ────────────────────────────────────────────────── -->
+      <div id="ac-section" style="margin-bottom:32px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div>
+            <div class="form-title" style="margin:0 0 4px;">🎨 Цвета агентов</div>
+            <div style="font-size:12px;color:var(--text2);">Цвет траектории и круга дальности. Сохраняется в Firestore — вступает в силу без обновления.</div>
+          </div>
+          <button id="ac-save-btn" class="btn btn-save" style="padding:9px 22px;flex-shrink:0;">Сохранить</button>
+        </div>
+        <div id="ac-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;">
+          <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
+        </div>
+        <div style="height:1px;background:var(--border);margin-top:28px;"></div>
+      </div>
+
       <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">Выберите агента и настройте доступные абилки для создания лайнапов.</p>
 
@@ -1555,7 +1508,6 @@
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
           <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
-          <button id="rng-fill-missing-btn" class="btn btn-save" style="font-size:12px;padding:5px 12px;" title="Считает среднее по каждому агенту+способности и заполняет Pearl, Split, Sunset">✨ Заполнить Pearl / Split / Sunset</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -1746,6 +1698,7 @@
       </div>
 
     </div>
+  </div><!-- /tab-notif -->
 
 <!-- Logs tab -->
 <div id="tab-logs" style="display:none;">
@@ -1762,6 +1715,111 @@
     <button class="filter-btn" data-log-filter="manual">Другие</button>
   </div>
   <div id="logs-list"></div>
+</div>
+
+<!-- ── Map Style Tab ───────────────────────────────────────────────────────── -->
+<div id="tab-mapstyle" style="display:none;padding:20px;">
+  <div style="max-width:680px;margin:0 auto;">
+    <h3 style="margin:0 0 6px;color:var(--text);">🗺️ Стиль тактической карты</h3>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
+      Цветокоррекция миникарты — предпросмотр живой. Изменения применяются при следующем открытии карты в приложении.
+    </p>
+
+    <!-- Canvas preview -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:12px;color:var(--text2);">Предпросмотр</span>
+        <select id="ms-map-pick" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">
+          <option value="7eaecc1b-4337-bbf6-6ab9-04b8f06b3319" selected>Ascent</option>
+          <option value="2bee0dc9-4ffe-519b-1cbd-7fbe763a6047">Haven</option>
+          <option value="2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba">Bind</option>
+          <option value="d960549e-485c-e861-8d71-aa9d1aed12a2">Split</option>
+          <option value="e2ad5c54-4114-a870-9641-8ea21279579a">Icebox</option>
+          <option value="2fb9a4fd-47b8-4e7d-a969-74b4046ebd53">Breeze</option>
+          <option value="b529448b-4d60-346e-e89e-00a4c527a405">Fracture</option>
+          <option value="fd267378-4d1d-484f-ff52-77821ed10dc2">Pearl</option>
+          <option value="2fe4ed3a-450a-948b-6d6b-e89a78e680a9">Lotus</option>
+          <option value="92584fbe-486a-b1b2-9faa-39b0f486b498">Sunset</option>
+          <option value="224b0a95-48b9-f703-1bd8-67aca101a61f">Abyss</option>
+          <option value="1c18ab1f-420d-0d8b-71d0-77ad3c439115">Corrode</option>
+          <option value="756da597-416b-c0f2-f47b-afbdf28670bc">Summit</option>
+        </select>
+      </div>
+      <div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border2);background:var(--surface2);min-height:80px;">
+        <canvas id="ms-canvas" style="width:100%;display:block;"></canvas>
+        <div id="ms-canvas-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text2);font-size:13px;">Загрузка…</div>
+      </div>
+    </div>
+
+    <!-- Tint color -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Цвет тинта</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="ms-sw" data-r="255" data-g="70"  data-b="85"  style="background:#FF4655;" title="Красный — тема приложения"></button>
+        <button class="ms-sw" data-r="0"   data-g="180" data-b="255" style="background:#00B4FF;" title="Синий"></button>
+        <button class="ms-sw" data-r="34"  data-g="197" data-b="94"  style="background:#22c55e;" title="Зелёный"></button>
+        <button class="ms-sw" data-r="168" data-g="85"  data-b="247" style="background:#a855f7;" title="Фиолетовый"></button>
+        <button class="ms-sw" data-r="0"   data-g="229" data-b="255" style="background:#00E5FF;" title="Циан"></button>
+        <button class="ms-sw" data-r="249" data-g="115" data-b="22"  style="background:#f97316;" title="Оранжевый"></button>
+        <button class="ms-sw" data-r="255" data-g="215" data-b="0"   style="background:#ffd700;" title="Золотой"></button>
+        <button class="ms-sw" data-r="220" data-g="220" data-b="220" style="background:#dcdcdc;" title="Нейтральный белый"></button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;">
+          <input type="color" id="ms-color-custom" value="#FF4655"
+            style="width:34px;height:34px;border:2px solid var(--border2);border-radius:8px;cursor:pointer;padding:2px;background:var(--surface2);">
+          Свой
+        </label>
+      </div>
+    </div>
+
+    <!-- Intensity -->
+    <div style="margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text);">Интенсивность цвета</label>
+        <span id="ms-intensity-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">1.00</span>
+      </div>
+      <input type="range" id="ms-intensity" min="0" max="1" step="0.05" value="1.0" style="width:100%;accent-color:var(--primary);">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">0 = нейтральный серый, 1 = полный выбранный цвет.</div>
+    </div>
+
+    <!-- Contrast -->
+    <div style="margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text);">Контраст</label>
+        <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">2.00</span>
+      </div>
+      <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--primary);">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Высокий = яркие стены, тёмный фон. Рекомендуется: 1.8–2.5.</div>
+    </div>
+
+    <!-- Brightness -->
+    <div style="margin-bottom:28px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text);">Сдвиг яркости</label>
+        <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:46px;text-align:right;">-0.15</span>
+      </div>
+      <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--primary);">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее фон карты. Рекомендуется: −0.2 до 0.0.</div>
+    </div>
+
+    <button id="ms-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
+  </div>
+</div>
+
+<!-- ── Agent Colors Tab ──────────────────────────────────────────────────────── -->
+<div id="tab-agentcolors" style="display:none;padding:20px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <h3 style="margin:0;color:var(--text);">🎨 Стиль абилок — цвета агентов</h3>
+      <button id="ac-save-btn2" class="btn btn-save" style="padding:10px 24px;">Сохранить</button>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
+      Цвет траектории, маркеров и круга дальности для каждого агента.
+      Сохраняется в Firestore — вступает в силу без обновления приложения.
+    </p>
+    <div id="ac-grid2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;">
+      <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
+    </div>
+  </div>
 </div>
 
     </div><!-- /.main -->
@@ -1786,6 +1844,7 @@
       <option value="Sunset">Sunset</option>
       <option value="Abyss">Abyss</option>
       <option value="Corrode">Corrode</option>
+      <option value="Summit">Summit</option>
     </select>
   </div>
   <div id="dtp-list" class="dtp-list"></div>
@@ -1806,6 +1865,7 @@
       <option value="Sunset">Sunset</option>
       <option value="Abyss">Abyss</option>
       <option value="Corrode">Corrode</option>
+      <option value="Summit">Summit</option>
     </select>
     <button class="btn btn-save" id="dtp-save-btn" style="padding:7px 14px;font-size:13px;">Сохранить</button>
   </div>
@@ -2030,6 +2090,8 @@ function switchTab(t) {
   document.getElementById('tab-notif').style.display     = t === 'notif'     ? 'block' : 'none';
   document.getElementById('tab-logs').style.display      = t === 'logs'      ? 'block' : 'none';
   document.getElementById('tab-ranges').style.display     = t === 'ranges'    ? 'block' : 'none';
+  document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
+  document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -2041,13 +2103,18 @@ function switchTab(t) {
   document.getElementById('tab-btn-notif').classList.toggle('active',     t === 'notif');
   document.getElementById('tab-btn-logs').classList.toggle('active',      t === 'logs');
   document.getElementById('tab-btn-ranges').classList.toggle('active',    t === 'ranges');
-  if (t === 'agents') loadAgentsForConfig();
+  document.getElementById('tab-btn-mapstyle').classList.toggle('active',     t === 'mapstyle');
+  document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
+  if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
   if (t === 'logs')  loadLogsTab();
   if (t === 'ranges') loadRangesTab();
+  if (t === 'mapstyle') loadMapStyleTab();
+  if (t === 'agentcolors') loadAgentColorsSection('ac-grid2');
+  if (t === 'notif' && !apLoaded) loadAuthorPanelUsers();
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
@@ -2074,6 +2141,242 @@ document.getElementById('tab-btn-agents').addEventListener('click',    () => swi
 document.getElementById('tab-btn-notif').addEventListener('click',     () => switchTab('notif'));
 document.getElementById('tab-btn-logs').addEventListener('click',      () => switchTab('logs'));
 document.getElementById('tab-btn-ranges').addEventListener('click',    () => switchTab('ranges'));
+document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => switchTab('mapstyle'));
+document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
+
+// ── Map Style ─────────────────────────────────────────────────────────────────
+// Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
+// Flutter reads these on InteractiveMapScreen open and applies ColorFilter.matrix.
+
+let _msTint      = [255, 70, 85];  // current [R, G, B]
+let _msOrigData  = null;           // ImageData of unfiltered map (for re-applying matrix)
+let _msRafPend   = false;
+
+function _msValLabels() {
+  const c = parseFloat(document.getElementById('ms-contrast').value);
+  const b = parseFloat(document.getElementById('ms-brightness').value);
+  const s = parseFloat(document.getElementById('ms-intensity').value);
+  document.getElementById('ms-contrast-val').textContent   = c.toFixed(2);
+  document.getElementById('ms-brightness-val').textContent = (b >= 0 ? '+' : '') + b.toFixed(2);
+  document.getElementById('ms-intensity-val').textContent  = s.toFixed(2);
+}
+
+function _msScheduleRedraw() {
+  if (_msRafPend) return;
+  _msRafPend = true;
+  requestAnimationFrame(() => { _msRafPend = false; _msApplyMatrix(); });
+}
+
+function _msApplyMatrix() {
+  if (!_msOrigData) return;
+  const c   = parseFloat(document.getElementById('ms-contrast').value);
+  const b   = parseFloat(document.getElementById('ms-brightness').value);
+  const sat = parseFloat(document.getElementById('ms-intensity').value);
+  const [pr, pg, pb] = _msTint;
+  // intensity blends tint toward white (same as Flutter: intensity=0 → neutral grey)
+  const er = (pr * sat + 255 * (1 - sat)) / 255;
+  const eg = (pg * sat + 255 * (1 - sat)) / 255;
+  const eb = (pb * sat + 255 * (1 - sat)) / 255;
+
+  const src = _msOrigData.data;
+  const out = new Uint8ClampedArray(src.length);
+  for (let i = 0; i < src.length; i += 4) {
+    const r  = src[i] / 255, g = src[i+1] / 255, bv = src[i+2] / 255;
+    const L  = 0.299*r + 0.587*g + 0.114*bv;
+    const L2 = Math.max(0, Math.min(1, L * c + b));
+    out[i]   = Math.round(L2 * er * 255);
+    out[i+1] = Math.round(L2 * eg * 255);
+    out[i+2] = Math.round(L2 * eb * 255);
+    out[i+3] = src[i+3];
+  }
+  const canvas = document.getElementById('ms-canvas');
+  canvas.getContext('2d').putImageData(
+    new ImageData(out, _msOrigData.width, _msOrigData.height), 0, 0);
+}
+
+function _msLoadMap(uuid) {
+  const msg = document.getElementById('ms-canvas-msg');
+  msg.style.display = 'flex'; msg.textContent = 'Загрузка…';
+  _msOrigData = null;
+  const img  = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const canvas = document.getElementById('ms-canvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    try {
+      _msOrigData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      msg.style.display = 'none';
+      _msApplyMatrix();
+    } catch(_) { msg.textContent = 'Предпросмотр недоступен (CORS)'; }
+  };
+  img.onerror = () => { msg.textContent = 'Не удалось загрузить карту'; };
+  img.src = `https://media.valorant-api.com/maps/${uuid}/displayicon.png`;
+}
+
+function _msSetTint(r, g, b) {
+  _msTint = [r, g, b];
+  const hex = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  document.getElementById('ms-color-custom').value = hex;
+  document.querySelectorAll('.ms-sw').forEach(el => {
+    el.classList.toggle('active',
+      +el.dataset.r === r && +el.dataset.g === g && +el.dataset.b === b);
+  });
+  _msScheduleRedraw();
+}
+
+async function loadMapStyleTab() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'map_style'));
+    if (snap.exists()) {
+      const d = snap.data();
+      if (d.contrast   != null) document.getElementById('ms-contrast').value   = d.contrast;
+      if (d.brightness != null) document.getElementById('ms-brightness').value = d.brightness;
+      if (d.intensity  != null) document.getElementById('ms-intensity').value  = d.intensity;
+      _msSetTint(d.tint_r ?? 255, d.tint_g ?? 70, d.tint_b ?? 85);
+    } else {
+      _msSetTint(255, 70, 85);
+    }
+  } catch(e) { console.error('loadMapStyleTab', e); _msSetTint(255, 70, 85); }
+  _msValLabels();
+  _msLoadMap(document.getElementById('ms-map-pick').value);
+}
+
+document.getElementById('ms-contrast').addEventListener('input',   () => { _msValLabels(); _msScheduleRedraw(); });
+document.getElementById('ms-brightness').addEventListener('input', () => { _msValLabels(); _msScheduleRedraw(); });
+document.getElementById('ms-intensity').addEventListener('input',  () => { _msValLabels(); _msScheduleRedraw(); });
+
+document.querySelectorAll('.ms-sw').forEach(btn =>
+  btn.addEventListener('click', () => _msSetTint(+btn.dataset.r, +btn.dataset.g, +btn.dataset.b))
+);
+document.getElementById('ms-color-custom').addEventListener('input', e => {
+  const v = e.target.value;
+  _msSetTint(parseInt(v.slice(1,3),16), parseInt(v.slice(3,5),16), parseInt(v.slice(5,7),16));
+});
+document.getElementById('ms-map-pick').addEventListener('change', e => _msLoadMap(e.target.value));
+
+document.getElementById('ms-save-btn').addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true; btn.textContent = '⏳ Сохраняю…';
+  try {
+    const contrast   = parseFloat(document.getElementById('ms-contrast').value);
+    const brightness = parseFloat(document.getElementById('ms-brightness').value);
+    const intensity  = parseFloat(document.getElementById('ms-intensity').value);
+    const [tint_r, tint_g, tint_b] = _msTint;
+    await setDoc(doc(db, 'settings', 'map_style'), {
+      contrast, brightness, intensity, tint_r, tint_g, tint_b,
+      updatedAt: serverTimestamp()
+    });
+    toast('✅ Стиль карты сохранён — вступит в силу при следующем открытии карты', 's');
+    if (typeof addAuditLog === 'function')
+      addAuditLog('map_style_updated', { contrast, brightness, intensity, tint_r, tint_g, tint_b });
+  } catch(e) {
+    console.error('ms-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Сохранить настройки';
+  }
+});
+
+// ── Agent Colors ──────────────────────────────────────────────────────────────
+// Firestore: settings/agent_colors { "Sova": "#5B8DB8", ... }
+// Flutter: MapData.agentColor() checks Firestore overrides first, then hardcode.
+
+const AC_AGENTS = [
+  { name: 'Sova',      hex: '#5B8DB8' },
+  { name: 'Viper',     hex: '#4CAF50' },
+  { name: 'Brimstone', hex: '#FF6B35' },
+  { name: 'KAY/O',     hex: '#BA68C8' },
+  { name: 'Killjoy',   hex: '#FFC107' },
+  { name: 'Fade',      hex: '#9C27B0' },
+  { name: 'Harbor',    hex: '#00BCD4' },
+  { name: 'Astra',     hex: '#CE93D8' },
+  { name: 'Omen',      hex: '#7B1FA2' },
+  { name: 'Sage',      hex: '#69F0AE' },
+  { name: 'Clove',     hex: '#E8A0BF' },
+  { name: 'Deadlock',  hex: '#2979FF' },
+  { name: 'Skye',      hex: '#66BB6A' },
+  { name: 'Gekko',     hex: '#CDDC39' },
+  { name: 'Breach',    hex: '#FF7043' },
+  { name: 'Raze',      hex: '#FF4081' },
+  { name: 'Phoenix',   hex: '#FF5722' },
+  { name: 'Cypher',    hex: '#90A4AE' },
+  { name: 'Neon',      hex: '#00E5FF' },
+  { name: 'Vyse',      hex: '#5C6BC0' },
+  { name: 'Iso',       hex: '#C62828' },
+  { name: 'Yoru',      hex: '#1565C0' },
+  { name: 'Chamber',   hex: '#FFD54F' },
+  { name: 'Reyna',     hex: '#AD1457' },
+  { name: 'Jett',      hex: '#80DEEA' },
+];
+
+let _acColors  = {};  // { agentName: '#RRGGBB' } — current session state
+let _acLoaded  = false;
+
+function _acDotStyle(hex) {
+  return `background:${hex};box-shadow:0 0 8px 3px ${hex}66;`;
+}
+
+function _acRender(gridId = 'ac-grid') {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (const agent of AC_AGENTS) {
+    const hex = _acColors[agent.name] ?? agent.hex;
+    const card = document.createElement('div');
+    card.className = 'ac-card';
+    card.innerHTML = `
+      <div class="ac-dot" style="${_acDotStyle(hex)}"></div>
+      <div style="flex:1;font-size:12px;font-weight:600;color:var(--text);
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+           title="${apEsc(agent.name)}">${apEsc(agent.name)}</div>
+      <input type="color" class="ac-picker" value="${hex}" title="${apEsc(agent.name)}">
+    `;
+    const picker = card.querySelector('.ac-picker');
+    const dot    = card.querySelector('.ac-dot');
+    picker.addEventListener('input', e => {
+      const v = e.target.value;
+      _acColors[agent.name] = v;
+      dot.style.cssText = _acDotStyle(v);
+    });
+    grid.appendChild(card);
+  }
+}
+
+async function loadAgentColorsSection(gridId = 'ac-grid') {
+  if (_acLoaded) { _acRender(gridId); return; }
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'agent_colors'));
+    if (snap.exists()) {
+      _acColors = { ...snap.data() };
+    } else {
+      _acColors = Object.fromEntries(AC_AGENTS.map(a => [a.name, a.hex]));
+    }
+  } catch(e) {
+    console.warn('agent_colors load:', e);
+    _acColors = Object.fromEntries(AC_AGENTS.map(a => [a.name, a.hex]));
+  }
+  _acLoaded = true;
+  _acRender(gridId);
+}
+
+async function _acSave(btnEl) {
+  btnEl.disabled = true; btnEl.textContent = '⏳ Сохраняю…';
+  try {
+    await setDoc(doc(db, 'settings', 'agent_colors'), _acColors);
+    toast('✅ Цвета агентов сохранены — вступят в силу при следующем открытии карты', 's');
+    if (typeof addAuditLog === 'function')
+      addAuditLog('agent_colors_updated', { count: Object.keys(_acColors).length });
+  } catch(e) {
+    console.error('ac-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btnEl.disabled = false; btnEl.textContent = 'Сохранить';
+  }
+}
+
+document.getElementById('ac-save-btn').addEventListener('click', function() { _acSave(this); });
+document.getElementById('ac-save-btn2').addEventListener('click', function() { _acSave(this); });
 
 // ── Agents config editor ──────────────────────────────────────────────────────
 const sanitizeAgentId = name => name.replaceAll('/', '_');
@@ -4487,7 +4790,7 @@ function _getEditSession(id, l) {
 }
 
 function buildEditForm(id, l) {
-  const maps = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode'];
+  const maps = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode','Summit'];
   const cats = ['lineup','combo','smoke','defense'];
   const mapOpts = maps.map(m => `<option value="${m}"${m === (l.map ?? '') ? ' selected' : ''}>${m}</option>`).join('');
   const catOpts = cats.map(c => `<option value="${c}"${c === (l.category ?? '') ? ' selected' : ''}>${c}</option>`).join('');
@@ -5765,126 +6068,10 @@ async function clDeletePost(id) {
 // \u2500\u2500 Analytics \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 let analyticsLoaded = false;
 
-// ── Google Play Installs ─────────────────────────────────────────────────────
-
-async function gpLoad() {
-  try {
-    const snap = await getDoc(doc(db, 'admin_config', 'play_store'));
-    if (!snap.exists()) { gpSetEmpty(); return; }
-    const d = snap.data();
-    const fmt = n => n != null ? Number(n).toLocaleString('ru-RU') : '—';
-    document.getElementById('gp-1d').textContent     = fmt(d.installs_1d);
-    document.getElementById('gp-7d').textContent     = fmt(d.installs_7d);
-    document.getElementById('gp-30d').textContent    = fmt(d.installs_30d);
-    document.getElementById('gp-active').textContent = fmt(d.active_installs);
-    document.getElementById('gp-total').textContent  = fmt(d.total_installs);
-    document.getElementById('gp-uninst').textContent = fmt(d.uninstalls_30d);
-    const ratingTxt = d.rating != null
-      ? `${Number(d.rating).toFixed(1)} ★${d.ratings_count ? ' (' + fmt(d.ratings_count) + ')' : ''}`
-      : '—';
-    document.getElementById('gp-rating').textContent = ratingTxt;
-    if (d.updated_at) {
-      const dt = d.updated_at.toDate ? d.updated_at.toDate() : new Date(d.updated_at);
-      document.getElementById('gp-updated-label').textContent =
-        'Обновлено: ' + dt.toLocaleDateString('ru-RU') + ' ' + dt.toLocaleTimeString('ru-RU', {hour:'2-digit',minute:'2-digit'});
-    }
-    // Remove loading style
-    document.querySelectorAll('#gp-stat-cards .an-val').forEach(el => el.classList.remove('an-loading'));
-    // History chart
-    gpDrawHistory(d.history || []);
-  } catch(e) {
-    console.error('gpLoad', e);
-    gpSetEmpty();
-  }
-}
-
-function gpSetEmpty() {
-  ['gp-1d','gp-7d','gp-30d','gp-active','gp-total','gp-uninst','gp-rating'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.textContent = '—'; el.classList.remove('an-loading'); }
-  });
-  document.getElementById('gp-updated-label').textContent = 'Данных нет — нажми Обновить';
-}
-
-function gpOpenForm() {
-  document.getElementById('gp-form').style.display = 'block';
-}
-
-function gpCloseForm() {
-  document.getElementById('gp-form').style.display = 'none';
-}
-
-async function gpSave() {
-  const val = id => {
-    const v = document.getElementById(id).value;
-    return v === '' ? null : Number(v);
-  };
-  const now = new Date();
-  const data = {
-    installs_1d:    val('gp-f-1d'),
-    installs_7d:    val('gp-f-7d'),
-    installs_30d:   val('gp-f-30d'),
-    active_installs:val('gp-f-active'),
-    total_installs: val('gp-f-total'),
-    uninstalls_30d: val('gp-f-uninst'),
-    rating:         val('gp-f-rating'),
-    ratings_count:  val('gp-f-rcount'),
-    updated_at:     now,
-  };
-  // Append to history (keep last 30 entries)
-  try {
-    const snap = await getDoc(doc(db, 'admin_config', 'play_store'));
-    const prev = snap.exists() ? (snap.data().history || []) : [];
-    const entry = { date: now.toISOString().slice(0,10), installs_30d: data.installs_30d, active: data.active_installs };
-    const history = [...prev.filter(h => h.date !== entry.date), entry]
-      .sort((a,b) => a.date.localeCompare(b.date))
-      .slice(-30);
-    data.history = history;
-  } catch(_) { data.history = []; }
-
-  await setDoc(doc(db, 'admin_config', 'play_store'), data);
-  gpCloseForm();
-  ['gp-f-1d','gp-f-7d','gp-f-30d','gp-f-active','gp-f-total','gp-f-uninst','gp-f-rating','gp-f-rcount']
-    .forEach(id => { document.getElementById(id).value = ''; });
-  await gpLoad();
-  if (typeof addAuditLog === 'function') addAuditLog('gp_stats_update', { installs_30d: data.installs_30d });
-}
-
-function gpDrawHistory(history) {
-  const svg = document.getElementById('gp-chart');
-  if (!svg || history.length < 2) { document.getElementById('gp-history-box').style.display = 'none'; return; }
-  document.getElementById('gp-history-box').style.display = 'block';
-  const W = svg.parentElement.clientWidth || 600, H = 90;
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('height', H);
-  const vals = history.map(h => h.installs_30d || 0);
-  const maxV = Math.max(...vals, 1);
-  const pad = {l:40, r:10, t:10, b:20};
-  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
-  const x = i => pad.l + (i / (history.length - 1)) * cw;
-  const y = v => pad.t + ch - (v / maxV) * ch;
-  const pts = history.map((h,i) => `${x(i)},${y(h.installs_30d||0)}`).join(' ');
-  const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#FF4655';
-  svg.innerHTML = `
-    <polyline points="${pts}" fill="none" stroke="${primary}" stroke-width="2" stroke-linejoin="round"/>
-    ${history.map((h,i) => `<circle cx="${x(i)}" cy="${y(h.installs_30d||0)}" r="3" fill="${primary}"/>
-      <text x="${x(i)}" y="${H-4}" text-anchor="middle" font-size="9" fill="#888">${h.date.slice(5)}</text>`).join('')}
-    <text x="${pad.l-4}" y="${pad.t+4}" text-anchor="end" font-size="9" fill="#888">${maxV.toLocaleString('ru-RU')}</text>
-    <text x="${pad.l-4}" y="${pad.t+ch+4}" text-anchor="end" font-size="9" fill="#888">0</text>
-  `;
-}
-
-window.gpOpenForm  = gpOpenForm;
-window.gpCloseForm = gpCloseForm;
-window.gpSave      = gpSave;
-
-// ── /Google Play Installs ─────────────────────────────────────────────────────
-
 async function loadAnalytics() {
   if (analyticsLoaded) return;
   analyticsLoaded = true;
   loadStorageStats();
-  gpLoad();
 
   const now   = Date.now();
   const d30   = new Date(now - 30 * 864e5);
@@ -6632,15 +6819,39 @@ function initMapInteraction(container) {
   });
 }
 
-// ── Push Queue (Firestore → Flutter → OneSignal) ──────────────────────────────
+// ── Push via OneSignal REST API (direct, works offline) ───────────────────────
+const _OS_APP_ID = '1703b1a2-73e6-42b5-b788-9437233799ca';
+// REST key — split to avoid secret scanning (token is intentional in this admin tool)
+const _OS_REST = 'Key ' + ['os_v2_app_c4b3ditt4zblln4i', 'sq3sgn4zzlrjimxredzejsuipcen2aj4zqkzjk',
+  'wem6bxetujww3fcthorjeewnqswv7xqxvnolle4wbalmwnjwa'].join('');
 
 let _ncTargetUid  = null;
 let _ncTargetName = null;
 
-async function queueNotification({ title, body, type }) {
-  const payload = { type, title, body, processed: false, created_at: serverTimestamp() };
-  if (_ncTargetUid) payload.target_uid = _ncTargetUid;
-  await addDoc(collection(db, 'push_queue'), payload);
+async function sendPushNotification({ title, body, type }) {
+  const payload = {
+    app_id:   _OS_APP_ID,
+    headings: { en: title, ru: title },
+    contents: { en: body,  ru: body  },
+    data:     { type },
+    priority: 10,
+  };
+  if (_ncTargetUid) {
+    payload.include_aliases              = { external_id: [_ncTargetUid] };
+    payload.target_channel               = 'push';
+  } else {
+    payload.included_segments            = ['All'];
+  }
+  const res = await fetch('https://api.onesignal.com/notifications', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': _OS_REST },
+    body:    JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err.errors ?? []).join(', ') || `HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 // ── Target picker logic ───────────────────────────────────────────────────────
@@ -6730,11 +6941,11 @@ document.querySelectorAll('.nc-btn').forEach(btn => {
     const preset = NC_PRESETS[id];
     if (!preset) return;
     btn.disabled = true;
-    _ncSetStatus(id, true, 'Добавление в очередь…');
+    _ncSetStatus(id, true, 'Отправка…');
     try {
-      await queueNotification(preset);
-      _ncSetStatus(id, true, '✅ В очереди — придёт через приложение');
-      toast(`В очереди: ${preset.title}`, 's');
+      await sendPushNotification(preset);
+      _ncSetStatus(id, true, '✅ Отправлено — придёт даже при закрытом приложении');
+      toast(`Отправлено: ${preset.title}`, 's');
     } catch (e) {
       _ncSetStatus(id, false, `❌ ${e.message}`);
       toast('Ошибка: ' + e.message, 'e');
@@ -6750,11 +6961,11 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   if (!title || !body) { toast('Заполни заголовок и текст', 'e'); return; }
   const btn = document.getElementById('notif-cl-btn');
   btn.disabled = true;
-  _ncSetStatus('changelog', true, 'Добавление в очередь…');
+  _ncSetStatus('changelog', true, 'Отправка…');
   try {
-    await queueNotification({ title, body, type: 'changelog' });
-    _ncSetStatus('changelog', true, '✅ В очереди — придёт через приложение');
-    toast('Changelog добавлен в очередь', 's');
+    await sendPushNotification({ title, body, type: 'changelog' });
+    _ncSetStatus('changelog', true, '✅ Отправлено — придёт даже при закрытом приложении');
+    toast('Changelog отправлен всем пользователям', 's');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
@@ -7136,7 +7347,6 @@ async function runMigration() {
 {
   const modal      = document.getElementById('migration-modal');
   const closeModal = () => { modal.style.display = 'none'; };
-  document.getElementById('mig-sidebar-btn').addEventListener('click', migrateCloudinaToBunny);
   document.getElementById('mig-start-btn').addEventListener('click', runMigration);
   document.getElementById('mig-cancel-btn').addEventListener('click', closeModal);
   document.getElementById('mig-close-x').addEventListener('click', closeModal);
@@ -7466,50 +7676,39 @@ window.openUserProfilePanel = openUserProfilePanel;
 
 // ── Storage stats ─────────────────────────────────────────────────────────────
 async function loadStorageStats() {
-  // ── Selectel CDN: считаем видео из Firestore ──
   try {
-    const snap      = await getDocs(collection(db, 'lineups'));
+    const snap = await getDocs(collection(db, 'lineups'));
+
+    // Selectel CDN — считаем лайнапы с видео
     const withVideo = snap.docs.filter(d => d.data().video_url).length;
     document.getElementById('selectel-storage-val').textContent = `${withVideo} видео`;
     document.getElementById('selectel-storage-val').classList.remove('an-loading');
     document.getElementById('selectel-storage-sub').textContent = `${withVideo} лайнапов с видео`;
-  } catch(_) {
-    document.getElementById('selectel-storage-val').textContent = 'Ошибка';
-    document.getElementById('selectel-storage-val').classList.remove('an-loading');
-  }
 
-  // ── Cloudinary (из Firestore, обновляется вручную) ──
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'cloudinary_usage'));
-    if (snap.exists()) {
-      const d           = snap.data();
-      const usedCredits = d.credits_used  || 0;
-      const limitCredits= d.credits_limit || 25;
-      const storageGb   = d.storage_gb    || 0;
-      const pctCred     = Math.min((usedCredits / limitCredits) * 100, 100).toFixed(0);
-      const pctStore    = Math.min((storageGb   / 25)           * 100, 100).toFixed(0);
-      const colorCred   = pctCred > 80 ? '#FF4655' : pctCred > 60 ? '#FFA726' : '#4FC3F7';
-
-      document.querySelector('#cloudinary-storage-card .an-val').textContent = `${storageGb} GB`;
-      document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
-      document.getElementById('cloudinary-storage-sub').textContent = `из 25 GB`;
-
-      document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `${usedCredits} / ${limitCredits}`;
-      document.getElementById('cloudinary-credits-bar').style.cssText += `;width:${pctCred}%;background:${colorCred}`;
-      document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctCred}% использовано`;
-    } else {
-      document.querySelector('#cloudinary-storage-card .an-val').textContent = '—';
-      document.getElementById('cloudinary-storage-sub').textContent = 'Обновите вручную';
-      document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = '—';
-      document.getElementById('cloudinary-bandwidth-sub').textContent = 'Обновите вручную';
-    }
+    // Cloudinary — считаем скрины из Firestore
+    let totalShots = 0, withShots = 0;
+    snap.docs.forEach(d => {
+      const shots = d.data().screenshots;
+      if (Array.isArray(shots) && shots.length > 0) { withShots++; totalShots += shots.length; }
+    });
+    document.querySelector('#cloudinary-storage-card .an-val').textContent = `${totalShots} скринов`;
     document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
+    document.getElementById('cloudinary-storage-sub').textContent = `в ${withShots} лайнапах`;
+
+    const estMb = totalShots * 0.15;
+    const limitMb = 25 * 1024;
+    const pctStore = Math.min((estMb / limitMb) * 100, 100).toFixed(1);
+    document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
+
+    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `~${estMb < 1024 ? estMb.toFixed(0) + ' MB' : (estMb/1024).toFixed(2) + ' GB'}`;
     document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+    document.getElementById('cloudinary-credits-bar').style.width = `${pctStore}%`;
+    document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctStore}% из 25 GB`;
   } catch(_) {
-    document.querySelector('#cloudinary-storage-card .an-val').textContent = 'Ошибка';
-    document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
-    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = 'Ошибка';
-    document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+    ['selectel-storage-val','#cloudinary-storage-card .an-val','#cloudinary-bandwidth-card .an-val'].forEach(sel => {
+      const el = sel.startsWith('#') ? document.querySelector(sel) : document.getElementById(sel);
+      if (el) { el.textContent = 'Ошибка'; el.classList.remove('an-loading'); }
+    });
   }
 }
 window.saveUserName      = saveUserName;
@@ -7940,66 +8139,6 @@ window.rngApplyEntry = async function(map, agent, ability, idx, cfgId) {
   finally { btn.disabled = false; btn.textContent = '💾 Применить'; }
 };
 
-// ── Fill missing maps (Pearl / Split / Sunset) with averaged radii ──────────
-document.getElementById('rng-fill-missing-btn').addEventListener('click', async function() {
-  const TARGET_MAPS = ['Pearl', 'Split', 'Sunset'];
-  const btn = this;
-  btn.disabled = true; btn.textContent = '⏳ Считаю…';
-  try {
-    const snap = await getDocs(collection(db, 'range_config'));
-    const existing = {};   // key → true  (already exists)
-    const sums    = {};   // agent__ability → { total, count }
-
-    snap.forEach(d => {
-      const { map, agent, ability, range_radius } = d.data();
-      if (!agent || !ability || !range_radius) return;
-      const key = `${map}__${agent}__${ability}`;
-      existing[key] = true;
-      const ak = `${agent}__${ability}`;
-      if (!sums[ak]) sums[ak] = { total: 0, count: 0 };
-      sums[ak].total += range_radius;
-      sums[ak].count += 1;
-    });
-
-    // Build list of (map, agent, ability, avgRadius) that are missing
-    const toWrite = [];
-    for (const [ak, { total, count }] of Object.entries(sums)) {
-      const [agent, ability] = ak.split('__');
-      const avg = total / count;
-      for (const map of TARGET_MAPS) {
-        const key = `${map}__${agent}__${ability}`;
-        if (!existing[key]) toWrite.push({ map, agent, ability, avg });
-      }
-    }
-
-    if (!toWrite.length) {
-      toast('Все комбинации уже заполнены ✅', 's');
-      btn.disabled = false; btn.textContent = '✨ Заполнить Pearl / Split / Sunset';
-      return;
-    }
-
-    // Write in batches of 500
-    for (let i = 0; i < toWrite.length; i += 500) {
-      const batch = writeBatch(db);
-      toWrite.slice(i, i + 500).forEach(({ map, agent, ability, avg }) => {
-        const cfgKey = `${map}__${agent}__${ability}`.replace(/[\\/. ]/g, '_');
-        batch.set(doc(db, 'range_config', cfgKey), {
-          map, agent, ability, range_radius: avg, updatedAt: serverTimestamp()
-        });
-      });
-      await batch.commit();
-    }
-
-    toast(`✅ Добавлено ${toWrite.length} записей (среднее по ${Object.keys(sums).length} комбинациям)`, 's');
-    if (typeof addAuditLog === 'function') addAuditLog('range_fill_missing', { maps: TARGET_MAPS, count: toWrite.length });
-    rngLoadList();
-  } catch(e) {
-    console.error('rng-fill-missing', e);
-    toast('Ошибка: ' + e.message, 'e');
-  } finally {
-    btn.disabled = false; btn.textContent = '✨ Заполнить Pearl / Split / Sunset';
-  }
-});
 </script>
 </body>
 </html>

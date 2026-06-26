@@ -16,8 +16,10 @@ class AdminScreen extends StatefulWidget {
 class _AdminScreenState extends State<AdminScreen> {
   static const _allMapNames = [
     'Haven', 'Bind', 'Ascent', 'Split', 'Icebox',
-    'Breeze', 'Fracture', 'Pearl', 'Lotus', 'Sunset', 'Abyss', 'Corrode',
+    'Breeze', 'Fracture', 'Pearl', 'Lotus', 'Sunset', 'Abyss', 'Corrode', 'Summit',
   ];
+  // Минимапы загружаются из valorant-api.com через MapData (см. config/map_data.dart)
+  // Локальные asset пути оставлены как fallback для офлайн режима
   static const _allMapFiles = {
     'Haven':    'assets/maps/Haven_minimap.png',
     'Bind':     'assets/maps/Bind_minimap.png',
@@ -31,10 +33,11 @@ class _AdminScreenState extends State<AdminScreen> {
     'Sunset':   'assets/maps/Sunset_minimap.png',
     'Abyss':    'assets/maps/Abyss_minimap.png',
     'Corrode':  'assets/maps/Corrode_minimap.png',
+    'Summit':   '', // нет локального asset — только network
   };
 
   Set<String> _ratedPool = {
-    'Ascent', 'Breeze', 'Fracture', 'Haven', 'Lotus', 'Pearl', 'Split'
+    'Ascent', 'Bind', 'Breeze', 'Haven', 'Lotus', 'Split', 'Summit', 'Sunset'
   };
   bool _poolLoading = true;
 
