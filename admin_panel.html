@@ -592,6 +592,9 @@
     .nc-title    { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
     .nc-desc     { font-size: 12px; color: var(--text2); line-height: 1.4; }
     .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
+    .ms-sw { width:34px; height:34px; border-radius:8px; border:2px solid rgba(255,255,255,.2); cursor:pointer; transition:.15s; flex-shrink:0; }
+    .ms-sw:hover { transform:scale(1.12); border-color:rgba(255,255,255,.6); }
+    .ms-sw.active { outline:3px solid #fff; outline-offset:2px; border-color:transparent; }
     .nc-status.ok  { color: var(--green); }
     .nc-status.err { color: var(--red); }
 
@@ -1695,43 +1698,89 @@
 
 <!-- ── Map Style Tab ───────────────────────────────────────────────────────── -->
 <div id="tab-mapstyle" style="display:none;padding:20px;">
-  <div style="max-width:560px;margin:0 auto;">
+  <div style="max-width:680px;margin:0 auto;">
     <h3 style="margin:0 0 6px;color:var(--text);">🗺️ Стиль тактической карты</h3>
     <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
-      Управляет яркостью и контрастом миникарты в приложении.<br>
-      Изменения применяются при следующем открытии карты пользователем.
+      Цветокоррекция миникарты — предпросмотр живой. Изменения применяются при следующем открытии карты в приложении.
     </p>
 
-    <!-- Live preview gradient -->
-    <div style="margin-bottom:24px;">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Предпросмотр — градиент от тени до контура</div>
-      <div id="ms-preview" style="height:52px;border-radius:10px;border:1px solid var(--border2);"></div>
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:4px;">
-        <span>Тень (тёмная часть)</span><span>Стены / пол</span><span>Контуры (яркие)</span>
+    <!-- Canvas preview -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:12px;color:var(--text2);">Предпросмотр</span>
+        <select id="ms-map-pick" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">
+          <option value="7eaecc1b-4337-bbf6-6ab9-04b8f06b3319" selected>Ascent</option>
+          <option value="2bee0dc9-4ffe-519b-1cbd-7fbe763a6047">Haven</option>
+          <option value="2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba">Bind</option>
+          <option value="d960549e-485c-e861-8d71-aa9d1aed12a2">Split</option>
+          <option value="e2ad5c54-4114-a870-9641-8ea21279579a">Icebox</option>
+          <option value="2fb9a4fd-47b8-4e7d-a969-74b4046ebd53">Breeze</option>
+          <option value="b529448b-4d60-346e-e89e-00a4c527a405">Fracture</option>
+          <option value="fd267378-4d1d-484f-ff52-77821ed10dc2">Pearl</option>
+          <option value="2fe4ed3a-450a-948b-6d6b-e89a78e680a9">Lotus</option>
+          <option value="92584fbe-486a-b1b2-9faa-39b0f486b498">Sunset</option>
+          <option value="224b0a95-48b9-f703-1bd8-67aca101a61f">Abyss</option>
+          <option value="1c18ab1f-420d-0d8b-71d0-77ad3c439115">Corrode</option>
+          <option value="756da597-416b-c0f2-f47b-afbdf28670bc">Summit</option>
+        </select>
+      </div>
+      <div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border2);background:var(--surface2);min-height:80px;">
+        <canvas id="ms-canvas" style="width:100%;display:block;"></canvas>
+        <div id="ms-canvas-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text2);font-size:13px;">Загрузка…</div>
       </div>
     </div>
 
-    <!-- Contrast slider -->
+    <!-- Tint color -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Цвет тинта</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="ms-sw" data-r="255" data-g="70"  data-b="85"  style="background:#FF4655;" title="Красный — тема приложения"></button>
+        <button class="ms-sw" data-r="0"   data-g="180" data-b="255" style="background:#00B4FF;" title="Синий"></button>
+        <button class="ms-sw" data-r="34"  data-g="197" data-b="94"  style="background:#22c55e;" title="Зелёный"></button>
+        <button class="ms-sw" data-r="168" data-g="85"  data-b="247" style="background:#a855f7;" title="Фиолетовый"></button>
+        <button class="ms-sw" data-r="0"   data-g="229" data-b="255" style="background:#00E5FF;" title="Циан"></button>
+        <button class="ms-sw" data-r="249" data-g="115" data-b="22"  style="background:#f97316;" title="Оранжевый"></button>
+        <button class="ms-sw" data-r="255" data-g="215" data-b="0"   style="background:#ffd700;" title="Золотой"></button>
+        <button class="ms-sw" data-r="220" data-g="220" data-b="220" style="background:#dcdcdc;" title="Нейтральный белый"></button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;">
+          <input type="color" id="ms-color-custom" value="#FF4655"
+            style="width:34px;height:34px;border:2px solid var(--border2);border-radius:8px;cursor:pointer;padding:2px;background:var(--surface2);">
+          Свой
+        </label>
+      </div>
+    </div>
+
+    <!-- Intensity -->
+    <div style="margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:13px;font-weight:600;color:var(--text);">Интенсивность цвета</label>
+        <span id="ms-intensity-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">1.00</span>
+      </div>
+      <input type="range" id="ms-intensity" min="0" max="1" step="0.05" value="1.0" style="width:100%;accent-color:var(--primary);">
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">0 = нейтральный серый, 1 = полный выбранный цвет.</div>
+    </div>
+
+    <!-- Contrast -->
     <div style="margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <label style="font-size:13px;font-weight:600;color:var(--text);">Контраст</label>
         <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">2.00</span>
       </div>
       <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--primary);">
-      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Высокий = яркие контуры, тёмные тени. Низкий = всё одинаково серое.</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Высокий = яркие стены, тёмный фон. Рекомендуется: 1.8–2.5.</div>
     </div>
 
-    <!-- Brightness offset slider -->
-    <div style="margin-bottom:24px;">
+    <!-- Brightness -->
+    <div style="margin-bottom:28px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <label style="font-size:13px;font-weight:600;color:var(--text);">Сдвиг яркости</label>
         <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:46px;text-align:right;">-0.15</span>
       </div>
       <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--primary);">
-      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее тени. Положительное — светлее всё. Рекомендуется: от −0.2 до 0.0.</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее фон карты. Рекомендуется: −0.2 до 0.0.</div>
     </div>
 
-    <button id="ms-save-btn" style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
+    <button id="ms-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
   </div>
 </div>
 
@@ -2054,26 +2103,86 @@ document.getElementById('tab-btn-ranges').addEventListener('click',    () => swi
 document.getElementById('tab-btn-mapstyle').addEventListener('click',  () => switchTab('mapstyle'));
 
 // ── Map Style ─────────────────────────────────────────────────────────────────
-// Firestore: settings/map_style { contrast: float, brightness: float }
-// Flutter reads this on InteractiveMapScreen open and applies to ColorFilter.matrix.
+// Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
+// Flutter reads these on InteractiveMapScreen open and applies ColorFilter.matrix.
 
-const MS_PREVIEW_PRIMARY = [255, 70, 85]; // approximation of app primary red
+let _msTint      = [255, 70, 85];  // current [R, G, B]
+let _msOrigData  = null;           // ImageData of unfiltered map (for re-applying matrix)
+let _msRafPend   = false;
 
-function _msUpdatePreview() {
+function _msValLabels() {
   const c = parseFloat(document.getElementById('ms-contrast').value);
   const b = parseFloat(document.getElementById('ms-brightness').value);
-  document.getElementById('ms-contrast-val').textContent  = c.toFixed(2);
+  const s = parseFloat(document.getElementById('ms-intensity').value);
+  document.getElementById('ms-contrast-val').textContent   = c.toFixed(2);
   document.getElementById('ms-brightness-val').textContent = (b >= 0 ? '+' : '') + b.toFixed(2);
-  // Build gradient: luminance 0→1 mapped through L*contrast+brightness, colored by primary
-  const [pr, pg, pb] = MS_PREVIEW_PRIMARY;
-  const stops = [];
-  for (let i = 0; i <= 20; i++) {
-    const L = i / 20;
+  document.getElementById('ms-intensity-val').textContent  = s.toFixed(2);
+}
+
+function _msScheduleRedraw() {
+  if (_msRafPend) return;
+  _msRafPend = true;
+  requestAnimationFrame(() => { _msRafPend = false; _msApplyMatrix(); });
+}
+
+function _msApplyMatrix() {
+  if (!_msOrigData) return;
+  const c   = parseFloat(document.getElementById('ms-contrast').value);
+  const b   = parseFloat(document.getElementById('ms-brightness').value);
+  const sat = parseFloat(document.getElementById('ms-intensity').value);
+  const [pr, pg, pb] = _msTint;
+  // intensity blends tint toward white (same as Flutter: intensity=0 → neutral grey)
+  const er = (pr * sat + 255 * (1 - sat)) / 255;
+  const eg = (pg * sat + 255 * (1 - sat)) / 255;
+  const eb = (pb * sat + 255 * (1 - sat)) / 255;
+
+  const src = _msOrigData.data;
+  const out = new Uint8ClampedArray(src.length);
+  for (let i = 0; i < src.length; i += 4) {
+    const r  = src[i] / 255, g = src[i+1] / 255, bv = src[i+2] / 255;
+    const L  = 0.299*r + 0.587*g + 0.114*bv;
     const L2 = Math.max(0, Math.min(1, L * c + b));
-    stops.push(`rgb(${Math.round(L2*pr)},${Math.round(L2*pg)},${Math.round(L2*pb)}) ${i*5}%`);
+    out[i]   = Math.round(L2 * er * 255);
+    out[i+1] = Math.round(L2 * eg * 255);
+    out[i+2] = Math.round(L2 * eb * 255);
+    out[i+3] = src[i+3];
   }
-  document.getElementById('ms-preview').style.background =
-    `linear-gradient(to right, ${stops.join(', ')})`;
+  const canvas = document.getElementById('ms-canvas');
+  canvas.getContext('2d').putImageData(
+    new ImageData(out, _msOrigData.width, _msOrigData.height), 0, 0);
+}
+
+function _msLoadMap(uuid) {
+  const msg = document.getElementById('ms-canvas-msg');
+  msg.style.display = 'flex'; msg.textContent = 'Загрузка…';
+  _msOrigData = null;
+  const img  = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    const canvas = document.getElementById('ms-canvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    try {
+      _msOrigData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      msg.style.display = 'none';
+      _msApplyMatrix();
+    } catch(_) { msg.textContent = 'Предпросмотр недоступен (CORS)'; }
+  };
+  img.onerror = () => { msg.textContent = 'Не удалось загрузить карту'; };
+  img.src = `https://media.valorant-api.com/maps/${uuid}/minimap.png`;
+}
+
+function _msSetTint(r, g, b) {
+  _msTint = [r, g, b];
+  const hex = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  document.getElementById('ms-color-custom').value = hex;
+  document.querySelectorAll('.ms-sw').forEach(el => {
+    el.classList.toggle('active',
+      +el.dataset.r === r && +el.dataset.g === g && +el.dataset.b === b);
+  });
+  _msScheduleRedraw();
 }
 
 async function loadMapStyleTab() {
@@ -2081,15 +2190,30 @@ async function loadMapStyleTab() {
     const snap = await getDoc(doc(db, 'settings', 'map_style'));
     if (snap.exists()) {
       const d = snap.data();
-      document.getElementById('ms-contrast').value   = d.contrast   ?? 2.0;
-      document.getElementById('ms-brightness').value = d.brightness ?? -0.15;
+      if (d.contrast   != null) document.getElementById('ms-contrast').value   = d.contrast;
+      if (d.brightness != null) document.getElementById('ms-brightness').value = d.brightness;
+      if (d.intensity  != null) document.getElementById('ms-intensity').value  = d.intensity;
+      _msSetTint(d.tint_r ?? 255, d.tint_g ?? 70, d.tint_b ?? 85);
+    } else {
+      _msSetTint(255, 70, 85);
     }
-  } catch(e) { console.error('loadMapStyleTab', e); }
-  _msUpdatePreview();
+  } catch(e) { console.error('loadMapStyleTab', e); _msSetTint(255, 70, 85); }
+  _msValLabels();
+  _msLoadMap(document.getElementById('ms-map-pick').value);
 }
 
-document.getElementById('ms-contrast').addEventListener('input',    _msUpdatePreview);
-document.getElementById('ms-brightness').addEventListener('input',  _msUpdatePreview);
+document.getElementById('ms-contrast').addEventListener('input',   () => { _msValLabels(); _msScheduleRedraw(); });
+document.getElementById('ms-brightness').addEventListener('input', () => { _msValLabels(); _msScheduleRedraw(); });
+document.getElementById('ms-intensity').addEventListener('input',  () => { _msValLabels(); _msScheduleRedraw(); });
+
+document.querySelectorAll('.ms-sw').forEach(btn =>
+  btn.addEventListener('click', () => _msSetTint(+btn.dataset.r, +btn.dataset.g, +btn.dataset.b))
+);
+document.getElementById('ms-color-custom').addEventListener('input', e => {
+  const v = e.target.value;
+  _msSetTint(parseInt(v.slice(1,3),16), parseInt(v.slice(3,5),16), parseInt(v.slice(5,7),16));
+});
+document.getElementById('ms-map-pick').addEventListener('change', e => _msLoadMap(e.target.value));
 
 document.getElementById('ms-save-btn').addEventListener('click', async function() {
   const btn = this;
@@ -2097,11 +2221,15 @@ document.getElementById('ms-save-btn').addEventListener('click', async function(
   try {
     const contrast   = parseFloat(document.getElementById('ms-contrast').value);
     const brightness = parseFloat(document.getElementById('ms-brightness').value);
+    const intensity  = parseFloat(document.getElementById('ms-intensity').value);
+    const [tint_r, tint_g, tint_b] = _msTint;
     await setDoc(doc(db, 'settings', 'map_style'), {
-      contrast, brightness, updatedAt: serverTimestamp()
+      contrast, brightness, intensity, tint_r, tint_g, tint_b,
+      updatedAt: serverTimestamp()
     });
     toast('✅ Стиль карты сохранён — вступит в силу при следующем открытии карты', 's');
-    if (typeof addAuditLog === 'function') addAuditLog('map_style_updated', { contrast, brightness });
+    if (typeof addAuditLog === 'function')
+      addAuditLog('map_style_updated', { contrast, brightness, intensity, tint_r, tint_g, tint_b });
   } catch(e) {
     console.error('ms-save', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
