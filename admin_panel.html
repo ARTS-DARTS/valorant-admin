@@ -2173,21 +2173,19 @@ document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => 
 // Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
 // Flutter reads these on InteractiveMapScreen open and applies ColorFilter.matrix.
 
-let _msTint         = [255, 70, 85];
-let _msOrigData     = null;
-let _msRafPend      = false;
-let _msCurrentTheme = 'red';
-let _msThemesCache  = {};
+let _msTint           = [255, 70, 85];
+let _msOrigData       = null;
+let _msOrigDataBefore = null;
+let _msRafPend        = false;
+let _msCurrentTheme   = 'standard';
+let _msThemesCache    = {};
 
 const MS_THEME_DEFAULTS = {
-  red:    { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 70,  tint_b: 85  },
-  blue:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 0,   tint_g: 180, tint_b: 255 },
-  green:  { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 34,  tint_g: 197, tint_b: 94  },
-  purple: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 168, tint_g: 85,  tint_b: 247 },
-  cyan:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 0,   tint_g: 229, tint_b: 255 },
-  orange: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 249, tint_g: 115, tint_b: 22  },
-  gold:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 215, tint_b: 0   },
-  white:  { contrast: 1.6, brightness: -0.05, intensity: 0.4, tint_r: 220, tint_g: 220, tint_b: 220 },
+  standard:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 70,  tint_b: 85  },
+  dark:       { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 187, tint_g: 134, tint_b: 252 },
+  blue:       { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 79,  tint_g: 195, tint_b: 247 },
+  light:      { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 229, tint_g: 57,  tint_b: 53  },
+  colorblind: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 245, tint_g: 166, tint_b: 35  },
 };
 
 function _msApplyThemeData(d) {
@@ -2240,25 +2238,76 @@ function _msApplyMatrix() {
     new ImageData(out, _msOrigData.width, _msOrigData.height), 0, 0);
 }
 
+function _msApplyMatrixBefore(d) {
+  if (!_msOrigDataBefore) return;
+  const c   = d.contrast   ?? 2.0;
+  const b   = d.brightness ?? -0.15;
+  const sat = d.intensity  ?? 1.0;
+  const pr  = d.tint_r ?? 255, pg = d.tint_g ?? 70, pb2 = d.tint_b ?? 85;
+  const er  = (pr * sat + 255 * (1 - sat)) / 255;
+  const eg  = (pg * sat + 255 * (1 - sat)) / 255;
+  const eb  = (pb2 * sat + 255 * (1 - sat)) / 255;
+  const src = _msOrigDataBefore.data;
+  const out = new Uint8ClampedArray(src.length);
+  for (let i = 0; i < src.length; i += 4) {
+    const r  = src[i] / 255, g = src[i+1] / 255, bv = src[i+2] / 255;
+    const L  = 0.299*r + 0.587*g + 0.114*bv;
+    const L2 = Math.max(0, Math.min(1, L * c + b));
+    out[i]   = Math.round(L2 * er * 255);
+    out[i+1] = Math.round(L2 * eg * 255);
+    out[i+2] = Math.round(L2 * eb * 255);
+    out[i+3] = src[i+3];
+  }
+  const canvas = document.getElementById('ms-canvas-before');
+  canvas.getContext('2d').putImageData(
+    new ImageData(out, _msOrigDataBefore.width, _msOrigDataBefore.height), 0, 0);
+}
+
+function _msRenderBefore() {
+  const msg = document.getElementById('ms-canvas-before-msg');
+  const d   = _msThemesCache[_msCurrentTheme];
+  if (!d) {
+    msg.style.display = 'flex';
+    msg.textContent   = 'Нет сохранённых данных';
+    return;
+  }
+  if (!_msOrigDataBefore) return;
+  msg.style.display = 'none';
+  _msApplyMatrixBefore(d);
+}
+
 function _msLoadMap(uuid) {
-  const msg = document.getElementById('ms-canvas-msg');
-  msg.style.display = 'flex'; msg.textContent = 'Загрузка…';
-  _msOrigData = null;
+  const msg  = document.getElementById('ms-canvas-msg');
+  const msgB = document.getElementById('ms-canvas-before-msg');
+  msg.style.display = 'flex';  msg.textContent  = 'Загрузка…';
+  msgB.style.display = 'flex'; msgB.textContent = 'Загрузка…';
+  _msOrigData = null; _msOrigDataBefore = null;
   const img  = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => {
-    const canvas = document.getElementById('ms-canvas');
-    canvas.width  = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    const ctx = canvas.getContext('2d');
+    const canvas  = document.getElementById('ms-canvas');
+    const canvasB = document.getElementById('ms-canvas-before');
+    canvas.width   = img.naturalWidth;  canvas.height   = img.naturalHeight;
+    canvasB.width  = img.naturalWidth;  canvasB.height  = img.naturalHeight;
+    const ctx  = canvas.getContext('2d');
+    const ctxB = canvasB.getContext('2d');
     ctx.drawImage(img, 0, 0);
+    ctxB.drawImage(img, 0, 0);
     try {
-      _msOrigData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      _msOrigData       = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      _msOrigDataBefore = ctxB.getImageData(0, 0, canvasB.width, canvasB.height);
       msg.style.display = 'none';
       _msApplyMatrix();
-    } catch(_) { msg.textContent = 'Предпросмотр недоступен (CORS)'; }
+      _msRenderBefore();
+    } catch(_) {
+      msg.textContent  = 'Предпросмотр недоступен (CORS)';
+      msgB.textContent = 'Предпросмотр недоступен (CORS)';
+    }
   };
-  img.onerror = () => { msg.textContent = 'Не удалось загрузить карту'; };
+  img.onerror = () => {
+    msg.textContent  = 'Не удалось загрузить карту';
+    msgB.textContent = 'Не удалось загрузить карту';
+  };
   img.src = `https://media.valorant-api.com/maps/${uuid}/displayicon.png`;
 }
 
@@ -2279,16 +2328,65 @@ async function loadMapStyleTab() {
     if (snap.exists()) _msThemesCache = snap.data();
   } catch(e) { console.error('loadMapStyleTab', e); }
   _msSwitchTheme(_msCurrentTheme);
+  _msRenderStylesTable();
   _msLoadMap(document.getElementById('ms-map-pick').value);
 }
 
 function _msSwitchTheme(theme) {
   _msCurrentTheme = theme;
   document.querySelectorAll('.ms-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
-  const d = _msThemesCache[theme] || MS_THEME_DEFAULTS[theme] || MS_THEME_DEFAULTS.red;
+  const d = _msThemesCache[theme] || MS_THEME_DEFAULTS[theme] || MS_THEME_DEFAULTS.standard;
   _msApplyThemeData(d);
-  const label = theme.charAt(0).toUpperCase() + theme.slice(1);
-  document.getElementById('ms-save-btn').textContent = `Сохранить для темы: ${label}`;
+  _msRenderBefore();
+  const labels = { standard: 'Стандартная', dark: 'Тёмная', blue: 'Синяя', light: 'Светлая', colorblind: 'Дальтоники' };
+  document.getElementById('ms-save-btn').textContent = `Сохранить для темы: ${labels[theme] || theme}`;
+}
+
+function _msRenderStylesTable() {
+  const container = document.getElementById('ms-styles-table');
+  if (!container) return;
+  const sort = (document.getElementById('ms-sort') || {}).value || 'theme';
+  const themeLabels = { standard: '🔴 Стандартная', dark: '🌑 Тёмная', blue: '🔵 Синяя', light: '☀️ Светлая', colorblind: '👁 Дальтоники' };
+  const themeOrder  = ['standard', 'dark', 'blue', 'light', 'colorblind'];
+  let rows = themeOrder.map(key => {
+    const saved   = !!_msThemesCache[key];
+    const d       = _msThemesCache[key] || MS_THEME_DEFAULTS[key];
+    return { key, label: themeLabels[key] || key, d, saved };
+  });
+  if (sort === 'contrast')    rows.sort((a,b) => (b.d.contrast ?? 0)   - (a.d.contrast ?? 0));
+  else if (sort === 'brightness') rows.sort((a,b) => (b.d.brightness ?? 0) - (a.d.brightness ?? 0));
+  else if (sort === 'intensity')  rows.sort((a,b) => (b.d.intensity ?? 0)  - (a.d.intensity ?? 0));
+  let html = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <thead><tr style="color:var(--text2);border-bottom:1px solid var(--border);">
+      <th style="text-align:left;padding:8px 6px;font-weight:600;">Тема</th>
+      <th style="text-align:center;padding:8px 6px;font-weight:600;">Цвет</th>
+      <th style="text-align:center;padding:8px 6px;font-weight:600;">Инт.</th>
+      <th style="text-align:center;padding:8px 6px;font-weight:600;">Контраст</th>
+      <th style="text-align:center;padding:8px 6px;font-weight:600;">Яркость</th>
+      <th style="padding:8px 6px;"></th>
+    </tr></thead><tbody>`;
+  for (const { key, label, d, saved } of rows) {
+    const hex = '#' + [d.tint_r ?? 255, d.tint_g ?? 70, d.tint_b ?? 85]
+      .map(v => Math.round(v).toString(16).padStart(2,'0')).join('');
+    const badge = saved ? '' : ' <span style="font-size:10px;color:var(--text2);">(дефолт)</span>';
+    html += `<tr style="border-bottom:1px solid var(--border2);">
+      <td style="padding:9px 6px;color:var(--text);font-weight:600;">${label}${badge}</td>
+      <td style="padding:9px 6px;text-align:center;">
+        <span style="display:inline-flex;align-items:center;gap:6px;">
+          <span style="width:16px;height:16px;border-radius:50%;background:${hex};display:inline-block;box-shadow:0 0 5px ${hex}88;flex-shrink:0;"></span>
+          <code style="font-size:11px;color:var(--text2);">${hex}</code>
+        </span>
+      </td>
+      <td style="padding:9px 6px;text-align:center;color:var(--text);">${(d.intensity ?? 1.0).toFixed(2)}</td>
+      <td style="padding:9px 6px;text-align:center;color:var(--text);">${(d.contrast ?? 2.0).toFixed(2)}</td>
+      <td style="padding:9px 6px;text-align:center;color:var(--text);">${(d.brightness ?? -0.15) >= 0 ? '+' : ''}${(d.brightness ?? -0.15).toFixed(2)}</td>
+      <td style="padding:9px 6px;text-align:center;">
+        <button onclick="_msSwitchTheme('${key}')" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--primary);font-size:12px;cursor:pointer;font-weight:600;">Изменить</button>
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
 document.getElementById('ms-contrast').addEventListener('input',   () => { _msValLabels(); _msScheduleRedraw(); });
@@ -2306,6 +2404,12 @@ document.getElementById('ms-color-custom').addEventListener('input', e => {
   _msSetTint(parseInt(v.slice(1,3),16), parseInt(v.slice(3,5),16), parseInt(v.slice(5,7),16));
 });
 document.getElementById('ms-map-pick').addEventListener('change', e => _msLoadMap(e.target.value));
+document.getElementById('ms-reset-btn').addEventListener('click', () => {
+  const d = MS_THEME_DEFAULTS[_msCurrentTheme] || MS_THEME_DEFAULTS.standard;
+  _msApplyThemeData(d);
+  toast('Настройки сброшены к дефолту', 'i');
+});
+document.getElementById('ms-sort').addEventListener('change', () => _msRenderStylesTable());
 
 document.getElementById('ms-save-btn').addEventListener('click', async function() {
   const btn = this;
@@ -2323,6 +2427,8 @@ document.getElementById('ms-save-btn').addEventListener('click', async function(
       updatedAt: serverTimestamp()
     }, { merge: true });
     toast(`Стиль для темы ${_msCurrentTheme} сохранён`, 's');
+    _msRenderBefore();
+    _msRenderStylesTable();
     if (typeof addAuditLog === 'function')
       addAuditLog('map_style_updated', { theme: _msCurrentTheme, ...themeData });
   } catch(e) {
