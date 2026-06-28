@@ -555,6 +555,9 @@
     .ms-theme-btn:hover { opacity: .9; transform: scale(1.05); }
     .ms-theme-btn.active { opacity: 1; border-color: rgba(255,255,255,.9); box-shadow: 0 0 0 2px rgba(255,255,255,.3); }
     .ms-theme-btn[data-theme="white"] { color: #333; }
+    .ab-theme-btn { padding: 5px 13px; border-radius: 20px; border: 2px solid transparent; cursor: pointer; font-size: 12px; font-weight: 700; transition: all .15s; opacity: .6; }
+    .ab-theme-btn:hover { opacity: .9; transform: scale(1.05); }
+    .ab-theme-btn.active { opacity: 1; border-color: rgba(255,255,255,.9); box-shadow: 0 0 0 2px rgba(255,255,255,.3); }
 
     /* ── Logs tab ── */
     .log-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 8px; transition: border-color .15s; }
@@ -1900,14 +1903,91 @@
 
 <!-- ── Agent Colors Tab ──────────────────────────────────────────────────────── -->
 <div id="tab-agentcolors" style="display:none;padding:20px;">
-  <div style="max-width:900px;margin:0 auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <h3 style="margin:0;color:var(--text);">🎨 Стиль абилок — цвета агентов</h3>
-      <button id="ac-save-btn2" class="btn btn-save" style="padding:10px 24px;">Сохранить</button>
+  <div style="max-width:1000px;margin:0 auto;">
+    <h3 style="margin:0 0 4px;color:var(--text);">✨ Стиль абилок — редактор траектории</h3>
+    <p style="color:var(--text2);font-size:13px;margin:0 0 16px;">
+      Геометрия линии, точек и круга дальности для каждой темы. Слева — что сохранено, справа — что редактируется.
+    </p>
+
+    <!-- Theme buttons -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <button class="ab-theme-btn active" data-ab-theme="standard"   style="background:#FF4655;color:#fff;">🔴 Стандартная</button>
+      <button class="ab-theme-btn"        data-ab-theme="dark"       style="background:#BB86FC;color:#000;">🌑 Тёмная</button>
+      <button class="ab-theme-btn"        data-ab-theme="blue"       style="background:#4FC3F7;color:#000;">🔵 Синяя</button>
+      <button class="ab-theme-btn"        data-ab-theme="light"      style="background:#E53935;color:#fff;">☀️ Светлая</button>
+      <button class="ab-theme-btn"        data-ab-theme="colorblind" style="background:#F5A623;color:#000;">👁 Дальтоники</button>
     </div>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
-      Цвет траектории, маркеров и круга дальности для каждого агента.
-      Сохраняется в Firestore — вступает в силу без обновления приложения.
+
+    <!-- Before / After preview -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;">
+      <div>
+        <div style="text-align:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Сохранено в Firestore</div>
+        <div style="border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#11141a;">
+          <canvas id="ab-canvas-before" width="460" height="240" style="width:100%;display:block;"></canvas>
+        </div>
+      </div>
+      <div>
+        <div style="text-align:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Редактируется (предпросмотр)</div>
+        <div style="border-radius:8px;overflow:hidden;border:1px solid var(--primary);background:#11141a;">
+          <canvas id="ab-canvas-after" width="460" height="240" style="width:100%;display:block;"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:18px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Толщина линии</label>
+          <span id="ab-line-val" style="font-size:13px;font-weight:700;color:var(--primary);">2.8</span>
+        </div>
+        <input type="range" id="ab-line" min="1" max="8" step="0.1" value="2.8" style="width:100%;accent-color:var(--primary);">
+
+        <div style="display:flex;justify-content:space-between;margin:14px 0 6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Толщина свечения</label>
+          <span id="ab-glow-val" style="font-size:13px;font-weight:700;color:var(--primary);">9.0</span>
+        </div>
+        <input type="range" id="ab-glow" min="0" max="20" step="0.5" value="9" style="width:100%;accent-color:var(--primary);">
+
+        <div style="display:flex;justify-content:space-between;margin:14px 0 6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Яркость свечения</label>
+          <span id="ab-glowa-val" style="font-size:13px;font-weight:700;color:var(--primary);">0.22</span>
+        </div>
+        <input type="range" id="ab-glowa" min="0" max="1" step="0.02" value="0.22" style="width:100%;accent-color:var(--primary);">
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Размер точек</label>
+          <span id="ab-dot-val" style="font-size:13px;font-weight:700;color:var(--primary);">3.5</span>
+        </div>
+        <input type="range" id="ab-dot" min="1" max="8" step="0.1" value="3.5" style="width:100%;accent-color:var(--primary);">
+
+        <div style="display:flex;justify-content:space-between;margin:14px 0 6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Яркость круга дальности</label>
+          <span id="ab-range-val" style="font-size:13px;font-weight:700;color:var(--primary);">1.00</span>
+        </div>
+        <input type="range" id="ab-range" min="0" max="2" step="0.05" value="1.0" style="width:100%;accent-color:var(--primary);">
+
+        <div style="display:flex;justify-content:space-between;margin:14px 0 6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Цвет предпросмотра</label>
+          <input type="color" id="ab-preview-color" value="#FF4655" style="width:36px;height:24px;border:1px solid var(--border2);border-radius:5px;cursor:pointer;padding:1px;background:var(--surface2);">
+        </div>
+        <div style="font-size:11px;color:var(--text2);">Цвет агента берётся из сетки ниже, тут только для предпросмотра.</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-bottom:30px;">
+      <button id="ab-reset-btn" style="padding:12px 22px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;">Сбросить</button>
+      <button id="ab-save-btn" style="flex:1;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить для темы: Стандартная</button>
+    </div>
+
+    <!-- Agent colors grid -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-top:1px solid var(--border);padding-top:20px;">
+      <h3 style="margin:0;color:var(--text);font-size:16px;">🎨 Цвета агентов</h3>
+      <button id="ac-save-btn2" class="btn btn-save" style="padding:10px 24px;">Сохранить цвета</button>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">
+      Цвет траектории для каждого агента. Сохраняется отдельно в settings/agent_colors.
     </p>
     <div id="ac-grid2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;">
       <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
@@ -2239,7 +2319,7 @@ function switchTab(t) {
   if (t === 'logs')  loadLogsTab();
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
-  if (t === 'agentcolors') loadAgentColorsSection('ac-grid2');
+  if (t === 'agentcolors') { loadAgentColorsSection('ac-grid2'); loadAbilityStyleEditor(); }
   if (t === 'mappool') loadMapPoolTab();
   if (t === 'messages') loadMessagesTab();
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
@@ -2775,6 +2855,155 @@ window._msgSendReply = async function(id) {
     btn.disabled = false; btn.textContent = 'Отправить ответ';
   }
 };
+
+// ── Ability Style (trajectory geometry) ───────────────────────────────────────
+// Firestore: settings/ability_style_themes { standard: {line_width, glow_width, glow_alpha, dot_size, range_intensity}, ... }
+// Flutter: _TrajectoryPainter читает per-theme.
+const AB_DEFAULTS = {
+  line_width: 2.8, glow_width: 9.0, glow_alpha: 0.22, dot_size: 3.5, range_intensity: 1.0,
+};
+const AB_THEME_LABELS = { standard:'Стандартная', dark:'Тёмная', blue:'Синяя', light:'Светлая', colorblind:'Дальтоники' };
+const AB_THEME_COLORS = { standard:'#FF4655', dark:'#BB86FC', blue:'#4FC3F7', light:'#E53935', colorblind:'#F5A623' };
+let _abTheme       = 'standard';
+let _abThemesCache = {};
+let _abLoaded      = false;
+
+function _abReadControls() {
+  return {
+    line_width:      parseFloat(document.getElementById('ab-line').value),
+    glow_width:      parseFloat(document.getElementById('ab-glow').value),
+    glow_alpha:      parseFloat(document.getElementById('ab-glowa').value),
+    dot_size:        parseFloat(document.getElementById('ab-dot').value),
+    range_intensity: parseFloat(document.getElementById('ab-range').value),
+  };
+}
+
+function _abApplyToControls(d) {
+  document.getElementById('ab-line').value  = d.line_width;
+  document.getElementById('ab-glow').value  = d.glow_width;
+  document.getElementById('ab-glowa').value = d.glow_alpha;
+  document.getElementById('ab-dot').value   = d.dot_size;
+  document.getElementById('ab-range').value = d.range_intensity;
+  _abUpdateLabels();
+}
+
+function _abUpdateLabels() {
+  document.getElementById('ab-line-val').textContent  = parseFloat(document.getElementById('ab-line').value).toFixed(1);
+  document.getElementById('ab-glow-val').textContent  = parseFloat(document.getElementById('ab-glow').value).toFixed(1);
+  document.getElementById('ab-glowa-val').textContent = parseFloat(document.getElementById('ab-glowa').value).toFixed(2);
+  document.getElementById('ab-dot-val').textContent   = parseFloat(document.getElementById('ab-dot').value).toFixed(1);
+  document.getElementById('ab-range-val').textContent = parseFloat(document.getElementById('ab-range').value).toFixed(2);
+}
+
+// Рисует образец траектории на canvas по стилю d и цвету hex.
+function _abDrawSample(canvasId, d, hex) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#11141a'; ctx.fillRect(0, 0, W, H);
+  // Точки образца (ломаная)
+  const pts = [{x:60,y:190},{x:150,y:90},{x:260,y:150},{x:370,y:70}];
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const rgba = a => `rgba(${r},${g},${b},${a})`;
+  const k = 1.7; // масштаб образца относительно игры (визуально крупнее)
+  // Круг дальности у последней точки
+  const last = pts[pts.length-1];
+  const radius = 64;
+  const ri = d.range_intensity;
+  const grad = ctx.createRadialGradient(last.x,last.y,0,last.x,last.y,radius);
+  grad.addColorStop(0, rgba(0.04*ri)); grad.addColorStop(1, rgba(0.28*ri));
+  ctx.beginPath(); ctx.arc(last.x,last.y,radius,0,Math.PI*2); ctx.fillStyle=grad; ctx.fill();
+  ctx.beginPath(); ctx.arc(last.x,last.y,radius,0,Math.PI*2);
+  ctx.strokeStyle = rgba(Math.min(1,0.9*ri)); ctx.lineWidth = 1.8; ctx.stroke();
+  // Glow линии
+  ctx.save();
+  ctx.shadowColor = rgba(0.9); ctx.shadowBlur = 6;
+  ctx.strokeStyle = rgba(d.glow_alpha); ctx.lineWidth = d.glow_width*k*0.5;
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+  for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.stroke();
+  ctx.restore();
+  // Основная линия
+  ctx.strokeStyle = rgba(0.95); ctx.lineWidth = d.line_width*k;
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y);
+  for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.stroke();
+  // Точки waypoint
+  for (const p of pts) {
+    ctx.beginPath(); ctx.arc(p.x,p.y,d.dot_size*1.57*k,0,Math.PI*2); ctx.fillStyle=rgba(0.2); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x,p.y,d.dot_size*k,0,Math.PI*2); ctx.fillStyle=rgba(0.95); ctx.fill();
+    ctx.beginPath(); ctx.arc(p.x,p.y,d.dot_size*0.34*k,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.85)'; ctx.fill();
+  }
+  // Стрелка на последнем сегменте
+  const p0 = pts[pts.length-2], p1 = last;
+  const ang = Math.atan2(p1.y-p0.y, p1.x-p0.x);
+  const s = 14, hw = 7;
+  ctx.fillStyle = rgba(0.95);
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p1.x - s*Math.cos(ang) - hw*Math.sin(ang), p1.y - s*Math.sin(ang) + hw*Math.cos(ang));
+  ctx.lineTo(p1.x - s*Math.cos(ang) + hw*Math.sin(ang), p1.y - s*Math.sin(ang) - hw*Math.cos(ang));
+  ctx.closePath(); ctx.fill();
+}
+
+function _abRenderAfter() {
+  _abDrawSample('ab-canvas-after', _abReadControls(), document.getElementById('ab-preview-color').value);
+}
+function _abRenderBefore() {
+  const d = _abThemesCache[_abTheme] || AB_DEFAULTS;
+  _abDrawSample('ab-canvas-before', d, document.getElementById('ab-preview-color').value);
+}
+
+async function loadAbilityStyleEditor() {
+  if (!_abLoaded) {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'ability_style_themes'));
+      if (snap.exists()) _abThemesCache = snap.data();
+    } catch (e) { console.error('loadAbilityStyleEditor', e); }
+    _abLoaded = true;
+  }
+  _abSwitchTheme(_abTheme);
+}
+
+function _abSwitchTheme(theme) {
+  _abTheme = theme;
+  document.querySelectorAll('.ab-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.abTheme === theme));
+  document.getElementById('ab-preview-color').value = AB_THEME_COLORS[theme] || '#FF4655';
+  _abApplyToControls(_abThemesCache[theme] || AB_DEFAULTS);
+  document.getElementById('ab-save-btn').textContent = `Сохранить для темы: ${AB_THEME_LABELS[theme] || theme}`;
+  _abRenderBefore();
+  _abRenderAfter();
+}
+
+['ab-line','ab-glow','ab-glowa','ab-dot','ab-range'].forEach(id =>
+  document.getElementById(id)?.addEventListener('input', () => { _abUpdateLabels(); _abRenderAfter(); }));
+document.getElementById('ab-preview-color')?.addEventListener('input', () => { _abRenderBefore(); _abRenderAfter(); });
+document.querySelectorAll('.ab-theme-btn').forEach(btn =>
+  btn.addEventListener('click', () => _abSwitchTheme(btn.dataset.abTheme)));
+document.getElementById('ab-reset-btn')?.addEventListener('click', () => {
+  _abApplyToControls(AB_DEFAULTS); _abRenderAfter(); toast('Сброшено к дефолту', 'i');
+});
+document.getElementById('ab-save-btn')?.addEventListener('click', async function() {
+  const btn = this; const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Сохраняю…';
+  try {
+    const d = _abReadControls();
+    _abThemesCache[_abTheme] = d;
+    await setDoc(doc(db, 'settings', 'ability_style_themes'),
+      { [_abTheme]: d, updatedAt: serverTimestamp() }, { merge: true });
+    toast(`Стиль абилок для темы ${AB_THEME_LABELS[_abTheme]} сохранён`, 's');
+    _abRenderBefore();
+    if (typeof addAuditLog === 'function') addAuditLog('ability_style_updated', { theme: _abTheme, ...d });
+  } catch (e) {
+    console.error('ab-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
 
 // ── Agent Colors ──────────────────────────────────────────────────────────────
 // Firestore: settings/agent_colors { "Sova": "#5B8DB8", ... }

@@ -63,6 +63,8 @@
 ### Визуальный дизайн (_TrajectoryPainter)
 Правило SuperCell: эффекты должны быть визуально богатыми но технически дешёвыми.
 
+**Геометрия конфигурируема per-theme** через Firestore `settings/ability_style_themes` (редактор: вкладка "Стиль абилок" в admin_panel.html). Поля: `line_width`, `glow_width`, `glow_alpha`, `dot_size`, `range_intensity`. Значения ниже - дефолты (`_loadAbilityStyle` в interactive_map_screen.dart).
+
 **Линия траектории:**
 - 2 прохода: сначала glow (`strokeWidth: 9, alpha: 0.22, MaskFilter.blur(3)`), потом основная линия (`strokeWidth: 2.8`)
 - `MaskFilter.blur` допустим — рисуется только во время 600ms анимации, не при скролле
