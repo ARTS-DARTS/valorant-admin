@@ -500,6 +500,15 @@
     .an-leg-item   { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
     .an-leg-dot    { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
     .an-loading    { animation: an-pulse 1s ease-in-out infinite alternate; }
+    .an-live       { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; color: var(--green); letter-spacing: .3px; }
+    .an-live-dot   { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(34,197,94,.6); animation: an-live-pulse 1.6s ease-out infinite; }
+    @keyframes an-live-pulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.55); } 70% { box-shadow: 0 0 0 7px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    .an-chart-wrap { position: relative; }
+    .an-tip        { position: absolute; pointer-events: none; z-index: 20; background: var(--bg); border: 1px solid var(--border2, var(--border)); border-radius: 8px; padding: 8px 11px; font-size: 12px; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,.5); white-space: nowrap; transform: translate(-50%, -110%); transition: opacity .08s; }
+    .an-tip-date   { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 600; }
+    .an-tip-row    { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+    .an-tip-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .an-tip-val    { font-weight: 700; margin-left: auto; padding-left: 10px; }
     @keyframes an-pulse { from { opacity: .4; } to { opacity: 1; } }
 
     /* ── Map Stats Panel ── */
@@ -1146,7 +1155,10 @@
 
       <!-- ── Реклама ── -->
       <div id="an-section-ads" class="an-section">
-        <div class="form-title">📺 РЕКЛАМА — последние 30 дней</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <div class="form-title" style="margin:0;">📺 РЕКЛАМА — последние 30 дней</div>
+          <div class="an-live"><span class="an-live-dot"></span>в реальном времени</div>
+        </div>
         <div class="an-cards" id="ad-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Rewarded показов</div></div>
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Досмотрено</div></div>
@@ -1155,12 +1167,18 @@
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Interstitial</div></div>
         </div>
         <div class="an-chart-box">
-          <div class="dlabel" style="margin-bottom:8px;">Rewarded по дням</div>
-          <div class="an-legend" id="ad-legend">
-            <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>Показано</div>
-            <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--green)"></div>Досмотрено</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div class="dlabel" style="margin:0;">Rewarded-реклама по дням</div>
+            <div class="an-legend" id="ad-legend" style="margin:0;">
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>Показано</div>
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--green)"></div>Досмотрено</div>
+            </div>
           </div>
-          <svg id="ad-chart" width="100%" style="display:block;"></svg>
+          <div class="an-chart-wrap" id="ad-chart-wrap">
+            <svg id="ad-chart" width="100%" style="display:block;"></svg>
+            <div class="an-tip" id="ad-tip" style="display:none;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center;">наведи на график, чтобы увидеть цифры за день</div>
         </div>
       </div>
 
@@ -7034,42 +7052,7 @@ async function loadAnalytics() {
 
   try {
     // \u2500\u2500 Ad events \u2500\u2500
-    const adSnap = await getDocs(query(
-      collection(db, 'ad_events'),
-      where('ts', '>=', d30),
-      orderBy('ts')
-    ));
-
-    let rewShown = 0, rewDone = 0, rewSkip = 0, intShown = 0;
-    const adByDay = {};
-    days.forEach(d => { adByDay[d] = { shown: 0, done: 0 }; });
-
-    for (const d of adSnap.docs) {
-      const dat = d.data();
-      const day = dat.ts.toDate().toISOString().slice(0, 10);
-      switch (dat.type) {
-        case 'rewarded_shown':     rewShown++; if (adByDay[day]) adByDay[day].shown++; break;
-        case 'rewarded_completed': rewDone++;  if (adByDay[day]) adByDay[day].done++;  break;
-        case 'rewarded_skipped':   rewSkip++;  break;
-        case 'interstitial_shown': intShown++; break;
-      }
-    }
-    const pct = rewShown > 0 ? Math.round(rewDone / rewShown * 100) : 0;
-
-    document.getElementById('ad-stat-cards').innerHTML = [
-      [rewShown,        'Rewarded \u043f\u043e\u043a\u0430\u0437\u043e\u0432'],
-      [rewDone,         '\u0414\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043d\u043e'],
-      [rewSkip,         '\u041f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043e'],
-      [pct + '%',       '% \u0434\u043e\u0441\u043c\u043e\u0442\u0440\u0430'],
-      [intShown,        'Interstitial'],
-    ].map(([v, l]) =>
-      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
-    ).join('');
-
-    drawLineChart('ad-chart', [
-      { data: days.map(d => adByDay[d].shown), color: 'var(--primary)' },
-      { data: days.map(d => adByDay[d].done),  color: 'var(--green)' },
-    ], days);
+    subscribeAds();  // real-time: \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430 \u043d\u0430 ad_events, \u0441\u0430\u043c\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438 + \u0433\u0440\u0430\u0444\u0438\u043a
 
     // \u2500\u2500 User sessions \u2500\u2500
     const sesSnap = await getDocs(query(
@@ -7176,6 +7159,135 @@ async function loadAnalytics() {
     toast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0438: ' + e.message, 'e');
     analyticsLoaded = false; // allow retry
   }
+}
+
+// ── Real-time ads analytics ───────────────────────────────────────────────────
+let _adsUnsub = null;
+
+function subscribeAds() {
+  if (_adsUnsub) return; // уже подписаны
+  const now = Date.now();
+  const d30 = new Date(now - 30 * 864e5);
+  const days = [];
+  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
+
+  const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts'));
+  _adsUnsub = onSnapshot(q, snap => {
+    let rewShown = 0, rewDone = 0, rewSkip = 0, intShown = 0;
+    const adByDay = {};
+    days.forEach(d => { adByDay[d] = { shown: 0, done: 0 }; });
+
+    snap.forEach(doc => {
+      const dat = doc.data();
+      if (!dat.ts?.toDate) return;
+      const day = dat.ts.toDate().toISOString().slice(0, 10);
+      switch (dat.type) {
+        case 'rewarded_shown':     rewShown++; if (adByDay[day]) adByDay[day].shown++; break;
+        case 'rewarded_completed': rewDone++;  if (adByDay[day]) adByDay[day].done++;  break;
+        case 'rewarded_skipped':   rewSkip++;  break;
+        case 'interstitial_shown': intShown++; break;
+      }
+    });
+    const pct = rewShown > 0 ? Math.round(rewDone / rewShown * 100) : 0;
+
+    document.getElementById('ad-stat-cards').innerHTML = [
+      [rewShown,  'Rewarded показов'],
+      [rewDone,   'Досмотрено'],
+      [rewSkip,   'Пропущено'],
+      [pct + '%', '% досмотра'],
+      [intShown,  'Interstitial'],
+    ].map(([v, l]) =>
+      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+    ).join('');
+
+    drawInteractiveChart('ad-chart', 'ad-tip', [
+      { name: 'Показано',   data: days.map(d => adByDay[d].shown), color: '#4FC3F7' },
+      { name: 'Досмотрено', data: days.map(d => adByDay[d].done),  color: '#22C55E' },
+    ], days);
+  }, err => console.error('subscribeAds', err));
+}
+
+// Интерактивный график с наведением (тултип за день) + точки.
+function drawInteractiveChart(svgId, tipId, series, days) {
+  const svg = document.getElementById(svgId);
+  if (!svg) return;
+  const tip = document.getElementById(tipId);
+  const W = svg.parentElement.clientWidth || 600;
+  const H = 210;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', H);
+
+  const pad = { t: 14, r: 16, b: 30, l: 38 };
+  const cW = W - pad.l - pad.r;
+  const cH = H - pad.t - pad.b;
+  const n  = days.length;
+  if (n === 0) { svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--text2)" font-size="12">Нет данных</text>'; return; }
+
+  const allVals = series.flatMap(s => s.data.filter(Number.isFinite));
+  const maxVal = allVals.length > 0 ? Math.max(1, ...allVals) : 1;
+  const xp = i => n <= 1 ? pad.l + cW / 2 : pad.l + (i / (n - 1)) * cW;
+  const yp = v => pad.t + cH - (Number.isFinite(v) ? (v / maxVal) * cH : 0);
+
+  let html = '';
+  for (let i = 0; i <= 4; i++) {
+    const y   = pad.t + (cH / 4) * i;
+    const val = Math.round(maxVal * (1 - i / 4));
+    html += `<line x1="${pad.l}" y1="${y.toFixed(1)}" x2="${(W - pad.r).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="0.5"/>`;
+    html += `<text x="${(pad.l - 6).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--text2)">${val}</text>`;
+  }
+  for (let i = 0; i < n; i += 5) {
+    html += `<text x="${xp(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="var(--text2)">${days[i].slice(5)}</text>`;
+  }
+  // hover guide line (hidden initially)
+  html += `<line id="${svgId}-guide" x1="0" y1="${pad.t}" x2="0" y2="${pad.t + cH}" stroke="var(--text2)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>`;
+
+  for (const s of series) {
+    let area = `M ${xp(0).toFixed(1)},${yp(s.data[0]).toFixed(1)}`;
+    for (let i = 1; i < n; i++) area += ` L ${xp(i).toFixed(1)},${yp(s.data[i]).toFixed(1)}`;
+    area += ` L ${xp(n - 1).toFixed(1)},${(pad.t + cH).toFixed(1)} L ${xp(0).toFixed(1)},${(pad.t + cH).toFixed(1)} Z`;
+    html += `<path d="${area}" fill="${s.color}" fill-opacity="0.10"/>`;
+    let line = `M ${xp(0).toFixed(1)},${yp(s.data[0]).toFixed(1)}`;
+    for (let i = 1; i < n; i++) line += ` L ${xp(i).toFixed(1)},${yp(s.data[i]).toFixed(1)}`;
+    html += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  // hover highlight dots (one per series, hidden initially)
+  series.forEach((s, si) => {
+    html += `<circle id="${svgId}-dot${si}" r="4" fill="${s.color}" stroke="#fff" stroke-width="1.5" opacity="0"/>`;
+  });
+  svg.innerHTML = html;
+
+  const guide = document.getElementById(`${svgId}-guide`);
+  const dots  = series.map((s, si) => document.getElementById(`${svgId}-dot${si}`));
+
+  svg.onmousemove = e => {
+    const rect = svg.getBoundingClientRect();
+    const vbX  = (e.clientX - rect.left) / rect.width * W;
+    let idx = Math.round((vbX - pad.l) / (cW || 1) * (n - 1));
+    idx = Math.max(0, Math.min(n - 1, idx));
+    const gx = xp(idx);
+    guide.setAttribute('x1', gx); guide.setAttribute('x2', gx); guide.setAttribute('opacity', '0.5');
+    series.forEach((s, si) => {
+      dots[si].setAttribute('cx', gx);
+      dots[si].setAttribute('cy', yp(s.data[idx]));
+      dots[si].setAttribute('opacity', '1');
+    });
+    if (tip) {
+      const rows = series.map(s =>
+        `<div class="an-tip-row"><span class="an-tip-dot" style="background:${s.color}"></span>${s.name}<span class="an-tip-val">${s.data[idx]}</span></div>`
+      ).join('');
+      tip.innerHTML = `<div class="an-tip-date">${days[idx]}</div>${rows}`;
+      const pxX = gx / W * rect.width;
+      const pxY = yp(Math.max(...series.map(s => s.data[idx]))) / H * rect.height;
+      tip.style.left = pxX + 'px';
+      tip.style.top  = pxY + 'px';
+      tip.style.display = 'block';
+    }
+  };
+  svg.onmouseleave = () => {
+    guide.setAttribute('opacity', '0');
+    dots.forEach(d => d.setAttribute('opacity', '0'));
+    if (tip) tip.style.display = 'none';
+  };
 }
 
 function drawLineChart(svgId, series, days) {
