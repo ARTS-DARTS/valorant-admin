@@ -1186,7 +1186,17 @@
           <div class="dlabel" style="margin-bottom:8px;">Новые регистрации по дням</div>
           <svg id="nu-chart" width="100%" style="display:block;"></svg>
         </div>
-        <div id="nu-recent-list" style="margin-top:14px;"></div>
+        <div style="margin-top:18px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);">За последние 24 часа: <span id="nu-24h-count" style="color:var(--primary);">…</span></div>
+            <div style="display:flex;gap:6px;">
+              <button class="an-tab-btn active" data-nu-filter="all"    onclick="_nuSetFilter('all')">Все</button>
+              <button class="an-tab-btn"        data-nu-filter="google" onclick="_nuSetFilter('google')">Google</button>
+              <button class="an-tab-btn"        data-nu-filter="email"  onclick="_nuSetFilter('email')">Email/пароль</button>
+            </div>
+          </div>
+          <div id="nu-recent-list" style="max-height:520px;overflow-y:auto;"></div>
+        </div>
       </div>
 
       <!-- ── Контент ── -->
@@ -6136,7 +6146,48 @@ document.querySelectorAll('.an-tab-btn').forEach(btn => {
   });
 });
 
-let _nuLoaded = false;
+let _nuLoaded    = false;
+let _nuAllRecent = [];  // все за последние 24ч
+let _nuFilter    = 'all';
+
+function _nuSetFilter(f) {
+  _nuFilter = f;
+  document.querySelectorAll('[data-nu-filter]').forEach(b =>
+    b.classList.toggle('active', b.dataset.nuFilter === f));
+  _nuRenderList();
+}
+
+function _nuRenderList() {
+  const filtered = _nuFilter === 'all' ? _nuAllRecent : _nuAllRecent.filter(r => {
+    const method = _nuAuthMethod(r.dat).label;
+    if (_nuFilter === 'google') return method === 'Google';
+    if (_nuFilter === 'email')  return method !== 'Google';
+    return true;
+  });
+  const listEl = document.getElementById('nu-recent-list');
+  if (filtered.length === 0) {
+    listEl.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:12px 0;">Нет пользователей с таким фильтром</div>`;
+    return;
+  }
+  listEl.innerHTML = filtered.map(r => {
+    const auth     = _nuAuthMethod(r.dat);
+    const name     = esc(r.dat.name || r.uid.slice(0,8));
+    const initials = (r.dat.name || '?')[0].toUpperCase();
+    const lastSeen = r.dat.last_seen?.toDate ? r.dat.last_seen.toDate() : null;
+    const spent    = r.dat.time_spent_seconds || 0;
+    const suspicious = spent === 0 && !lastSeen;
+    const safedat  = JSON.stringify(r.dat).replace(/'/g,"&#39;").replace(/"/g,'&quot;');
+    return `<div class="nu-user-row" onclick="_openNuUserDetail('${r.uid}', ${safedat})">
+      <div class="nu-user-avatar" style="background:${suspicious?'#555':'var(--primary)'};">${initials}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+        <div style="font-size:11px;color:var(--text2);">${r.ts.toLocaleString('ru-RU')} · ${_nuTimeAgo(r.ts)}</div>
+      </div>
+      <span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid ${auth.color};color:${auth.color};white-space:nowrap;">${auth.label}</span>
+      ${spent > 0 ? `<span style="font-size:10px;color:var(--green);">${_nuFmtDuration(spent)}</span>` : '<span style="font-size:10px;color:var(--text2);">—</span>'}
+    </div>`;
+  }).join('');
+}
 
 function _nuAuthMethod(dat) {
   const email = dat.user_email || '';
@@ -6197,7 +6248,7 @@ window._openNuUserDetail = function(uid, dat) {
     ${spent === 0 && !lastSeen ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.25);border-radius:8px;font-size:12px;color:#ffcc00;">⚠️ Нет активности — возможно тестовый или фиктивный аккаунт</div>` : ''}
     ${approved === 0 && spent < 60 ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Мало активности. Может быть твинк или брошенный аккаунт.</div>` : ''}
     <div style="display:flex;gap:10px;margin-top:20px;">
-      <button onclick="openUserProfilePanel('${uid}');document.getElementById('nu-user-modal').classList.remove('open');"
+      <button onclick="document.getElementById('nu-user-modal').classList.remove('open');switchTab('admins');setTimeout(()=>openUserProfilePanel('${uid}'),80);"
               style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
         Открыть полный профиль
       </button>
@@ -6208,15 +6259,15 @@ window._openNuUserDetail = function(uid, dat) {
 
 async function loadNewUsersAnalytics() {
   _nuLoaded = true;
-  const now   = Date.now();
-  const today = new Date().toISOString().slice(0, 10);
-  const d7    = new Date(now -  7 * 864e5);
-  const d30   = new Date(now - 30 * 864e5);
-  const days  = [];
+  const now    = Date.now();
+  const today  = new Date().toISOString().slice(0, 10);
+  const d24h   = new Date(now -       864e5);
+  const d7     = new Date(now -  7  * 864e5);
+  const d30    = new Date(now -  30 * 864e5);
+  const days   = [];
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
   try {
-    // Реальный total — включает пользователей без created_at
     const totalCount = await getCountFromServer(collection(db, 'users'));
     const realTotal  = totalCount.data().count;
 
@@ -6224,7 +6275,7 @@ async function loadNewUsersAnalytics() {
     let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0;
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
-    const recent = [];
+    _nuAllRecent = [];
 
     for (const docSnap of snap.docs) {
       const dat = docSnap.data();
@@ -6235,36 +6286,21 @@ async function loadNewUsersAnalytics() {
       if (day === today) nuToday++;
       if (ts >= d7)  nuWeek++;
       if (ts >= d30) { nuMonth++; if (nuByDay[day] !== undefined) nuByDay[day]++; }
-      if (recent.length < 20) recent.push({ uid: docSnap.id, dat, ts });
+      if (ts >= d24h) _nuAllRecent.push({ uid: docSnap.id, dat, ts });
     }
 
-    document.getElementById('nu-today').textContent = nuToday;
-    document.getElementById('nu-week').textContent  = nuWeek;
-    document.getElementById('nu-month').textContent = nuMonth;
-    document.getElementById('nu-total').textContent = realTotal + (nuWithDate < realTotal ? ` (${nuWithDate} с датой)` : '');
+    document.getElementById('nu-today').textContent    = nuToday;
+    document.getElementById('nu-week').textContent     = nuWeek;
+    document.getElementById('nu-month').textContent    = nuMonth;
+    document.getElementById('nu-total').textContent    = realTotal + (nuWithDate < realTotal ? ` (${nuWithDate} с датой)` : '');
+    document.getElementById('nu-24h-count').textContent = _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
     drawLineChart('nu-chart', [{ data: days.map(d => nuByDay[d]), color: 'var(--green)' }], days);
 
-    const listEl = document.getElementById('nu-recent-list');
-    listEl.innerHTML = `<div class="dlabel" style="margin-bottom:10px;">Последние регистрации — нажми для деталей</div>` +
-      recent.map(r => {
-        const auth   = _nuAuthMethod(r.dat);
-        const name   = esc(r.dat.name || r.uid.slice(0,8));
-        const initials = (r.dat.name || '?')[0].toUpperCase();
-        const lastSeen = r.dat.last_seen?.toDate ? r.dat.last_seen.toDate() : null;
-        const spent  = r.dat.time_spent_seconds || 0;
-        const suspicious = spent === 0 && !lastSeen;
-        return `<div class="nu-user-row" onclick="_openNuUserDetail('${r.uid}', ${JSON.stringify(r.dat).replace(/'/g,"&#39;").replace(/"/g,'&quot;')})">
-          <div class="nu-user-avatar" style="background:${suspicious?'#555':'var(--primary)'};">${initials}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
-            <div style="font-size:11px;color:var(--text2);">${r.ts.toLocaleDateString('ru-RU')} · ${_nuTimeAgo(r.ts)}</div>
-          </div>
-          <span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid ${auth.color};color:${auth.color};white-space:nowrap;">${auth.label}</span>
-          ${spent > 0 ? `<span style="font-size:10px;color:var(--green);">${_nuFmtDuration(spent)}</span>` : '<span style="font-size:10px;color:var(--text2);">—</span>'}
-        </div>`;
-      }).join('');
+    _nuFilter = 'all';
+    document.querySelectorAll('[data-nu-filter]').forEach(b => b.classList.toggle('active', b.dataset.nuFilter === 'all'));
+    _nuRenderList();
 
   } catch(e) {
     console.error('New users analytics:', e);
