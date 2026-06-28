@@ -151,9 +151,11 @@ service cloud.firestore {
     }
 
     match /moderator_applications/{uid} {
-      allow create: if isOwner(uid);
       allow read: if isOwner(uid) || isAdmin();
-      allow update, delete: if isAdmin();
+      // Владелец может подать/переподать заявку только со статусом 'pending'.
+      allow create: if isOwner(uid) && request.resource.data.get('status', '') == 'pending';
+      allow update: if (isOwner(uid) && request.resource.data.get('status', '') == 'pending') || isAdmin();
+      allow delete: if isAdmin();
     }
 
     match /moderator_logs/{logId} {
