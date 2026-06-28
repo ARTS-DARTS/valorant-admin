@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_service.dart';
@@ -112,8 +111,9 @@ class _SplashScreenState extends State<SplashScreen> {
         await Future.wait([
           AuthService.syncUsername(),
           AuthService.syncUserLevel(),
-          NotificationService.loginUser(uid),
         ]);
+        // Не блокируем сплэш — OneSignal регистрирует токен в фоне
+        NotificationService.loginUser(uid).ignore();
         PushQueueService.startListening();
       }
 
@@ -162,38 +162,23 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       var agents = await ValorantApi.getCached();
       agents ??= await ValorantApi.getAgents();
-      if (!mounted) return;
       for (final agent in agents) {
-        if (!mounted) return;
         final icon = agent['displayIconSmall'] as String?;
         if (icon != null && icon.isNotEmpty) {
-          precacheImage(
-            CachedNetworkImageProvider(icon, cacheManager: AppImageCache.manager),
-            context,
-          ).ignore();
+          await AppImageCache.manager.downloadFile(icon);
         }
         for (final ability in (agent['abilities'] as List? ?? [])) {
-          if (!mounted) return;
           final abilIcon = (ability as Map)['displayIcon'] as String?;
           if (abilIcon != null && abilIcon.isNotEmpty) {
-            precacheImage(
-              CachedNetworkImageProvider(abilIcon, cacheManager: AppImageCache.manager),
-              context,
-            ).ignore();
+            await AppImageCache.manager.downloadFile(abilIcon);
           }
         }
       }
-      // Warm map splash images
       var maps = await ValorantApi.getCachedMaps();
       if (maps.isEmpty) maps = await ValorantApi.getMaps();
-      if (!mounted) return;
       for (final url in maps.values) {
-        if (!mounted) return;
         if (url.isNotEmpty) {
-          precacheImage(
-            CachedNetworkImageProvider(url, cacheManager: AppImageCache.manager),
-            context,
-          ).ignore();
+          await AppImageCache.manager.downloadFile(url);
         }
       }
     } catch (_) {}

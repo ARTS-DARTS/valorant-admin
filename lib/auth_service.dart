@@ -64,7 +64,8 @@ class AuthService {
     await prefs.setBool('registered', true);
     await prefs.setString('user_email', email);
 
-    await NotificationService.loginUser(uid);
+    // Не блокируем вход — OneSignal регистрирует токен в фоне
+    NotificationService.loginUser(uid).ignore();
     PushQueueService.startListening();
   }
 
@@ -94,7 +95,7 @@ class AuthService {
     await prefs.setString('user_email', email);
 
     final signedInUid = _auth.currentUser?.uid;
-    if (signedInUid != null) await NotificationService.loginUser(signedInUid);
+    if (signedInUid != null) NotificationService.loginUser(signedInUid).ignore();
     PushQueueService.startListening();
   }
 
@@ -140,7 +141,7 @@ class AuthService {
     final uid = userCred.user!.uid;
     final isNewFirebaseUser = userCred.additionalUserInfo?.isNewUser ?? true;
 
-    await NotificationService.loginUser(uid);
+    NotificationService.loginUser(uid).ignore();
     PushQueueService.startListening();
 
     if (isNewFirebaseUser) return true;

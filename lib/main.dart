@@ -366,14 +366,18 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late int _selectedIndex;
+  DateTime? _sessionStart;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialTabIndex;
+    _sessionStart = DateTime.now();
+    WidgetsBinding.instance.addObserver(this);
     _writeSession();
+    _recordActivity(); // last_seen + created_at guard
     NotificationService.pendingNotificationTap.addListener(_handleNotificationTap);
     final pending = NotificationService.pendingNotificationTap.value;
     if (pending != null) {
@@ -388,8 +392,66 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     NotificationService.pendingNotificationTap.removeListener(_handleNotificationTap);
+    _flushSessionTime();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _flushSessionTime();
+    } else if (state == AppLifecycleState.resumed) {
+      _sessionStart = DateTime.now();
+      _touchLastSeen();
+    }
+  }
+
+  // Записываем last_seen и created_at (если поле пропущено у старых аккаунтов)
+  static Future<void> _recordActivity() async {
+    try {
+      final uid = AuthService.userId;
+      if (uid == null || (AuthService.currentUser?.isAnonymous ?? true)) return;
+      final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+      final snap = await ref.get();
+      final data = snap.data() ?? {};
+      final updates = <String, dynamic>{ 'last_seen': FieldValue.serverTimestamp() };
+      if (!data.containsKey('created_at')) {
+        updates['created_at'] = FieldValue.serverTimestamp();
+      }
+      await ref.update(updates);
+    } catch (_) {}
+  }
+
+  static Future<void> _touchLastSeen() async {
+    try {
+      final uid = AuthService.userId;
+      if (uid == null || (AuthService.currentUser?.isAnonymous ?? true)) return;
+      await FirebaseFirestore.instance.collection('users').doc(uid)
+          .update({'last_seen': FieldValue.serverTimestamp()});
+    } catch (_) {}
+  }
+
+  void _flushSessionTime() {
+    final start = _sessionStart;
+    if (start == null) return;
+    _sessionStart = null;
+    final seconds = DateTime.now().difference(start).inSeconds;
+    if (seconds < 10) return;
+    _writeTimeSpent(seconds);
+  }
+
+  static Future<void> _writeTimeSpent(int seconds) async {
+    try {
+      final uid = AuthService.userId;
+      if (uid == null || (AuthService.currentUser?.isAnonymous ?? true)) return;
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
+        'last_seen': FieldValue.serverTimestamp(),
+        'time_spent_seconds': FieldValue.increment(seconds),
+      });
+    } catch (_) {}
   }
 
   void _handleNotificationTap() {

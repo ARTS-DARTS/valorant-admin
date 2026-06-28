@@ -539,6 +539,17 @@
     .an-tab-btn:hover { border-color: var(--primary); color: var(--primary); }
     .an-tab-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+    /* ── New-user detail modal ── */
+    #nu-user-modal { display:none; position:fixed; inset:0; z-index:3000; background:rgba(0,0,0,.7); align-items:center; justify-content:center; }
+    #nu-user-modal.open { display:flex; }
+    .nu-modal-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; width:460px; max-width:95vw; max-height:88vh; overflow-y:auto; padding:24px; position:relative; }
+    .nu-field { margin-bottom:12px; }
+    .nu-field-lbl { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--text2); margin-bottom:3px; }
+    .nu-field-val { font-size:13px; color:var(--text); word-break:break-all; }
+    .nu-user-row { display:flex; align-items:center; gap:10px; padding:9px 12px; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:6px; cursor:pointer; transition:.15s; }
+    .nu-user-row:hover { border-color:var(--primary); background:var(--surface2); }
+    .nu-user-avatar { width:34px; height:34px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#fff; flex-shrink:0; }
+
     /* ── Map Style theme buttons ── */
     .ms-theme-btn { padding: 5px 13px; border-radius: 20px; border: 2px solid transparent; cursor: pointer; font-size: 12px; font-weight: 700; color: #000; transition: all .15s; opacity: .6; }
     .ms-theme-btn:hover { opacity: .9; transform: scale(1.05); }
@@ -1720,104 +1731,121 @@
 
 <!-- ── Map Style Tab ───────────────────────────────────────────────────────── -->
 <div id="tab-mapstyle" style="display:none;padding:20px;">
-  <div style="max-width:680px;margin:0 auto;">
-    <h3 style="margin:0 0 6px;color:var(--text);">🗺️ Стиль тактической карты</h3>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">
-      Цветокоррекция миникарты — предпросмотр живой. Для каждой темы приложения — своя палитра.
-    </p>
+  <div style="max-width:1020px;margin:0 auto;">
 
-    <!-- Theme selector -->
-    <div style="margin-bottom:20px;">
-      <div style="font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Тема приложения</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="ms-theme-btn active" data-theme="red"    style="background:#FF4655;">Red</button>
-        <button class="ms-theme-btn"        data-theme="blue"   style="background:#00B4FF;">Blue</button>
-        <button class="ms-theme-btn"        data-theme="green"  style="background:#22c55e;">Green</button>
-        <button class="ms-theme-btn"        data-theme="purple" style="background:#a855f7;">Purple</button>
-        <button class="ms-theme-btn"        data-theme="cyan"   style="background:#00E5FF;">Cyan</button>
-        <button class="ms-theme-btn"        data-theme="orange" style="background:#f97316;">Orange</button>
-        <button class="ms-theme-btn"        data-theme="gold"   style="background:#ffd700;">Gold</button>
-        <button class="ms-theme-btn"        data-theme="white"  style="background:#dcdcdc;">White</button>
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <h3 style="margin:0 0 4px;color:var(--text);">🗺️ Стиль тактической карты</h3>
+        <p style="color:var(--text2);font-size:13px;margin:0;">Каждая тема приложения хранит свой стиль. Слева — что сохранено, справа — что редактируется.</p>
+      </div>
+      <select id="ms-map-pick" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer;flex-shrink:0;">
+        <option value="7eaecc1b-4337-bbf6-6ab9-04b8f06b3319" selected>Ascent</option>
+        <option value="2bee0dc9-4ffe-519b-1cbd-7fbe763a6047">Haven</option>
+        <option value="2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba">Bind</option>
+        <option value="d960549e-485c-e861-8d71-aa9d1aed12a2">Split</option>
+        <option value="e2ad5c54-4114-a870-9641-8ea21279579a">Icebox</option>
+        <option value="2fb9a4fd-47b8-4e7d-a969-74b4046ebd53">Breeze</option>
+        <option value="b529448b-4d60-346e-e89e-00a4c527a405">Fracture</option>
+        <option value="fd267378-4d1d-484f-ff52-77821ed10dc2">Pearl</option>
+        <option value="2fe4ed3a-450a-948b-6d6b-e89a78e680a9">Lotus</option>
+        <option value="92584fbe-486a-b1b2-9faa-39b0f486b498">Sunset</option>
+        <option value="224b0a95-48b9-f703-1bd8-67aca101a61f">Abyss</option>
+        <option value="1c18ab1f-420d-0d8b-71d0-77ad3c439115">Corrode</option>
+        <option value="756da597-416b-c0f2-f47b-afbdf28670bc">Summit</option>
+      </select>
+    </div>
+
+    <!-- Theme buttons -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
+      <button class="ms-theme-btn active" data-theme="standard"   style="background:#FF4655;color:#fff;">🔴 Стандартная</button>
+      <button class="ms-theme-btn"        data-theme="dark"       style="background:#BB86FC;color:#000;">🌑 Тёмная</button>
+      <button class="ms-theme-btn"        data-theme="blue"       style="background:#4FC3F7;color:#000;">🔵 Синяя</button>
+      <button class="ms-theme-btn"        data-theme="light"      style="background:#E53935;color:#fff;">☀️ Светлая</button>
+      <button class="ms-theme-btn"        data-theme="colorblind" style="background:#F5A623;color:#000;">👁 Дальтоники</button>
+    </div>
+
+    <!-- Before / After preview -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;">
+      <div>
+        <div style="text-align:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Сохранено в Firestore</div>
+        <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);min-height:70px;">
+          <canvas id="ms-canvas-before" style="width:100%;display:block;"></canvas>
+          <div id="ms-canvas-before-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text2);font-size:12px;">Загрузка…</div>
+        </div>
+      </div>
+      <div>
+        <div style="text-align:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Редактируется (предпросмотр)</div>
+        <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--primary);background:var(--surface2);min-height:70px;">
+          <canvas id="ms-canvas" style="width:100%;display:block;"></canvas>
+          <div id="ms-canvas-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text2);font-size:12px;">Загрузка…</div>
+        </div>
       </div>
     </div>
 
-    <!-- Canvas preview -->
-    <div style="margin-bottom:22px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:12px;color:var(--text2);">Предпросмотр</span>
-        <select id="ms-map-pick" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">
-          <option value="7eaecc1b-4337-bbf6-6ab9-04b8f06b3319" selected>Ascent</option>
-          <option value="2bee0dc9-4ffe-519b-1cbd-7fbe763a6047">Haven</option>
-          <option value="2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba">Bind</option>
-          <option value="d960549e-485c-e861-8d71-aa9d1aed12a2">Split</option>
-          <option value="e2ad5c54-4114-a870-9641-8ea21279579a">Icebox</option>
-          <option value="2fb9a4fd-47b8-4e7d-a969-74b4046ebd53">Breeze</option>
-          <option value="b529448b-4d60-346e-e89e-00a4c527a405">Fracture</option>
-          <option value="fd267378-4d1d-484f-ff52-77821ed10dc2">Pearl</option>
-          <option value="2fe4ed3a-450a-948b-6d6b-e89a78e680a9">Lotus</option>
-          <option value="92584fbe-486a-b1b2-9faa-39b0f486b498">Sunset</option>
-          <option value="224b0a95-48b9-f703-1bd8-67aca101a61f">Abyss</option>
-          <option value="1c18ab1f-420d-0d8b-71d0-77ad3c439115">Corrode</option>
-          <option value="756da597-416b-c0f2-f47b-afbdf28670bc">Summit</option>
+    <!-- Controls 2-col -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px;">
+      <!-- Left col: tint + intensity -->
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Цвет тинта</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <button class="ms-sw" data-r="255" data-g="70"  data-b="85"  style="background:#FF4655;" title="Standard"></button>
+          <button class="ms-sw" data-r="187" data-g="134" data-b="252" style="background:#BB86FC;" title="Dark"></button>
+          <button class="ms-sw" data-r="79"  data-g="195" data-b="247" style="background:#4FC3F7;" title="Blue"></button>
+          <button class="ms-sw" data-r="229" data-g="57"  data-b="53"  style="background:#E53935;" title="Light"></button>
+          <button class="ms-sw" data-r="245" data-g="166" data-b="35"  style="background:#F5A623;" title="Colorblind"></button>
+          <button class="ms-sw" data-r="220" data-g="220" data-b="220" style="background:#dcdcdc;" title="Нейтральный"></button>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer;">
+            <input type="color" id="ms-color-custom" value="#FF4655"
+              style="width:30px;height:30px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;padding:2px;background:var(--surface2);">
+            Свой
+          </label>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Интенсивность цвета</label>
+          <span id="ms-intensity-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">1.00</span>
+        </div>
+        <input type="range" id="ms-intensity" min="0" max="1" step="0.05" value="1.0" style="width:100%;accent-color:var(--primary);">
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">0 = нейтральный серый, 1 = полный цвет</div>
+      </div>
+      <!-- Right col: contrast + brightness -->
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Контраст</label>
+          <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">2.00</span>
+        </div>
+        <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--primary);">
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;margin-bottom:18px;">Рекомендуется: 1.8–2.5</div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:600;color:var(--text);">Сдвиг яркости</label>
+          <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:46px;text-align:right;">-0.15</span>
+        </div>
+        <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--primary);">
+        <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное = тёмнее фон. Рекомендуется: −0.2 до 0.0</div>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:10px;margin-bottom:32px;">
+      <button id="ms-reset-btn" style="padding:12px 22px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;">Сбросить</button>
+      <button id="ms-save-btn" style="flex:1;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить для темы: Стандартная</button>
+    </div>
+
+    <!-- Saved styles table -->
+    <div style="border-top:1px solid var(--border);padding-top:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:1px;">Сохранённые стили</span>
+        <select id="ms-sort" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">
+          <option value="theme">По теме</option>
+          <option value="contrast">По контрасту</option>
+          <option value="brightness">По яркости</option>
+          <option value="intensity">По интенсивности</option>
         </select>
       </div>
-      <div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border2);background:var(--surface2);min-height:80px;">
-        <canvas id="ms-canvas" style="width:100%;display:block;"></canvas>
-        <div id="ms-canvas-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text2);font-size:13px;">Загрузка…</div>
-      </div>
+      <div id="ms-styles-table"></div>
     </div>
 
-    <!-- Tint color -->
-    <div style="margin-bottom:20px;">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Цвет тинта</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button class="ms-sw" data-r="255" data-g="70"  data-b="85"  style="background:#FF4655;" title="Красный — тема приложения"></button>
-        <button class="ms-sw" data-r="0"   data-g="180" data-b="255" style="background:#00B4FF;" title="Синий"></button>
-        <button class="ms-sw" data-r="34"  data-g="197" data-b="94"  style="background:#22c55e;" title="Зелёный"></button>
-        <button class="ms-sw" data-r="168" data-g="85"  data-b="247" style="background:#a855f7;" title="Фиолетовый"></button>
-        <button class="ms-sw" data-r="0"   data-g="229" data-b="255" style="background:#00E5FF;" title="Циан"></button>
-        <button class="ms-sw" data-r="249" data-g="115" data-b="22"  style="background:#f97316;" title="Оранжевый"></button>
-        <button class="ms-sw" data-r="255" data-g="215" data-b="0"   style="background:#ffd700;" title="Золотой"></button>
-        <button class="ms-sw" data-r="220" data-g="220" data-b="220" style="background:#dcdcdc;" title="Нейтральный белый"></button>
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;">
-          <input type="color" id="ms-color-custom" value="#FF4655"
-            style="width:34px;height:34px;border:2px solid var(--border2);border-radius:8px;cursor:pointer;padding:2px;background:var(--surface2);">
-          Свой
-        </label>
-      </div>
-    </div>
-
-    <!-- Intensity -->
-    <div style="margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <label style="font-size:13px;font-weight:600;color:var(--text);">Интенсивность цвета</label>
-        <span id="ms-intensity-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">1.00</span>
-      </div>
-      <input type="range" id="ms-intensity" min="0" max="1" step="0.05" value="1.0" style="width:100%;accent-color:var(--primary);">
-      <div style="font-size:11px;color:var(--text2);margin-top:4px;">0 = нейтральный серый, 1 = полный выбранный цвет.</div>
-    </div>
-
-    <!-- Contrast -->
-    <div style="margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <label style="font-size:13px;font-weight:600;color:var(--text);">Контраст</label>
-        <span id="ms-contrast-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:36px;text-align:right;">2.00</span>
-      </div>
-      <input type="range" id="ms-contrast" min="0.5" max="4.0" step="0.05" value="2.0" style="width:100%;accent-color:var(--primary);">
-      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Высокий = яркие стены, тёмный фон. Рекомендуется: 1.8–2.5.</div>
-    </div>
-
-    <!-- Brightness -->
-    <div style="margin-bottom:28px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <label style="font-size:13px;font-weight:600;color:var(--text);">Сдвиг яркости</label>
-        <span id="ms-brightness-val" style="font-size:13px;font-weight:700;color:var(--primary);min-width:46px;text-align:right;">-0.15</span>
-      </div>
-      <input type="range" id="ms-brightness" min="-0.5" max="0.5" step="0.02" value="-0.15" style="width:100%;accent-color:var(--primary);">
-      <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее фон карты. Рекомендуется: −0.2 до 0.0.</div>
-    </div>
-
-    <button id="ms-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить для темы: Red</button>
   </div>
 </div>
 
@@ -1919,6 +1947,15 @@
 </div>
 
 <!-- Lineup Detail Overlay -->
+<!-- ── New user detail modal ── -->
+<div id="nu-user-modal">
+  <div class="nu-modal-card">
+    <button onclick="document.getElementById('nu-user-modal').classList.remove('open')"
+            style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:22px;line-height:1;">✕</button>
+    <div id="nu-modal-content"></div>
+  </div>
+</div>
+
 <div id="lineup-detail-overlay">
   <div class="ld-card" id="lineup-detail-card"></div>
 </div>
@@ -5691,6 +5728,9 @@ async function openUserProfile(uid, name) {
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 function openLb(url) { document.getElementById('lb-img').src = url; document.getElementById('lb').classList.add('open'); }
 document.getElementById('lb').addEventListener('click', () => document.getElementById('lb').classList.remove('open'));
+document.getElementById('nu-user-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('nu-user-modal')) document.getElementById('nu-user-modal').classList.remove('open');
+});
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 function toast(msg, type = 'i') {
@@ -5992,6 +6032,74 @@ document.querySelectorAll('.an-tab-btn').forEach(btn => {
 
 let _nuLoaded = false;
 
+function _nuAuthMethod(dat) {
+  const email = dat.user_email || '';
+  if (!email) return { label: 'Google', color: '#4285F4', icon: 'G' };
+  if (email.endsWith('@valorantlineups.app')) return { label: 'Email/пароль', color: 'var(--orange)', icon: '✉' };
+  return { label: 'Email', color: 'var(--primary)', icon: '✉' };
+}
+
+function _nuFmtDuration(sec) {
+  if (!sec || sec < 60) return sec ? `${sec} сек` : '—';
+  if (sec < 3600) return `${Math.floor(sec/60)} мин`;
+  return `${Math.floor(sec/3600)} ч ${Math.floor((sec%3600)/60)} мин`;
+}
+
+function _nuTimeAgo(ts) {
+  const diff = Date.now() - ts.getTime();
+  const d = Math.floor(diff / 864e5);
+  if (d === 0) return 'сегодня';
+  if (d === 1) return 'вчера';
+  return `${d} дн. назад`;
+}
+
+window._openNuUserDetail = function(uid, dat) {
+  const auth    = _nuAuthMethod(dat);
+  const created = dat.created_at?.toDate ? dat.created_at.toDate() : null;
+  const lastSeen = dat.last_seen?.toDate ? dat.last_seen.toDate() : null;
+  const spent   = dat.time_spent_seconds || 0;
+  const banned  = dat.is_banned === true;
+  const approved = dat.approved_lineups || 0;
+
+  const field = (lbl, val) => `<div class="nu-field">
+    <div class="nu-field-lbl">${lbl}</div>
+    <div class="nu-field-val">${val}</div>
+  </div>`;
+
+  const authBadge = `<span style="padding:2px 8px;border-radius:12px;border:1px solid ${auth.color};color:${auth.color};font-size:11px;font-weight:700;">${auth.icon} ${auth.label}</span>`;
+  const bannedBadge = banned ? `<span style="padding:2px 8px;border-radius:12px;background:#f44;color:#fff;font-size:11px;font-weight:700;margin-left:6px;">BANNED</span>` : '';
+  const name = esc(dat.name || '—');
+  const initials = (dat.name || '?')[0].toUpperCase();
+
+  document.getElementById('nu-modal-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-right:32px;">
+      <div style="width:52px;height:52px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0;">${initials}</div>
+      <div>
+        <div style="font-size:18px;font-weight:700;color:var(--text);">${name}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px;font-family:monospace;">${uid}</div>
+        <div style="margin-top:6px;">${authBadge}${bannedBadge}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      ${field('Зарегистрирован', created ? created.toLocaleString('ru-RU') + '<br><span style="color:var(--text2);font-size:11px;">' + _nuTimeAgo(created) + '</span>' : '—')}
+      ${field('Последний вход', lastSeen ? lastSeen.toLocaleString('ru-RU') + '<br><span style="color:var(--text2);font-size:11px;">' + _nuTimeAgo(lastSeen) + '</span>' : '<span style="color:var(--text2);">Нет данных</span>')}
+      ${field('Время в приложении', `<span style="${spent>0?'color:var(--green)':''}">${_nuFmtDuration(spent)}</span>`)}
+      ${field('Email (аккаунт)', esc(dat.user_email || '—'))}
+      ${field('Лайнапов одобрено', approved)}
+      ${field('Уведомления', dat.onesignal_id ? '<span style="color:var(--green);">Подключены</span>' : '<span style="color:var(--text2);">Нет данных</span>')}
+    </div>
+    ${spent === 0 && !lastSeen ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.25);border-radius:8px;font-size:12px;color:#ffcc00;">⚠️ Нет активности — возможно тестовый или фиктивный аккаунт</div>` : ''}
+    ${approved === 0 && spent < 60 ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Мало активности. Может быть твинк или брошенный аккаунт.</div>` : ''}
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button onclick="openUserProfilePanel('${uid}');document.getElementById('nu-user-modal').classList.remove('open');"
+              style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+        Открыть полный профиль
+      </button>
+    </div>
+  `;
+  document.getElementById('nu-user-modal').classList.add('open');
+};
+
 async function loadNewUsersAnalytics() {
   _nuLoaded = true;
   const now   = Date.now();
@@ -6002,37 +6110,55 @@ async function loadNewUsersAnalytics() {
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
   try {
+    // Реальный total — включает пользователей без created_at
+    const totalCount = await getCountFromServer(collection(db, 'users'));
+    const realTotal  = totalCount.data().count;
+
     const snap = await getDocs(query(collection(db, 'users'), orderBy('created_at', 'desc')));
-    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuTotal = snap.size;
+    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0;
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
     const recent = [];
 
-    for (const doc of snap.docs) {
-      const dat = doc.data();
+    for (const docSnap of snap.docs) {
+      const dat = docSnap.data();
       const ts  = dat.created_at?.toDate ? dat.created_at.toDate() : null;
-      if (!ts) { nuTotal--; continue; }
+      if (!ts) continue;
+      nuWithDate++;
       const day = ts.toISOString().slice(0, 10);
       if (day === today) nuToday++;
       if (ts >= d7)  nuWeek++;
       if (ts >= d30) { nuMonth++; if (nuByDay[day] !== undefined) nuByDay[day]++; }
-      if (recent.length < 10) recent.push({ name: dat.displayName || dat.email || doc.id.slice(0, 8), ts });
+      if (recent.length < 20) recent.push({ uid: docSnap.id, dat, ts });
     }
 
     document.getElementById('nu-today').textContent = nuToday;
     document.getElementById('nu-week').textContent  = nuWeek;
     document.getElementById('nu-month').textContent = nuMonth;
-    document.getElementById('nu-total').textContent = nuTotal;
+    document.getElementById('nu-total').textContent = realTotal + (nuWithDate < realTotal ? ` (${nuWithDate} с датой)` : '');
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
     drawLineChart('nu-chart', [{ data: days.map(d => nuByDay[d]), color: 'var(--green)' }], days);
 
-    document.getElementById('nu-recent-list').innerHTML =
-      '<div class="dlabel" style="margin-bottom:10px;">Последние регистрации</div>' +
-      recent.map(r => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;">
-        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</span>
-        <span style="font-size:11px;color:var(--text2);">${r.ts.toLocaleDateString('ru-RU')}</span>
-      </div>`).join('');
+    const listEl = document.getElementById('nu-recent-list');
+    listEl.innerHTML = `<div class="dlabel" style="margin-bottom:10px;">Последние регистрации — нажми для деталей</div>` +
+      recent.map(r => {
+        const auth   = _nuAuthMethod(r.dat);
+        const name   = esc(r.dat.name || r.uid.slice(0,8));
+        const initials = (r.dat.name || '?')[0].toUpperCase();
+        const lastSeen = r.dat.last_seen?.toDate ? r.dat.last_seen.toDate() : null;
+        const spent  = r.dat.time_spent_seconds || 0;
+        const suspicious = spent === 0 && !lastSeen;
+        return `<div class="nu-user-row" onclick="_openNuUserDetail('${r.uid}', ${JSON.stringify(r.dat).replace(/'/g,"&#39;").replace(/"/g,'&quot;')})">
+          <div class="nu-user-avatar" style="background:${suspicious?'#555':'var(--primary)'};">${initials}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+            <div style="font-size:11px;color:var(--text2);">${r.ts.toLocaleDateString('ru-RU')} · ${_nuTimeAgo(r.ts)}</div>
+          </div>
+          <span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid ${auth.color};color:${auth.color};white-space:nowrap;">${auth.label}</span>
+          ${spent > 0 ? `<span style="font-size:10px;color:var(--green);">${_nuFmtDuration(spent)}</span>` : '<span style="font-size:10px;color:var(--text2);">—</span>'}
+        </div>`;
+      }).join('');
 
   } catch(e) {
     console.error('New users analytics:', e);
