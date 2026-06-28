@@ -158,6 +158,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /valuable_ideas/{ideaId} {
+      allow read, write: if isAdmin();
+    }
+
     match /moderator_logs/{logId} {
       allow read: if isAdmin();
       allow create: if isModerator();
