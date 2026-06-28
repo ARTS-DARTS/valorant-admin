@@ -1724,6 +1724,38 @@
         </div>
       </div>
 
+      <!-- Force Update — управление версией + push -->
+      <div style="margin-top:16px;max-width:560px;">
+        <div class="notif-card" style="border-color:var(--orange);">
+          <div class="nc-header">
+            <span class="nc-icon">🆕</span>
+            <div>
+              <div class="nc-title">Обновление приложения</div>
+              <div class="nc-desc">Задать актуальную версию и оповестить всех пушем</div>
+            </div>
+          </div>
+          <div class="fg" style="margin-top:13px;">
+            <label class="flabel">Актуальная версия (latest_version)</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="finput" id="fu-version" placeholder="Например: 9.05" style="background:var(--bg);flex:1;">
+              <button class="btn btn-save" id="fu-save-btn" style="padding:9px 16px;white-space:nowrap;">💾 Сохранить</button>
+            </div>
+            <div style="font-size:11px;color:var(--text2);margin-top:6px;">
+              Текущее в Firestore: <span id="fu-current" style="color:var(--text);font-weight:600;">…</span>.
+              Разница 1 патч = мягкое обновление, 2+ = обязательное.
+            </div>
+          </div>
+          <div class="fg" style="margin-top:12px;">
+            <label class="flabel">Текст пуша (необязательно)</label>
+            <input class="finput" id="fu-push-body" placeholder="Доступна новая версия — обновите приложение" style="background:var(--bg);">
+          </div>
+          <button class="btn nc-btn" id="fu-push-btn" style="width:100%;justify-content:center;margin-top:12px;background:var(--orange);color:#fff;">
+            🔔 Отправить пуш об обновлении
+          </button>
+          <div class="nc-status" id="nc-status-forceupdate"></div>
+        </div>
+      </div>
+
     </div>
   </div><!-- /tab-notif -->
 
@@ -2154,7 +2186,7 @@ function switchTab(t) {
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') loadAgentColorsSection('ac-grid2');
-  if (t === 'notif' && !apLoaded) loadAuthorPanelUsers();
+  if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
@@ -7235,6 +7267,60 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
     toast('Changelog отправлен всем пользователям', 's');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Force Update — версия + push ──────────────────────────────────────────────
+async function loadForceUpdateVersion() {
+  const cur = document.getElementById('fu-current');
+  if (!cur) return;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'app_version'));
+    const v = snap.exists() ? (snap.data().latest_version || '') : '';
+    cur.textContent = v || 'не задано';
+    const input = document.getElementById('fu-version');
+    if (input && !input.value) input.value = v;
+  } catch (e) {
+    cur.textContent = 'ошибка загрузки';
+  }
+}
+
+document.getElementById('fu-save-btn')?.addEventListener('click', async () => {
+  const version = document.getElementById('fu-version').value.trim();
+  if (!version) { toast('Укажи версию', 'e'); return; }
+  if (!/^\d+\.\d+(\.\d+)?$/.test(version)) {
+    toast('Формат версии: 9.05 или 9.0.5', 'e'); return;
+  }
+  const btn = document.getElementById('fu-save-btn');
+  btn.disabled = true;
+  try {
+    await setDoc(doc(db, 'settings', 'app_version'),
+      { latest_version: version, updatedAt: serverTimestamp() }, { merge: true });
+    document.getElementById('fu-current').textContent = version;
+    toast(`Версия ${version} сохранена`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('app_version_updated', { version });
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('fu-push-btn')?.addEventListener('click', async () => {
+  const body = document.getElementById('fu-push-body').value.trim()
+    || 'Доступна новая версия — обновите приложение';
+  const btn = document.getElementById('fu-push-btn');
+  btn.disabled = true;
+  _ncSetStatus('forceupdate', true, 'Отправка…');
+  try {
+    await sendPushNotification({ title: '🆕 Обновление приложения', body, type: 'force_update' });
+    _ncSetStatus('forceupdate', true, '✅ Отправлено — при клике откроется Google Play');
+    toast('Пуш об обновлении отправлен всем', 's');
+  } catch (e) {
+    _ncSetStatus('forceupdate', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false;
