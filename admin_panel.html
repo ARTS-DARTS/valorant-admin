@@ -1099,6 +1099,11 @@
               <textarea class="ftextarea" id="cl-result" placeholder="Здесь появится готовый пост…" style="min-height:160px;"></textarea>
             </div>
 
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="cl-send-push" checked style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+              <span style="font-size:13px;color:var(--text);">🔔 Отправить пуш всем пользователям</span>
+            </label>
+
             <div style="display:flex;gap:8px;">
               <button class="btn btn-save" id="cl-publish-btn" style="flex:1;justify-content:center;padding:10px;" disabled>
                 📢 Опубликовать
@@ -6077,7 +6082,25 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
       published_at: serverTimestamp(),
       author: currentUser?.displayName || currentUser?.email || 'Admin',
     });
-    toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u2705', 's');
+
+    // \u0410\u0432\u0442\u043e-\u043f\u0443\u0448 \u0432\u0441\u0435\u043c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f\u043c (\u0435\u0441\u043b\u0438 \u0447\u0435\u043a\u0431\u043e\u043a\u0441 \u0432\u043a\u043b\u044e\u0447\u0451\u043d)
+    const sendPush = document.getElementById('cl-send-push')?.checked;
+    if (sendPush) {
+      try {
+        const pushBody = text.length > 120 ? text.slice(0, 117) + '\u2026' : text;
+        await sendPushNotification({
+          title: `${tpl.emoji} ${title}`,
+          body:  pushBody,
+          type:  'changelog',
+        });
+        toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 \u043f\u0443\u0448\u0435\u043c \u2705', 's');
+      } catch (pushErr) {
+        toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430, \u043d\u043e \u043f\u0443\u0448 \u043d\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d: ' + pushErr.message, 'e');
+      }
+    } else {
+      toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u2705', 's');
+    }
+
     document.getElementById('cl-raw').value    = '';
     document.getElementById('cl-result').value = '';
     btn.textContent = '\uD83D\uDCE2 \u041e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c';
