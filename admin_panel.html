@@ -814,6 +814,7 @@
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
         <button class="tab"        id="tab-btn-mappool"><i class="bi bi-star"></i><span>Маппул</span></button>
         <button class="tab"        id="tab-btn-messages"><i class="bi bi-chat-dots"></i><span>Сообщения</span><span id="msg-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
+        <button class="tab"        id="tab-btn-modapps"><i class="bi bi-shield-check"></i><span>Заявки</span><span id="ma-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
       </div>
     </nav>
 
@@ -2043,6 +2044,25 @@
   </div>
 </div>
 
+<!-- ── Moderator Applications Tab ───────────────────────────────────────────── -->
+<div id="tab-modapps" style="display:none;padding:20px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+      <h3 style="margin:0;color:var(--text);">🛡 Заявки на модератора</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="an-tab-btn active" data-ma-filter="pending"  onclick="_maSetFilter('pending')">На рассмотрении</button>
+        <button class="an-tab-btn"        data-ma-filter="all"      onclick="_maSetFilter('all')">Все</button>
+      </div>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">
+      Заявки с сайта vlineups.ru. Одобрение выставит пользователю роль <b>moderator</b> и отправит пуш.
+    </p>
+    <div id="ma-list" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="state" style="padding:20px;">Загрузка…</div>
+    </div>
+  </div>
+</div>
+
     </div><!-- /.main -->
   </div><!-- /.app-body -->
 </div><!-- /#screen-app -->
@@ -2296,6 +2316,7 @@ function switchTab(t) {
   document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-mappool').style.display        = t === 'mappool'      ? 'block' : 'none';
   document.getElementById('tab-messages').style.display       = t === 'messages'     ? 'block' : 'none';
+  document.getElementById('tab-modapps').style.display        = t === 'modapps'      ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -2311,6 +2332,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
   document.getElementById('tab-btn-mappool').classList.toggle('active', t === 'mappool');
   document.getElementById('tab-btn-messages').classList.toggle('active', t === 'messages');
+  document.getElementById('tab-btn-modapps').classList.toggle('active', t === 'modapps');
   if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
@@ -2322,6 +2344,7 @@ function switchTab(t) {
   if (t === 'agentcolors') { loadAgentColorsSection('ac-grid2'); loadAbilityStyleEditor(); }
   if (t === 'mappool') loadMapPoolTab();
   if (t === 'messages') loadMessagesTab();
+  if (t === 'modapps') loadModAppsTab();
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
@@ -2353,6 +2376,7 @@ document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => 
 document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
 document.getElementById('tab-btn-mappool').addEventListener('click',      () => switchTab('mappool'));
 document.getElementById('tab-btn-messages').addEventListener('click',     () => switchTab('messages'));
+document.getElementById('tab-btn-modapps').addEventListener('click',      () => switchTab('modapps'));
 
 // ── Map Style ─────────────────────────────────────────────────────────────────
 // Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
@@ -2853,6 +2877,106 @@ window._msgSendReply = async function(id) {
     console.error('msg reply', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = 'Отправить ответ';
+  }
+};
+
+// ── Moderator Applications ────────────────────────────────────────────────────
+// Firestore: moderator_applications/{uid} { username, reason, status, user_email, created_at }
+// Одобрение: users/{uid}.role='moderator' + status='approved' + пуш mod_approved.
+let _maAll    = [];
+let _maFilter = 'pending';
+let _maLoaded = false;
+
+async function loadModAppsTab() {
+  const list = document.getElementById('ma-list');
+  try {
+    const snap = await getDocs(query(collection(db, 'moderator_applications'), orderBy('created_at', 'desc')));
+    _maAll = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    _maLoaded = true;
+    _maRenderList();
+    _maUpdateBadge();
+  } catch (e) {
+    console.error('loadModAppsTab', e);
+    list.innerHTML = `<div class="state" style="color:var(--red);padding:20px;">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+function _maUpdateBadge() {
+  const n = _maAll.filter(a => a.status === 'pending').length;
+  const badge = document.getElementById('ma-nav-badge');
+  if (!badge) return;
+  if (n > 0) { badge.style.display = 'inline-block'; badge.textContent = n; }
+  else badge.style.display = 'none';
+}
+
+function _maSetFilter(f) {
+  _maFilter = f;
+  document.querySelectorAll('[data-ma-filter]').forEach(b =>
+    b.classList.toggle('active', b.dataset.maFilter === f));
+  _maRenderList();
+}
+window._maSetFilter = _maSetFilter;
+
+function _maRenderList() {
+  const list = document.getElementById('ma-list');
+  const items = _maFilter === 'pending' ? _maAll.filter(a => a.status === 'pending') : _maAll;
+  if (!items.length) {
+    list.innerHTML = `<div class="state" style="padding:20px;color:var(--text2);">Нет заявок</div>`;
+    return;
+  }
+  list.innerHTML = items.map(a => {
+    const date = a.created_at?.toDate ? a.created_at.toDate().toLocaleString('ru-RU') : '—';
+    const statusBadge = a.status === 'pending'
+      ? '<span style="font-size:10px;color:var(--primary);font-weight:700;">● НА РАССМОТРЕНИИ</span>'
+      : a.status === 'approved'
+        ? '<span style="font-size:10px;color:var(--green);font-weight:700;">✓ ОДОБРЕНА</span>'
+        : '<span style="font-size:10px;color:var(--red);font-weight:700;">✕ ОТКЛОНЕНА</span>';
+    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:14px;font-weight:700;color:var(--text);">${esc(a.username || a.uid.slice(0,8))}</span>
+        <span style="font-size:11px;color:var(--text2);font-family:monospace;">${esc(a.user_email || '')}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--text2);">${date}</span>
+        ${statusBadge}
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:11px 13px;font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;margin-bottom:${a.status==='pending'?'12px':'0'};">${esc(a.reason || '')}</div>
+      ${a.status === 'pending' ? `<div style="display:flex;gap:8px;">
+        <button onclick="_maDecide('${a.uid}','approve')" style="flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">✓ Одобрить</button>
+        <button onclick="_maDecide('${a.uid}','reject')" style="flex:1;padding:9px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">✕ Отклонить</button>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+window._maDecide = async function(uid, action) {
+  const a = _maAll.find(x => x.uid === uid);
+  if (!a) return;
+  const approve = action === 'approve';
+  if (!confirm(approve
+      ? `Одобрить заявку ${a.username}? Пользователь станет модератором.`
+      : `Отклонить заявку ${a.username}?`)) return;
+  try {
+    if (approve) {
+      await updateDoc(doc(db, 'users', uid), { role: 'moderator' });
+    }
+    await updateDoc(doc(db, 'moderator_applications', uid), {
+      status: approve ? 'approved' : 'rejected',
+      decided_at: serverTimestamp(),
+    });
+    a.status = approve ? 'approved' : 'rejected';
+    // Пуш пользователю
+    _ncTargetUid = uid;
+    try {
+      await sendPushNotification(approve
+        ? { title: 'Поздравляем! 🎉', body: 'Твоя заявка одобрена — ты теперь модератор!', type: 'moderator_approved' }
+        : { title: 'Заявка на модератора отклонена', body: 'К сожалению, заявка не одобрена', type: 'moderator_rejected' });
+    } catch (_) {}
+    _ncTargetUid = null;
+    toast(approve ? `${a.username} назначен модератором` : 'Заявка отклонена', approve ? 's' : 'i');
+    _maRenderList();
+    _maUpdateBadge();
+    if (typeof addAuditLog === 'function') addAuditLog('mod_application_' + action, { uid, username: a.username });
+  } catch (e) {
+    console.error('maDecide', e); toast('Ошибка: ' + e.message, 'e');
   }
 };
 
