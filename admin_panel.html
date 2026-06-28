@@ -326,9 +326,6 @@
     /* ── Author field + dictionary panel ── */
     .author-wrap { position: relative; }
 
-    /* Скрываем старый dropdown — заменён панелью */
-    .author-dropdown { display: none !important; }
-
     .author-panel-overlay {
       position: fixed; inset: 0;
       background: rgba(0,0,0,.4);
@@ -441,31 +438,6 @@
       font-size: 12px; text-align: center;
     }
 
-    /* ── Migration modal ── */
-    .mig-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:540px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
-    .mig-title { font-size:17px; font-weight:800; margin-bottom:6px; }
-    .mig-sub   { font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.5; }
-    .mig-bar-wrap { background:var(--surface2); border-radius:6px; height:8px; overflow:hidden; margin-bottom:8px; }
-    .mig-bar  { height:8px; border-radius:6px; background:var(--primary); width:0%; transition:width .25s; }
-    .mig-bar.done { background:var(--green); }
-    .mig-status { font-size:12px; color:var(--text2); margin-bottom:10px; }
-    .mig-log  { background:var(--surface3); border:1px solid var(--border); border-radius:var(--r); padding:10px 12px; max-height:220px; overflow-y:auto; font-size:11px; font-family:'Consolas','Courier New',monospace; display:flex; flex-direction:column; gap:3px; }
-    .mig-log-line { display:flex; gap:6px; }
-    .mig-log-line.ok   .mig-icon { color:var(--green); }
-    .mig-log-line.err  .mig-icon { color:var(--red); }
-    .mig-log-line.info .mig-icon { color:var(--text2); }
-    .mig-log-line .mig-icon { flex-shrink:0; width:14px; }
-    .mig-log-line .mig-text { color:var(--text2); }
-    .mig-log-line.ok  .mig-text { color:var(--text); }
-    .mig-log-line.err .mig-text { color:#fca5a5; }
-    .mig-btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
-    .mig-btn { padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; border:none; transition:opacity .15s; }
-    .mig-btn:disabled { opacity:.4; cursor:default; }
-    .mig-btn.secondary { background:var(--surface2); color:var(--text2); border:1px solid var(--border); }
-    .mig-btn.primary   { background:var(--primary); color:#fff; }
-    .mig-btn.secondary:hover:not(:disabled) { color:var(--text); }
-    .mig-btn.primary:hover:not(:disabled)   { opacity:.85; }
-
     /* ── Profile modal ── */
     .profile-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); z-index:500; display:flex; align-items:center; justify-content:center; padding:20px; }
     .profile-modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:28px 24px; max-width:400px; width:100%; position:relative; max-height:90vh; overflow-y:auto; }
@@ -561,6 +533,17 @@
     .ld-shotitem img { height: 80px; width: auto; border-radius: 5px; object-fit: cover; border: 1px solid var(--border); display: block; }
     .ld-shotitem .rm { position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:var(--red);border:none;color:#fff;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1; }
     .ld-map-zone { position: relative; border-radius: 6px; overflow: hidden; margin-bottom: 16px; background: #0e1016; min-height: 80px; }
+
+    /* ── Analytics sub-tabs ── */
+    .an-tab-btn { padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .15s; white-space: nowrap; }
+    .an-tab-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .an-tab-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* ── Map Style theme buttons ── */
+    .ms-theme-btn { padding: 5px 13px; border-radius: 20px; border: 2px solid transparent; cursor: pointer; font-size: 12px; font-weight: 700; color: #000; transition: all .15s; opacity: .6; }
+    .ms-theme-btn:hover { opacity: .9; transform: scale(1.05); }
+    .ms-theme-btn.active { opacity: 1; border-color: rgba(255,255,255,.9); box-shadow: 0 0 0 2px rgba(255,255,255,.3); }
+    .ms-theme-btn[data-theme="white"] { color: #333; }
 
     /* ── Logs tab ── */
     .log-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 8px; transition: border-color .15s; }
@@ -875,10 +858,6 @@
               <i class="bi bi-search"></i>
               <input class="list-search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
             </div>
-            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-              <button class="btn btn-save" id="btn-migrate" style="font-size:11px;padding:5px 10px;">⚡ Мигрировать EN→RU</button>
-              <span id="migrate-status" style="font-size:11px;color:var(--text2);"></span>
-            </div>
           </div>
           <div class="list-panel-scroll">
             <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
@@ -973,7 +952,6 @@
             <label class="flabel">Автор (оставь пустым — будет твой аккаунт)</label>
             <div class="author-wrap">
               <input class="finput" id="f-author-input" placeholder="Поиск по username…" autocomplete="off">
-              <div class="author-dropdown" id="author-dropdown" style="display:none;"></div>
             </div>
             <div id="author-selected" style="font-size:12px;color:var(--text2);margin-top:5px;"></div>
           </div>
@@ -1135,8 +1113,17 @@
     <!-- Analytics tab -->
     <div id="tab-analytics" style="display:none;">
 
-      <!-- ── Section 1: Ads ── -->
-      <div class="an-section">
+      <!-- ── Sub-tab navigation ── -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;">
+        <button class="an-tab-btn active" data-an-tab="ads">📺 Реклама</button>
+        <button class="an-tab-btn" data-an-tab="activity">👥 Активность</button>
+        <button class="an-tab-btn" data-an-tab="users">🆕 Пользователи</button>
+        <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
+        <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
+      </div>
+
+      <!-- ── Реклама ── -->
+      <div id="an-section-ads" class="an-section">
         <div class="form-title">📺 РЕКЛАМА — последние 30 дней</div>
         <div class="an-cards" id="ad-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Rewarded показов</div></div>
@@ -1155,9 +1142,9 @@
         </div>
       </div>
 
-      <!-- ── Section 2: Sessions ── -->
-      <div class="an-section">
-        <div class="form-title">👥 ОНЛАЙН / АКТИВНОСТЬ</div>
+      <!-- ── Активность ── -->
+      <div id="an-section-activity" class="an-section" style="display:none;">
+        <div class="form-title">👥 ОНЛАЙН / АКТИВНОСТЬ — последние 30 дней</div>
         <div class="an-cards" id="ses-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">DAU (сегодня)</div></div>
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">WAU (7 дней)</div></div>
@@ -1175,8 +1162,24 @@
         </div>
       </div>
 
-      <!-- ── Section 3: Content views ── -->
-      <div class="an-section">
+      <!-- ── Новые пользователи ── -->
+      <div id="an-section-users" class="an-section" style="display:none;">
+        <div class="form-title">🆕 НОВЫЕ ПОЛЬЗОВАТЕЛИ</div>
+        <div class="an-cards" id="nu-stat-cards">
+          <div class="an-card"><div class="an-val an-loading" id="nu-today">…</div><div class="an-lbl">Сегодня</div></div>
+          <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">За 7 дней</div></div>
+          <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">За 30 дней</div></div>
+          <div class="an-card"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего</div></div>
+        </div>
+        <div class="an-chart-box" style="margin-top:14px;">
+          <div class="dlabel" style="margin-bottom:8px;">Новые регистрации по дням</div>
+          <svg id="nu-chart" width="100%" style="display:block;"></svg>
+        </div>
+        <div id="nu-recent-list" style="margin-top:14px;"></div>
+      </div>
+
+      <!-- ── Контент ── -->
+      <div id="an-section-content" class="an-section" style="display:none;">
         <div class="form-title">📋 КОНТЕНТ — просмотры лайнапов (30 дней)</div>
         <div class="an-cards" id="content-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Просмотров всего</div></div>
@@ -1188,13 +1191,13 @@
           <svg id="views-chart" width="100%" style="display:block;"></svg>
         </div>
         <div style="margin-top:14px;">
-          <div class="dlabel" style="margin-bottom:10px;">Топ-10 лайнапов</div>
+          <div class="dlabel" style="margin-bottom:10px;">Топ-10 лайнапов <span style="font-size:10px;color:var(--text2);font-weight:400;">(нажми чтобы открыть)</span></div>
           <div id="top-lineups-list" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
       </div>
 
-      <!-- ── Section: Storage ── -->
-      <div class="an-section">
+      <!-- ── Хранилища ── -->
+      <div id="an-section-storage" class="an-section" style="display:none;">
         <div class="form-title">☁️ ХРАНИЛИЩА</div>
         <div class="an-cards" id="storage-stat-cards">
           <div class="an-card" id="selectel-storage-card">
@@ -1212,7 +1215,7 @@
           </div>
           <div class="an-card" id="cloudinary-bandwidth-card">
             <div class="an-val an-loading">…</div>
-            <div class="an-lbl">Cloudinary (объём)</div>
+            <div class="an-lbl">Cloudinary (объём ~)</div>
             <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
               <div id="cloudinary-credits-bar" style="height:4px;border-radius:2px;background:#FF4655;width:0%;transition:width 0.5s;"></div>
             </div>
@@ -1373,10 +1376,8 @@
         <div id="agents-abilities-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px;"></div>
         <div class="row" style="flex-wrap:wrap;gap:8px;">
           <button class="btn btn-save" id="agents-save-btn">💾 Сохранить</button>
-          <button class="btn" id="agents-migrate-btn" style="border:1px solid var(--border);color:var(--text2);font-size:12px;">⚡ Мигрировать старые данные</button>
         </div>
         <div id="agents-save-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
-        <div id="agents-migrate-status" style="margin-top:8px;font-size:12px;color:var(--text2);display:none;"></div>
       </div>
     </div>
   </div>
@@ -1721,9 +1722,24 @@
 <div id="tab-mapstyle" style="display:none;padding:20px;">
   <div style="max-width:680px;margin:0 auto;">
     <h3 style="margin:0 0 6px;color:var(--text);">🗺️ Стиль тактической карты</h3>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">
-      Цветокоррекция миникарты — предпросмотр живой. Изменения применяются при следующем открытии карты в приложении.
+    <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">
+      Цветокоррекция миникарты — предпросмотр живой. Для каждой темы приложения — своя палитра.
     </p>
+
+    <!-- Theme selector -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Тема приложения</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="ms-theme-btn active" data-theme="red"    style="background:#FF4655;">Red</button>
+        <button class="ms-theme-btn"        data-theme="blue"   style="background:#00B4FF;">Blue</button>
+        <button class="ms-theme-btn"        data-theme="green"  style="background:#22c55e;">Green</button>
+        <button class="ms-theme-btn"        data-theme="purple" style="background:#a855f7;">Purple</button>
+        <button class="ms-theme-btn"        data-theme="cyan"   style="background:#00E5FF;">Cyan</button>
+        <button class="ms-theme-btn"        data-theme="orange" style="background:#f97316;">Orange</button>
+        <button class="ms-theme-btn"        data-theme="gold"   style="background:#ffd700;">Gold</button>
+        <button class="ms-theme-btn"        data-theme="white"  style="background:#dcdcdc;">White</button>
+      </div>
+    </div>
 
     <!-- Canvas preview -->
     <div style="margin-bottom:22px;">
@@ -1801,7 +1817,7 @@
       <div style="font-size:11px;color:var(--text2);margin-top:4px;">Отрицательное — тёмнее фон карты. Рекомендуется: −0.2 до 0.0.</div>
     </div>
 
-    <button id="ms-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить настройки</button>
+    <button id="ms-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Сохранить для темы: Red</button>
   </div>
 </div>
 
@@ -1899,34 +1915,6 @@
   <div class="profile-modal" id="profile-modal-body">
     <button class="pm-close" id="pm-close-btn">✕</button>
     <div class="state">Загрузка…</div>
-  </div>
-</div>
-
-<!-- Migration modal -->
-<div id="migration-modal" class="profile-overlay" style="display:none;">
-  <div class="mig-modal">
-    <button class="pm-close" id="mig-close-x">✕</button>
-
-    <!-- Step 1: confirm -->
-    <div id="mig-step-confirm">
-      <div class="mig-title">🔍 Проверка старых видео</div>
-      <div class="mig-sub">Поиск лайнапов с видео на Bunny CDN или Cloudinary.<br>Если найдены — нужно запустить <code>node migrate_to_selectel.js</code> чтобы перенести их на Selectel.</div>
-      <div class="mig-btn-row">
-        <button class="mig-btn secondary" id="mig-cancel-btn">Отмена</button>
-        <button class="mig-btn primary"   id="mig-start-btn">Проверить</button>
-      </div>
-    </div>
-
-    <!-- Step 2: progress + log -->
-    <div id="mig-step-progress" style="display:none;">
-      <div class="mig-title" id="mig-heading">⏳ Миграция…</div>
-      <div class="mig-bar-wrap"><div class="mig-bar" id="mig-bar"></div></div>
-      <div class="mig-status" id="mig-status-text">Подготовка…</div>
-      <div class="mig-log"   id="mig-log"></div>
-      <div class="mig-btn-row">
-        <button class="mig-btn primary" id="mig-done-btn" disabled>Закрыть</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -2148,9 +2136,30 @@ document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => 
 // Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
 // Flutter reads these on InteractiveMapScreen open and applies ColorFilter.matrix.
 
-let _msTint      = [255, 70, 85];  // current [R, G, B]
-let _msOrigData  = null;           // ImageData of unfiltered map (for re-applying matrix)
-let _msRafPend   = false;
+let _msTint         = [255, 70, 85];
+let _msOrigData     = null;
+let _msRafPend      = false;
+let _msCurrentTheme = 'red';
+let _msThemesCache  = {};
+
+const MS_THEME_DEFAULTS = {
+  red:    { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 70,  tint_b: 85  },
+  blue:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 0,   tint_g: 180, tint_b: 255 },
+  green:  { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 34,  tint_g: 197, tint_b: 94  },
+  purple: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 168, tint_g: 85,  tint_b: 247 },
+  cyan:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 0,   tint_g: 229, tint_b: 255 },
+  orange: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 249, tint_g: 115, tint_b: 22  },
+  gold:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 215, tint_b: 0   },
+  white:  { contrast: 1.6, brightness: -0.05, intensity: 0.4, tint_r: 220, tint_g: 220, tint_b: 220 },
+};
+
+function _msApplyThemeData(d) {
+  if (d.contrast   != null) document.getElementById('ms-contrast').value   = d.contrast;
+  if (d.brightness != null) document.getElementById('ms-brightness').value = d.brightness;
+  if (d.intensity  != null) document.getElementById('ms-intensity').value  = d.intensity;
+  _msSetTint(d.tint_r ?? 255, d.tint_g ?? 70, d.tint_b ?? 85);
+  _msValLabels();
+}
 
 function _msValLabels() {
   const c = parseFloat(document.getElementById('ms-contrast').value);
@@ -2229,19 +2238,20 @@ function _msSetTint(r, g, b) {
 
 async function loadMapStyleTab() {
   try {
-    const snap = await getDoc(doc(db, 'settings', 'map_style'));
-    if (snap.exists()) {
-      const d = snap.data();
-      if (d.contrast   != null) document.getElementById('ms-contrast').value   = d.contrast;
-      if (d.brightness != null) document.getElementById('ms-brightness').value = d.brightness;
-      if (d.intensity  != null) document.getElementById('ms-intensity').value  = d.intensity;
-      _msSetTint(d.tint_r ?? 255, d.tint_g ?? 70, d.tint_b ?? 85);
-    } else {
-      _msSetTint(255, 70, 85);
-    }
-  } catch(e) { console.error('loadMapStyleTab', e); _msSetTint(255, 70, 85); }
-  _msValLabels();
+    const snap = await getDoc(doc(db, 'settings', 'map_style_themes'));
+    if (snap.exists()) _msThemesCache = snap.data();
+  } catch(e) { console.error('loadMapStyleTab', e); }
+  _msSwitchTheme(_msCurrentTheme);
   _msLoadMap(document.getElementById('ms-map-pick').value);
+}
+
+function _msSwitchTheme(theme) {
+  _msCurrentTheme = theme;
+  document.querySelectorAll('.ms-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === theme));
+  const d = _msThemesCache[theme] || MS_THEME_DEFAULTS[theme] || MS_THEME_DEFAULTS.red;
+  _msApplyThemeData(d);
+  const label = theme.charAt(0).toUpperCase() + theme.slice(1);
+  document.getElementById('ms-save-btn').textContent = `Сохранить для темы: ${label}`;
 }
 
 document.getElementById('ms-contrast').addEventListener('input',   () => { _msValLabels(); _msScheduleRedraw(); });
@@ -2251,6 +2261,9 @@ document.getElementById('ms-intensity').addEventListener('input',  () => { _msVa
 document.querySelectorAll('.ms-sw').forEach(btn =>
   btn.addEventListener('click', () => _msSetTint(+btn.dataset.r, +btn.dataset.g, +btn.dataset.b))
 );
+document.querySelectorAll('.ms-theme-btn').forEach(btn =>
+  btn.addEventListener('click', () => _msSwitchTheme(btn.dataset.theme))
+);
 document.getElementById('ms-color-custom').addEventListener('input', e => {
   const v = e.target.value;
   _msSetTint(parseInt(v.slice(1,3),16), parseInt(v.slice(3,5),16), parseInt(v.slice(5,7),16));
@@ -2259,23 +2272,26 @@ document.getElementById('ms-map-pick').addEventListener('change', e => _msLoadMa
 
 document.getElementById('ms-save-btn').addEventListener('click', async function() {
   const btn = this;
+  const origText = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Сохраняю…';
   try {
     const contrast   = parseFloat(document.getElementById('ms-contrast').value);
     const brightness = parseFloat(document.getElementById('ms-brightness').value);
     const intensity  = parseFloat(document.getElementById('ms-intensity').value);
     const [tint_r, tint_g, tint_b] = _msTint;
-    await setDoc(doc(db, 'settings', 'map_style'), {
-      contrast, brightness, intensity, tint_r, tint_g, tint_b,
+    const themeData = { contrast, brightness, intensity, tint_r, tint_g, tint_b };
+    _msThemesCache[_msCurrentTheme] = themeData;
+    await setDoc(doc(db, 'settings', 'map_style_themes'), {
+      [_msCurrentTheme]: themeData,
       updatedAt: serverTimestamp()
-    });
-    toast('✅ Стиль карты сохранён — вступит в силу при следующем открытии карты', 's');
+    }, { merge: true });
+    toast(`Стиль для темы ${_msCurrentTheme} сохранён`, 's');
     if (typeof addAuditLog === 'function')
-      addAuditLog('map_style_updated', { contrast, brightness, intensity, tint_r, tint_g, tint_b });
+      addAuditLog('map_style_updated', { theme: _msCurrentTheme, ...themeData });
   } catch(e) {
     console.error('ms-save', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
-    btn.disabled = false; btn.textContent = 'Сохранить настройки';
+    btn.disabled = false; btn.textContent = origText;
   }
 });
 
@@ -2569,62 +2585,6 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     toast('Ошибка сохранения: ' + e.message, 'e');
   }
 });
-
-document.getElementById('agents-migrate-btn').addEventListener('click', async () => {
-  const migrKey = 'categories_migrated';
-  if (localStorage.getItem(migrKey)) { toast('Миграция уже выполнена', 'i'); return; }
-  const st  = document.getElementById('agents-migrate-status');
-  const btn = document.getElementById('agents-migrate-btn');
-  st.style.display = 'block'; st.textContent = 'Чтение agents_config…';
-  btn.disabled = true;
-  try {
-    const snap = await getDocs(collection(db, 'agents_config'));
-    const total = snap.size;
-    if (total === 0) { st.textContent = 'Нет документов в agents_config — нечего мигрировать.'; btn.disabled = false; return; }
-    let ok = 0, fail = 0, firstErr = null;
-    for (const agentDoc of snap.docs) {
-      const agentId = agentDoc.id;
-      const oldAbilities = (agentDoc.data().abilities) || {};
-      const disabledAbilities = Object.fromEntries(Object.keys(oldAbilities).map(k => [k, false]));
-      st.textContent = `Миграция ${ok + fail + 1} / ${total}: ${agentId}…`;
-      try {
-        await setDoc(doc(db, 'agents_config', agentId, 'categories', 'lineup'), { abilities: oldAbilities });
-        for (const cat of ['combo', 'smoke', 'defense']) {
-          await setDoc(doc(db, 'agents_config', agentId, 'categories', cat), { abilities: disabledAbilities });
-        }
-        ok++;
-      } catch (e) {
-        console.error('migrate error:', agentId, e.code, e.message, e);
-        if (!firstErr) firstErr = `[${agentId}] ${e.code || ''}: ${e.message || String(e)}`;
-        fail++;
-      }
-    }
-    if (ok > 0) localStorage.setItem(migrKey, '1');
-    if (fail > 0 && ok === 0) {
-      st.style.color = '#ef4444';
-      st.textContent = `❌ Все провалились (${fail}/${total}). Ошибка: ${firstErr}`;
-      btn.disabled = false;
-    } else if (fail > 0) {
-      st.style.color = '#f97316';
-      st.textContent = `⚠ Частично: ${ok} ok, ${fail} ошибок. Первая: ${firstErr}`;
-      setTimeout(() => { btn.style.display = 'none'; st.style.display = 'none'; }, 5000);
-    } else {
-      st.textContent = `✅ Готово: ${ok} агентов`;
-      toast('Миграция завершена', 's');
-      setTimeout(() => { btn.style.display = 'none'; st.style.display = 'none'; }, 2000);
-    }
-  } catch (e) {
-    st.textContent = '❌ Ошибка: ' + e.message;
-    toast('Ошибка миграции: ' + e.message, 'e');
-    btn.disabled = false;
-  }
-});
-if (localStorage.getItem('categories_migrated') === '1') {
-  const mb = document.getElementById('agents-migrate-btn');
-  if (mb) mb.style.display = 'none';
-  const ms = document.getElementById('agents-migrate-status');
-  if (ms) ms.style.display = 'none';
-}
 
 // ── Duels ─────────────────────────────────────────────────────────────────────
 let _duel1 = null; // { id, title, mapName }
@@ -3359,8 +3319,6 @@ function selectLineup(id) {
   `;
   loadAuditLog(id);
 }
-
-function bindCardEvents() { /* заменено event delegation на #lineup-list */ }
 
 // ── Текущий патч ──────────────────────────────────────────────────────────────
 let currentPatchVersion = '';
@@ -4102,16 +4060,18 @@ const AGENTS = {
 };
 const MAP_IMAGES = {
   'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
-  'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4bbe-4143-b2b1-1c5d92c14786/displayicon.png',
+  'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/displayicon.png',
   'Bind':     'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png',
   'Split':    'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png',
   'Fracture': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png',
   'Breeze':   'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/displayicon.png',
   'Icebox':   'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/displayicon.png',
-  'Pearl':    'https://media.valorant-api.com/maps/33bb57b4-4e5b-8d85-0505-b8c5b8b36136/displayicon.png',
-  'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-01bc-1236-069b34a8b785/displayicon.png',
-  'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39eb02e28435/displayicon.png',
-  'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-d703-cc5f-3e8e0f488ea8/displayicon.png',
+  'Pearl':    'https://media.valorant-api.com/maps/fd267378-4d1d-484f-ff52-77821ed10dc2/displayicon.png',
+  'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/displayicon.png',
+  'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png',
+  'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/displayicon.png',
+  'Corrode':  'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/displayicon.png',
+  'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png',
 };
 const AGENT_ICONS = {};
 const AGENT_ABILITY_ICONS = {};
@@ -5857,56 +5817,6 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
   }
 });
 
-// ── Migration EN→RU ───────────────────────────────────────────────────────────
-document.getElementById('btn-migrate').addEventListener('click', migrateAbilities);
-async function migrateAbilities() {
-  const btn    = document.getElementById('btn-migrate');
-  const status = document.getElementById('migrate-status');
-  if (!confirm('Обновить поле ability с английских названий на русские для всех лайнапов?')) return;
-  btn.disabled = true; status.textContent = 'Загрузка данных API…';
-  try {
-    const [enRes, ruRes] = await Promise.all([
-      fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=en-US'),
-      fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU'),
-    ]);
-    const [enJson, ruJson] = await Promise.all([enRes.json(), ruRes.json()]);
-    const iconToRu = {};
-    for (const ag of ruJson.data ?? [])
-      for (const ab of ag.abilities ?? [])
-        if (ab.displayIcon && ab.displayName) iconToRu[ab.displayIcon] = ab.displayName;
-    const enAbilityIcon = {};
-    for (const ag of enJson.data ?? []) {
-      if (!ag.displayName) continue;
-      enAbilityIcon[ag.displayName] = {};
-      for (const ab of ag.abilities ?? [])
-        if (ab.displayName && ab.displayIcon) enAbilityIcon[ag.displayName][ab.displayName] = ab.displayIcon;
-    }
-    status.textContent = 'Загрузка лайнапов…';
-    const snap = await getDocs(collection(db, 'lineups'));
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    let updated = 0, skipped = 0, errors = 0;
-    for (let i = 0; i < docs.length; i++) {
-      status.textContent = `Обработка ${i + 1} / ${docs.length}…`;
-      const l = docs[i];
-      const agentMap = enAbilityIcon[l.agent]; if (!agentMap) { skipped++; continue; }
-      const icon = agentMap[l.ability]; if (!icon) { skipped++; continue; }
-      const ruName = iconToRu[icon]; if (!ruName || ruName === l.ability) { skipped++; continue; }
-      try {
-        await updateDoc(doc(db, 'lineups', l.id), { ability: ruName });
-        const idx = lineups.findIndex(x => x.id === l.id);
-        if (idx !== -1) lineups[idx].ability = ruName;
-        updated++;
-      } catch (e) { errors++; console.error('migrate error', l.id, e); }
-    }
-    const msg = `Готово: обновлено ${updated}, пропущено ${skipped}${errors ? `, ошибок ${errors}` : ''}`;
-    status.textContent = msg; toast(msg, 's');
-    if (updated > 0) renderList();
-  } catch (e) {
-    status.textContent = 'Ошибка: ' + e.message;
-    toast('Ошибка миграции: ' + e.message, 'e');
-  } finally { btn.disabled = false; }
-}
-
 // ── Changelog ─────────────────────────────────────────────────────────────────
 let clType = 'update';
 
@@ -6066,6 +5976,70 @@ async function clDeletePost(id) {
 }
 
 // \u2500\u2500 Analytics \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ── Analytics sub-tabs ───────────────────────────────────────────────────────
+document.querySelectorAll('.an-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.anTab;
+    document.querySelectorAll('.an-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['ads','activity','users','content','storage'].forEach(id => {
+      const el = document.getElementById('an-section-' + id);
+      if (el) el.style.display = (id === tab) ? 'block' : 'none';
+    });
+    if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
+  });
+});
+
+let _nuLoaded = false;
+
+async function loadNewUsersAnalytics() {
+  _nuLoaded = true;
+  const now   = Date.now();
+  const today = new Date().toISOString().slice(0, 10);
+  const d7    = new Date(now -  7 * 864e5);
+  const d30   = new Date(now - 30 * 864e5);
+  const days  = [];
+  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
+
+  try {
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('created_at', 'desc')));
+    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuTotal = snap.size;
+    const nuByDay = {};
+    days.forEach(d => { nuByDay[d] = 0; });
+    const recent = [];
+
+    for (const doc of snap.docs) {
+      const dat = doc.data();
+      const ts  = dat.created_at?.toDate ? dat.created_at.toDate() : null;
+      if (!ts) { nuTotal--; continue; }
+      const day = ts.toISOString().slice(0, 10);
+      if (day === today) nuToday++;
+      if (ts >= d7)  nuWeek++;
+      if (ts >= d30) { nuMonth++; if (nuByDay[day] !== undefined) nuByDay[day]++; }
+      if (recent.length < 10) recent.push({ name: dat.displayName || dat.email || doc.id.slice(0, 8), ts });
+    }
+
+    document.getElementById('nu-today').textContent = nuToday;
+    document.getElementById('nu-week').textContent  = nuWeek;
+    document.getElementById('nu-month').textContent = nuMonth;
+    document.getElementById('nu-total').textContent = nuTotal;
+    document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
+
+    drawLineChart('nu-chart', [{ data: days.map(d => nuByDay[d]), color: 'var(--green)' }], days);
+
+    document.getElementById('nu-recent-list').innerHTML =
+      '<div class="dlabel" style="margin-bottom:10px;">Последние регистрации</div>' +
+      recent.map(r => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;">
+        <span style="font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</span>
+        <span style="font-size:11px;color:var(--text2);">${r.ts.toLocaleDateString('ru-RU')}</span>
+      </div>`).join('');
+
+  } catch(e) {
+    console.error('New users analytics:', e);
+    _nuLoaded = false;
+  }
+}
+
 let analyticsLoaded = false;
 
 async function loadAnalytics() {
@@ -6216,7 +6190,7 @@ async function loadAnalytics() {
       ? '<span style="color:var(--text2);font-size:13px;">Нет данных за 30 дней</span>'
       : topLineups.map(([lid, cnt], idx) => {
           const title = lineupTitles[lid] || lid.slice(0, 12) + '…';
-          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);">
+          return `<div onclick="openLineupDetail('${lid}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
             <span style="width:20px;text-align:center;font-weight:700;color:var(--text2);font-size:12px;">${idx+1}</span>
             <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</span>
             <span style="font-weight:700;color:var(--orange);font-size:14px;">${cnt}</span>
@@ -6441,6 +6415,7 @@ async function openLineupDetail(id) {
   if (!l) { toast('Лайнап не найден', 'error'); return; }
   _renderLineupDetail(l);
 }
+window.openLineupDetail = openLineupDetail;
 
 function _mpGetScreenshots(l) {
   return Array.isArray(l.screenshots) ? l.screenshots : [];
@@ -7272,88 +7247,6 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
   }
 });
 
-// ── Проверка старых видео (Bunny / Cloudinary) ────────────────────────────────
-function migrateCloudinaToBunny() {
-  document.getElementById('mig-step-confirm').style.display  = '';
-  document.getElementById('mig-step-progress').style.display = 'none';
-  document.getElementById('mig-heading').textContent          = '⏳ Проверка…';
-  document.getElementById('mig-bar').style.width              = '0%';
-  document.getElementById('mig-bar').className                = 'mig-bar';
-  document.getElementById('mig-status-text').textContent      = 'Подготовка…';
-  document.getElementById('mig-log').innerHTML                = '';
-  document.getElementById('mig-done-btn').disabled            = true;
-  document.getElementById('migration-modal').style.display    = 'flex';
-}
-
-function _migLog(type, icon, text) {
-  const log  = document.getElementById('mig-log');
-  const line = document.createElement('div');
-  line.className = 'mig-log-line ' + type;
-  line.innerHTML = `<span class="mig-icon">${icon}</span><span class="mig-text">${text}</span>`;
-  log.appendChild(line);
-  log.scrollTop = log.scrollHeight;
-}
-
-async function runMigration() {
-  document.getElementById('mig-step-confirm').style.display  = 'none';
-  document.getElementById('mig-step-progress').style.display = '';
-
-  const bar        = document.getElementById('mig-bar');
-  const statusText = document.getElementById('mig-status-text');
-  const heading    = document.getElementById('mig-heading');
-  const doneBtn    = document.getElementById('mig-done-btn');
-
-  _migLog('info', '⏳', 'Сканируем лайнапы…');
-
-  let snap;
-  try {
-    snap = await getDocs(collection(db, 'lineups'));
-  } catch(e) {
-    _migLog('err', '✕', 'Ошибка Firestore: ' + e.message);
-    heading.textContent = '❌ Ошибка';
-    doneBtn.disabled = false;
-    return;
-  }
-
-  const oldBunny      = snap.docs.filter(d => (d.data().video_url || '').includes('cdn.vlineups.tech') || (d.data().video_url || '').includes('bunnycdn.com'));
-  const oldCloudinary = snap.docs.filter(d => (d.data().video_url || '').includes('cloudinary.com'));
-  const onSelectel    = snap.docs.filter(d => (d.data().video_url || '').includes('selstorage.ru'));
-  const noVideo       = snap.docs.filter(d => !d.data().video_url);
-
-  bar.style.width = '100%';
-  bar.classList.toggle('done', oldBunny.length === 0 && oldCloudinary.length === 0);
-  statusText.textContent = `Готово`;
-
-  _migLog('info', '📊', `Всего лайнапов: ${snap.docs.length}`);
-  _migLog('ok',   '✅', `Selectel CDN: ${onSelectel.length}`);
-  _migLog(oldBunny.length > 0 ? 'err' : 'ok',      oldBunny.length > 0 ? '⚠️' : '✅', `Bunny CDN (старые): ${oldBunny.length}`);
-  _migLog(oldCloudinary.length > 0 ? 'err' : 'ok', oldCloudinary.length > 0 ? '⚠️' : '✅', `Cloudinary (старые): ${oldCloudinary.length}`);
-  _migLog('info', 'ℹ', `Без видео: ${noVideo.length}`);
-
-  if (oldBunny.length > 0 || oldCloudinary.length > 0) {
-    _migLog('err', '⚠️', `Есть старые ссылки! Запусти node migrate_to_selectel.js`);
-    heading.textContent = '⚠️ Найдены старые ссылки';
-    oldBunny.forEach(d => _migLog('err', '🐰', d.data().title || d.id));
-    oldCloudinary.forEach(d => _migLog('err', '☁️', d.data().title || d.id));
-  } else {
-    _migLog('ok', '🎉', 'Все видео уже на Selectel CDN!');
-    heading.textContent = '✅ Всё на Selectel';
-  }
-
-  doneBtn.disabled = false;
-}
-
-// Migration modal wiring (one-time, inside module scope)
-{
-  const modal      = document.getElementById('migration-modal');
-  const closeModal = () => { modal.style.display = 'none'; };
-  document.getElementById('mig-start-btn').addEventListener('click', runMigration);
-  document.getElementById('mig-cancel-btn').addEventListener('click', closeModal);
-  document.getElementById('mig-close-x').addEventListener('click', closeModal);
-  document.getElementById('mig-done-btn').addEventListener('click', closeModal);
-  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-}
-
 // ── Пользователи ──────────────────────────────────────────────────────────────
 
 let _allUsers = [];
@@ -7508,13 +7401,15 @@ async function openUserProfilePanel(uid) {
           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Бейджи</div>
           <div id="badges-list-${uid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:28px;"></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${['pioneer','youtuber','twitch','tiktok','sponsor'].map(type => `
-              <button onclick="grantBadge('${uid}','${type}')"
-                      style="font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;"
-                      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'">
-                + ${type}
-              </button>
-            `).join('')}
+            ${['pioneer','youtuber','twitch','tiktok','sponsor'].map(type => {
+              const col = BADGE_COLOR[type] || '#888';
+              const emo = BADGE_EMOJI[type] || '⭐';
+              return `<button onclick="grantBadge('${uid}','${type}')"
+                        style="font-size:11px;padding:4px 12px;border-radius:20px;border:2px solid ${col};background:${col}22;color:${col};cursor:pointer;font-weight:700;transition:.15s;"
+                        onmouseover="this.style.background='${col}44'" onmouseout="this.style.background='${col}22'">
+                        ${emo} ${type}
+                      </button>`;
+            }).join('')}
           </div>
         </div>
 
