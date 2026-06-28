@@ -1184,7 +1184,10 @@
 
       <!-- ── Активность ── -->
       <div id="an-section-activity" class="an-section" style="display:none;">
-        <div class="form-title">👥 ОНЛАЙН / АКТИВНОСТЬ — последние 30 дней</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <div class="form-title" style="margin:0;">👥 ОНЛАЙН / АКТИВНОСТЬ — последние 30 дней</div>
+          <div class="an-live"><span class="an-live-dot"></span>в реальном времени</div>
+        </div>
         <div class="an-cards" id="ses-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">DAU (сегодня)</div></div>
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">WAU (7 дней)</div></div>
@@ -1194,11 +1197,17 @@
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Среднее DAU</div></div>
         </div>
         <div class="an-chart-box">
-          <div class="dlabel" style="margin-bottom:8px;">DAU по дням</div>
-          <div class="an-legend">
-            <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>DAU</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div class="dlabel" style="margin:0;">Уникальные пользователи по дням (DAU)</div>
+            <div class="an-legend" style="margin:0;">
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>DAU</div>
+            </div>
           </div>
-          <svg id="dau-chart" width="100%" style="display:block;"></svg>
+          <div class="an-chart-wrap" id="dau-chart-wrap">
+            <svg id="dau-chart" width="100%" style="display:block;"></svg>
+            <div class="an-tip" id="dau-tip" style="display:none;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center;">наведи на график, чтобы увидеть цифры за день</div>
         </div>
       </div>
 
@@ -7055,47 +7064,7 @@ async function loadAnalytics() {
     subscribeAds();  // real-time: \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430 \u043d\u0430 ad_events, \u0441\u0430\u043c\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438 + \u0433\u0440\u0430\u0444\u0438\u043a
 
     // \u2500\u2500 User sessions \u2500\u2500
-    const sesSnap = await getDocs(query(
-      collection(db, 'user_sessions'),
-      where('ts', '>=', d30),
-      orderBy('ts')
-    ));
-
-    const dauByDay = {};
-    days.forEach(d => { dauByDay[d] = new Set(); });
-    const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
-
-    for (const d of sesSnap.docs) {
-      const dat = d.data();
-      const uid = dat.uid;
-      const day = dat.date || dat.ts.toDate().toISOString().slice(0, 10);
-      if (dauByDay[day]) dauByDay[day].add(uid);
-      mauUids.add(uid);
-      if (dat.ts.toDate() >= d7)  wauUids.add(uid);
-      if (day === today)           dauUids.add(uid);
-    }
-
-    const dauArr = days.map(d => dauByDay[d].size);
-    const peakDau = Math.max(0, ...dauArr);
-    const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
-
-    const totalSnap = await getCountFromServer(collection(db, 'user_sessions'));
-    const total = totalSnap.data().count;
-
-    document.getElementById('ses-stat-cards').innerHTML = [
-      [dauUids.size, 'DAU (\u0441\u0435\u0433\u043e\u0434\u043d\u044f)'],
-      [wauUids.size, 'WAU (7 \u0434\u043d\u0435\u0439)'],
-      [mauUids.size, 'MAU (30 \u0434\u043d\u0435\u0439)'],
-      [total,        '\u0412\u0441\u0435\u0433\u043e \u0441\u0435\u0441\u0441\u0438\u0439'],
-      [peakDau,      '\u041f\u0438\u043a DAU (30 \u0434\u043d)'],
-      [avgDau,       '\u0421\u0440\u0435\u0434\u043d\u0435\u0435 DAU'],
-    ].map(([v, l]) =>
-      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
-    ).join('');
-
-    drawLineChart('dau-chart', [
-      { data: dauArr, color: 'var(--primary)' },
-    ], days);
+    subscribeActivity();  // real-time: подписка на user_sessions, сама обновляет карточки + график
 
     // ── Content views ──
     const viewsSnap = await getDocs(query(
@@ -7205,6 +7174,62 @@ function subscribeAds() {
       { name: 'Досмотрено', data: days.map(d => adByDay[d].done),  color: '#22C55E' },
     ], days);
   }, err => console.error('subscribeAds', err));
+}
+
+let _activityUnsub = null;
+let _activityTotalAll = null; // all-time счётчик сессий (one-time)
+
+function subscribeActivity() {
+  if (_activityUnsub) return;
+  const now   = Date.now();
+  const d30   = new Date(now - 30 * 864e5);
+  const d7    = new Date(now -  7 * 864e5);
+  const today = new Date().toISOString().slice(0, 10);
+  const days  = [];
+  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
+
+  // Всего сессий (all-time) — один раз, не в реальном времени (дорого считать постоянно)
+  getCountFromServer(collection(db, 'user_sessions'))
+    .then(s => { _activityTotalAll = s.data().count; })
+    .catch(() => {});
+
+  const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts'));
+  _activityUnsub = onSnapshot(q, snap => {
+    const dauByDay = {};
+    days.forEach(d => { dauByDay[d] = new Set(); });
+    const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
+
+    snap.forEach(doc => {
+      const dat = doc.data();
+      if (!dat.ts?.toDate) return;
+      const uid = dat.uid;
+      const day = dat.date || dat.ts.toDate().toISOString().slice(0, 10);
+      if (dauByDay[day]) dauByDay[day].add(uid);
+      mauUids.add(uid);
+      if (dat.ts.toDate() >= d7) wauUids.add(uid);
+      if (day === today)         dauUids.add(uid);
+    });
+
+    const dauArr  = days.map(d => dauByDay[d].size);
+    const peakDau = Math.max(0, ...dauArr);
+    const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
+    const total   = _activityTotalAll != null ? _activityTotalAll : snap.size;
+
+    document.getElementById('ses-stat-cards').innerHTML = [
+      [dauUids.size, 'DAU (сегодня)'],
+      [wauUids.size, 'WAU (7 дней)'],
+      [mauUids.size, 'MAU (30 дней)'],
+      [total,        'Всего сессий'],
+      [peakDau,      'Пик DAU (30 дн)'],
+      [avgDau,       'Среднее DAU'],
+    ].map(([v, l]) =>
+      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+    ).join('');
+
+    drawInteractiveChart('dau-chart', 'dau-tip', [
+      { name: 'DAU', data: dauArr, color: '#4FC3F7' },
+    ], days);
+  }, err => console.error('subscribeActivity', err));
 }
 
 // Интерактивный график с наведением (тултип за день) + точки.
