@@ -810,6 +810,7 @@
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
         <button class="tab"        id="tab-btn-mappool"><i class="bi bi-star"></i><span>Маппул</span></button>
+        <button class="tab"        id="tab-btn-messages"><i class="bi bi-chat-dots"></i><span>Сообщения</span><span id="msg-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
       </div>
     </nav>
 
@@ -1933,6 +1934,35 @@
   </div>
 </div>
 
+<!-- ── Messages Tab ─────────────────────────────────────────────────────────── -->
+<div id="tab-messages" style="display:none;padding:20px;">
+  <div style="max-width:980px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+      <h3 style="margin:0;color:var(--text);">💬 Сообщения пользователей</h3>
+      <div style="display:flex;gap:6px;">
+        <button class="an-tab-btn active" data-msg-filter="all"      onclick="_msgSetFilter('all')">Все</button>
+        <button class="an-tab-btn"        data-msg-filter="new"      onclick="_msgSetFilter('new')">Новые</button>
+        <button class="an-tab-btn"        data-msg-filter="answered" onclick="_msgSetFilter('answered')">Отвеченные</button>
+      </div>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">
+      Обращения из приложения (обратная связь). Ответ придёт пользователю в раздел "Мои сообщения" и пушем.
+    </p>
+    <div id="msg-list" style="display:flex;flex-direction:column;gap:10px;">
+      <div class="state" style="padding:20px;">Загрузка…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Reply modal -->
+<div id="msg-reply-modal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.7);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(560px,92vw);max-height:88vh;overflow-y:auto;padding:22px;position:relative;">
+    <button onclick="document.getElementById('msg-reply-modal').style.display='none'"
+            style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+    <div id="msg-reply-content"></div>
+  </div>
+</div>
+
     </div><!-- /.main -->
   </div><!-- /.app-body -->
 </div><!-- /#screen-app -->
@@ -2185,6 +2215,7 @@ function switchTab(t) {
   document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
   document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-mappool').style.display        = t === 'mappool'      ? 'block' : 'none';
+  document.getElementById('tab-messages').style.display       = t === 'messages'     ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -2199,6 +2230,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-mapstyle').classList.toggle('active',     t === 'mapstyle');
   document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
   document.getElementById('tab-btn-mappool').classList.toggle('active', t === 'mappool');
+  document.getElementById('tab-btn-messages').classList.toggle('active', t === 'messages');
   if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
@@ -2209,6 +2241,7 @@ function switchTab(t) {
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') loadAgentColorsSection('ac-grid2');
   if (t === 'mappool') loadMapPoolTab();
+  if (t === 'messages') loadMessagesTab();
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
@@ -2239,6 +2272,7 @@ document.getElementById('tab-btn-ranges').addEventListener('click',    () => swi
 document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => switchTab('mapstyle'));
 document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
 document.getElementById('tab-btn-mappool').addEventListener('click',      () => switchTab('mappool'));
+document.getElementById('tab-btn-messages').addEventListener('click',     () => switchTab('messages'));
 
 // ── Map Style ─────────────────────────────────────────────────────────────────
 // Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
@@ -2595,6 +2629,152 @@ document.getElementById('mp-save-btn')?.addEventListener('click', async function
     btn.disabled = false; btn.textContent = orig;
   }
 });
+
+// ── Messages (feedback) ───────────────────────────────────────────────────────
+// Firestore: feedback { text, category, username, user_id, is_read, reply, reply_read, created_at }
+// Ответ записывается в reply + reply_read:false. Flutter показывает в "Мои сообщения" + бейдж.
+let _msgAll    = [];
+let _msgFilter = 'all';
+let _msgLoaded = false;
+
+function _msgCatColor(cat) {
+  if (cat === 'баг')         return '#f44';
+  if (cat === 'предложение') return '#4FC3F7';
+  return 'var(--text2)';
+}
+
+async function loadMessagesTab() {
+  const list = document.getElementById('msg-list');
+  try {
+    const snap = await getDocs(query(collection(db, 'feedback'), orderBy('created_at', 'desc')));
+    _msgAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _msgLoaded = true;
+    _msgRenderList();
+    _msgUpdateBadge();
+  } catch (e) {
+    console.error('loadMessagesTab', e);
+    list.innerHTML = `<div class="state" style="color:var(--red);padding:20px;">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+function _msgUpdateBadge() {
+  const newCount = _msgAll.filter(m => !m.reply).length;
+  const badge = document.getElementById('msg-nav-badge');
+  if (!badge) return;
+  if (newCount > 0) { badge.style.display = 'inline-block'; badge.textContent = newCount; }
+  else badge.style.display = 'none';
+}
+
+function _msgSetFilter(f) {
+  _msgFilter = f;
+  document.querySelectorAll('[data-msg-filter]').forEach(b =>
+    b.classList.toggle('active', b.dataset.msgFilter === f));
+  _msgRenderList();
+}
+window._msgSetFilter = _msgSetFilter;
+
+function _msgRenderList() {
+  const list = document.getElementById('msg-list');
+  let items = _msgAll;
+  if (_msgFilter === 'new')      items = _msgAll.filter(m => !m.reply);
+  else if (_msgFilter === 'answered') items = _msgAll.filter(m => !!m.reply);
+  if (!items.length) {
+    list.innerHTML = `<div class="state" style="padding:20px;color:var(--text2);">Нет сообщений</div>`;
+    return;
+  }
+  list.innerHTML = items.map(m => {
+    const cat   = m.category || 'другое';
+    const col   = _msgCatColor(cat);
+    const date  = m.created_at?.toDate ? m.created_at.toDate().toLocaleString('ru-RU') : '—';
+    const answered = !!m.reply;
+    const name  = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
+    return `<div onclick="_msgOpenReply('${m.id}')"
+      style="background:var(--surface);border:1px solid ${answered ? 'var(--border)' : 'var(--primary)'};
+             border-radius:10px;padding:13px 15px;cursor:pointer;transition:.15s;"
+      onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='${answered ? 'var(--border)' : 'var(--primary)'}'">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;border:1px solid ${col};color:${col};text-transform:uppercase;">${esc(cat)}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--text);">${name}</span>
+        <span style="font-size:11px;color:var(--text2);margin-left:auto;">${date}</span>
+        ${answered
+          ? '<span style="font-size:10px;color:var(--green);font-weight:700;">✓ ОТВЕЧЕНО</span>'
+          : '<span style="font-size:10px;color:var(--primary);font-weight:700;">● НОВОЕ</span>'}
+      </div>
+      <div style="font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(m.text || '')}</div>
+    </div>`;
+  }).join('');
+}
+
+window._msgOpenReply = function(id) {
+  const m = _msgAll.find(x => x.id === id);
+  if (!m) return;
+  const cat  = m.category || 'другое';
+  const date = m.created_at?.toDate ? m.created_at.toDate().toLocaleString('ru-RU') : '—';
+  const name = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
+  document.getElementById('msg-reply-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-right:30px;">
+      <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px;border:1px solid ${_msgCatColor(cat)};color:${_msgCatColor(cat)};text-transform:uppercase;">${esc(cat)}</span>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">${name}</div>
+        <div style="font-size:11px;color:var(--text2);font-family:monospace;">${esc(m.user_id || 'нет uid')} · ${date}</div>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:12px 14px;font-size:14px;color:var(--text);line-height:1.5;margin-bottom:16px;white-space:pre-wrap;">${esc(m.text || '')}</div>
+    ${m.reply ? `<div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:5px;">Текущий ответ</div>
+      <div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);white-space:pre-wrap;">${esc(m.reply)}</div>
+    </div>` : ''}
+    <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">${m.reply ? 'Изменить ответ:' : 'Ответ пользователю:'}</div>
+    <textarea id="msg-reply-text" rows="4" placeholder="Напиши ответ…"
+      style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;resize:vertical;box-sizing:border-box;">${m.reply ? esc(m.reply) : ''}</textarea>
+    <label style="display:flex;align-items:center;gap:8px;margin:10px 0;cursor:pointer;font-size:13px;color:var(--text);">
+      <input type="checkbox" id="msg-reply-push" ${m.user_id ? 'checked' : 'disabled'} style="width:16px;height:16px;accent-color:var(--primary);">
+      🔔 Отправить пуш пользователю${m.user_id ? '' : ' (нет uid)'}
+    </label>
+    <button id="msg-reply-send" onclick="_msgSendReply('${id}')"
+      style="width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
+      Отправить ответ
+    </button>
+  `;
+  document.getElementById('msg-reply-modal').style.display = 'flex';
+};
+
+window._msgSendReply = async function(id) {
+  const m = _msgAll.find(x => x.id === id);
+  const reply = document.getElementById('msg-reply-text').value.trim();
+  if (!reply) { toast('Введи текст ответа', 'e'); return; }
+  const sendPush = document.getElementById('msg-reply-push')?.checked;
+  const btn = document.getElementById('msg-reply-send');
+  btn.disabled = true; btn.textContent = '⏳ Отправка…';
+  try {
+    await updateDoc(doc(db, 'feedback', id), {
+      reply, reply_read: false, is_read: true, replied_at: serverTimestamp(),
+    });
+    if (m) { m.reply = reply; m.is_read = true; }
+    if (sendPush && m?.user_id) {
+      _ncTargetUid = m.user_id;
+      try {
+        await sendPushNotification({
+          title: '💬 Ответ от администратора',
+          body:  reply.length > 100 ? reply.slice(0, 97) + '…' : reply,
+          type:  'feedback_reply',
+        });
+      } catch (pushErr) {
+        toast('Ответ сохранён, но пуш не ушёл: ' + pushErr.message, 'e');
+      }
+      _ncTargetUid = null;
+    }
+    toast('Ответ отправлен', 's');
+    document.getElementById('msg-reply-modal').style.display = 'none';
+    _msgRenderList();
+    _msgUpdateBadge();
+    if (typeof addAuditLog === 'function') addAuditLog('feedback_replied', { id, reply });
+  } catch (e) {
+    console.error('msg reply', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Отправить ответ';
+  }
+};
 
 // ── Agent Colors ──────────────────────────────────────────────────────────────
 // Firestore: settings/agent_colors { "Sova": "#5B8DB8", ... }
