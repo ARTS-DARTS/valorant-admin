@@ -6522,16 +6522,19 @@ function _nuRenderList() {
     const initials = (r.dat.name || '?')[0].toUpperCase();
     const lastSeen = r.dat.last_seen?.toDate ? r.dat.last_seen.toDate() : null;
     const spent    = r.dat.time_spent_seconds || 0;
-    const suspicious = spent === 0 && !lastSeen;
+    const viewed   = r.dat.lineups_viewed || 0;
+    const suspicious = viewed < 5;
     const safedat  = JSON.stringify(r.dat).replace(/'/g,"&#39;").replace(/"/g,'&quot;');
     return `<div class="nu-user-row" onclick="_openNuUserDetail('${r.uid}', ${safedat})">
-      <div class="nu-user-avatar" style="background:${suspicious?'#555':'var(--primary)'};">${initials}</div>
+      <div class="nu-user-avatar" style="background:${suspicious?'#8a6d00':'var(--primary)'};">${initials}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</div>
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${name} ${suspicious ? '<span title="Просмотрено меньше 5 лайнапов" style="font-size:10px;color:#ffcc00;">⚠</span>' : ''}
+        </div>
         <div style="font-size:11px;color:var(--text2);">${r.ts.toLocaleString('ru-RU')} · ${_nuTimeAgo(r.ts)}</div>
       </div>
+      <span style="font-size:10px;color:${viewed>=5?'var(--green)':'#ffcc00'};white-space:nowrap;" title="Просмотрено лайнапов">👁 ${viewed}</span>
       <span style="font-size:10px;padding:2px 7px;border-radius:10px;border:1px solid ${auth.color};color:${auth.color};white-space:nowrap;">${auth.label}</span>
-      ${spent > 0 ? `<span style="font-size:10px;color:var(--green);">${_nuFmtDuration(spent)}</span>` : '<span style="font-size:10px;color:var(--text2);">—</span>'}
     </div>`;
   }).join('');
 }
@@ -6564,6 +6567,8 @@ window._openNuUserDetail = function(uid, dat) {
   const spent   = dat.time_spent_seconds || 0;
   const banned  = dat.is_banned === true;
   const approved = dat.approved_lineups || 0;
+  const viewed  = dat.lineups_viewed || 0;
+  const isFake  = viewed < 5;
 
   const field = (lbl, val) => `<div class="nu-field">
     <div class="nu-field-lbl">${lbl}</div>
@@ -6590,10 +6595,11 @@ window._openNuUserDetail = function(uid, dat) {
       ${field('Время в приложении', `<span style="${spent>0?'color:var(--green)':''}">${_nuFmtDuration(spent)}</span>`)}
       ${field('Email (аккаунт)', esc(dat.user_email || '—'))}
       ${field('Лайнапов одобрено', approved)}
+      ${field('Просмотрено лайнапов', `<span style="${viewed>=5?'color:var(--green)':'color:#ffcc00'};font-weight:700;">${viewed}</span> <span style="font-size:11px;color:var(--text2);">/ 5</span>`)}
       ${field('Уведомления', dat.onesignal_id ? '<span style="color:var(--green);">Подключены</span>' : '<span style="color:var(--text2);">Нет данных</span>')}
     </div>
-    ${spent === 0 && !lastSeen ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.25);border-radius:8px;font-size:12px;color:#ffcc00;">⚠️ Нет активности — возможно тестовый или фиктивный аккаунт</div>` : ''}
-    ${approved === 0 && spent < 60 ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Мало активности. Может быть твинк или брошенный аккаунт.</div>` : ''}
+    ${isFake ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.25);border-radius:8px;font-size:12px;color:#ffcc00;">⚠️ Просмотрено меньше 5 лайнапов (${viewed}) — вероятно фиктивный/неактивный аккаунт</div>` : ''}
+    ${spent === 0 && !lastSeen ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Нет активности — тестовый или брошенный аккаунт.</div>` : ''}
     <div style="display:flex;gap:10px;margin-top:20px;">
       <button onclick="document.getElementById('nu-user-modal').classList.remove('open');switchTab('admins');setTimeout(()=>openUserProfilePanel('${uid}'),80);"
               style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
