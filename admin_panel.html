@@ -809,6 +809,7 @@
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
+        <button class="tab"        id="tab-btn-mappool"><i class="bi bi-star"></i><span>Маппул</span></button>
       </div>
     </nav>
 
@@ -1913,6 +1914,25 @@
   </div>
 </div>
 
+<!-- ── Map Pool Tab ─────────────────────────────────────────────────────────── -->
+<div id="tab-mappool" style="display:none;padding:20px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <h3 style="margin:0;color:var(--text);">⭐ Маппул рейтинга</h3>
+      <span id="mp-count" style="font-size:13px;font-weight:700;color:var(--primary);padding:4px 12px;border:1px solid var(--primary);border-radius:8px;">… карт</span>
+    </div>
+    <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">
+      Нажми на карту чтобы добавить/убрать из рейтингового маппула. Источник правды для приложения - вступает в силу без обновления (кэш на сессию).
+    </p>
+    <div id="mp-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
+      <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
+    </div>
+    <button id="mp-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
+      💾 Сохранить маппул
+    </button>
+  </div>
+</div>
+
     </div><!-- /.main -->
   </div><!-- /.app-body -->
 </div><!-- /#screen-app -->
@@ -2164,6 +2184,7 @@ function switchTab(t) {
   document.getElementById('tab-ranges').style.display     = t === 'ranges'    ? 'block' : 'none';
   document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
   document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
+  document.getElementById('tab-mappool').style.display        = t === 'mappool'      ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
@@ -2177,6 +2198,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-ranges').classList.toggle('active',    t === 'ranges');
   document.getElementById('tab-btn-mapstyle').classList.toggle('active',     t === 'mapstyle');
   document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
+  document.getElementById('tab-btn-mappool').classList.toggle('active', t === 'mappool');
   if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'analytics') loadAnalytics();
@@ -2186,6 +2208,7 @@ function switchTab(t) {
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') loadAgentColorsSection('ac-grid2');
+  if (t === 'mappool') loadMapPoolTab();
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
@@ -2215,6 +2238,7 @@ document.getElementById('tab-btn-logs').addEventListener('click',      () => swi
 document.getElementById('tab-btn-ranges').addEventListener('click',    () => switchTab('ranges'));
 document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => switchTab('mapstyle'));
 document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
+document.getElementById('tab-btn-mappool').addEventListener('click',      () => switchTab('mappool'));
 
 // ── Map Style ─────────────────────────────────────────────────────────────────
 // Firestore: settings/map_style { contrast, brightness, intensity, tint_r, tint_g, tint_b }
@@ -2482,6 +2506,93 @@ document.getElementById('ms-save-btn').addEventListener('click', async function(
     console.error('ms-save', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = origText;
+  }
+});
+
+// ── Map Pool ──────────────────────────────────────────────────────────────────
+// Firestore: settings/map_pool { maps: ["Ascent", ...] }
+// Flutter: _MapPickerScreenState._pool читает отсюда (fallback = хардкод).
+// Должен совпадать с MapPickerScreen.allMaps в main.dart.
+const MP_ALL_MAPS = [
+  { name: 'Ascent',   uuid: '7eaecc1b-4337-bbf6-6ab9-04b8f06b3319' },
+  { name: 'Bind',     uuid: '2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba' },
+  { name: 'Haven',    uuid: '2bee0dc9-4ffe-519b-1cbd-7fbe763a6047' },
+  { name: 'Split',    uuid: 'd960549e-485c-e861-8d71-aa9d1aed12a2' },
+  { name: 'Icebox',   uuid: 'e2ad5c54-4114-a870-9641-8ea21279579a' },
+  { name: 'Breeze',   uuid: '2fb9a4fd-47b8-4e7d-a969-74b4046ebd53' },
+  { name: 'Fracture', uuid: 'b529448b-4d60-346e-e89e-00a4c527a405' },
+  { name: 'Pearl',    uuid: 'fd267378-4d1d-484f-ff52-77821ed10dc2' },
+  { name: 'Lotus',    uuid: '2fe4ed3a-450a-948b-6d6b-e89a78e680a9' },
+  { name: 'Sunset',   uuid: '92584fbe-486a-b1b2-9faa-39b0f486b498' },
+  { name: 'Abyss',    uuid: '224b0a95-48b9-f703-1bd8-67aca101a61f' },
+  { name: 'Corrode',  uuid: '1c18ab1f-420d-0d8b-71d0-77ad3c439115' },
+  { name: 'Summit',   uuid: '756da597-416b-c0f2-f47b-afbdf28670bc' },
+];
+const MP_FALLBACK = ['Ascent', 'Bind', 'Breeze', 'Haven', 'Lotus', 'Split', 'Summit', 'Sunset'];
+let _mpPool   = new Set();
+let _mpLoaded = false;
+
+async function loadMapPoolTab() {
+  if (!_mpLoaded) {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'map_pool'));
+      const maps = snap.exists() ? (snap.data().maps || []) : [];
+      _mpPool = new Set(maps.length ? maps : MP_FALLBACK);
+    } catch (e) {
+      console.error('loadMapPoolTab', e);
+      _mpPool = new Set(MP_FALLBACK);
+    }
+    _mpLoaded = true;
+  }
+  _mpRenderGrid();
+}
+
+function _mpRenderGrid() {
+  const grid = document.getElementById('mp-grid');
+  if (!grid) return;
+  grid.innerHTML = MP_ALL_MAPS.map(m => {
+    const inPool = _mpPool.has(m.name);
+    const img = `https://media.valorant-api.com/maps/${m.uuid}/splash.png`;
+    return `<div class="mp-card" data-map="${m.name}" onclick="_mpToggle('${m.name}')"
+      style="position:relative;height:104px;border-radius:10px;overflow:hidden;cursor:pointer;
+             border:${inPool ? '2.5px solid var(--primary)' : '1px solid var(--border)'};
+             box-shadow:${inPool ? '0 0 14px var(--primary)' : 'none'};transition:.18s;">
+      <img src="${img}" loading="lazy" style="width:100%;height:100%;object-fit:cover;
+           filter:brightness(${inPool ? 0.85 : 0.45});">
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+        <span style="font-size:15px;font-weight:800;color:#fff;text-shadow:0 2px 8px #000;letter-spacing:1px;">
+          ${m.name.toUpperCase()}
+        </span>
+      </div>
+      ${inPool ? `<div style="position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:50%;
+        background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;">✓</div>` : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('mp-count').textContent = `${_mpPool.size} карт`;
+}
+window._mpToggle = function(name) {
+  if (_mpPool.has(name)) {
+    if (_mpPool.size <= 1) { toast('Минимум 1 карта в маппуле', 'e'); return; }
+    _mpPool.delete(name);
+  } else {
+    _mpPool.add(name);
+  }
+  _mpRenderGrid();
+};
+
+document.getElementById('mp-save-btn')?.addEventListener('click', async function() {
+  const btn = this;
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = '⏳ Сохраняю…';
+  try {
+    const maps = MP_ALL_MAPS.map(m => m.name).filter(n => _mpPool.has(n)); // стабильный порядок
+    await setDoc(doc(db, 'settings', 'map_pool'),
+      { maps, updatedAt: serverTimestamp() }, { merge: true });
+    toast(`Маппул сохранён (${maps.length} карт)`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('map_pool_updated', { maps });
+  } catch (e) {
+    console.error('mp-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
   }
 });
 

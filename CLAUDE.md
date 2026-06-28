@@ -83,16 +83,18 @@
 **`MapPickerScreen.allMaps`** — публичный static const, все 13 карт игры.  
 Обновлять при добавлении новой карты в игру: добавить запись `{name, splash}` с UUID из `valorant-api.com/v1/maps`.
 
-**`_pool`** в `_MapPickerScreenState` — рейтинговый маппул текущего патча (хардкод).  
-Текущий патч **13.00** (24 июня 2026): `Ascent, Bind, Breeze, Haven, Lotus, Split, Summit, Sunset`.  
-Обновлять при смене патча, **не тянуть из Firestore** — Firestore хранит устаревшие данные и перебивает хардкод.
+**Маппул рейтинга** — источник правды это Firestore `settings/map_pool` (поле `maps: [...]`), редактируется во вкладке "Маппул" в `admin_panel.html`.  
+В Flutter `_MapPickerScreenState._pool` читает из Firestore (кэш на сессию), `_poolFallback` (хардкод) — fallback при офлайне/пустом доке.  
+Дефолт патча **13.00** (24 июня 2026): `Ascent, Bind, Breeze, Haven, Lotus, Split, Summit, Sunset`.  
+При смене патча менять через админку (не код). `_poolFallback` обновлять только как страховку.  
+**Важно:** список карт в `MP_ALL_MAPS` (admin_panel.html) должен совпадать с `MapPickerScreen.allMaps` (main.dart).
 
 ---
 
 ## Firebase / Firestore
 
 - **Никогда не переходить на Blaze** — платим только на Selectel (русский сервер).
-- Маппул в Firestore (`settings/map_pool`) устарел и не используется — источник правды это `_pool` в коде.
+- Маппул: источник правды `settings/map_pool`, редактируется в admin_panel.html вкладка "Маппул".
 
 ---
 
