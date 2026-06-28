@@ -6156,6 +6156,7 @@ function _nuSetFilter(f) {
     b.classList.toggle('active', b.dataset.nuFilter === f));
   _nuRenderList();
 }
+window._nuSetFilter = _nuSetFilter;
 
 function _nuRenderList() {
   const filtered = _nuFilter === 'all' ? _nuAllRecent : _nuAllRecent.filter(r => {
