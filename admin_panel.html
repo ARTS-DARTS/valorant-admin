@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -620,6 +619,19 @@
     .nc-title    { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
     .nc-desc     { font-size: 12px; color: var(--text2); line-height: 1.4; }
     .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
+    .nb-editor { display:grid; grid-template-columns:minmax(320px,1fr) 360px; gap:18px; align-items:start; margin:0 0 22px; }
+    .nb-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 10px; }
+    .nb-tool { min-width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); cursor:pointer; font-weight:700; display:flex; align-items:center; justify-content:center; }
+    .nb-tool.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .nb-phone { width:320px; aspect-ratio:9/16; background:#07111d; border:1px solid var(--border2); border-radius:24px; padding:14px; box-shadow:0 18px 50px rgba(0,0,0,.35); }
+    .nb-screen { height:100%; border-radius:18px; background:#0f1923; border:1px solid rgba(255,255,255,.08); overflow:hidden; display:flex; flex-direction:column; }
+    .nb-screen-head { padding:12px 14px; display:flex; align-items:center; justify-content:space-between; color:#fff; border-bottom:1px solid rgba(255,255,255,.08); font-size:13px; font-weight:700; }
+    .nb-preview-body { flex:1; padding:16px; overflow:auto; }
+    .nb-preview-text { margin-bottom:10px; line-height:1.35; word-break:break-word; }
+    .nb-pages { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+    .nb-page-btn { border:1px solid var(--border); background:var(--surface2); color:var(--text2); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:12px; }
+    .nb-page-btn.active { color:#fff; background:var(--primary); border-color:var(--primary); }
+    @media (max-width: 920px) { .nb-editor { grid-template-columns:1fr; } .nb-phone { width:min(320px,100%); } }
     .ac-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; transition:.15s; }
     .ac-card:hover { border-color:var(--border2); }
     .ac-dot { width:28px; height:28px; border-radius:50%; flex-shrink:0; transition:.2s; }
@@ -1673,6 +1685,65 @@
       <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5;">
         Выбери получателя и тип уведомления. Запись попадает в Firestore — Flutter-приложение подхватит и отправит через OneSignal.
       </p>
+
+      <div class="form-title">📰 НОВОСТНОЙ БАНЕР</div>
+      <div class="nb-editor">
+        <div class="notif-card">
+          <div class="fg" style="margin-bottom:10px;">
+            <label class="flabel">Заголовок банера</label>
+            <input class="finput" id="nb-title" value="Обновление Vlineups" style="background:var(--bg);">
+          </div>
+          <div class="fg" style="margin-bottom:10px;">
+            <label class="flabel">Версия банера</label>
+            <input class="finput" id="nb-version" type="number" min="1" step="1" value="1" style="background:var(--bg);">
+          </div>
+          <div class="nb-toolbar">
+            <button class="nb-tool" id="nb-bold" title="Жирный">B</button>
+            <button class="nb-tool" id="nb-italic" title="Курсив"><i>I</i></button>
+            <button class="nb-tool" id="nb-underline" title="Подчеркнуть"><u>U</u></button>
+            <input type="color" id="nb-color" value="#ffffff" class="nb-tool" title="Цвет текста">
+            <input type="color" id="nb-bg" value="#0f1923" class="nb-tool" title="Закраска">
+            <select class="fselect" id="nb-align" style="width:auto;height:34px;padding:0 8px;background:var(--surface2);">
+              <option value="left">Слева</option>
+              <option value="center">Центр</option>
+              <option value="right">Справа</option>
+            </select>
+            <select class="fselect" id="nb-size" style="width:auto;height:34px;padding:0 8px;background:var(--surface2);">
+              <option value="14">14</option>
+              <option value="16" selected>16</option>
+              <option value="18">18</option>
+              <option value="22">22</option>
+              <option value="26">26</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label class="flabel">Текст текущей страницы</label>
+            <textarea class="ftextarea" id="nb-text" style="min-height:150px;background:var(--bg);" placeholder="Напиши, что добавлено, исправлено или удалено..."></textarea>
+          </div>
+          <div class="nb-pages" id="nb-pages"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn" id="nb-add-page" style="border:1px solid var(--border);color:var(--text2);">+ Страница</button>
+            <button class="btn btn-delete" id="nb-del-page">Удалить страницу</button>
+            <button class="btn btn-save" id="nb-publish" style="margin-left:auto;">Опубликовать банер</button>
+          </div>
+          <div class="nc-status" id="nb-status"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1.3px;margin-bottom:8px;">Предпросмотр в приложении</div>
+          <div class="nb-phone">
+            <div class="nb-screen">
+              <div class="nb-screen-head">
+                <span id="nb-preview-title">Обновление Vlineups</span>
+                <span>✕</span>
+              </div>
+              <div class="nb-preview-body" id="nb-preview"></div>
+              <div style="padding:12px;">
+                <button class="btn btn-save" style="width:100%;justify-content:center;">Отличное обновление</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Target picker -->
       <div style="margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;">
@@ -4506,15 +4577,14 @@ async function markOutdated(newPatch) {
 // ── Actions ───────────────────────────────────────────────────────────────────
 async function notifySubscribers(lineup) {
   try {
-    const agent = lineup.agent_name || lineup.agentName || '';
-    const map   = lineup.map_name   || lineup.mapName   || '';
+    const agent = lineup.agent || lineup.agent_name || lineup.agentName || '';
+    const map   = lineup.map || lineup.map_name || lineup.mapName || '';
     if (!agent || !map) return;
 
     const snap = await getDocs(query(
       collectionGroup(db, 'subscriptions'),
-      where('type', '==', 'agent_map'),
+      where('type', '==', 'agent'),
       where('agent', '==', agent),
-      where('map',   '==', map),
     ));
     if (snap.empty) return;
 
@@ -4525,10 +4595,13 @@ async function notifySubscribers(lineup) {
       const uid = subDoc.ref.parent.parent.id;
       uids.push(uid);
       batch.set(doc(collection(db, 'users', uid, 'notifications')), {
-        type: 'new_lineup',
+        type: 'new_lineups_batch',
         lineup_id: lineup.id,
         agent, map,
+        maps: [map],
+        total: 1,
         title: lineup.title || '',
+        body: `На ${agent} вышел новый лайнап на карте ${map}`,
         created_at: serverTimestamp(),
         read: false,
       });
@@ -4536,8 +4609,8 @@ async function notifySubscribers(lineup) {
     await batch.commit();
 
     // Шлём OneSignal-пуш каждому подписчику через прокси
-    const pushTitle = `🎯 ${agent}: новый лайнап на ${map}`;
-    const pushBody  = lineup.title || 'Новый лайнап добавлен';
+    const pushTitle = 'Поступили новые лайнапы!';
+    const pushBody  = `На ${agent} вышел 1 лайнап на карте ${map}`;
     await Promise.all(uids.map(uid =>
       fetch(_PUSH_PROXY, {
         method:  'POST',
@@ -4545,7 +4618,9 @@ async function notifySubscribers(lineup) {
         body: JSON.stringify({
           title:     pushTitle,
           body:      pushBody,
-          type:      'new_lineup',
+          type:      'new_lineups_batch',
+          agent,
+          total:     '1',
           targetUid: uid,
         }),
       }).catch(e => console.warn(`push sub ${uid}:`, e.message))
@@ -8369,6 +8444,143 @@ function initMapInteraction(container) {
 const _PUSH_PROXY   = 'https://valorant-upload.vercel.app/api/send-push';
 const _ADMIN_SECRET = 'vl_adm_8f2k9p4x7q3m';
 
+// ── News banner editor ───────────────────────────────────────────────────────
+let nbPages = [
+  { blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }] }
+];
+let nbPageIndex = 0;
+
+function nbBlock() {
+  return nbPages[nbPageIndex].blocks[0];
+}
+
+function nbSaveCurrent() {
+  const b = nbBlock();
+  b.text = document.getElementById('nb-text')?.value ?? '';
+  b.color = document.getElementById('nb-color')?.value ?? '#ffffff';
+  b.background_color = document.getElementById('nb-bg')?.dataset.enabled === 'true'
+    ? document.getElementById('nb-bg').value
+    : '';
+  b.font_size = parseInt(document.getElementById('nb-size')?.value || '16', 10);
+  b.align = document.getElementById('nb-align')?.value || 'left';
+}
+
+function nbLoadCurrent() {
+  const b = nbBlock();
+  document.getElementById('nb-text').value = b.text || '';
+  document.getElementById('nb-color').value = b.color || '#ffffff';
+  document.getElementById('nb-bg').value = b.background_color || '#0f1923';
+  document.getElementById('nb-bg').dataset.enabled = b.background_color ? 'true' : 'false';
+  document.getElementById('nb-size').value = String(b.font_size || 16);
+  document.getElementById('nb-align').value = b.align || 'left';
+  document.getElementById('nb-bold').classList.toggle('active', !!b.bold);
+  document.getElementById('nb-italic').classList.toggle('active', !!b.italic);
+  document.getElementById('nb-underline').classList.toggle('active', !!b.underline);
+  nbRender();
+}
+
+function nbRenderPages() {
+  const wrap = document.getElementById('nb-pages');
+  if (!wrap) return;
+  wrap.innerHTML = nbPages.map((_, i) =>
+    `<button class="nb-page-btn ${i === nbPageIndex ? 'active' : ''}" data-page="${i}">Стр. ${i + 1}</button>`
+  ).join('');
+  wrap.querySelectorAll('[data-page]').forEach(btn => btn.addEventListener('click', () => {
+    nbSaveCurrent();
+    nbPageIndex = parseInt(btn.dataset.page, 10);
+    nbLoadCurrent();
+    nbRenderPages();
+  }));
+}
+
+function nbRender() {
+  nbSaveCurrent();
+  document.getElementById('nb-preview-title').textContent =
+    document.getElementById('nb-title')?.value || 'Обновление Vlineups';
+  const body = document.getElementById('nb-preview');
+  if (!body) return;
+  const page = nbPages[nbPageIndex];
+  body.innerHTML = page.blocks.map(b => `
+    <div class="nb-preview-text" style="
+      color:${esc(b.color || '#fff')};
+      ${b.background_color ? `background:${esc(b.background_color)};padding:8px 10px;border-radius:8px;` : ''}
+      font-size:${parseInt(b.font_size || 16, 10)}px;
+      font-weight:${b.bold ? '800' : '400'};
+      font-style:${b.italic ? 'italic' : 'normal'};
+      text-decoration:${b.underline ? 'underline' : 'none'};
+      text-align:${esc(b.align || 'left')};
+    ">${esc(b.text || 'Текст страницы...').replace(/\n/g, '<br>')}</div>
+  `).join('');
+}
+
+function nbToggleStyle(key, btnId) {
+  nbBlock()[key] = !nbBlock()[key];
+  document.getElementById(btnId).classList.toggle('active', nbBlock()[key]);
+  nbRender();
+}
+
+function nbInit() {
+  if (!document.getElementById('nb-publish')) return;
+  nbRenderPages();
+  nbLoadCurrent();
+  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align'].forEach(id =>
+    document.getElementById(id)?.addEventListener('input', nbRender)
+  );
+  document.getElementById('nb-bg')?.addEventListener('input', e => {
+    e.target.dataset.enabled = 'true';
+    nbRender();
+  });
+  document.getElementById('nb-bold')?.addEventListener('click', () => nbToggleStyle('bold', 'nb-bold'));
+  document.getElementById('nb-italic')?.addEventListener('click', () => nbToggleStyle('italic', 'nb-italic'));
+  document.getElementById('nb-underline')?.addEventListener('click', () => nbToggleStyle('underline', 'nb-underline'));
+  document.getElementById('nb-add-page')?.addEventListener('click', () => {
+    nbSaveCurrent();
+    nbPages.push({ blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }] });
+    nbPageIndex = nbPages.length - 1;
+    nbRenderPages();
+    nbLoadCurrent();
+  });
+  document.getElementById('nb-del-page')?.addEventListener('click', () => {
+    if (nbPages.length <= 1) { toast('Нужна хотя бы одна страница', 'i'); return; }
+    nbPages.splice(nbPageIndex, 1);
+    nbPageIndex = Math.max(0, nbPageIndex - 1);
+    nbRenderPages();
+    nbLoadCurrent();
+  });
+  document.getElementById('nb-publish')?.addEventListener('click', nbPublish);
+}
+
+async function nbPublish() {
+  nbSaveCurrent();
+  const title = document.getElementById('nb-title').value.trim() || 'Обновление Vlineups';
+  const version = parseInt(document.getElementById('nb-version').value || '1', 10);
+  const pages = nbPages
+    .map(p => ({ blocks: p.blocks.filter(b => (b.text || '').trim()) }))
+    .filter(p => p.blocks.length);
+  if (!pages.length) { toast('Заполни хотя бы одну страницу банера', 'e'); return; }
+  const btn = document.getElementById('nb-publish');
+  const status = document.getElementById('nb-status');
+  btn.disabled = true; status.textContent = 'Публикую…';
+  try {
+    await addDoc(collection(db, 'news_banners'), {
+      title, version, pages,
+      active: true,
+      likes_count: 0,
+      created_at: serverTimestamp(),
+      author_uid: auth.currentUser?.uid || null,
+    });
+    status.textContent = '✅ Банер опубликован';
+    toast('Новостной банер опубликован', 's');
+  } catch (e) {
+    status.textContent = '❌ ' + e.message;
+    toast('Ошибка публикации банера: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+nbInit();
+
 let _ncTargetUid  = null;
 let _ncTargetName = null;
 
@@ -8917,9 +9129,8 @@ async function loadAllUsers() {
   if (!resultsEl) return;
   resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>';
   try {
-    const snap = await getDocs(collection(db, 'users'));
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc')));
     _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    _allUsers.sort((a, b) => (a.name_lower || '').localeCompare(b.name_lower || '', 'ru'));
     if (countEl) countEl.textContent = `${_allUsers.length} пользователей`;
     renderUsersList(_allUsers);
   } catch(e) {
@@ -8934,30 +9145,24 @@ function renderUsersList(users) {
     return;
   }
   resultsEl.innerHTML = users.map(u => {
-    const isDeleted = u.account_deleted === true;
-    const isBanned  = u.is_banned === true;
-    const role      = !isDeleted && u.role && u.role !== 'user'
+    const isBanned  = u.is_banned;
+    const role      = u.role && u.role !== 'user'
       ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:4px;">${u.role}</span>`
       : '';
-    const deletedTag = isDeleted
-      ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(150,150,150,0.15);color:#888;margin-left:4px;">удалён</span>`
-      : '';
-    const bannedTag = !isDeleted && isBanned
+    const bannedTag = isBanned
       ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,0.15);color:#FF4655;margin-left:4px;">бан</span>`
       : '';
-    const initial   = esc((u.name || '?')[0].toUpperCase());
-    const nameColor = isDeleted ? '#666' : isBanned ? '#FF4655' : 'var(--text)';
-    const icon      = isDeleted ? '👻 ' : isBanned ? '🚫 ' : '';
+    const initial = esc((u.name || '?')[0].toUpperCase());
     return `<div onclick="openUserProfilePanel('${u.id}')"
-        style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;opacity:${isDeleted ? '0.55' : '1'};"
+        style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;"
         onmouseover="this.style.background='var(--surface2)'"
         onmouseout="this.style.background=''">
-      <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:${isDeleted ? '#666' : 'var(--text)'};">${initial}</div>
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:var(--text);">${initial}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:500;color:${nameColor};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
-          ${icon}${esc(u.name || '—')}${role}${deletedTag}${bannedTag}
+        <div style="font-size:13px;font-weight:500;color:${isBanned ? '#FF4655' : 'var(--text)'};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
+          ${isBanned ? '🚫 ' : ''}${esc(u.name || '—')}${role}${bannedTag}
         </div>
-        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.user_email || u.yandex_email || u.email || '')}</div>
+        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.user_email || '')}</div>
       </div>
       <div style="font-size:10px;color:var(--text2);flex-shrink:0;">${u.approved_lineups ?? 0} лайн.</div>
     </div>`;
@@ -8967,10 +9172,9 @@ function renderUsersList(users) {
 document.getElementById('user-search').addEventListener('input', e => {
   const q = e.target.value.trim().toLowerCase();
   if (!q) { renderUsersList(_allUsers); return; }
-  const emailFn = u => (u.user_email || u.yandex_email || u.email || '').toLowerCase();
   renderUsersList(_allUsers.filter(u =>
     (u.name || '').toLowerCase().includes(q) ||
-    emailFn(u).includes(q)
+    (u.user_email || '').toLowerCase().includes(q)
   ));
 });
 
@@ -9002,10 +9206,7 @@ async function _renderUserProfileInto(uid, panel) {
       feedbacks = fbSnap.docs.map(d => d.data());
     } catch(_) {}
 
-    const displayEmail = u.user_email || u.yandex_email || u.email || null;
-    const hasPassword = !!(u.auth_provider === 'email' || (u.user_email && !u.yandex_id && !uid.startsWith('yandex_')));
-    const hasYandex   = !!(u.yandex_id);
-    const hasGoogle   = !uid.startsWith('yandex_') && (u.auth_provider === 'google' || (!u.auth_provider && !hasYandex));
+    const hasPassword = u.user_email && !u.user_email.includes('google');
     const createdAt   = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
     const isBanned    = !!u.is_banned;
     const lastSeenTs  = u.last_seen?.toDate?.() ?? null;
@@ -9052,7 +9253,7 @@ async function _renderUserProfileInto(uid, panel) {
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
           <div>
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Email</div>
-            <div style="font-size:13px;color:var(--text);">${esc(u.user_email || u.yandex_email || u.email || '—')}</div>
+            <div style="font-size:13px;color:var(--text);">${esc(u.user_email || '—')}</div>
           </div>
           <div>
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Никнейм</div>
@@ -9103,9 +9304,7 @@ async function _renderUserProfileInto(uid, panel) {
           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Привязки</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             ${[
-              ['🔵 Google',  hasGoogle],
-              ['🦊 Яндекс', hasYandex],
-              ['📧 Email',   !!displayEmail],
+              ['📧 Email',   !!u.user_email],
               ['🔑 Пароль',  hasPassword],
               ['🔔 Push',    !!u.fcm_token],
             ].map(([label, ok]) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};">${label} ${ok?'✓':'✗'}</span>`).join('')
@@ -9124,7 +9323,7 @@ async function _renderUserProfileInto(uid, panel) {
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-          ${hasPassword ? `<button class="btn" onclick="resetUserPassword('${esc(displayEmail||'')}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🔑 Сбросить пароль</button>` : ''}
+          ${hasPassword ? `<button class="btn" onclick="resetUserPassword('${esc(u.user_email||'')}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🔑 Сбросить пароль</button>` : ''}
           <button class="btn" onclick="sendMessageToUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">💬 Сообщение</button>
           ${!isBanned
             ? `<button class="btn btn-reject" onclick="banUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🚫 Заблокировать</button>`
@@ -9328,43 +9527,10 @@ async function unbanUserAccount(uid, name) {
 async function deleteUserAccount(uid, name) {
   if (!confirm(`УДАЛИТЬ аккаунт ${name}? Это действие необратимо!`)) return;
   if (!confirm(`Подтверди ещё раз: удалить ${name} навсегда?`)) return;
-  try {
-    // 1. Архивируем данные
-    const userRef  = doc(db, 'users', uid);
-    const userSnap = await getDoc(userRef);
-    const userData = userSnap.exists() ? userSnap.data() : {};
-    await setDoc(doc(db, 'deleted_accounts', uid), {
-      ...userData,
-      reason:     'admin_deleted',
-      deleted_at: serverTimestamp(),
-    });
-
-    // 2. Удаляем только pending лайнапы
-    const pendingSnap = await getDocs(query(
-      collection(db, 'lineups'),
-      where('user_id', '==', uid),
-      where('status',  '==', 'pending')
-    ));
-    for (const d of pendingSnap.docs) await deleteDoc(d.ref);
-
-    // 3. Ghost-запись: аккаунт помечен удалённым, но документ остаётся
-    // (опубликованные лайнапы сохраняются, пользователь виден в списке)
-    const keepName = (userData.name || name || '').trim();
-    await setDoc(userRef, {
-      name:            keepName,
-      name_lower:      keepName.toLowerCase(),
-      account_deleted: true,
-      deleted_at:      serverTimestamp(),
-      approved_lineups: userData.approved_lineups ?? 0,
-    });
-
-    toast(`Аккаунт ${name} удалён 🗑`, 'w');
-    addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
-    document.getElementById('user-profile-panel').style.display = 'none';
-    await loadAllUsers();
-  } catch (e) {
-    toast(`Ошибка удаления: ${e.message}`, 'e');
-  }
+  await deleteDoc(doc(db, 'users', uid));
+  toast(`Аккаунт ${name} удалён 🗑`, 'w');
+  addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
+  document.getElementById('user-profile-panel').style.display = 'none';
 }
 
 async function sendMessageToUser(uid, name) {
