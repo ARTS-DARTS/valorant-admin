@@ -8932,22 +8932,28 @@ function renderUsersList(users) {
     return;
   }
   resultsEl.innerHTML = users.map(u => {
-    const isBanned  = u.is_banned;
-    const role      = u.role && u.role !== 'user'
+    const isDeleted = u.account_deleted === true;
+    const isBanned  = u.is_banned === true;
+    const role      = !isDeleted && u.role && u.role !== 'user'
       ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:4px;">${u.role}</span>`
       : '';
-    const bannedTag = isBanned
+    const deletedTag = isDeleted
+      ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(150,150,150,0.15);color:#888;margin-left:4px;">удалён</span>`
+      : '';
+    const bannedTag = !isDeleted && isBanned
       ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,0.15);color:#FF4655;margin-left:4px;">бан</span>`
       : '';
-    const initial = esc((u.name || '?')[0].toUpperCase());
+    const initial   = esc((u.name || '?')[0].toUpperCase());
+    const nameColor = isDeleted ? '#666' : isBanned ? '#FF4655' : 'var(--text)';
+    const icon      = isDeleted ? '👻 ' : isBanned ? '🚫 ' : '';
     return `<div onclick="openUserProfilePanel('${u.id}')"
-        style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;"
+        style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;opacity:${isDeleted ? '0.55' : '1'};"
         onmouseover="this.style.background='var(--surface2)'"
         onmouseout="this.style.background=''">
-      <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:var(--text);">${initial}</div>
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:${isDeleted ? '#666' : 'var(--text)'};">${initial}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:500;color:${isBanned ? '#FF4655' : 'var(--text)'};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
-          ${isBanned ? '🚫 ' : ''}${esc(u.name || '—')}${role}${bannedTag}
+        <div style="font-size:13px;font-weight:500;color:${nameColor};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
+          ${icon}${esc(u.name || '—')}${role}${deletedTag}${bannedTag}
         </div>
         <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.user_email || '')}</div>
       </div>
@@ -9314,10 +9320,43 @@ async function unbanUserAccount(uid, name) {
 async function deleteUserAccount(uid, name) {
   if (!confirm(`УДАЛИТЬ аккаунт ${name}? Это действие необратимо!`)) return;
   if (!confirm(`Подтверди ещё раз: удалить ${name} навсегда?`)) return;
-  await deleteDoc(doc(db, 'users', uid));
-  toast(`Аккаунт ${name} удалён 🗑`, 'w');
-  addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
-  document.getElementById('user-profile-panel').style.display = 'none';
+  try {
+    // 1. Архивируем данные
+    const userRef  = doc(db, 'users', uid);
+    const userSnap = await getDoc(userRef);
+    const userData = userSnap.exists() ? userSnap.data() : {};
+    await setDoc(doc(db, 'deleted_accounts', uid), {
+      ...userData,
+      reason:     'admin_deleted',
+      deleted_at: serverTimestamp(),
+    });
+
+    // 2. Удаляем только pending лайнапы
+    const pendingSnap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('user_id', '==', uid),
+      where('status',  '==', 'pending')
+    ));
+    for (const d of pendingSnap.docs) await deleteDoc(d.ref);
+
+    // 3. Ghost-запись: аккаунт помечен удалённым, но документ остаётся
+    // (опубликованные лайнапы сохраняются, пользователь виден в списке)
+    const keepName = (userData.name || name || '').trim();
+    await setDoc(userRef, {
+      name:            keepName,
+      name_lower:      keepName.toLowerCase(),
+      account_deleted: true,
+      deleted_at:      serverTimestamp(),
+      approved_lineups: userData.approved_lineups ?? 0,
+    });
+
+    toast(`Аккаунт ${name} удалён 🗑`, 'w');
+    addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
+    document.getElementById('user-profile-panel').style.display = 'none';
+    await loadAllUsers();
+  } catch (e) {
+    toast(`Ошибка удаления: ${e.message}`, 'e');
+  }
 }
 
 async function sendMessageToUser(uid, name) {
