@@ -124,6 +124,12 @@
     .b-rejected { background: rgba(239,68,68,.12);  color: var(--red);    border: 1px solid var(--red); }
     .b-removed   { background: rgba(100,100,100,.1); color: #777;          border: 1px solid #555; }
     .b-archived  { background: rgba(139,92,246,.12); color: #a78bfa;       border: 1px solid #7c3aed; }
+    .b-hot       { background: rgba(249,115,22,.15); color: #f97316;       border: 1px solid #f97316; }
+    .lcard[data-status="hot"] { border-left-color: #f97316; }
+    .audit-action.hot { color: #f97316; }
+    .hot-buns-bar { background: rgba(249,115,22,.07); border: 1px solid rgba(249,115,22,.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .lineups-sticky-top { position: sticky; top: 54px; z-index: 50; background: var(--bg); margin-left: -24px; margin-right: -24px; padding-left: 24px; padding-right: 24px; padding-bottom: 2px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+    .btn-publish { background: #16a34a !important; color: #fff !important; }
     .linfo { flex: 1; min-width: 0; }
     .ltitle { font-weight: 700; font-size: 14px; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .lmeta  { color: var(--text2); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
@@ -289,10 +295,25 @@
     .auth-divider { display:flex; align-items:center; gap:10px; margin:18px 0; color:var(--text2); font-size:12px; letter-spacing:.5px; }
     .auth-divider::before, .auth-divider::after { content:''; flex:1; height:1px; background:var(--border); }
 
-    .adm-list { display:flex; flex-direction:column; gap:8px; max-width:700px; }
-    .adm-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:13px 15px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .adm-list { display:flex; flex-direction:column; gap:8px; }
+    .adm-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:13px 15px; display:flex; align-items:center; justify-content:space-between; gap:12px; transition:.15s; }
+    .adm-card.clickable { cursor:pointer; }
+    .adm-card.clickable:hover { border-color:var(--primary); }
+    .adm-card.selected { border-color:var(--primary); background:rgba(255,70,85,.05); }
     .adm-name { font-weight:700; font-size:14px; margin-bottom:3px; }
     .adm-meta { color:var(--text2); font-size:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    /* ── Категориальные табы (Пользователи / Админы / Модераторы) ── */
+    .ucat-header { display:flex; border-bottom:2px solid var(--border); margin-bottom:20px; gap:0; }
+    .ucat-btn { padding:11px 22px; font-size:13px; font-weight:600; color:var(--text2); background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px; cursor:pointer; display:flex; align-items:center; gap:8px; transition:color .15s; white-space:nowrap; }
+    .ucat-btn:hover { color:var(--text); }
+    .ucat-btn.active { color:var(--primary); border-bottom-color:var(--primary); }
+    .ucat-badge-cnt { font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; background:var(--surface2); color:var(--text2); }
+    .ucat-btn.active .ucat-badge-cnt { background:rgba(255,70,85,.15); color:var(--primary); }
+    /* ── Карточки аналитики пользователя ── */
+    .usr-stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+    .usr-stat-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; }
+    .usr-stat-val  { font-size:18px; font-weight:700; color:var(--text); }
+    .usr-stat-lbl  { font-size:10px; color:var(--text2); text-transform:uppercase; letter-spacing:.8px; margin-top:2px; }
     .b-admin     { background:rgba(255,70,85,.12);  color:var(--primary); border:1px solid var(--primary); }
     .b-moderator { background:rgba(249,115,22,.12); color:var(--orange);  border:1px solid var(--orange); }
     .b-pioneer   { background:linear-gradient(135deg,rgba(108,63,232,.18),rgba(0,212,255,.12)); color:#00D4FF; border:1px solid rgba(108,63,232,.55); }
@@ -831,21 +852,31 @@
 
     <!-- List tab -->
     <div id="tab-list">
-      <div class="page-title-bar">
-        <i class="bi bi-list-ul"></i>
-        <h1>ЛАЙНАПЫ</h1>
-        <button class="btn" onclick="showNewPatchDialog()" style="margin-left:auto;padding:6px 14px;font-size:13px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);color:#f59e0b;">⚠️ Новый патч</button>
-      </div>
+      <div class="lineups-sticky-top">
+        <div class="page-title-bar">
+          <i class="bi bi-list-ul"></i>
+          <h1>ЛАЙНАПЫ</h1>
+        </div>
 
-      <div id="lineup-stats-bar" class="lineup-stats-bar"></div>
+        <div id="lineup-stats-bar" class="lineup-stats-bar"></div>
 
-      <div class="filters">
-        <button class="filter-btn active"     data-filter="all">Все</button>
-        <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
-        <button class="filter-btn f-approved" data-filter="approved">Одобренные</button>
-        <button class="filter-btn f-rejected" data-filter="rejected">Отклонённые</button>
-        <button class="filter-btn f-archived" data-filter="archived">📦 Архив</button>
-        <button class="filter-btn" id="btn-map-panel">📊 Карты</button>
+        <div class="filters">
+          <button class="filter-btn active"     data-filter="all">Все</button>
+          <button class="filter-btn f-pending"  data-filter="pending">На проверке</button>
+          <button class="filter-btn" data-filter="hot" id="filter-btn-hot" style="color:#f97316;">🔥 Пирожки <span id="hot-filter-badge" style="display:none;background:#f97316;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:2px;">0</span></button>
+          <button class="filter-btn f-approved" data-filter="approved">Одобренные</button>
+          <button class="filter-btn f-rejected" data-filter="rejected">Отклонённые</button>
+          <button class="filter-btn f-archived" data-filter="archived">📦 Архив</button>
+          <button class="filter-btn" id="btn-map-panel">📊 Карты</button>
+        </div>
+
+        <div id="hot-buns-bar" class="hot-buns-bar" style="display:none;">
+          <div>
+            <div style="font-weight:700;color:#f97316;font-size:13px;">🔥 Горячие пирожки</div>
+            <div id="hot-buns-desc" style="font-size:11px;color:var(--text2);margin-top:2px;">лайнапы ждут финального подтверждения</div>
+          </div>
+          <button class="btn btn-publish" onclick="publishAllHot()" style="padding:8px 16px;font-size:12px;font-weight:700;">✅ Опубликовать все</button>
+        </div>
       </div>
 
       <!-- ── Map Stats Panel (drawer) ── -->
@@ -1022,62 +1053,93 @@
       </div>
     </div>
 
-    <!-- Admins tab -->
+    <!-- Admins tab (Пользователи / Администраторы / Модераторы) -->
     <div id="tab-admins" style="display:none;">
-      <div style="display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start;">
 
-        <!-- ЛЕВАЯ: форма добавления + список администраторов -->
-        <div>
-          <div class="form-wrap" style="max-width:100%;margin-bottom:22px;">
-            <div class="form-title">ДОБАВИТЬ АДМИНИСТРАТОРА</div>
-            <div class="fgrid">
-              <div class="fg">
-                <label class="flabel">Email</label>
-                <input class="finput" id="adm-email" type="email" placeholder="admin@example.com">
-              </div>
-              <div class="fg">
-                <label class="flabel">Пароль</label>
-                <input class="finput" id="adm-pass" type="password" placeholder="Минимум 6 символов">
-              </div>
-              <div class="fg">
-                <label class="flabel">Имя</label>
-                <input class="finput" id="adm-name" placeholder="Имя администратора">
-              </div>
-              <div class="fg">
-                <label class="flabel">Роль</label>
-                <select class="fselect" id="adm-role">
-                  <option value="admin">admin</option>
-                  <option value="moderator">moderator</option>
-                </select>
-              </div>
-              <div class="fg full" style="margin-top:4px;">
-                <button class="btn btn-save" id="btn-add-admin" style="width:100%;justify-content:center;padding:11px;">
-                  Создать аккаунт и выдать доступ
-                </button>
-              </div>
-            </div>
-          </div>
+      <!-- Категориальные табы -->
+      <div class="ucat-header">
+        <button class="ucat-btn active" id="ucat-btn-users" onclick="switchUserCat('users')">
+          <i class="bi bi-people-fill"></i> Пользователи
+          <span class="ucat-badge-cnt" id="ucat-badge-users">…</span>
+        </button>
+        <button class="ucat-btn" id="ucat-btn-admins" onclick="switchUserCat('admins')">
+          <i class="bi bi-shield-fill"></i> Администраторы
+          <span class="ucat-badge-cnt" id="ucat-badge-admins">…</span>
+        </button>
+        <button class="ucat-btn" id="ucat-btn-mods" onclick="switchUserCat('mods')">
+          <i class="bi bi-person-check-fill"></i> Модераторы
+          <span class="ucat-badge-cnt" id="ucat-badge-mods">…</span>
+        </button>
+      </div>
 
-          <div class="form-title" style="margin-bottom:12px;">ТЕКУЩИЕ АДМИНИСТРАТОРЫ</div>
-          <div class="adm-list" id="admins-list"><div class="state">Загрузка…</div></div>
-        </div>
-
-        <!-- ПРАВАЯ: поиск пользователей + профиль -->
-        <div>
-          <div class="form-wrap" style="max-width:100%;margin-bottom:16px;">
+      <!-- ── ПАНЕЛЬ: Пользователи ── -->
+      <div id="ucat-panel-users">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+          <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div class="form-title" style="margin:0;">👥 ПОЛЬЗОВАТЕЛИ</div>
+              <div class="dlabel">Все пользователи</div>
               <span id="users-count" style="font-size:11px;color:var(--text2);"></span>
             </div>
-            <input class="finput" id="user-search" placeholder="Быстрый поиск по нику или email…" style="margin-bottom:10px;">
-            <div id="user-search-results" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
+            <input class="finput" id="user-search" placeholder="Поиск по нику или email…" style="margin-bottom:10px;">
+            <div id="user-search-results" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
               <div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>
             </div>
           </div>
           <div id="user-profile-panel" style="display:none;"></div>
         </div>
-
       </div>
+
+      <!-- ── ПАНЕЛЬ: Администраторы ── -->
+      <div id="ucat-panel-admins" style="display:none;">
+        <div style="display:grid;grid-template-columns:400px 1fr;gap:20px;align-items:start;">
+          <div>
+            <div class="form-wrap" style="max-width:100%;margin-bottom:22px;">
+              <div class="form-title">ДОБАВИТЬ АДМИНИСТРАТОРА</div>
+              <div class="fgrid">
+                <div class="fg">
+                  <label class="flabel">Email</label>
+                  <input class="finput" id="adm-email" type="email" placeholder="admin@example.com">
+                </div>
+                <div class="fg">
+                  <label class="flabel">Пароль</label>
+                  <input class="finput" id="adm-pass" type="password" placeholder="Минимум 6 символов">
+                </div>
+                <div class="fg">
+                  <label class="flabel">Имя</label>
+                  <input class="finput" id="adm-name" placeholder="Имя администратора">
+                </div>
+                <div class="fg">
+                  <label class="flabel">Роль</label>
+                  <select class="fselect" id="adm-role">
+                    <option value="admin">admin</option>
+                    <option value="moderator">moderator</option>
+                  </select>
+                </div>
+                <div class="fg full" style="margin-top:4px;">
+                  <button class="btn btn-save" id="btn-add-admin" style="width:100%;justify-content:center;padding:11px;">
+                    Создать аккаунт и выдать доступ
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="dlabel" style="margin-bottom:10px;">ТЕКУЩИЕ АДМИНИСТРАТОРЫ</div>
+            <div class="adm-list" id="admins-list"><div class="state">Загрузка…</div></div>
+          </div>
+          <div id="admin-profile-panel" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- ── ПАНЕЛЬ: Модераторы ── -->
+      <div id="ucat-panel-mods" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+          <div>
+            <div class="dlabel" style="margin-bottom:10px;">ТЕКУЩИЕ МОДЕРАТОРЫ</div>
+            <div class="adm-list" id="mods-list"><div class="state">Загрузка…</div></div>
+          </div>
+          <div id="mod-profile-panel" style="display:none;"></div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Changelog tab -->
@@ -1219,10 +1281,16 @@
           <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">За 7 дней</div></div>
           <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">За 30 дней</div></div>
           <div class="an-card"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего</div></div>
+          <div class="an-card" title="Регистрация через логин + пароль"><div class="an-val an-loading" id="nu-by-password">…</div><div class="an-lbl">🔑 Пароль</div></div>
+          <div class="an-card" title="Регистрация через Google Sign-In"><div class="an-val an-loading" id="nu-by-google">…</div><div class="an-lbl">🔴 Google</div></div>
         </div>
         <div class="an-chart-box" style="margin-top:14px;">
           <div class="dlabel" style="margin-bottom:8px;">Новые регистрации по дням</div>
-          <svg id="nu-chart" width="100%" style="display:block;"></svg>
+          <div class="an-chart-wrap" id="nu-chart-wrap">
+            <svg id="nu-chart" width="100%" style="display:block;"></svg>
+            <div class="an-tip" id="nu-tip" style="display:none;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center;">наведи на график, чтобы увидеть цифры за день</div>
         </div>
         <div style="margin-top:18px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -1247,7 +1315,11 @@
         </div>
         <div class="an-chart-box" style="margin-top:14px;">
           <div class="dlabel" style="margin-bottom:8px;">Просмотры по дням</div>
-          <svg id="views-chart" width="100%" style="display:block;"></svg>
+          <div class="an-chart-wrap" id="views-chart-wrap">
+            <svg id="views-chart" width="100%" style="display:block;"></svg>
+            <div class="an-tip" id="views-tip" style="display:none;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center;">наведи на график, чтобы увидеть цифры за день</div>
         </div>
         <div style="margin-top:14px;">
           <div class="dlabel" style="margin-bottom:10px;">Топ-10 лайнапов <span style="font-size:10px;color:var(--text2);font-weight:400;">(нажми чтобы открыть)</span></div>
@@ -1794,6 +1866,19 @@
 
 <!-- Logs tab -->
 <div id="tab-logs" style="display:none;">
+
+  <!-- ── Cron задачи ── -->
+  <div style="padding:16px 20px 0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-size:13px;font-weight:700;color:var(--text);">🤖 Cron задачи (GitHub Actions)</span>
+      <button onclick="loadCronLogs()" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">🔄</button>
+    </div>
+    <div id="cron-logs-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
+      <div style="color:var(--text2);font-size:12px;">Загрузка…</div>
+    </div>
+    <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+  </div>
+
   <div class="logs-toolbar">
     <span style="font-size:15px;font-weight:700;color:var(--text);">⚠️ Логи / Ошибки</span>
     <div style="flex:1;"></div>
@@ -2039,6 +2124,22 @@
     <button id="mp-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
       💾 Сохранить маппул
     </button>
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+      <h4 style="color:var(--text);margin-bottom:6px;">🔄 Смена патча</h4>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Пометить все одобренные лайнапы старого патча как устаревшие. Используй при выходе нового патча.</p>
+      <button onclick="showNewPatchDialog()" style="padding:9px 18px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);color:#f59e0b;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:600;">
+        ⚠️ Новый патч - пометить устаревшие
+      </button>
+    </div>
+    <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+      <h4 style="color:var(--text);margin-bottom:6px;">📊 Счётчики лайнапов</h4>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">
+        Счётчики хранятся в <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">settings/lineup_counts</code> и автоматически обновляются при аппруве/удалении. Пересчитай вручную если данные расхолись (например после ручного редактирования в Firestore).
+      </p>
+      <button onclick="rebuildLineupCountStats()" style="padding:9px 18px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.5);color:#818cf8;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:600;">
+        🔢 Пересчитать счётчики
+      </button>
+    </div>
   </div>
 </div>
 
@@ -2367,7 +2468,7 @@ function switchTab(t) {
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
-  if (t === 'logs')  loadLogsTab();
+  if (t === 'logs')  { loadLogsTab(); loadCronLogs(); }
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') { loadAgentColorsSection('ac-grid2'); loadAbilityStyleEditor(); }
@@ -4062,6 +4163,7 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
       e.stopPropagation();
       const { action, id, uid, name } = actionBtn.dataset;
       if (action === 'approve')      approveLineup(id, uid);
+      if (action === 'publish')      publishLineup(id, uid);
       if (action === 'reject')       rejectLineup(id);
       if (action === 'archive')      archiveLineup(id);
       if (action === 'restore')      restoreLineup(id);
@@ -4177,9 +4279,28 @@ function updateStatsBar() {
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderList() {
   updateStatsBar();
+
+  // Панель "Горячие пирожки" — показываем всегда когда есть hot лайнапы
+  const hotCount = lineups.filter(l => l.status === 'hot').length;
+  const hotBar   = document.getElementById('hot-buns-bar');
+  const hotBadge = document.getElementById('hot-filter-badge');
+  if (hotBar) {
+    if (hotCount > 0) {
+      hotBar.style.display = 'flex';
+      const desc = document.getElementById('hot-buns-desc');
+      if (desc) desc.textContent = `${hotCount} ${hotCount === 1 ? 'лайнап ждёт' : hotCount < 5 ? 'лайнапа ждут' : 'лайнапов ждут'} финального подтверждения`;
+    } else {
+      hotBar.style.display = 'none';
+    }
+  }
+  if (hotBadge) {
+    if (hotCount > 0) { hotBadge.textContent = hotCount; hotBadge.style.display = ''; }
+    else hotBadge.style.display = 'none';
+  }
+
   const q  = document.getElementById('search').value.toLowerCase();
   const fl = lineups.filter(l => {
-    if (currentFilter === 'all' && l.status === 'archived') return false;
+    if (currentFilter === 'all' && (l.status === 'archived' || l.status === 'hot')) return false;
     if (currentFilter !== 'all' && l.status !== currentFilter) return false;
     if (q) {
       const hay = `${l.title} ${l.agent} ${l.map} ${l.ability} ${l.submitted_by ?? ''}`.toLowerCase();
@@ -4208,6 +4329,7 @@ function renderList() {
 function cardHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
+    hot:      ['b-hot',      '🔥 ПИРОЖОК'],
     approved: ['b-approved', 'ОДОБРЕН'],
     rejected: ['b-rejected', 'ОТКЛОНЁН'],
     removed:  ['b-removed',  'УДАЛЁН'],
@@ -4237,6 +4359,7 @@ function cardHtml(l) {
 function detailHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
+    hot:      ['b-hot',      '🔥 ПИРОЖОК'],
     approved: ['b-approved', 'ОДОБРЕН'],
     rejected: ['b-rejected', 'ОТКЛОНЁН'],
     removed:  ['b-removed',  'УДАЛЁН'],
@@ -4306,7 +4429,8 @@ function selectLineup(id) {
         </div>
         <div class="audit-actions">
           <div class="row">
-            ${l.status !== 'approved' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✓ Принять</button>` : ''}
+            ${l.status === 'pending' || l.status === 'rejected' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">🔥 В пирожки</button>` : ''}
+            ${l.status === 'hot' ? `<button class="btn btn-publish" data-action="publish" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✅ Опубликовать</button>` : ''}
             ${l.status !== 'rejected' ? `<button class="btn btn-reject" data-action="reject" data-id="${l.id}">✕ Отклонить</button>` : ''}
             ${l.status !== 'archived'
               ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
@@ -4385,19 +4509,21 @@ async function notifySubscribers(lineup) {
     const map   = lineup.map_name   || lineup.mapName   || '';
     if (!agent || !map) return;
 
-    const subId = `${agent}_${map}`.replace(/ /g, '_').toLowerCase();
     const snap = await getDocs(query(
       collectionGroup(db, 'subscriptions'),
       where('type', '==', 'agent_map'),
       where('agent', '==', agent),
       where('map',   '==', map),
     ));
+    if (snap.empty) return;
 
+    // Пишем in-app уведомления
     const batch = writeBatch(db);
+    const uids = [];
     snap.docs.forEach(subDoc => {
       const uid = subDoc.ref.parent.parent.id;
-      const notifRef = doc(collection(db, 'users', uid, 'notifications'));
-      batch.set(notifRef, {
+      uids.push(uid);
+      batch.set(doc(collection(db, 'users', uid, 'notifications')), {
         type: 'new_lineup',
         lineup_id: lineup.id,
         agent, map,
@@ -4406,27 +4532,122 @@ async function notifySubscribers(lineup) {
         read: false,
       });
     });
-    if (!snap.empty) await batch.commit();
+    await batch.commit();
+
+    // Шлём OneSignal-пуш каждому подписчику через прокси
+    const pushTitle = `🎯 ${agent}: новый лайнап на ${map}`;
+    const pushBody  = lineup.title || 'Новый лайнап добавлен';
+    await Promise.all(uids.map(uid =>
+      fetch(_PUSH_PROXY, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+        body: JSON.stringify({
+          title:     pushTitle,
+          body:      pushBody,
+          type:      'new_lineup',
+          targetUid: uid,
+        }),
+      }).catch(e => console.warn(`push sub ${uid}:`, e.message))
+    ));
   } catch (e) { console.warn('notifySubscribers:', e.message); }
 }
 
 async function approveLineup(id, userId) {
-  if (!confirm('Одобрить лайнап?')) return;
+  if (!confirm('Отправить лайнап в «Горячие пирожки»?\nОн станет виден пользователям только после финального подтверждения.')) return;
   try {
-    const updateData = { status: 'approved' };
+    await updateDoc(doc(db, 'lineups', id), { status: 'hot' });
+    await writeAudit(id, 'hot');
+    patchStatus(id, 'hot');
+    toast('Лайнап в горячих пирожках 🔥', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function publishLineup(id, userId) {
+  if (!confirm('Финально опубликовать лайнап? Он сразу станет виден пользователям.')) return;
+  try {
+    const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     await updateDoc(doc(db, 'lineups', id), updateData);
     if (userId) await updateDoc(doc(db, 'users', userId), { approved_lineups: increment(1) });
-
-    // Уведомляем подписчиков
     const lineupSnap = await getDoc(doc(db, 'lineups', id));
     if (lineupSnap.exists()) {
       await notifySubscribers({ id, ...lineupSnap.data() });
+      const d = lineupSnap.data();
+      updateLineupCountStats(d.map, d.category, 1).catch(() => {});
     }
-
     await writeAudit(id, 'approved');
     patchStatus(id, 'approved');
-    toast('Лайнап одобрен ✅', 's');
+    toast('Лайнап опубликован ✅', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function publishAllHot() {
+  const hotList = lineups.filter(l => l.status === 'hot');
+  if (!hotList.length) { toast('Нет лайнапов в горячих пирожках', 'i'); return; }
+  if (!confirm(`Финально опубликовать все ${hotList.length} лайнапов из «Горячих пирожков»?\nОни сразу станут видны пользователям.`)) return;
+  try {
+    const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
+    if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
+    const b = writeBatch(db);
+    hotList.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
+    await b.commit();
+    for (const l of hotList) {
+      if (l.user_id) updateDoc(doc(db, 'users', l.user_id), { approved_lineups: increment(1) }).catch(() => {});
+      try {
+        const snap = await getDoc(doc(db, 'lineups', l.id));
+        if (snap.exists()) await notifySubscribers({ id: l.id, ...snap.data() });
+      } catch (_) {}
+      writeAudit(l.id, 'approved').catch(() => {});
+      patchStatus(l.id, 'approved');
+    }
+    // Батч-обновление счётчиков: считаем дельты, пишем одним вызовом
+    const statsDelta = {};
+    hotList.forEach(l => {
+      if (!l.map || !l.category) return;
+      if (!statsDelta[l.category]) statsDelta[l.category] = {};
+      statsDelta[l.category][l.map] = (statsDelta[l.category][l.map] || 0) + 1;
+    });
+    const statsUpdate = {};
+    Object.entries(statsDelta).forEach(([cat, maps]) =>
+      Object.entries(maps).forEach(([map, n]) => { statsUpdate[`${cat}.${map}`] = increment(n); })
+    );
+    if (Object.keys(statsUpdate).length) {
+      const ref = doc(db, 'settings', 'lineup_counts');
+      updateDoc(ref, statsUpdate).catch(async e => {
+        if (e.code === 'not-found') {
+          const plain = {};
+          Object.entries(statsDelta).forEach(([cat, maps]) => { plain[cat] = maps; });
+          await setDoc(ref, plain).catch(() => {});
+        }
+      });
+    }
+    toast(`Опубликовано ${hotList.length} лайнапов 🚀`, 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+// Разовая миграция: пометить все существующие approved лайнапы как прошедшие пирожки
+async function markLegacyHotConfirmed() {
+  if (!confirm('Пометить все уже опубликованные лайнапы как прошедшие «Горячие пирожки»?\nЭто одноразовая операция — она добавит метку hot_confirmed_at к существующим лайнапам.')) return;
+  try {
+    const snap = await getDocs(window._buildQuery(collection(db, 'lineups'), [
+      where('status', '==', 'approved'),
+      where('hot_confirmed_at', '==', null),
+    ]));
+    // fallback: если фильтр по null не работает — загружаем все approved
+    let docs = snap.docs;
+    if (!docs.length) {
+      const snap2 = await getDocs(window._buildQuery(collection(db, 'lineups'), [where('status', '==', 'approved')]));
+      docs = snap2.docs.filter(d => !d.data().hot_confirmed_at);
+    }
+    if (!docs.length) { toast('Все approved лайнапы уже помечены ✅', 'i'); return; }
+    const ts = serverTimestamp();
+    for (let i = 0; i < docs.length; i += 499) {
+      const chunk = docs.slice(i, i + 499);
+      const b = writeBatch(db);
+      chunk.forEach(d => b.update(d.ref, { hot_confirmed_at: ts }));
+      await b.commit();
+    }
+    toast(`Помечено ${docs.length} лайнапов как hot_confirmed ✅`, 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 async function rejectLineup(id) {
@@ -4441,6 +4662,7 @@ async function rejectLineup(id) {
 async function deleteLineup(id) {
   if (!confirm('Удалить лайнап? Это необратимо.')) return;
   try {
+    const l = lineups.find(x => x.id === id);
     await writeAudit(id, 'deleted');
     await deleteDoc(doc(db, 'lineups', id));
     if (_selectedId === id) {
@@ -4449,18 +4671,21 @@ async function deleteLineup(id) {
       const content = document.getElementById('editor-content');
       content.style.display = 'none'; content.innerHTML = '';
     }
-    lineups = lineups.filter(l => l.id !== id);
+    lineups = lineups.filter(x => x.id !== id);
     renderList();
     initMapPanel();
+    if (l?.status === 'approved') updateLineupCountStats(l.map, l.category, -1).catch(() => {});
     toast('Лайнап удалён', 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 async function archiveLineup(id) {
   if (!confirm('Перенести лайнап в архив? Он больше не будет виден пользователям.')) return;
   try {
+    const l = lineups.find(x => x.id === id);
     await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
     await writeAudit(id, 'archived');
     patchStatus(id, 'archived');
+    if (l?.status === 'approved') updateLineupCountStats(l.map, l.category, -1).catch(() => {});
     toast('Лайнап перемещён в архив 📦', 'i');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
@@ -4471,6 +4696,35 @@ async function restoreLineup(id) {
     await writeAudit(id, 'restored');
     patchStatus(id, 'pending');
     toast('Лайнап восстановлен ✅', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+// ── Счётчики лайнапов (settings/lineup_counts) ──────────────────────────────
+// delta = +1 при approve, -1 при archive/delete approved
+async function updateLineupCountStats(map, category, delta) {
+  if (!map || !category) return;
+  const ref = doc(db, 'settings', 'lineup_counts');
+  await updateDoc(ref, { [`${category}.${map}`]: increment(delta) }).catch(async e => {
+    if (e.code === 'not-found') {
+      await setDoc(ref, { [category]: { [map]: Math.max(0, delta) } });
+    }
+  });
+}
+
+async function rebuildLineupCountStats() {
+  if (!confirm('Пересчитать счётчики лайнапов? Прочитает все одобренные лайнапы.')) return;
+  try {
+    toast('Пересчёт...', 'i');
+    const snap = await getDocs(query(collection(db, 'lineups'), where('status', '==', 'approved')));
+    const counts = {};
+    snap.docs.forEach(d => {
+      const { map, category } = d.data();
+      if (!map || !category) return;
+      if (!counts[category]) counts[category] = {};
+      counts[category][map] = (counts[category][map] || 0) + 1;
+    });
+    await setDoc(doc(db, 'settings', 'lineup_counts'), counts);
+    toast(`Готово: ${snap.size} лайнапов посчитано ✅`, 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
@@ -6722,41 +6976,56 @@ function esc(s) {
 function fmtNum(v) { return typeof v === 'number' ? v.toFixed(4) : '—'; }
 
 // ── Admins tab ────────────────────────────────────────────────────────────────
+
+function switchUserCat(cat) {
+  ['users', 'admins', 'mods'].forEach(c => {
+    document.getElementById('ucat-btn-' + c)?.classList.toggle('active', c === cat);
+    const panel = document.getElementById('ucat-panel-' + c);
+    if (panel) panel.style.display = c === cat ? '' : 'none';
+  });
+  if (cat === 'mods') renderModerators();
+  if (cat === 'admins') renderAdmins();
+}
+
 let admins = [];
 async function loadAdmins() {
-  const el = document.getElementById('admins-list'); if (!el) return;
-  el.innerHTML = '<div class="state">Загрузка…</div>';
   try {
     const snap = await getDocs(query(collection(db, 'users'), where('role', 'in', ['admin', 'moderator'])));
     admins = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
     renderAdmins();
+    renderModerators();
+    // Обновляем бейджи
+    const aCount = admins.filter(a => a.role === 'admin').length;
+    const mCount = admins.filter(a => a.role === 'moderator').length;
+    const ba = document.getElementById('ucat-badge-admins');
+    const bm = document.getElementById('ucat-badge-mods');
+    if (ba) ba.textContent = aCount;
+    if (bm) bm.textContent = mCount;
   } catch (e) {
-    el.innerHTML = `<div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
+    const el = document.getElementById('admins-list');
+    if (el) el.innerHTML = `<div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
   }
 }
 
-function renderAdmins() {
-  const el = document.getElementById('admins-list'); if (!el) return;
-  if (!admins.length) { el.innerHTML = '<div class="state">Нет администраторов</div>'; return; }
-  el.innerHTML = admins.map(a => {
-    const date      = a.created_at?.toDate ? a.created_at.toDate().toLocaleDateString('ru') : '';
-    const roleClass = a.role === 'admin' ? 'b-admin' : 'b-moderator';
-    const isSelf    = a.uid === currentUser?.uid;
-    const nameVal   = a.displayName ?? a.display_name ?? a.name ?? a.username ?? a.email ?? '—';
-    const isPioneer = a.is_beta === true;
-    return `
-<div class="adm-card" style="flex-wrap:wrap;gap:10px;">
+function _admCardHtml(a, panelTarget) {
+  const date      = a.created_at?.toDate ? a.created_at.toDate().toLocaleDateString('ru') : '';
+  const roleClass = a.role === 'admin' ? 'b-admin' : 'b-moderator';
+  const isSelf    = a.uid === currentUser?.uid;
+  const nameVal   = a.displayName ?? a.display_name ?? a.name ?? a.username ?? a.email ?? '—';
+  const isPioneer = a.is_beta === true;
+  return `
+<div class="adm-card clickable" data-open-uid="${esc(a.uid)}" data-open-panel="${panelTarget}" style="flex-wrap:wrap;gap:10px;">
   <div style="flex:1;min-width:0;">
     <div class="adm-name">${esc(nameVal)}</div>
     <div class="adm-meta">
-      <span>${esc(a.email ?? '')}</span>
+      <span>${esc(a.email ?? a.user_email ?? '')}</span>
       <span class="badge ${roleClass}">${esc(a.role)}</span>
       ${isPioneer ? `<span class="badge b-pioneer">⚡ PIONEER</span>` : ''}
       ${date   ? `<span>📅 ${date}</span>` : ''}
       ${isSelf ? `<span style="color:var(--text2);font-size:11px;">(вы)</span>` : ''}
     </div>
   </div>
-  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap;">
+  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap;" onclick="event.stopPropagation()">
     <button class="btn-pioneer ${isPioneer ? 'active' : ''}"
         data-pioneer-uid="${esc(a.uid)}"
         data-pioneer-name="${esc(nameVal)}"
@@ -6770,13 +7039,46 @@ function renderAdmins() {
       : ''}
   </div>
 </div>`;
-  }).join('');
+}
+
+function _bindAdmListEvents(el) {
+  el.querySelectorAll('[data-open-uid]').forEach(card => {
+    card.addEventListener('click', () => {
+      el.querySelectorAll('.adm-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      openUserProfileInPanel(card.dataset.openUid, card.dataset.openPanel);
+    });
+  });
   el.querySelectorAll('[data-adm-uid]').forEach(btn => {
     btn.addEventListener('click', () => removeAdminAccess(btn.dataset.admUid, btn.dataset.admName));
   });
   el.querySelectorAll('[data-pioneer-uid]').forEach(btn => {
     btn.addEventListener('click', () => togglePioneer(btn.dataset.pioneerUid, btn.dataset.pioneerCurrent === 'true', btn.dataset.pioneerName));
   });
+}
+
+function renderAdmins() {
+  const el = document.getElementById('admins-list'); if (!el) return;
+  const adminOnly = admins.filter(a => a.role === 'admin');
+  if (!adminOnly.length) { el.innerHTML = '<div class="state">Нет администраторов</div>'; return; }
+  el.innerHTML = adminOnly.map(a => _admCardHtml(a, 'admin-profile-panel')).join('');
+  _bindAdmListEvents(el);
+}
+
+function renderModerators() {
+  const el = document.getElementById('mods-list'); if (!el) return;
+  const modOnly = admins.filter(a => a.role === 'moderator');
+  if (!modOnly.length) { el.innerHTML = '<div class="state">Нет модераторов</div>'; return; }
+  el.innerHTML = modOnly.map(a => _admCardHtml(a, 'mod-profile-panel')).join('');
+  _bindAdmListEvents(el);
+}
+
+async function openUserProfileInPanel(uid, panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  panel.style.display = 'block';
+  panel.innerHTML = '<div style="color:var(--text2);padding:16px;">Загрузка…</div>';
+  await _renderUserProfileInto(uid, panel);
 }
 
 async function togglePioneer(uid, currentIsBeta, name) {
@@ -7010,10 +7312,10 @@ async function clDeletePost(id) {
 
 // \u2500\u2500 Analytics \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 // ── Analytics sub-tabs ───────────────────────────────────────────────────────
-document.querySelectorAll('.an-tab-btn').forEach(btn => {
+document.querySelectorAll('[data-an-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.anTab;
-    document.querySelectorAll('.an-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-an-tab]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     ['ads','activity','users','content','storage'].forEach(id => {
       const el = document.getElementById('an-section-' + id);
@@ -7152,18 +7454,20 @@ async function loadNewUsersAnalytics() {
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
   try {
-    const totalCount = await getCountFromServer(collection(db, 'users'));
-    const realTotal  = totalCount.data().count;
-
     const snap = await getDocs(query(collection(db, 'users'), orderBy('created_at', 'desc')));
-    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0;
+    const realTotal = snap.size;
+    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0, nuPassword = 0, nuGoogle = 0;
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
     _nuAllRecent = [];
 
     for (const docSnap of snap.docs) {
-      const dat = docSnap.data();
-      const ts  = dat.created_at?.toDate ? dat.created_at.toDate() : null;
+      const dat   = docSnap.data();
+      const ts    = dat.created_at?.toDate ? dat.created_at.toDate() : null;
+      const email = dat.user_email || '';
+      // Google-пользователи не имеют user_email в Firestore (saveGoogleUsername его не пишет)
+      if (email.endsWith('@valorantlineups.app')) nuPassword++;
+      else nuGoogle++;
       if (!ts) continue;
       nuWithDate++;
       const day = ts.toISOString().slice(0, 10);
@@ -7173,14 +7477,16 @@ async function loadNewUsersAnalytics() {
       if (ts >= d24h) _nuAllRecent.push({ uid: docSnap.id, dat, ts });
     }
 
-    document.getElementById('nu-today').textContent    = nuToday;
-    document.getElementById('nu-week').textContent     = nuWeek;
-    document.getElementById('nu-month').textContent    = nuMonth;
-    document.getElementById('nu-total').textContent    = realTotal + (nuWithDate < realTotal ? ` (${nuWithDate} с датой)` : '');
-    document.getElementById('nu-24h-count').textContent = _nuAllRecent.length;
+    document.getElementById('nu-today').textContent       = nuToday;
+    document.getElementById('nu-week').textContent        = nuWeek;
+    document.getElementById('nu-month').textContent       = nuMonth;
+    document.getElementById('nu-total').textContent       = realTotal;
+    document.getElementById('nu-by-password').textContent = nuPassword;
+    document.getElementById('nu-by-google').textContent   = `${nuGoogle} (${realTotal ? Math.round(nuGoogle/realTotal*100) : 0}%)`;
+    document.getElementById('nu-24h-count').textContent   = _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
-    drawLineChart('nu-chart', [{ data: days.map(d => nuByDay[d]), color: 'var(--green)' }], days);
+    drawInteractiveChart('nu-chart', 'nu-tip', [{ name: 'Регистраций', data: days.map(d => nuByDay[d]), color: 'var(--green)' }], days);
 
     _nuFilter = 'all';
     document.querySelectorAll('[data-nu-filter]').forEach(b => b.classList.toggle('active', b.dataset.nuFilter === 'all'));
@@ -7255,8 +7561,8 @@ async function loadAnalytics() {
       `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
     ).join('');
 
-    drawLineChart('views-chart', [
-      { data: viewsArr, color: 'var(--orange)' },
+    drawInteractiveChart('views-chart', 'views-tip', [
+      { name: 'Просмотров', data: viewsArr, color: 'var(--orange)' },
     ], days);
 
     // Top-10 lineups by views
@@ -7392,6 +7698,7 @@ function drawInteractiveChart(svgId, tipId, series, days) {
   const H = 210;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('height', H);
+  svg.setAttribute('preserveAspectRatio', 'none');
 
   const pad = { t: 14, r: 16, b: 30, l: 38 };
   const cW = W - pad.l - pad.r;
@@ -8056,37 +8363,24 @@ function initMapInteraction(container) {
   });
 }
 
-// ── Push via OneSignal REST API (direct, works offline) ───────────────────────
-const _OS_APP_ID = '1703b1a2-73e6-42b5-b788-9437233799ca';
-// REST key — split to avoid secret scanning (token is intentional in this admin tool)
-const _OS_REST = 'Key ' + ['os_v2_app_c4b3ditt4zblln4i', 'sq3sgn4zzlrjimxredzejsuipcen2aj4zqkzjk',
-  'wem6bxetujww3fcthorjeewnqswv7xqxvnolle4wbalmwnjwa'].join('');
+// ── Push proxy (Vercel serverless → OneSignal, обходит CORS) ─────────────────
+// Установить в Vercel: ONESIGNAL_APP_ID, ONESIGNAL_REST_KEY, ADMIN_SECRET=значение ниже
+const _PUSH_PROXY   = 'https://vlineups.ru/api/send-push';
+const _ADMIN_SECRET = 'vl_adm_8f2k9p4x7q3m';
 
 let _ncTargetUid  = null;
 let _ncTargetName = null;
 
-async function sendPushNotification({ title, body, type }) {
-  const payload = {
-    app_id:   _OS_APP_ID,
-    headings: { en: title, ru: title },
-    contents: { en: body,  ru: body  },
-    data:     { type },
-    priority: 10,
-  };
-  if (_ncTargetUid) {
-    payload.include_aliases              = { external_id: [_ncTargetUid] };
-    payload.target_channel               = 'push';
-  } else {
-    payload.included_segments            = ['All'];
-  }
-  const res = await fetch('https://api.onesignal.com/notifications', {
+async function sendPushNotification({ title, body, type, targetUid }) {
+  const uid = targetUid ?? _ncTargetUid;
+  const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': _OS_REST },
-    body:    JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+    body:    JSON.stringify({ title, body, type, targetUid: uid || undefined }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err.errors ?? []).join(', ') || `HTTP ${res.status}`);
+    throw new Error(err.error || (err.errors ?? []).join(', ') || `HTTP ${res.status}`);
   }
   return res.json();
 }
@@ -8099,6 +8393,8 @@ document.getElementById('nc-mode-all').addEventListener('click', () => {
   document.getElementById('nc-mode-one').className = 'btn';
   document.getElementById('nc-mode-one').style.cssText = 'border:1px solid var(--border);color:var(--text2);';
   document.getElementById('nc-user-wrap').style.display = 'none';
+  const clBtn = document.getElementById('notif-cl-btn');
+  if (clBtn) clBtn.innerHTML = '📢 Отправить всем';
 });
 
 document.getElementById('nc-mode-one').addEventListener('click', () => {
@@ -8146,6 +8442,8 @@ function _ncSelectUser(uid, name) {
   document.getElementById('nc-selected-name').textContent = name;
   document.getElementById('nc-selected-uid').textContent = uid;
   document.getElementById('nc-selected-badge').style.display = 'flex';
+  const clBtn = document.getElementById('notif-cl-btn');
+  if (clBtn) clBtn.innerHTML = `📢 Отправить: <b>${name}</b>`;
 }
 
 document.getElementById('nc-clear-user').addEventListener('click', () => {
@@ -8153,6 +8451,8 @@ document.getElementById('nc-clear-user').addEventListener('click', () => {
   document.getElementById('nc-selected-badge').style.display = 'none';
   document.getElementById('nc-user-input').value = '';
   document.getElementById('nc-user-input').focus();
+  const clBtn = document.getElementById('notif-cl-btn');
+  if (clBtn) clBtn.innerHTML = '📢 Отправить всем';
 });
 
 const NC_PRESETS = {
@@ -8181,8 +8481,8 @@ document.querySelectorAll('.nc-btn').forEach(btn => {
     _ncSetStatus(id, true, 'Отправка…');
     try {
       await sendPushNotification(preset);
-      _ncSetStatus(id, true, '✅ Отправлено — придёт даже при закрытом приложении');
-      toast(`Отправлено: ${preset.title}`, 's');
+      _ncSetStatus(id, true, _ncTargetName ? `✅ Отправлено → ${_ncTargetName}` : '✅ Отправлено всем');
+      toast(_ncTargetName ? `${preset.title} → ${_ncTargetName} ✅` : `Отправлено всем: ${preset.title}`, 's');
     } catch (e) {
       _ncSetStatus(id, false, `❌ ${e.message}`);
       toast('Ошибка: ' + e.message, 'e');
@@ -8202,7 +8502,7 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   try {
     await sendPushNotification({ title, body, type: 'changelog' });
     _ncSetStatus('changelog', true, '✅ Отправлено — придёт даже при закрытом приложении');
-    toast('Changelog отправлен всем пользователям', 's');
+    toast(_ncTargetName ? `Отправлено: ${_ncTargetName} ✅` : 'Отправлено всем пользователям ✅', 's');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
@@ -8449,6 +8749,49 @@ document.getElementById('dtp-save-btn')?.addEventListener('click', () => {
 let _logsFilter = 'all';
 let _logsCache  = [];
 
+async function loadCronLogs() {
+  const list = document.getElementById('cron-logs-list');
+  if (!list) return;
+  list.innerHTML = '<div style="color:var(--text2);font-size:12px;">Загрузка…</div>';
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'cron_logs'),
+      orderBy('run_at', 'desc'),
+      limit(20)
+    ));
+    if (snap.empty) {
+      list.innerHTML = '<div style="color:var(--text2);font-size:12px;">Нет запусков</div>';
+      return;
+    }
+    list.innerHTML = snap.docs.map(d => {
+      const r = d.data();
+      const ts = r.run_at?.toDate ? r.run_at.toDate().toLocaleString('ru-RU') : '—';
+      const trigger = r.triggered_by === 'workflow_dispatch' ? '🖱️ вручную' : '⏱️ авто';
+      const ok = r.ok !== false;
+      const bg = ok ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)';
+      const border = ok ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.3)';
+      const s = r.stats || {};
+      return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 14px;font-size:12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <span style="color:${ok?'var(--green)':'var(--red)'};font-weight:700;">${ok?'✅':'❌'} cleanup_bots</span>
+          <span style="color:var(--text2);">${trigger}</span>
+          <span style="color:var(--text2);margin-left:auto;">${ts}</span>
+        </div>
+        <div style="color:var(--text2);line-height:1.6;">
+          Кандидатов: <b style="color:var(--text)">${s.total??'—'}</b>
+          &nbsp;·&nbsp; Предупреждено: <b style="color:#facc15">${s.warned??0}</b>
+          &nbsp;·&nbsp; Удалено: <b style="color:var(--red)">${s.deleted??0}</b>
+          &nbsp;·&nbsp; Сброшено: <b style="color:var(--green)">${s.cleared??0}</b>
+          ${s.errors ? `&nbsp;·&nbsp; Ошибок: <b style="color:var(--red)">${s.errors}</b>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--red);font-size:12px;">Ошибка: ${e.message}</div>`;
+  }
+}
+window.loadCronLogs = loadCronLogs;
+
 async function loadLogsTab() {
   const list = document.getElementById('logs-list');
   list.innerHTML = '<div class="state"><div class="an-loading">Загружаем логи…</div></div>';
@@ -8627,6 +8970,10 @@ async function openUserProfilePanel(uid) {
   const panel = document.getElementById('user-profile-panel');
   panel.style.display = 'block';
   panel.innerHTML = '<div style="color:var(--text2);padding:16px;">Загрузка…</div>';
+  await _renderUserProfileInto(uid, panel);
+}
+
+async function _renderUserProfileInto(uid, panel) {
   try {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (!userDoc.exists()) { panel.innerHTML = '<div style="color:var(--red);">Пользователь не найден</div>'; return; }
@@ -8647,8 +8994,41 @@ async function openUserProfilePanel(uid) {
     } catch(_) {}
 
     const hasPassword = u.user_email && !u.user_email.includes('google');
-    const createdAt = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
-    const isBanned  = !!u.is_banned;
+    const createdAt   = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
+    const isBanned    = !!u.is_banned;
+    const lastSeenTs  = u.last_seen?.toDate?.() ?? null;
+    const seenMs      = lastSeenTs ? Date.now() - lastSeenTs.getTime() : null;
+    const onlineDot   = seenMs === null ? '⚫' : seenMs < 5*60*1000 ? '🟢' : seenMs < 60*60*1000 ? '🟡' : '⚫';
+    const onlineStr   = seenMs === null ? 'Нет данных' : seenMs < 5*60*1000 ? 'В сети' : seenMs < 60*60*1000 ? `${Math.floor(seenMs/60000)} мин назад` : seenMs < 24*3600*1000 ? `${Math.floor(seenMs/3600000)} ч назад` : lastSeenTs.toLocaleDateString('ru');
+    const onlineClr   = seenMs !== null && seenMs < 5*60*1000 ? 'var(--green)' : seenMs !== null && seenMs < 60*60*1000 ? '#facc15' : 'var(--text2)';
+    const lastSeenStr = lastSeenTs ? lastSeenTs.toLocaleDateString('ru') + ' ' + lastSeenTs.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}) : '—';
+    const timeSpent   = u.time_spent_seconds || 0;
+    const fmtTimeApp  = s => { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h>0?`${h}ч ${m}м`:m>0?`${m}м`:`${s}с`; };
+    const totalViewed = u.lineups_viewed ?? 0;
+
+    if (!panel.id) panel.id = 'up-tmp-' + uid;
+    const _panelId = panel.id;
+
+    const regTs        = u.created_at?.toDate?.() ?? null;
+    const daysSinceReg = regTs ? Math.floor((Date.now() - regTs.getTime()) / 86400000) : null;
+    const isManualVerif = !!u.verified_not_fake;
+    const goodActivity = (u.lineups_viewed || 0) >= 3 || (u.time_spent_seconds || 0) >= 120;
+    const isAutoVerif  = !isManualVerif && daysSinceReg !== null && daysSinceReg >= 7 && goodActivity;
+    const isSuspicious = !isManualVerif && !isAutoVerif && daysSinceReg !== null && daysSinceReg >= 7;
+    const daysLeft     = daysSinceReg !== null && daysSinceReg < 7 ? 7 - daysSinceReg : 0;
+    let verifDot, verifLabel, verifClr;
+    if (isManualVerif) {
+      const vd = u.verified_at?.toDate?.()?.toLocaleDateString('ru') || '';
+      verifDot = '✅'; verifLabel = `Подтверждён вручную${vd ? ' · ' + vd : ''}`; verifClr = 'var(--green)';
+    } else if (isAutoVerif) {
+      verifDot = '✅'; verifLabel = `Авто (7д + активность)`; verifClr = 'var(--green)';
+    } else if (isSuspicious) {
+      verifDot = '⚠️'; verifLabel = `Не подтверждён — подозрительный`; verifClr = 'var(--red)';
+    } else if (daysSinceReg !== null) {
+      verifDot = '⏳'; verifLabel = `Ещё ${daysLeft} дн. до проверки (${daysSinceReg} из 7)`; verifClr = '#facc15';
+    } else {
+      verifDot = '—'; verifLabel = 'Нет данных'; verifClr = 'var(--text2)';
+    }
 
     panel.innerHTML = `
       <div class="form-wrap" style="max-width:100%;">
@@ -8689,6 +9069,22 @@ async function openUserProfilePanel(uid) {
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Статус</div>
             <div style="font-size:13px;color:${isBanned ? 'var(--red)' : 'var(--green)'};">${isBanned ? '🚫 Заблокирован' : '✅ Активен'}</div>
           </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Онлайн</div>
+            <div style="font-size:13px;color:${onlineClr};">${onlineDot} ${onlineStr}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Последняя активность</div>
+            <div style="font-size:12px;color:var(--text);">${lastSeenStr}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Время в приложении</div>
+            <div style="font-size:13px;color:var(--text);">${fmtTimeApp(timeSpent)}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Просмотрено лайнапов</div>
+            <div style="font-size:13px;color:var(--text);">${totalViewed}</div>
+          </div>
         </div>
 
         <div style="margin-bottom:14px;">
@@ -8701,6 +9097,16 @@ async function openUserProfilePanel(uid) {
             ].map(([label, ok]) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};">${label} ${ok?'✓':'✗'}</span>`).join('')
             }
           </div>
+        </div>
+
+        <div style="background:var(--surface2);border:1px solid ${isSuspicious ? 'rgba(239,68,68,.35)' : isManualVerif || isAutoVerif ? 'rgba(34,197,94,.25)' : 'rgba(250,204,21,.25)'};border-radius:var(--r);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Верификация аккаунта</div>
+            <div style="font-size:13px;color:${verifClr};font-weight:600;">${verifDot} ${verifLabel}</div>
+            ${isSuspicious ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">7+ дней, но мало активности (просмотров < 3, времени < 2м)</div>` : ''}
+            ${!isManualVerif && isAutoVerif ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Можно подтвердить вручную для надёжности</div>` : ''}
+          </div>
+          ${!isManualVerif ? `<button class="btn btn-approve" onclick="verifyUserAccount('${uid}','${esc(u.name||'')}','${_panelId}')" style="font-size:12px;padding:7px 14px;flex-shrink:0;">✅ Подтвердить</button>` : ''}
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
@@ -8742,15 +9148,62 @@ async function openUserProfilePanel(uid) {
         </div>` : ''}
 
         ${feedbacks.length ? `
-        <div>
+        <div style="margin-bottom:14px;">
           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Обращения</div>
           ${feedbacks.map(f => `<div style="padding:6px 8px;border-radius:var(--r);background:var(--surface2);margin-bottom:6px;font-size:12px;color:var(--text2);">${esc(f.text||f.message||'—')}</div>`).join('')}
         </div>` : ''}
+
+        <!-- Активность (грузится асинхронно) -->
+        <div>
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Активность</div>
+          <div class="usr-stat-grid" id="usr-activity-${uid}">
+            <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--text2);">…</div><div class="usr-stat-lbl">Сессий (30д)</div></div>
+            <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--text2);">…</div><div class="usr-stat-lbl">Просмотров (30д)</div></div>
+            <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--text2);">…</div><div class="usr-stat-lbl">Реклама досмотрена</div></div>
+          </div>
+        </div>
+
       </div>`;
   loadUserBadges(uid);
+  loadUserActivity(uid);
   } catch(e) {
     panel.innerHTML = `<div style="color:var(--red);padding:16px;">Ошибка: ${e.message}</div>`;
   }
+}
+
+async function loadUserActivity(uid) {
+  const el = document.getElementById('usr-activity-' + uid);
+  if (!el) return;
+  try {
+    const d30 = new Date(Date.now() - 30 * 864e5);
+    const [sessSnap, adSnap, viewsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'user_sessions'), where('uid', '==', uid), where('ts', '>=', d30), orderBy('ts', 'desc'))),
+      getDocs(query(collection(db, 'ad_events'), where('uid', '==', uid), where('type', '==', 'rewarded_completed'))),
+      getDocs(query(collection(db, 'analytics_events'), where('uid', '==', uid), where('type', '==', 'lineup_viewed'), where('ts', '>=', d30))),
+    ]);
+    const sessCount  = sessSnap.size;
+    const adCount    = adSnap.size;
+    const viewsCount = viewsSnap.size;
+    el.innerHTML = `
+      <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--primary);">${sessCount}</div><div class="usr-stat-lbl">Сессий (30д)</div></div>
+      <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--orange);">${viewsCount}</div><div class="usr-stat-lbl">Просмотров (30д)</div></div>
+      <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--green);">${adCount}</div><div class="usr-stat-lbl">Реклама досмотрена</div></div>`;
+  } catch (_) {
+    if (el) el.innerHTML = '<div style="color:var(--text2);font-size:11px;grid-column:1/-1;padding:4px 0;">Нет данных об активности</div>';
+  }
+}
+
+async function verifyUserAccount(uid, name, panelId) {
+  if (!confirm(`Подтвердить аккаунт «${name}» как реального пользователя?`)) return;
+  try {
+    await updateDoc(doc(db, 'users', uid), {
+      verified_not_fake: true,
+      verified_at: serverTimestamp(),
+    });
+    toast(`✅ Аккаунт «${name}» подтверждён`, 's');
+    const panel = document.getElementById(panelId);
+    if (panel) await _renderUserProfileInto(uid, panel);
+  } catch(e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
 async function loadUserBadges(uid) {
@@ -8870,16 +9323,18 @@ async function deleteUserAccount(uid, name) {
 async function sendMessageToUser(uid, name) {
   const msg = prompt(`Сообщение для ${name}:`);
   if (!msg) return;
-  await addDoc(collection(db, 'push_queue'), {
-    type: 'admin_message',
-    title: '💬 Сообщение от администратора',
-    body: msg,
-    target_uid: uid,
-    processed: false,
-    created_at: serverTimestamp(),
-  });
-  toast(`Сообщение отправлено ${name} ✅`, 's');
-  addAuditLog(`Отправлено сообщение пользователю ${name}: ${msg.slice(0, 50)}`);
+  try {
+    await sendPushNotification({
+      title:     '💬 Сообщение от администратора',
+      body:      msg,
+      type:      'admin_message',
+      targetUid: uid,
+    });
+    toast(`Сообщение отправлено ${name} ✅`, 's');
+    addAuditLog(`Отправлено сообщение пользователю ${name}: ${msg.slice(0, 50)}`);
+  } catch (e) {
+    toast(`Ошибка отправки: ${e.message}`, 'e');
+  }
 }
 
 // Expose user functions to global scope for onclick handlers
@@ -8922,13 +9377,16 @@ async function loadStorageStats() {
     });
   }
 }
-window.saveUserName      = saveUserName;
-window.saveUserRole      = saveUserRole;
-window.resetUserPassword = resetUserPassword;
-window.banUserAccount    = banUserAccount;
-window.unbanUserAccount  = unbanUserAccount;
-window.deleteUserAccount = deleteUserAccount;
-window.sendMessageToUser = sendMessageToUser;
+window.saveUserName       = saveUserName;
+window.saveUserRole       = saveUserRole;
+window.resetUserPassword  = resetUserPassword;
+window.banUserAccount     = banUserAccount;
+window.unbanUserAccount   = unbanUserAccount;
+window.deleteUserAccount  = deleteUserAccount;
+window.sendMessageToUser  = sendMessageToUser;
+window.switchUserCat      = switchUserCat;
+window.showNewPatchDialog = showNewPatchDialog;
+window.verifyUserAccount  = verifyUserAccount;
 
 // ── Ranges tab ─────────────────────────────────────────────────────────────
 let _rngInited  = false;
