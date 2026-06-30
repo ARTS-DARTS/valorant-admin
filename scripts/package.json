@@ -1,0 +1,11 @@
+{
+  "name": "vlineups-cron",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "cleanup": "node cleanup_bots.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
