@@ -4612,11 +4612,26 @@ async function findAgentSubscriberUids(agent) {
   return [...uids];
 }
 
+async function notifySubscribersViaServer(lineup) {
+  const res = await fetch('https://valorant-upload.vercel.app/api/notify-agent-subscribers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+    body: JSON.stringify({ lineup }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
 async function notifySubscribers(lineup) {
   try {
     const agent = lineup.agent || lineup.agent_name || lineup.agentName || '';
     const map   = lineup.map || lineup.map_name || lineup.mapName || '';
     if (!agent || !map) return;
+
+    const serverResult = await notifySubscribersViaServer({ ...lineup, agent, map });
+    console.info('notifySubscribers server:', serverResult);
+    return;
 
     const uids = await findAgentSubscriberUids(agent);
     if (!uids.length) return;
@@ -4653,6 +4668,26 @@ async function notifySubscribers(lineup) {
   } catch (e) { console.warn('notifySubscribers:', e.message); }
 }
 
+async function notifyLineupAuthorApproved(uid, lineup) {
+  if (!uid) return;
+  const title = 'Ваш лайнап принят!';
+  const parts = [lineup?.agent, lineup?.map].filter(Boolean).join(' · ');
+  const body = parts
+    ? `Лайнап ${parts} опубликован и доступен игрокам.`
+    : 'Лайнап опубликован и доступен игрокам.';
+  await sendPushNotification({
+    title,
+    body,
+    type: 'lineup_approved',
+    targetUid: uid,
+    data: {
+      lineup_id: lineup?.id || '',
+      agent: lineup?.agent || '',
+      map: lineup?.map || '',
+    },
+  });
+}
+
 async function approveLineup(id, userId) {
   if (!confirm('Отправить лайнап в «Горячие пирожки»?\nОн станет виден пользователям только после финального подтверждения.')) return;
   try {
@@ -4672,8 +4707,9 @@ async function publishLineup(id, userId) {
     if (userId) await updateDoc(doc(db, 'users', userId), { approved_lineups: increment(1) });
     const lineupSnap = await getDoc(doc(db, 'lineups', id));
     if (lineupSnap.exists()) {
-      await notifySubscribers({ id, ...lineupSnap.data() });
       const d = lineupSnap.data();
+      await notifyLineupAuthorApproved(userId || d.user_id, { id, ...d }).catch(e => console.warn('author approved push:', e.message));
+      await notifySubscribers({ id, ...d });
       updateLineupCountStats(d.map, d.category, 1).catch(() => {});
     }
     await writeAudit(id, 'approved');
@@ -4696,7 +4732,11 @@ async function publishAllHot() {
       if (l.user_id) updateDoc(doc(db, 'users', l.user_id), { approved_lineups: increment(1) }).catch(() => {});
       try {
         const snap = await getDoc(doc(db, 'lineups', l.id));
-        if (snap.exists()) await notifySubscribers({ id: l.id, ...snap.data() });
+        if (snap.exists()) {
+          const d = snap.data();
+          await notifyLineupAuthorApproved(l.user_id || d.user_id, { id: l.id, ...d }).catch(e => console.warn('author approved push:', e.message));
+          await notifySubscribers({ id: l.id, ...d });
+        }
       } catch (_) {}
       writeAudit(l.id, 'approved').catch(() => {});
       patchStatus(l.id, 'approved');
