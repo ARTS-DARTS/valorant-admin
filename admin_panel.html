@@ -633,9 +633,18 @@
     .nb-screen-head { padding:12px 14px; display:flex; align-items:center; justify-content:space-between; color:#fff; border-bottom:1px solid rgba(255,255,255,.08); font-size:13px; font-weight:700; }
     .nb-preview-body { flex:1; padding:16px; overflow:auto; }
     .nb-preview-text { margin-bottom:10px; line-height:1.35; word-break:break-word; }
+    .nb-rich { min-height:150px; background:var(--bg); border:1px solid var(--border); border-radius:var(--r); padding:10px 12px; color:var(--text); line-height:1.45; outline:none; overflow:auto; }
+    .nb-rich:focus { border-color:var(--primary); box-shadow:0 0 0 2px rgba(255,70,85,.15); }
     .nb-pages { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
     .nb-page-btn { border:1px solid var(--border); background:var(--surface2); color:var(--text2); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:12px; }
     .nb-page-btn.active { color:#fff; background:var(--primary); border-color:var(--primary); }
+    .bn-editor { display:grid; grid-template-columns:minmax(320px,1fr) 360px; gap:18px; align-items:start; margin:0 0 20px; }
+    .bn-row { display:grid; grid-template-columns:1fr 1fr 90px 34px; gap:8px; align-items:center; margin-top:8px; }
+    .bn-preview-card { margin:18px 14px; padding:14px; border-radius:14px; background:#111c2b; border:1px solid rgba(255,255,255,.1); box-shadow:0 12px 28px rgba(0,0,0,.28); }
+    .bn-preview-title { color:#fff; font-size:18px; font-weight:900; margin-bottom:4px; }
+    .bn-preview-sub { color:#8ea0b8; font-size:12px; margin-bottom:12px; }
+    .bn-preview-row { display:flex; align-items:center; gap:10px; padding:9px; border-radius:10px; background:#0b1420; border:1px solid rgba(255,255,255,.08); margin-top:8px; }
+    .bn-preview-avatar { width:38px; height:38px; border-radius:50%; background:#26384f; display:flex; align-items:center; justify-content:center; color:#ff4655; font-weight:900; border:1px solid rgba(255,70,85,.45); overflow:hidden; }
     @media (max-width: 920px) { .nb-editor { grid-template-columns:1fr; } .nb-phone { width:min(320px,100%); } }
     .ac-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 12px; display:flex; align-items:center; gap:10px; transition:.15s; }
     .ac-card:hover { border-color:var(--border2); }
@@ -1742,6 +1751,7 @@
             <button class="nb-tool" id="nb-underline" title="Подчеркнуть"><u>U</u></button>
             <input type="color" id="nb-color" value="#ffffff" class="nb-tool" title="Цвет текста">
             <input type="color" id="nb-bg" value="#0f1923" class="nb-tool" title="Закраска">
+            <button class="nb-tool" id="nb-bg-clear" title="Убрать фон">Ø</button>
             <select class="fselect" id="nb-align" style="width:auto;height:34px;padding:0 8px;background:var(--surface2);">
               <option value="left">Слева</option>
               <option value="center">Центр</option>
@@ -1757,7 +1767,7 @@
           </div>
           <div class="fg">
             <label class="flabel">Текст текущей страницы</label>
-            <textarea class="ftextarea" id="nb-text" style="min-height:150px;background:var(--bg);" placeholder="Напиши, что добавлено, исправлено или удалено..."></textarea>
+            <div class="nb-rich" id="nb-text" contenteditable="true" spellcheck="true" data-placeholder="Напиши, что добавлено, исправлено или удалено..."></div>
           </div>
           <div class="nb-pages" id="nb-pages"></div>
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -1784,33 +1794,39 @@
         </div>
       </div>
 
-      <div class="notif-card" style="margin:0 0 20px;">
-        <div class="nc-header">
-          <span class="nc-icon">🎯</span>
-          <div>
-            <div class="nc-title">Банер новых лайнапов по агенту</div>
-            <div class="nc-desc">Тестирует банер в приложении для подписок на агентов. Получатель берётся из выбора выше: все или конкретный пользователь.</div>
+      <div class="form-title">🎯 БАНЕР НОВЫХ ЛАЙНАПОВ</div>
+      <div class="bn-editor">
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">🎯</span>
+            <div>
+              <div class="nc-title">Окно новых лайнапов</div>
+              <div class="nc-desc">Этот банер показывается окном в приложении. Добавь строки: агент, карта, количество.</div>
+            </div>
+          </div>
+          <datalist id="bn-agent-options"></datalist>
+          <datalist id="bn-map-options"></datalist>
+          <div id="bn-rows" style="margin-top:12px;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;">
+            <button class="btn" id="bn-add-row" style="border:1px solid var(--border);color:var(--text2);">+ Строка</button>
+            <button class="btn btn-save" id="bn-save-settings">💾 Сохранить настройки</button>
+            <button class="btn btn-save" id="bn-test-agent">🔔 Тест банера</button>
+          </div>
+          <div class="nc-status" id="nc-status-banner-test"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1.3px;margin-bottom:8px;">Предпросмотр окна в приложении</div>
+          <div class="nb-phone">
+            <div class="nb-screen">
+              <div class="bn-preview-card">
+                <div class="bn-preview-title">Новые лайнапы</div>
+                <div class="bn-preview-sub" id="bn-preview-sub">Поступило 1 лайнап</div>
+                <div id="bn-preview-list"></div>
+                <button class="btn btn-save" style="width:100%;justify-content:center;margin-top:12px;">Открыть лайнапы</button>
+              </div>
+            </div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:13px;">
-          <div class="fg" style="margin:0;">
-            <label class="flabel">Агент</label>
-            <input class="finput" id="bn-agent" value="KAY/O" style="background:var(--bg);">
-          </div>
-          <div class="fg" style="margin:0;">
-            <label class="flabel">Карта</label>
-            <input class="finput" id="bn-map" value="Bind" style="background:var(--bg);">
-          </div>
-          <div class="fg" style="margin:0;">
-            <label class="flabel">Сколько лайнапов</label>
-            <input class="finput" id="bn-total" type="number" min="1" value="1" style="background:var(--bg);">
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;">
-          <button class="btn btn-save" id="bn-save-settings">💾 Сохранить настройки</button>
-          <button class="btn btn-save" id="bn-test-agent">🔔 Тест банера</button>
-        </div>
-        <div class="nc-status" id="nc-status-banner-test"></div>
       </div>
 
       </div>
@@ -8774,7 +8790,9 @@ function nbBlock() {
 
 function nbSaveCurrent() {
   const b = nbBlock();
-  b.text = document.getElementById('nb-text')?.value ?? '';
+  const editor = document.getElementById('nb-text');
+  b.html = editor?.innerHTML ?? '';
+  b.text = editor?.innerText ?? '';
   b.color = document.getElementById('nb-color')?.value ?? '#ffffff';
   b.background_color = document.getElementById('nb-bg')?.dataset.enabled === 'true'
     ? document.getElementById('nb-bg').value
@@ -8785,10 +8803,11 @@ function nbSaveCurrent() {
 
 function nbLoadCurrent() {
   const b = nbBlock();
-  document.getElementById('nb-text').value = b.text || '';
+  document.getElementById('nb-text').innerHTML = b.html || esc(b.text || '').replace(/\n/g, '<br>');
   document.getElementById('nb-color').value = b.color || '#ffffff';
   document.getElementById('nb-bg').value = b.background_color || '#0f1923';
   document.getElementById('nb-bg').dataset.enabled = b.background_color ? 'true' : 'false';
+  document.getElementById('nb-bg-clear').classList.toggle('active', !!b.background_color);
   document.getElementById('nb-size').value = String(b.font_size || 16);
   document.getElementById('nb-align').value = b.align || 'left';
   document.getElementById('nb-bold').classList.toggle('active', !!b.bold);
@@ -8827,13 +8846,30 @@ function nbRender() {
       font-style:${b.italic ? 'italic' : 'normal'};
       text-decoration:${b.underline ? 'underline' : 'none'};
       text-align:${esc(b.align || 'left')};
-    ">${esc(b.text || 'Текст страницы...').replace(/\n/g, '<br>')}</div>
+    ">${(b.html || esc(b.text || 'Текст страницы...').replace(/\n/g, '<br>'))}</div>
   `).join('');
 }
 
 function nbToggleStyle(key, btnId) {
   nbBlock()[key] = !nbBlock()[key];
   document.getElementById(btnId).classList.toggle('active', nbBlock()[key]);
+  nbRender();
+}
+
+function nbApplyCommand(command, value = null) {
+  const editor = document.getElementById('nb-text');
+  editor?.focus();
+  document.execCommand(command, false, value);
+  nbRender();
+}
+
+function nbClearSelectedBackground() {
+  const editor = document.getElementById('nb-text');
+  editor?.focus();
+  document.execCommand('removeFormat', false, null);
+  nbBlock().background_color = '';
+  document.getElementById('nb-bg').dataset.enabled = 'false';
+  document.getElementById('nb-bg-clear').classList.remove('active');
   nbRender();
 }
 
@@ -8844,13 +8880,16 @@ function nbInit() {
   ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align'].forEach(id =>
     document.getElementById(id)?.addEventListener('input', nbRender)
   );
+  document.getElementById('nb-color')?.addEventListener('change', e => nbApplyCommand('foreColor', e.target.value));
   document.getElementById('nb-bg')?.addEventListener('input', e => {
     e.target.dataset.enabled = 'true';
+    nbApplyCommand('backColor', e.target.value);
     nbRender();
   });
-  document.getElementById('nb-bold')?.addEventListener('click', () => nbToggleStyle('bold', 'nb-bold'));
-  document.getElementById('nb-italic')?.addEventListener('click', () => nbToggleStyle('italic', 'nb-italic'));
-  document.getElementById('nb-underline')?.addEventListener('click', () => nbToggleStyle('underline', 'nb-underline'));
+  document.getElementById('nb-bg-clear')?.addEventListener('click', nbClearSelectedBackground);
+  document.getElementById('nb-bold')?.addEventListener('click', () => nbApplyCommand('bold'));
+  document.getElementById('nb-italic')?.addEventListener('click', () => nbApplyCommand('italic'));
+  document.getElementById('nb-underline')?.addEventListener('click', () => nbApplyCommand('underline'));
   document.getElementById('nb-add-page')?.addEventListener('click', () => {
     nbSaveCurrent();
     nbPages.push({ blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }] });
@@ -9066,6 +9105,88 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   }
 });
 
+let bnRows = [{ agent: 'KAY/O', map: 'Bind', total: 1 }];
+
+function bnPlural(count) {
+  const mod10 = count % 10, mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${count} лайнап`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} лайнапа`;
+  return `${count} лайнапов`;
+}
+
+function bnFillOptions() {
+  const agentOptions = document.getElementById('bn-agent-options');
+  const mapOptions = document.getElementById('bn-map-options');
+  if (agentOptions) {
+    const agents = (typeof AC_AGENTS !== 'undefined' ? AC_AGENTS.map(a => a.name) : Object.keys(AGENTS || {}));
+    agentOptions.innerHTML = agents.map(a => `<option value="${esc(a)}"></option>`).join('');
+  }
+  if (mapOptions && typeof MP_ALL_MAPS !== 'undefined') {
+    mapOptions.innerHTML = MP_ALL_MAPS.map(m => `<option value="${esc(m.name)}"></option>`).join('');
+  }
+}
+
+function bnCleanRows() {
+  return bnRows
+    .map(r => ({
+      agent: String(r.agent || '').trim(),
+      map: String(r.map || '').trim(),
+      total: Math.max(1, parseInt(r.total || '1', 10)),
+    }))
+    .filter(r => r.agent);
+}
+
+function bnRender() {
+  const rowsWrap = document.getElementById('bn-rows');
+  if (!rowsWrap) return;
+  rowsWrap.innerHTML = bnRows.map((r, i) => `
+    <div class="bn-row" data-bn-row="${i}">
+      <input class="finput bn-agent" list="bn-agent-options" value="${esc(r.agent)}" placeholder="Агент" style="background:var(--bg);">
+      <input class="finput bn-map" list="bn-map-options" value="${esc(r.map)}" placeholder="Карта" style="background:var(--bg);">
+      <input class="finput bn-total" type="number" min="1" value="${esc(String(r.total || 1))}" style="background:var(--bg);">
+      <button class="btn btn-delete bn-remove" title="Удалить" style="height:36px;padding:0;">✕</button>
+    </div>
+  `).join('');
+  rowsWrap.querySelectorAll('[data-bn-row]').forEach(row => {
+    const i = parseInt(row.dataset.bnRow, 10);
+    row.querySelector('.bn-agent').addEventListener('input', e => { bnRows[i].agent = e.target.value; bnPreview(); });
+    row.querySelector('.bn-map').addEventListener('input', e => { bnRows[i].map = e.target.value; bnPreview(); });
+    row.querySelector('.bn-total').addEventListener('input', e => { bnRows[i].total = e.target.value; bnPreview(); });
+    row.querySelector('.bn-remove').addEventListener('click', () => {
+      if (bnRows.length <= 1) { toast('Нужна хотя бы одна строка', 'i'); return; }
+      bnRows.splice(i, 1);
+      bnRender();
+    });
+  });
+  bnPreview();
+}
+
+function bnPreview() {
+  const list = document.getElementById('bn-preview-list');
+  const sub = document.getElementById('bn-preview-sub');
+  if (!list || !sub) return;
+  const rows = bnCleanRows();
+  const total = rows.reduce((s, r) => s + r.total, 0);
+  sub.textContent = `Поступило ${bnPlural(total || 0)}`;
+  list.innerHTML = rows.map(r => `
+    <div class="bn-preview-row">
+      <div class="bn-preview-avatar">${esc(r.agent[0] || '?')}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="color:#fff;font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.agent)}</div>
+        <div style="color:#8ea0b8;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.map || 'Любая карта')} · ${bnPlural(r.total)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+bnFillOptions();
+bnRender();
+
+document.getElementById('bn-add-row')?.addEventListener('click', () => {
+  bnRows.push({ agent: '', map: '', total: 1 });
+  bnRender();
+});
+
 document.getElementById('bn-save-settings')?.addEventListener('click', async () => {
   const btn = document.getElementById('bn-save-settings');
   btn.disabled = true;
@@ -9076,6 +9197,7 @@ document.getElementById('bn-save-settings')?.addEventListener('click', async () 
       title: 'Поступили новые лайнапы!',
       body_template: 'На {agent} вышло {total} лайнапов',
       button_text: 'Открыть карту',
+      preview_items: bnCleanRows(),
       updated_at: serverTimestamp(),
     }, { merge: true });
     _ncSetStatus('banner-test', true, '✅ Настройки банера сохранены');
@@ -9089,20 +9211,24 @@ document.getElementById('bn-save-settings')?.addEventListener('click', async () 
 });
 
 document.getElementById('bn-test-agent')?.addEventListener('click', async () => {
-  const agent = document.getElementById('bn-agent').value.trim() || 'KAY/O';
-  const map = document.getElementById('bn-map').value.trim() || '';
-  const total = Math.max(1, parseInt(document.getElementById('bn-total').value || '1', 10));
+  const rows = bnCleanRows();
+  if (!rows.length) { toast('Добавь хотя бы одного агента', 'e'); return; }
+  const total = rows.reduce((s, r) => s + r.total, 0);
   const btn = document.getElementById('bn-test-agent');
   btn.disabled = true;
   _ncSetStatus('banner-test', true, 'Отправка теста…');
   try {
     await sendPushNotification({
       title: 'Поступили новые лайнапы!',
-      body: map
-        ? `На ${agent} вышло ${total} лайнапов на карте ${map}`
-        : `На ${agent} вышло ${total} лайнапов`,
+      body: `Поступило ${bnPlural(total)} по подпискам`,
       type: 'new_lineups_batch',
-      data: { agent, map, total: String(total), test: '1' },
+      data: {
+        agent: rows[0].agent,
+        map: rows[0].map,
+        total: String(total),
+        items: JSON.stringify(rows),
+        test: '1',
+      },
     });
     _ncSetStatus('banner-test', true, _ncTargetName ? `✅ Тест банера → ${_ncTargetName}` : '✅ Тест банера отправлен всем');
     toast(_ncTargetName ? `Тест банера → ${_ncTargetName}` : 'Тест банера отправлен всем', 's');
