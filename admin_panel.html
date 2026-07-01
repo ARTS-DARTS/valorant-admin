@@ -4575,25 +4575,55 @@ async function markOutdated(newPatch) {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
+function agentSubDocId(agent) {
+  return String(agent || '').trim().replace(/\//g, '_').replace(/\s+/g, '_').toLowerCase();
+}
+
+async function findAgentSubscriberUids(agent) {
+  const uids = new Set();
+  try {
+    const snap = await getDocs(query(
+      collectionGroup(db, 'subscriptions'),
+      where('type', '==', 'agent'),
+      where('agent', '==', agent),
+    ));
+    snap.docs.forEach(subDoc => {
+      const uid = subDoc.ref.parent?.parent?.id;
+      if (uid) uids.add(uid);
+    });
+  } catch (e) {
+    console.warn('subscription collectionGroup unavailable, using users scan:', e.message);
+  }
+
+  if (uids.size > 0) return [...uids];
+
+  const subId = agentSubDocId(agent);
+  const usersSnap = await getDocs(collection(db, 'users'));
+  await Promise.all(usersSnap.docs.map(async userDoc => {
+    try {
+      const subSnap = await getDoc(doc(db, 'users', userDoc.id, 'subscriptions', subId));
+      if (!subSnap.exists()) return;
+      const d = subSnap.data() || {};
+      if (d.type === 'agent' && String(d.agent || '').toLowerCase() === String(agent).toLowerCase()) {
+        uids.add(userDoc.id);
+      }
+    } catch (_) {}
+  }));
+  return [...uids];
+}
+
 async function notifySubscribers(lineup) {
   try {
     const agent = lineup.agent || lineup.agent_name || lineup.agentName || '';
     const map   = lineup.map || lineup.map_name || lineup.mapName || '';
     if (!agent || !map) return;
 
-    const snap = await getDocs(query(
-      collectionGroup(db, 'subscriptions'),
-      where('type', '==', 'agent'),
-      where('agent', '==', agent),
-    ));
-    if (snap.empty) return;
+    const uids = await findAgentSubscriberUids(agent);
+    if (!uids.length) return;
 
     // Пишем in-app уведомления
     const batch = writeBatch(db);
-    const uids = [];
-    snap.docs.forEach(subDoc => {
-      const uid = subDoc.ref.parent.parent.id;
-      uids.push(uid);
+    uids.forEach(uid => {
       batch.set(doc(collection(db, 'users', uid, 'notifications')), {
         type: 'new_lineups_batch',
         lineup_id: lineup.id,
