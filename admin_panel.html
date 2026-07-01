@@ -4612,17 +4612,12 @@ async function notifySubscribers(lineup) {
     const pushTitle = 'Поступили новые лайнапы!';
     const pushBody  = `На ${agent} вышел 1 лайнап на карте ${map}`;
     await Promise.all(uids.map(uid =>
-      fetch(_PUSH_PROXY, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
-        body: JSON.stringify({
-          title:     pushTitle,
-          body:      pushBody,
-          type:      'new_lineups_batch',
-          agent,
-          total:     '1',
-          targetUid: uid,
-        }),
+      sendPushNotification({
+        title: pushTitle,
+        body: pushBody,
+        type: 'new_lineups_batch',
+        targetUid: uid,
+        data: { agent, total: '1' },
       }).catch(e => console.warn(`push sub ${uid}:`, e.message))
     ));
   } catch (e) { console.warn('notifySubscribers:', e.message); }
@@ -8584,12 +8579,12 @@ nbInit();
 let _ncTargetUid  = null;
 let _ncTargetName = null;
 
-async function sendPushNotification({ title, body, type, targetUid }) {
+async function sendPushNotification({ title, body, type, targetUid, data }) {
   const uid = targetUid ?? _ncTargetUid;
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
-    body:    JSON.stringify({ title, body, type, targetUid: uid || undefined }),
+    body:    JSON.stringify({ title, body, type, targetUid: uid || undefined, data }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
