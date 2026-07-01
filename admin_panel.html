@@ -619,6 +619,11 @@
     .nc-title    { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
     .nc-desc     { font-size: 12px; color: var(--text2); line-height: 1.4; }
     .nc-status   { font-size: 12px; margin-top: 8px; min-height: 18px; line-height: 1.4; }
+    .notif-cat-row { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 18px; }
+    .notif-cat-btn { border:1px solid var(--border); background:var(--surface); color:var(--text2); border-radius:var(--r); padding:9px 14px; cursor:pointer; font-size:13px; font-weight:700; transition:.15s; }
+    .notif-cat-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .notif-section { display:none; }
+    .notif-section.active { display:block; }
     .nb-editor { display:grid; grid-template-columns:minmax(320px,1fr) 360px; gap:18px; align-items:start; margin:0 0 22px; }
     .nb-toolbar { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 10px; }
     .nb-tool { min-width:34px; height:34px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); color:var(--text); cursor:pointer; font-weight:700; display:flex; align-items:center; justify-content:center; }
@@ -1688,6 +1693,38 @@
         Выбери получателя и тип уведомления. Запись попадает в Firestore — Flutter-приложение подхватит и отправит через OneSignal.
       </p>
 
+      <div class="notif-cat-row">
+        <button class="notif-cat-btn active" data-notif-cat="push">PUSH</button>
+        <button class="notif-cat-btn" data-notif-cat="banners">БАНЕРЫ</button>
+      </div>
+
+      <div class="notif-section active" id="notif-section-push">
+
+      <!-- Target picker -->
+      <div style="margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;">
+        <div class="dlabel" style="margin-bottom:10px;">ПОЛУЧАТЕЛЬ</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-save" id="nc-mode-all">📢 Все пользователи</button>
+          <button class="btn" id="nc-mode-one" style="border:1px solid var(--border);color:var(--text2);">👤 Конкретный</button>
+        </div>
+        <div id="nc-user-wrap" style="display:none;margin-top:12px;">
+          <div style="position:relative;">
+            <input class="finput" id="nc-user-input" placeholder="Поиск по нику…" autocomplete="off" spellcheck="false" style="background:var(--bg);">
+            <div id="nc-user-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
+          </div>
+          <div id="nc-selected-badge" style="display:none;margin-top:8px;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;">
+            <span style="font-size:16px;">👤</span>
+            <span id="nc-selected-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);"></span>
+            <span id="nc-selected-uid" style="font-size:10px;color:var(--text2);font-family:monospace;"></span>
+            <button id="nc-clear-user" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;" title="Сбросить">✕</button>
+          </div>
+        </div>
+      </div>
+
+      </div>
+
+      <div class="notif-section" id="notif-section-banners">
+
       <div class="form-title">📰 НОВОСТНОЙ БАНЕР</div>
       <div class="nb-editor">
         <div class="notif-card">
@@ -1747,26 +1784,38 @@
         </div>
       </div>
 
-      <!-- Target picker -->
-      <div style="margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;">
-        <div class="dlabel" style="margin-bottom:10px;">ПОЛУЧАТЕЛЬ</div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-save" id="nc-mode-all">📢 Все пользователи</button>
-          <button class="btn" id="nc-mode-one" style="border:1px solid var(--border);color:var(--text2);">👤 Конкретный</button>
-        </div>
-        <div id="nc-user-wrap" style="display:none;margin-top:12px;">
-          <div style="position:relative;">
-            <input class="finput" id="nc-user-input" placeholder="Поиск по нику…" autocomplete="off" spellcheck="false" style="background:var(--bg);">
-            <div id="nc-user-drop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);z-index:50;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
-          </div>
-          <div id="nc-selected-badge" style="display:none;margin-top:8px;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;">
-            <span style="font-size:16px;">👤</span>
-            <span id="nc-selected-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);"></span>
-            <span id="nc-selected-uid" style="font-size:10px;color:var(--text2);font-family:monospace;"></span>
-            <button id="nc-clear-user" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;" title="Сбросить">✕</button>
+      <div class="notif-card" style="margin:0 0 20px;">
+        <div class="nc-header">
+          <span class="nc-icon">🎯</span>
+          <div>
+            <div class="nc-title">Банер новых лайнапов по агенту</div>
+            <div class="nc-desc">Тестирует банер в приложении для подписок на агентов. Получатель берётся из выбора выше: все или конкретный пользователь.</div>
           </div>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:13px;">
+          <div class="fg" style="margin:0;">
+            <label class="flabel">Агент</label>
+            <input class="finput" id="bn-agent" value="KAY/O" style="background:var(--bg);">
+          </div>
+          <div class="fg" style="margin:0;">
+            <label class="flabel">Карта</label>
+            <input class="finput" id="bn-map" value="Bind" style="background:var(--bg);">
+          </div>
+          <div class="fg" style="margin:0;">
+            <label class="flabel">Сколько лайнапов</label>
+            <input class="finput" id="bn-total" type="number" min="1" value="1" style="background:var(--bg);">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;">
+          <button class="btn btn-save" id="bn-save-settings">💾 Сохранить настройки</button>
+          <button class="btn btn-save" id="bn-test-agent">🔔 Тест банера</button>
+        </div>
+        <div class="nc-status" id="nc-status-banner-test"></div>
       </div>
+
+      </div>
+
+      <div class="notif-section active" id="notif-section-push-rest">
 
       <!-- Cards grid: 7 notification types -->
       <div class="notif-grid" id="notif-cards-grid">
@@ -1933,6 +1982,8 @@
           </button>
           <div class="nc-status" id="nc-status-forceupdate"></div>
         </div>
+      </div>
+
       </div>
 
     </div>
@@ -4685,14 +4736,13 @@ async function notifySubscribers(lineup) {
   try {
     const agent = lineup.agent || lineup.agent_name || lineup.agentName || '';
     const map   = lineup.map || lineup.map_name || lineup.mapName || '';
-    if (!agent || !map) return;
-
-    const serverResult = await notifySubscribersViaServer({ ...lineup, agent, map });
-    console.info('notifySubscribers server:', serverResult);
-    return;
+    if (!agent || !map || !lineup.id) return { subscribers: 0, pushSent: 0, pushFailed: 0 };
 
     const uids = await findAgentSubscriberUids(agent);
-    if (!uids.length) return;
+    if (!uids.length) {
+      console.info(`notifySubscribers: no subscribers for ${agent}`);
+      return { subscribers: 0, pushSent: 0, pushFailed: 0 };
+    }
 
     // Пишем in-app уведомления
     const batch = writeBatch(db);
@@ -4714,25 +4764,60 @@ async function notifySubscribers(lineup) {
     // Шлём OneSignal-пуш каждому подписчику через прокси
     const pushTitle = 'Поступили новые лайнапы!';
     const pushBody  = `На ${agent} вышел 1 лайнап на карте ${map}`;
-    await Promise.all(uids.map(uid =>
+    const pushResults = await Promise.allSettled(uids.map(uid =>
       sendPushNotification({
         title: pushTitle,
         body: pushBody,
         type: 'new_lineups_batch',
         targetUid: uid,
-        data: { agent, total: '1' },
-      }).catch(e => console.warn(`push sub ${uid}:`, e.message))
+        data: { lineup_id: lineup.id, agent, map, total: '1' },
+      })
     ));
-  } catch (e) { console.warn('notifySubscribers:', e.message); }
+    const pushSent = pushResults.filter(r => r.status === 'fulfilled').length;
+    const pushFailed = pushResults.length - pushSent;
+    if (pushFailed) {
+      console.warn('notifySubscribers push failed:', pushResults.filter(r => r.status === 'rejected').map(r => r.reason?.message || r.reason));
+    }
+    const result = { subscribers: uids.length, pushSent, pushFailed };
+    console.info('notifySubscribers:', result);
+    return result;
+  } catch (e) {
+    console.warn('notifySubscribers:', e.message);
+    return { subscribers: 0, pushSent: 0, pushFailed: 0, error: e.message };
+  }
+}
+
+function lineupAuthorUid(lineup, fallbackUid = '') {
+  return String(
+    fallbackUid ||
+    lineup?.user_id ||
+    lineup?.uid ||
+    lineup?.author_uid ||
+    lineup?.submitted_by_uid ||
+    lineup?.created_by ||
+    ''
+  ).trim();
 }
 
 async function notifyLineupAuthorApproved(uid, lineup) {
-  if (!uid) return;
+  uid = lineupAuthorUid(lineup, uid);
+  if (!uid) {
+    console.warn('notifyLineupAuthorApproved: no uid for lineup', lineup?.id || lineup);
+    return { ok: false, error: 'no_uid' };
+  }
   const title = 'Ваш лайнап принят!';
   const parts = [lineup?.agent, lineup?.map].filter(Boolean).join(' · ');
   const body = parts
     ? `Лайнап ${parts} опубликован и доступен игрокам.`
     : 'Лайнап опубликован и доступен игрокам.';
+  await writeUserNotification(uid, {
+    type: 'lineup_approved',
+    lineup_id: lineup?.id || '',
+    title,
+    body,
+    agent: lineup?.agent || '',
+    map: lineup?.map || '',
+  });
   await sendPushNotification({
     title,
     body,
@@ -4744,6 +4829,7 @@ async function notifyLineupAuthorApproved(uid, lineup) {
       map: lineup?.map || '',
     },
   });
+  return { ok: true, uid };
 }
 
 async function approveLineup(id, userId) {
@@ -4762,12 +4848,14 @@ async function publishLineup(id, userId) {
     const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     await updateDoc(doc(db, 'lineups', id), updateData);
-    if (userId) await updateDoc(doc(db, 'users', userId), { approved_lineups: increment(1) });
     const lineupSnap = await getDoc(doc(db, 'lineups', id));
     if (lineupSnap.exists()) {
       const d = lineupSnap.data();
-      await notifyLineupAuthorApproved(userId || d.user_id, { id, ...d }).catch(e => console.warn('author approved push:', e.message));
-      await notifySubscribers({ id, ...d });
+      const authorUid = lineupAuthorUid({ id, ...d }, userId);
+      if (authorUid) await updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(1) });
+      const authorResult = await notifyLineupAuthorApproved(authorUid, { id, ...d }).catch(e => ({ ok: false, error: e.message }));
+      const subResult = await notifySubscribers({ id, ...d });
+      console.info('publish notifications:', { authorResult, subResult });
       updateLineupCountStats(d.map, d.category, 1).catch(() => {});
     }
     await writeAudit(id, 'approved');
@@ -4787,13 +4875,15 @@ async function publishAllHot() {
     hotList.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
     await b.commit();
     for (const l of hotList) {
-      if (l.user_id) updateDoc(doc(db, 'users', l.user_id), { approved_lineups: increment(1) }).catch(() => {});
       try {
         const snap = await getDoc(doc(db, 'lineups', l.id));
         if (snap.exists()) {
           const d = snap.data();
-          await notifyLineupAuthorApproved(l.user_id || d.user_id, { id: l.id, ...d }).catch(e => console.warn('author approved push:', e.message));
-          await notifySubscribers({ id: l.id, ...d });
+          const authorUid = lineupAuthorUid({ id: l.id, ...d }, l.user_id);
+          if (authorUid) updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(1) }).catch(() => {});
+          const authorResult = await notifyLineupAuthorApproved(authorUid, { id: l.id, ...d }).catch(e => ({ ok: false, error: e.message }));
+          const subResult = await notifySubscribers({ id: l.id, ...d });
+          console.info('publishAll notifications:', { lineupId: l.id, authorResult, subResult });
         }
       } catch (_) {}
       writeAudit(l.id, 'approved').catch(() => {});
@@ -8772,6 +8862,21 @@ nbInit();
 let _ncTargetUid  = null;
 let _ncTargetName = null;
 
+function initNotifCategories() {
+  document.querySelectorAll('[data-notif-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.notifCat;
+      document.querySelectorAll('[data-notif-cat]').forEach(b =>
+        b.classList.toggle('active', b === btn)
+      );
+      document.getElementById('notif-section-push')?.classList.add('active');
+      document.getElementById('notif-section-push-rest')?.classList.toggle('active', cat === 'push');
+      document.getElementById('notif-section-banners')?.classList.toggle('active', cat === 'banners');
+    });
+  });
+}
+initNotifCategories();
+
 async function sendPushNotification({ title, body, type, targetUid, data }) {
   const uid = targetUid ?? _ncTargetUid;
   const res = await fetch(_PUSH_PROXY, {
@@ -8784,6 +8889,15 @@ async function sendPushNotification({ title, body, type, targetUid, data }) {
     throw new Error(err.error || (err.errors ?? []).join(', ') || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+async function writeUserNotification(uid, payload) {
+  if (!uid) return;
+  await setDoc(doc(collection(db, 'users', uid, 'notifications')), {
+    ...payload,
+    created_at: serverTimestamp(),
+    read: false,
+  });
 }
 
 // ── Target picker logic ───────────────────────────────────────────────────────
@@ -8906,6 +9020,54 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
     toast(_ncTargetName ? `Отправлено: ${_ncTargetName} ✅` : 'Отправлено всем пользователям ✅', 's');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('bn-save-settings')?.addEventListener('click', async () => {
+  const btn = document.getElementById('bn-save-settings');
+  btn.disabled = true;
+  _ncSetStatus('banner-test', true, 'Сохраняю…');
+  try {
+    await setDoc(doc(db, 'settings', 'agent_lineup_banner'), {
+      enabled: true,
+      title: 'Поступили новые лайнапы!',
+      body_template: 'На {agent} вышло {total} лайнапов',
+      button_text: 'Открыть карту',
+      updated_at: serverTimestamp(),
+    }, { merge: true });
+    _ncSetStatus('banner-test', true, '✅ Настройки банера сохранены');
+    toast('Настройки банера сохранены', 's');
+  } catch (e) {
+    _ncSetStatus('banner-test', false, `❌ ${e.message}`);
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('bn-test-agent')?.addEventListener('click', async () => {
+  const agent = document.getElementById('bn-agent').value.trim() || 'KAY/O';
+  const map = document.getElementById('bn-map').value.trim() || '';
+  const total = Math.max(1, parseInt(document.getElementById('bn-total').value || '1', 10));
+  const btn = document.getElementById('bn-test-agent');
+  btn.disabled = true;
+  _ncSetStatus('banner-test', true, 'Отправка теста…');
+  try {
+    await sendPushNotification({
+      title: 'Поступили новые лайнапы!',
+      body: map
+        ? `На ${agent} вышло ${total} лайнапов на карте ${map}`
+        : `На ${agent} вышло ${total} лайнапов`,
+      type: 'new_lineups_batch',
+      data: { agent, map, total: String(total), test: '1' },
+    });
+    _ncSetStatus('banner-test', true, _ncTargetName ? `✅ Тест банера → ${_ncTargetName}` : '✅ Тест банера отправлен всем');
+    toast(_ncTargetName ? `Тест банера → ${_ncTargetName}` : 'Тест банера отправлен всем', 's');
+  } catch (e) {
+    _ncSetStatus('banner-test', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false;
