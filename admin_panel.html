@@ -1235,18 +1235,20 @@
           <div class="an-live"><span class="an-live-dot"></span>в реальном времени</div>
         </div>
         <div class="an-cards" id="ad-stat-cards">
-          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Rewarded показов</div></div>
-          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Досмотрено</div></div>
-          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Пропущено</div></div>
-          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">% досмотра</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Показов сегодня</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Показов за 30 дней</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Rewarded</div></div>
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Interstitial</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Banner</div></div>
         </div>
         <div class="an-chart-box">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-            <div class="dlabel" style="margin:0;">Rewarded-реклама по дням</div>
+            <div class="dlabel" style="margin:0;">Показы рекламы по дням</div>
             <div class="an-legend" id="ad-legend" style="margin:0;">
-              <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--primary)"></div>Показано</div>
-              <div class="an-leg-item"><div class="an-leg-dot" style="background:var(--green)"></div>Досмотрено</div>
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:#4FC3F7"></div>Все показы</div>
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:#22C55E"></div>Rewarded</div>
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:#F59E0B"></div>Interstitial</div>
+              <div class="an-leg-item"><div class="an-leg-dot" style="background:#A78BFA"></div>Banner</div>
             </div>
           </div>
           <div class="an-chart-wrap" id="ad-chart-wrap">
@@ -2423,8 +2425,8 @@ onAuthStateChanged(auth, async user => {
   const _prov = user.providerData[0]?.providerId ?? '';
   document.getElementById('user-provider-icon').textContent = _prov === 'google.com' ? '🇬 ' : '📧 ';
   show('app');
-  loadLineups();
   loadAdmins();
+  switchTab('list');
 });
 
 document.getElementById('btn-login').addEventListener('click', async () => {
@@ -2502,7 +2504,18 @@ function loginErr(msg) {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
+let _activeTab = null;
+
+function stopInactiveRealtime(activeTab) {
+  if (activeTab !== 'list') stopLineupsRealtime();
+  if (activeTab !== 'messages') stopMessagesRealtime();
+  if (activeTab !== 'analytics') stopAnalyticsRealtime();
+}
+
 function switchTab(t) {
+  if (_activeTab === t) return;
+  _activeTab = t;
+  stopInactiveRealtime(t);
   document.getElementById('tab-list').style.display      = t === 'list'      ? 'block' : 'none';
   document.getElementById('tab-add').style.display       = t === 'add'       ? 'block' : 'none';
   document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
@@ -2545,7 +2558,8 @@ function switchTab(t) {
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') { loadAgentColorsSection('ac-grid2'); loadAbilityStyleEditor(); }
   if (t === 'mappool') loadMapPoolTab();
-  if (t === 'messages') loadMessagesTab();
+  if (t === 'list') loadLineups();
+  if (t === 'messages') startMessagesRealtime();
   if (t === 'modapps') loadModAppsTab();
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
@@ -2945,6 +2959,8 @@ let _msgAll    = [];
 let _msgFilter = 'all';
 let _msgLoaded = false;
 let _ideasAll  = [];
+let _msgUnsub = null;
+let _msgHousekeepingDone = false;
 
 function _msgCatColor(cat) {
   if (cat === 'баг')         return '#f44';
@@ -2964,7 +2980,40 @@ function _msgThread(m) {
   return out;
 }
 
+function startMessagesRealtime() {
+  const list = document.getElementById('msg-list');
+  if (_msgUnsub) return;
+  _msgHousekeepingDone = false;
+  list.innerHTML = '<div class="state" style="padding:20px;color:var(--text2);">Загрузка…</div>';
+  const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
+  _msgUnsub = onSnapshot(q, async snap => {
+    _msgAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _msgLoaded = true;
+    if (!_msgHousekeepingDone && !snap.metadata.hasPendingWrites) {
+      _msgHousekeepingDone = true;
+      await _msgCleanupClosed();
+      await loadIdeas();
+    }
+    _msgRenderList();
+    _msgUpdateBadge();
+  }, e => {
+    console.error('messages realtime', e);
+    list.innerHTML = `<div class="state" style="color:var(--red);padding:20px;">Ошибка: ${esc(e.message)}</div>`;
+  });
+}
+
+function stopMessagesRealtime() {
+  if (_msgUnsub) {
+    _msgUnsub();
+    _msgUnsub = null;
+  }
+}
+
 async function loadMessagesTab() {
+  startMessagesRealtime();
+}
+
+async function loadMessagesTabOnce() {
   const list = document.getElementById('msg-list');
   try {
     const snap = await getDocs(query(collection(db, 'feedback'), orderBy('created_at', 'desc')));
@@ -4271,6 +4320,8 @@ let _lineupsReady = false;
 
 function loadLineups() {
   if (_lineupsUnsub) return; // already listening
+  lineups = [];
+  _lineupsReady = false;
   document.getElementById('lineup-list').innerHTML = '<div class="state">Загрузка…</div>';
   const q = query(collection(db, 'lineups'), orderBy('submitted_at', 'desc'));
   _lineupsUnsub = onSnapshot(q, snap => {
@@ -4327,6 +4378,13 @@ function loadLineups() {
   });
 }
 window.loadLineups = loadLineups;
+
+function stopLineupsRealtime() {
+  if (_lineupsUnsub) {
+    _lineupsUnsub();
+    _lineupsUnsub = null;
+  }
+}
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 function updateStatsBar() {
@@ -7731,47 +7789,99 @@ async function loadAnalytics() {
 // ── Real-time ads analytics ───────────────────────────────────────────────────
 let _adsUnsub = null;
 
+function _adEventKind(type) {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('rewarded') && (t.includes('completed') || t.includes('complete') || t.includes('done') || t.includes('reward'))) return 'rewardedDone';
+  if (t.includes('rewarded') && (t.includes('skipped') || t.includes('skip') || t.includes('dismiss') || t.includes('fail'))) return 'rewardedSkip';
+  if (t.includes('rewarded') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'rewardedShown';
+  if (t.includes('interstitial') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'interstitialShown';
+  if (t.includes('banner') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'bannerShown';
+  if ((t.includes('app_open') || t.includes('appopen') || t.includes('open_ad')) && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'appOpenShown';
+  return 'other';
+}
+
 function subscribeAds() {
   if (_adsUnsub) return; // уже подписаны
   const now = Date.now();
   const d30 = new Date(now - 30 * 864e5);
+  const today = new Date().toISOString().slice(0, 10);
   const days = [];
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
   const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts'));
   _adsUnsub = onSnapshot(q, snap => {
-    let rewShown = 0, rewDone = 0, rewSkip = 0, intShown = 0;
+    const totals = {
+      rewardedShown: 0,
+      rewardedDone: 0,
+      rewardedSkip: 0,
+      interstitialShown: 0,
+      bannerShown: 0,
+      appOpenShown: 0,
+      other: 0,
+      totalShown: 0,
+    };
     const adByDay = {};
-    days.forEach(d => { adByDay[d] = { shown: 0, done: 0 }; });
+    days.forEach(d => {
+      adByDay[d] = {
+        totalShown: 0,
+        rewardedShown: 0,
+        rewardedDone: 0,
+        interstitialShown: 0,
+        bannerShown: 0,
+        appOpenShown: 0,
+      };
+    });
 
     snap.forEach(doc => {
       const dat = doc.data();
       if (!dat.ts?.toDate) return;
       const day = dat.ts.toDate().toISOString().slice(0, 10);
-      switch (dat.type) {
-        case 'rewarded_shown':     rewShown++; if (adByDay[day]) adByDay[day].shown++; break;
-        case 'rewarded_completed': rewDone++;  if (adByDay[day]) adByDay[day].done++;  break;
-        case 'rewarded_skipped':   rewSkip++;  break;
-        case 'interstitial_shown': intShown++; break;
+      const kind = _adEventKind(dat.type);
+      if (totals[kind] !== undefined) totals[kind]++; else totals.other++;
+      if (kind.endsWith('Shown')) {
+        totals.totalShown++;
+        if (adByDay[day]) {
+          adByDay[day].totalShown++;
+          if (adByDay[day][kind] !== undefined) adByDay[day][kind]++;
+        }
+      } else if (kind === 'rewardedDone' && adByDay[day]) {
+        adByDay[day].rewardedDone++;
       }
     });
-    const pct = rewShown > 0 ? Math.round(rewDone / rewShown * 100) : 0;
+    const pct = totals.rewardedShown > 0 ? Math.round(totals.rewardedDone / totals.rewardedShown * 100) : 0;
+    const avgDaily = Math.round(totals.totalShown / 30);
+    const todayShown = adByDay[today]?.totalShown || 0;
 
     document.getElementById('ad-stat-cards').innerHTML = [
-      [rewShown,  'Rewarded показов'],
-      [rewDone,   'Досмотрено'],
-      [rewSkip,   'Пропущено'],
+      [todayShown, 'Показов сегодня'],
+      [totals.totalShown, 'Показов за 30 дней'],
+      [avgDaily, 'Среднее в день'],
+      [totals.rewardedShown, 'Rewarded показов'],
+      [totals.rewardedDone, 'Rewarded досмотрено'],
+      [totals.rewardedSkip, 'Rewarded пропущено'],
       [pct + '%', '% досмотра'],
-      [intShown,  'Interstitial'],
+      [totals.interstitialShown, 'Interstitial показов'],
+      [totals.bannerShown, 'Banner показов'],
+      [totals.appOpenShown, 'App Open показов'],
+      [totals.other, 'Другие события'],
     ].map(([v, l]) =>
       `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
     ).join('');
 
     drawInteractiveChart('ad-chart', 'ad-tip', [
-      { name: 'Показано',   data: days.map(d => adByDay[d].shown), color: '#4FC3F7' },
-      { name: 'Досмотрено', data: days.map(d => adByDay[d].done),  color: '#22C55E' },
+      { name: 'Все показы',   data: days.map(d => adByDay[d].totalShown),        color: '#4FC3F7' },
+      { name: 'Rewarded',     data: days.map(d => adByDay[d].rewardedShown),     color: '#22C55E' },
+      { name: 'Interstitial', data: days.map(d => adByDay[d].interstitialShown), color: '#F59E0B' },
+      { name: 'Banner',       data: days.map(d => adByDay[d].bannerShown),       color: '#A78BFA' },
     ], days);
   }, err => console.error('subscribeAds', err));
+}
+
+function stopAdsRealtime() {
+  if (_adsUnsub) {
+    _adsUnsub();
+    _adsUnsub = null;
+  }
 }
 
 let _activityUnsub = null;
@@ -7828,6 +7938,19 @@ function subscribeActivity() {
       { name: 'DAU', data: dauArr, color: '#4FC3F7' },
     ], days);
   }, err => console.error('subscribeActivity', err));
+}
+
+function stopActivityRealtime() {
+  if (_activityUnsub) {
+    _activityUnsub();
+    _activityUnsub = null;
+  }
+}
+
+function stopAnalyticsRealtime() {
+  stopAdsRealtime();
+  stopActivityRealtime();
+  analyticsLoaded = false;
 }
 
 // Интерактивный график с наведением (тултип за день) + точки.
