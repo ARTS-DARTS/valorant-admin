@@ -4832,6 +4832,38 @@ async function notifyLineupAuthorApproved(uid, lineup) {
   return { ok: true, uid };
 }
 
+async function notifyLineupAuthorApprovedBatch(uid, approvedLineups) {
+  if (!uid || !Array.isArray(approvedLineups) || !approvedLineups.length) {
+    return { ok: false, error: 'empty_batch' };
+  }
+  if (approvedLineups.length === 1) {
+    return notifyLineupAuthorApproved(uid, approvedLineups[0]);
+  }
+
+  const count = approvedLineups.length;
+  const title = `Ваши лайнапы опубликованы: ${count} штук!`;
+  const body = 'Они уже доступны игрокам в приложении.';
+  const lineupIds = approvedLineups.map(l => l.id || '').filter(Boolean);
+  await writeUserNotification(uid, {
+    type: 'lineups_approved_batch',
+    lineup_ids: lineupIds,
+    total: count,
+    title,
+    body,
+  });
+  await sendPushNotification({
+    title,
+    body,
+    type: 'lineups_approved_batch',
+    targetUid: uid,
+    data: {
+      lineup_ids: lineupIds.join(','),
+      total: String(count),
+    },
+  });
+  return { ok: true, uid, count };
+}
+
 async function approveLineup(id, userId) {
   if (!confirm('Отправить лайнап в «Горячие пирожки»?\nОн станет виден пользователям только после финального подтверждения.')) return;
   try {
@@ -4874,20 +4906,28 @@ async function publishAllHot() {
     const b = writeBatch(db);
     hotList.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
     await b.commit();
+    const authorGroups = new Map();
     for (const l of hotList) {
       try {
         const snap = await getDoc(doc(db, 'lineups', l.id));
         if (snap.exists()) {
           const d = snap.data();
           const authorUid = lineupAuthorUid({ id: l.id, ...d }, l.user_id);
-          if (authorUid) updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(1) }).catch(() => {});
-          const authorResult = await notifyLineupAuthorApproved(authorUid, { id: l.id, ...d }).catch(e => ({ ok: false, error: e.message }));
+          if (authorUid) {
+            if (!authorGroups.has(authorUid)) authorGroups.set(authorUid, []);
+            authorGroups.get(authorUid).push({ id: l.id, ...d });
+          }
           const subResult = await notifySubscribers({ id: l.id, ...d });
-          console.info('publishAll notifications:', { lineupId: l.id, authorResult, subResult });
+          console.info('publishAll subscriber notifications:', { lineupId: l.id, subResult });
         }
       } catch (_) {}
       writeAudit(l.id, 'approved').catch(() => {});
       patchStatus(l.id, 'approved');
+    }
+    for (const [authorUid, approvedLineups] of authorGroups.entries()) {
+      updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(approvedLineups.length) }).catch(() => {});
+      const authorResult = await notifyLineupAuthorApprovedBatch(authorUid, approvedLineups).catch(e => ({ ok: false, error: e.message }));
+      console.info('publishAll author notification:', { authorUid, count: approvedLineups.length, authorResult });
     }
     // Батч-обновление счётчиков: считаем дельты, пишем одним вызовом
     const statsDelta = {};
