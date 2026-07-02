@@ -1831,6 +1831,8 @@
             <button class="nb-tool" id="nb-color-default" title="Белый текст">A</button>
             <button class="nb-tool" id="nb-bg-clear" title="Убрать фон">Ø</button>
             <button class="nb-tool" id="nb-clear-format" title="Очистить форматирование">Tx</button>
+            <button class="nb-tool" id="nb-capsule" title="Пункт в капсуле">▢</button>
+            <input type="color" id="nb-capsule-color" value="#FF4655" class="nb-tool" title="Цвет капсулы">
             <select class="fselect" id="nb-align" style="width:auto;height:34px;padding:0 8px;background:var(--surface2);">
               <option value="left">Слева</option>
               <option value="center">Центр</option>
@@ -9169,7 +9171,7 @@ const _ADMIN_SECRET = 'vl_adm_8f2k9p4x7q3m';
 
 // ── News banner editor ───────────────────────────────────────────────────────
 let nbPages = [
-  { blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }], button_text: '', button_url: '', button_color: '#4FC3F7', button_x: 0.5, button_y: 0.9 }
+  { blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left', capsule: false, capsule_color: '#FF4655' }], button_text: '', button_url: '', button_color: '#4FC3F7', button_x: 0.5, button_y: 0.9 }
 ];
 let nbPageIndex = 0;
 
@@ -9230,6 +9232,8 @@ function nbSaveCurrent() {
   b.background_color = '';
   b.font_size = parseInt(document.getElementById('nb-size')?.value || '16', 10);
   b.align = document.getElementById('nb-align')?.value || 'left';
+  b.capsule = document.getElementById('nb-capsule')?.classList.contains('active') || false;
+  b.capsule_color = document.getElementById('nb-capsule-color')?.value || '#FF4655';
   const page = nbPages[nbPageIndex];
   page.button_text = document.getElementById('nb-btn-text')?.value.trim() || '';
   page.button_url = document.getElementById('nb-btn-url')?.value.trim() || '';
@@ -9250,6 +9254,8 @@ function nbLoadCurrent() {
   document.getElementById('nb-bold').classList.toggle('active', !!b.bold);
   document.getElementById('nb-italic').classList.toggle('active', !!b.italic);
   document.getElementById('nb-underline').classList.toggle('active', !!b.underline);
+  document.getElementById('nb-capsule')?.classList.toggle('active', !!b.capsule);
+  if (document.getElementById('nb-capsule-color')) document.getElementById('nb-capsule-color').value = b.capsule_color || '#FF4655';
   document.getElementById('nb-btn-text').value = nbPages[nbPageIndex].button_text || '';
   document.getElementById('nb-btn-url').value = nbPages[nbPageIndex].button_url || '';
   document.getElementById('nb-btn-color').value = nbPages[nbPageIndex].button_color || '#4FC3F7';
@@ -9280,7 +9286,8 @@ function nbRender() {
   body.innerHTML = page.blocks.map(b => `
     <div class="nb-preview-text" style="
       color:${esc(b.color || '#fff')};
-      ${b.background_color ? `background:${esc(b.background_color)};padding:8px 10px;border-radius:8px;` : ''}
+      ${(b.background_color || b.capsule) ? `background:${esc(b.background_color || 'rgba(255,70,85,.10)')};padding:8px 10px;border-radius:${b.capsule ? '10px' : '8px'};` : ''}
+      ${b.capsule ? `border:2px solid ${esc(b.capsule_color || '#FF4655')};box-sizing:border-box;` : ''}
       font-size:${parseInt(b.font_size || 16, 10)}px;
       font-weight:${b.bold ? '800' : '400'};
       font-style:${b.italic ? 'italic' : 'normal'};
@@ -9358,7 +9365,7 @@ function nbInit() {
   nbRenderPages();
   nbLoadCurrent();
   nbLoadEventsForSelect();
-  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align','nb-btn-text','nb-btn-url','nb-btn-color'].forEach(id =>
+  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align','nb-btn-text','nb-btn-url','nb-btn-color','nb-capsule-color'].forEach(id =>
     document.getElementById(id)?.addEventListener('input', nbRender)
   );
   document.getElementById('nb-color')?.addEventListener('change', e => nbApplyCommand('foreColor', e.target.value));
@@ -9377,10 +9384,11 @@ function nbInit() {
   document.getElementById('nb-bold')?.addEventListener('click', () => nbApplyCommand('bold'));
   document.getElementById('nb-italic')?.addEventListener('click', () => nbApplyCommand('italic'));
   document.getElementById('nb-underline')?.addEventListener('click', () => nbApplyCommand('underline'));
+  document.getElementById('nb-capsule')?.addEventListener('click', () => nbToggleStyle('capsule', 'nb-capsule'));
   document.getElementById('nb-insert-event')?.addEventListener('click', nbInsertSelectedEvent);
   document.getElementById('nb-add-page')?.addEventListener('click', () => {
     nbSaveCurrent();
-    nbPages.push({ blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }], button_text: '', button_url: '', button_color: '#4FC3F7', button_x: 0.5, button_y: 0.9 });
+    nbPages.push({ blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left', capsule: false, capsule_color: '#FF4655' }], button_text: '', button_url: '', button_color: '#4FC3F7', button_x: 0.5, button_y: 0.9 });
     nbPageIndex = nbPages.length - 1;
     nbRenderPages();
     nbLoadCurrent();
