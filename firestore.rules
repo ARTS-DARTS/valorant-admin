@@ -179,6 +179,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /news_banners/{docId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (isAuth()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes_count'])
+          && request.resource.data.likes_count is int
+          && request.resource.data.likes_count == resource.data.likes_count + 1);
+    }
+
+    match /news_banner_likes/{bannerId}/users/{uid} {
+      allow read, write: if isOwner(uid);
+      allow read: if isAdmin();
+    }
+
     match /guide_content/{docId} {
       allow read: if true;
       allow write: if isAdmin();

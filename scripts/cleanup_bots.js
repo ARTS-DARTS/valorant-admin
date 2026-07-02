@@ -25,7 +25,7 @@ const auth = admin.auth();
 
 const REQUIRED_VIEWS = 5;
 const GOOGLE_TRIAL_DAYS = 30;
-const DEFAULT_TRIAL_DAYS = 7;
+const DEFAULT_TRIAL_DAYS = 30;
 const WARNING_DAYS = 3;
 const TRACKING_START = new Date('2026-06-20T00:00:00Z');
 const PRIVACY_URL = 'https://vlineups.ru/privacy_policy.html';
@@ -39,7 +39,7 @@ function userAuthKind(u) {
 }
 
 function trialDaysForUser(u) {
-  return userAuthKind(u) === 'google' ? GOOGLE_TRIAL_DAYS : DEFAULT_TRIAL_DAYS;
+  return DEFAULT_TRIAL_DAYS;
 }
 
 function userEmail(u) {
