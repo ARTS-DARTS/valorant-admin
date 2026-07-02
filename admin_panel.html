@@ -9764,9 +9764,9 @@ async function _renderUserProfileInto(uid, panel) {
     const onlineStr   = seenMs === null ? 'Нет данных' : seenMs < 5*60*1000 ? 'В сети' : seenMs < 60*60*1000 ? `${Math.floor(seenMs/60000)} мин назад` : seenMs < 24*3600*1000 ? `${Math.floor(seenMs/3600000)} ч назад` : lastSeenTs.toLocaleDateString('ru');
     const onlineClr   = seenMs !== null && seenMs < 5*60*1000 ? 'var(--green)' : seenMs !== null && seenMs < 60*60*1000 ? '#facc15' : 'var(--text2)';
     const lastSeenStr = lastSeenTs ? lastSeenTs.toLocaleDateString('ru') + ' ' + lastSeenTs.toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'}) : '—';
-    const timeSpent   = u.time_spent_seconds || 0;
+    const timeSpent   = Number(u.time_spent_seconds || 0);
     const fmtTimeApp  = s => { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h>0?`${h}ч ${m}м`:m>0?`${m}м`:`${s}с`; };
-    const totalViewed = u.lineups_viewed ?? 0;
+    const totalViewed = Number(u.lineups_viewed || 0);
 
     if (!panel.id) panel.id = 'up-tmp-' + uid;
     const _panelId = panel.id;
@@ -9774,8 +9774,8 @@ async function _renderUserProfileInto(uid, panel) {
     const regTs        = u.created_at?.toDate?.() ?? null;
     const daysSinceReg = regTs ? Math.floor((Date.now() - regTs.getTime()) / 86400000) : null;
     const isManualVerif = !!u.verified_not_fake;
-    const goodActivity = (u.lineups_viewed || 0) >= 3 || (u.time_spent_seconds || 0) >= 120;
-    const isAutoVerif  = !isManualVerif && daysSinceReg !== null && daysSinceReg >= 7 && goodActivity;
+    const goodActivity = totalViewed >= 3 || timeSpent >= 120;
+    const isAutoVerif  = !isManualVerif && goodActivity;
     const isSuspicious = !isManualVerif && !isAutoVerif && daysSinceReg !== null && daysSinceReg >= 7;
     const daysLeft     = daysSinceReg !== null && daysSinceReg < 7 ? 7 - daysSinceReg : 0;
     let verifDot, verifLabel, verifClr;
@@ -9783,11 +9783,11 @@ async function _renderUserProfileInto(uid, panel) {
       const vd = u.verified_at?.toDate?.()?.toLocaleDateString('ru') || '';
       verifDot = '✅'; verifLabel = `Подтверждён вручную${vd ? ' · ' + vd : ''}`; verifClr = 'var(--green)';
     } else if (isAutoVerif) {
-      verifDot = '✅'; verifLabel = `Авто (7д + активность)`; verifClr = 'var(--green)';
+      verifDot = '✅'; verifLabel = `Авто — активность засчитана (${totalViewed} просмотров, ${fmtTimeApp(timeSpent)})`; verifClr = 'var(--green)';
     } else if (isSuspicious) {
       verifDot = '⚠️'; verifLabel = `Не подтверждён — подозрительный`; verifClr = 'var(--red)';
     } else if (daysSinceReg !== null) {
-      verifDot = '⏳'; verifLabel = `Ещё ${daysLeft} дн. до проверки (${daysSinceReg} из 7)`; verifClr = '#facc15';
+      verifDot = '⏳'; verifLabel = `Ещё ${daysLeft} дн. до проверки активности (${daysSinceReg} из 7)`; verifClr = '#facc15';
     } else {
       verifDot = '—'; verifLabel = 'Нет данных'; verifClr = 'var(--text2)';
     }
