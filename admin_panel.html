@@ -4798,6 +4798,7 @@ async function notifySubscribers(lineup) {
       batch.set(doc(collection(db, 'users', uid, 'notifications')), {
         type: 'new_lineups_batch',
         lineup_id: lineup.id,
+        lineup_ids: [lineup.id],
         agent, map,
         maps: [map],
         total: 1,
@@ -4818,7 +4819,14 @@ async function notifySubscribers(lineup) {
         body: pushBody,
         type: 'new_lineups_batch',
         targetUid: uid,
-        data: { lineup_id: lineup.id, agent, map, total: '1' },
+        data: {
+          lineup_id: lineup.id,
+          lineup_ids: lineup.id,
+          agent,
+          map,
+          total: '1',
+          items: JSON.stringify([{ agent, map, total: 1, lineup_ids: [lineup.id] }]),
+        },
       })
     ));
     const pushSent = pushResults.filter(r => r.status === 'fulfilled').length;
@@ -9215,17 +9223,33 @@ function bnPreview() {
   const rows = bnCleanRows();
   const total = rows.reduce((s, r) => s + r.total, 0);
   sub.textContent = `Поступило ${bnPlural(total || 0)}`;
-  list.innerHTML = rows.map(r => `
+  const grouped = new Map();
+  rows.forEach(r => {
+    const key = r.agent;
+    if (!grouped.has(key)) grouped.set(key, { agent: r.agent, total: 0, maps: new Map() });
+    const g = grouped.get(key);
+    g.total += r.total;
+    const mapKey = r.map || 'Любая карта';
+    g.maps.set(mapKey, (g.maps.get(mapKey) || 0) + r.total);
+  });
+  const previewRows = [...grouped.values()]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+  list.innerHTML = previewRows.map(r => {
+    const maps = [...r.maps.entries()].sort((a, b) => b[1] - a[1]);
+    const subtitle = maps.length > 1
+      ? `На нескольких картах · ${bnPlural(r.total)}`
+      : `${maps[0]?.[0] || 'Любая карта'} · ${bnPlural(r.total)}`;
+    return `
     <div class="bn-preview-row">
       <div class="bn-preview-avatar">${esc(r.agent[0] || '?')}</div>
       <div style="flex:1;min-width:0;">
         <div style="color:#fff;font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.agent)}</div>
-        <div style="color:#8ea0b8;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(r.map || 'Любая карта')} · ${bnPlural(r.total)}</div>
+        <div style="color:#8ea0b8;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(subtitle)}</div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
-
 bnFillOptions();
 bnRender();
 
