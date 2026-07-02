@@ -868,6 +868,7 @@
       <div class="sidebar-section-label">Контент</div>
       <div class="tabs">
         <button class="tab"        id="tab-btn-changelog"><i class="bi bi-newspaper"></i><span>Новости</span></button>
+        <button class="tab"        id="tab-btn-events"><i class="bi bi-calendar-event"></i><span>События</span></button>
         <button class="tab"        id="tab-btn-admins"><i class="bi bi-people"></i><span>Пользователи</span></button>
         <button class="tab"        id="tab-btn-analytics"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></button>
       </div>
@@ -1255,6 +1256,41 @@
           <div id="cl-posts-list"><div class="state">Загрузка…</div></div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- Events tab -->
+    <div id="tab-events" style="display:none;">
+      <div style="max-width:960px;">
+        <div class="form-title">🗓 СОБЫТИЯ ОБНОВЛЕНИЙ</div>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:18px;line-height:1.55;">
+          Коротко записывай, что сделали в апдейте. Эти записи можно брать как основу для постов о новостях.
+        </p>
+        <div class="form-wrap" style="margin-bottom:18px;">
+          <div style="display:grid;grid-template-columns:1fr 160px;gap:10px;margin-bottom:10px;">
+            <div>
+              <label class="flabel">Заголовок</label>
+              <input class="finput" id="ev-title" placeholder="Например: Банеры новых лайнапов" style="background:var(--bg);">
+            </div>
+            <div>
+              <label class="flabel">Тип</label>
+              <select class="fselect" id="ev-type" style="background:var(--bg);">
+                <option value="feature">Фича</option>
+                <option value="fix">Фикс</option>
+                <option value="content">Контент</option>
+                <option value="infra">Техника</option>
+              </select>
+            </div>
+          </div>
+          <label class="flabel">Кратко что изменилось</label>
+          <textarea class="ftextarea" id="ev-body" rows="4" maxlength="900" placeholder="1-3 предложения: что добавили, что исправили, что появилось для пользователей…" style="background:var(--bg);min-height:96px;"></textarea>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-save" id="ev-save">💾 Записать событие</button>
+            <button class="btn" id="ev-clear" style="border:1px solid var(--border);color:var(--text2);">Очистить</button>
+            <span id="ev-status" style="font-size:12px;color:var(--text2);"></span>
+          </div>
+        </div>
+        <div id="ev-list"><div class="state">Загрузка…</div></div>
       </div>
     </div>
 
@@ -1777,9 +1813,13 @@
             <button class="nb-tool" id="nb-bold" title="Жирный">B</button>
             <button class="nb-tool" id="nb-italic" title="Курсив"><i>I</i></button>
             <button class="nb-tool" id="nb-underline" title="Подчеркнуть"><u>U</u></button>
+            <button class="nb-tool" id="nb-undo" title="Отменить">↶</button>
+            <button class="nb-tool" id="nb-redo" title="Повторить">↷</button>
             <input type="color" id="nb-color" value="#ffffff" class="nb-tool" title="Цвет текста">
             <input type="color" id="nb-bg" value="#0f1923" class="nb-tool" title="Закраска">
+            <button class="nb-tool" id="nb-color-default" title="Белый текст">A</button>
             <button class="nb-tool" id="nb-bg-clear" title="Убрать фон">Ø</button>
+            <button class="nb-tool" id="nb-clear-format" title="Очистить форматирование">Tx</button>
             <select class="fselect" id="nb-align" style="width:auto;height:34px;padding:0 8px;background:var(--surface2);">
               <option value="left">Слева</option>
               <option value="center">Центр</option>
@@ -1796,6 +1836,20 @@
           <div class="fg">
             <label class="flabel">Текст текущей страницы</label>
             <div class="nb-rich" id="nb-text" contenteditable="true" spellcheck="true" data-placeholder="Напиши, что добавлено, исправлено или удалено..."></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 64px;gap:8px;margin-top:10px;">
+            <div>
+              <label class="flabel">Кнопка</label>
+              <input class="finput" id="nb-btn-text" placeholder="Например: Telegram" style="background:var(--bg);">
+            </div>
+            <div>
+              <label class="flabel">Ссылка кнопки</label>
+              <input class="finput" id="nb-btn-url" placeholder="https://t.me/..." style="background:var(--bg);">
+            </div>
+            <div>
+              <label class="flabel">Цвет</label>
+              <input type="color" id="nb-btn-color" value="#4FC3F7" class="nb-tool" title="Цвет кнопки" style="width:100%;">
+            </div>
           </div>
           <div class="nb-pages" id="nb-pages"></div>
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
@@ -2618,6 +2672,7 @@ function switchTab(t) {
   document.getElementById('tab-add').style.display       = t === 'add'       ? 'block' : 'none';
   document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
   document.getElementById('tab-changelog').style.display = t === 'changelog' ? 'block' : 'none';
+  document.getElementById('tab-events').style.display    = t === 'events'    ? 'block' : 'none';
   document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
   document.getElementById('tab-duels').style.display     = t === 'duels'     ? 'block' : 'none';
   document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
@@ -2634,6 +2689,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
   document.getElementById('tab-btn-changelog').classList.toggle('active', t === 'changelog');
+  document.getElementById('tab-btn-events').classList.toggle('active',    t === 'events');
   document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
   document.getElementById('tab-btn-duels').classList.toggle('active',     t === 'duels');
   document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
@@ -2648,6 +2704,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-modapps').classList.toggle('active', t === 'modapps');
   if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
   if (t === 'changelog') loadChangelogPosts();
+  if (t === 'events') loadUpdateEvents();
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
@@ -2680,6 +2737,7 @@ document.getElementById('tab-btn-add').addEventListener('click', () => {
 });
 document.getElementById('tab-btn-admins').addEventListener('click',    () => switchTab('admins'));
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
+document.getElementById('tab-btn-events').addEventListener('click',    () => switchTab('events'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
 document.getElementById('tab-btn-duels').addEventListener('click',     () => switchTab('duels'));
 document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
@@ -7697,6 +7755,111 @@ async function clDeletePost(id) {
 }
 
 // \u2500\u2500 Analytics \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ── Update events tab ────────────────────────────────────────────────────────
+const EV_TYPE_META = {
+  feature: ['✨', 'Фича', '#22c55e'],
+  fix:     ['🔧', 'Фикс', '#f97316'],
+  content: ['📰', 'Контент', '#60a5fa'],
+  infra:   ['⚙️', 'Техника', '#c084fc'],
+};
+
+async function addUpdateEvent({ title, body, type = 'feature', source = 'manual' }) {
+  const cleanTitle = String(title || '').trim();
+  const cleanBody = String(body || '').trim();
+  if (!cleanTitle || !cleanBody) throw new Error('Заполни заголовок и описание события');
+  await addDoc(collection(db, 'update_events'), {
+    title: cleanTitle,
+    body: cleanBody,
+    type,
+    source,
+    created_at: serverTimestamp(),
+    author: currentUser?.displayName || currentUser?.email || 'Admin',
+    author_uid: auth.currentUser?.uid || null,
+  });
+}
+
+function evTypeBadge(type) {
+  const [emoji, label, color] = EV_TYPE_META[type] || EV_TYPE_META.feature;
+  return `<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid ${color};color:${color};background:${color}22;">${emoji} ${label}</span>`;
+}
+
+async function loadUpdateEvents() {
+  const el = document.getElementById('ev-list');
+  if (!el) return;
+  el.innerHTML = '<div class="state">Загрузка…</div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'update_events'), orderBy('created_at', 'desc'), limit(40)));
+    if (!snap.docs.length) {
+      el.innerHTML = '<div class="state">Событий пока нет</div>';
+      return;
+    }
+    el.innerHTML = snap.docs.map(d => {
+      const ev = d.data();
+      const date = ev.created_at?.toDate
+        ? ev.created_at.toDate().toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+        : '—';
+      return `<div class="cl-post-card">
+        <div class="cl-post-head">
+          <div style="flex:1;min-width:0;"><div class="cl-post-title">${esc(ev.title || '—')}</div></div>
+          <button class="cl-post-del" data-ev-del="${d.id}" title="Удалить">🗑</button>
+        </div>
+        <div class="cl-post-meta">
+          ${evTypeBadge(ev.type)}
+          <span>📅 ${date}</span>
+          <span>👤 ${esc(ev.author || 'Admin')}</span>
+          ${ev.source && ev.source !== 'manual' ? `<span>src: ${esc(ev.source)}</span>` : ''}
+        </div>
+        <div class="cl-post-body">${esc(ev.body || '')}</div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('[data-ev-del]').forEach(btn => {
+      btn.addEventListener('click', () => deleteUpdateEvent(btn.dataset.evDel));
+    });
+  } catch (e) {
+    el.innerHTML = `<div class="state" style="color:var(--red)">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+async function deleteUpdateEvent(id) {
+  if (!confirm('Удалить событие?')) return;
+  try {
+    await deleteDoc(doc(db, 'update_events', id));
+    toast('Событие удалено', 'i');
+    loadUpdateEvents();
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  }
+}
+
+document.getElementById('ev-save')?.addEventListener('click', async () => {
+  const status = document.getElementById('ev-status');
+  const btn = document.getElementById('ev-save');
+  btn.disabled = true;
+  if (status) status.textContent = 'Сохраняю…';
+  try {
+    await addUpdateEvent({
+      title: document.getElementById('ev-title')?.value,
+      body: document.getElementById('ev-body')?.value,
+      type: document.getElementById('ev-type')?.value || 'feature',
+    });
+    document.getElementById('ev-title').value = '';
+    document.getElementById('ev-body').value = '';
+    if (status) status.textContent = '✅ Событие записано';
+    toast('Событие записано', 's');
+    loadUpdateEvents();
+  } catch (e) {
+    if (status) status.textContent = '❌ ' + e.message;
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('ev-clear')?.addEventListener('click', () => {
+  document.getElementById('ev-title').value = '';
+  document.getElementById('ev-body').value = '';
+  document.getElementById('ev-status').textContent = '';
+});
 // ── Analytics sub-tabs ───────────────────────────────────────────────────────
 document.querySelectorAll('[data-an-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -8815,7 +8978,7 @@ const _ADMIN_SECRET = 'vl_adm_8f2k9p4x7q3m';
 
 // ── News banner editor ───────────────────────────────────────────────────────
 let nbPages = [
-  { blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }] }
+  { blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }], button_text: '', button_url: '', button_color: '#4FC3F7' }
 ];
 let nbPageIndex = 0;
 
@@ -8832,6 +8995,10 @@ function nbSaveCurrent() {
   b.background_color = '';
   b.font_size = parseInt(document.getElementById('nb-size')?.value || '16', 10);
   b.align = document.getElementById('nb-align')?.value || 'left';
+  const page = nbPages[nbPageIndex];
+  page.button_text = document.getElementById('nb-btn-text')?.value.trim() || '';
+  page.button_url = document.getElementById('nb-btn-url')?.value.trim() || '';
+  page.button_color = document.getElementById('nb-btn-color')?.value || '#4FC3F7';
 }
 
 function nbLoadCurrent() {
@@ -8846,6 +9013,9 @@ function nbLoadCurrent() {
   document.getElementById('nb-bold').classList.toggle('active', !!b.bold);
   document.getElementById('nb-italic').classList.toggle('active', !!b.italic);
   document.getElementById('nb-underline').classList.toggle('active', !!b.underline);
+  document.getElementById('nb-btn-text').value = nbPages[nbPageIndex].button_text || '';
+  document.getElementById('nb-btn-url').value = nbPages[nbPageIndex].button_url || '';
+  document.getElementById('nb-btn-color').value = nbPages[nbPageIndex].button_color || '#4FC3F7';
   nbRender();
 }
 
@@ -8880,7 +9050,9 @@ function nbRender() {
       text-decoration:${b.underline ? 'underline' : 'none'};
       text-align:${esc(b.align || 'left')};
     ">${(b.html || esc(b.text || 'Текст страницы...').replace(/\n/g, '<br>'))}</div>
-  `).join('');
+  `).join('') + (page.button_text && page.button_url ? `
+    <button class="btn btn-save" style="width:100%;justify-content:center;margin-top:12px;background:${esc(page.button_color || '#4FC3F7')};border-color:${esc(page.button_color || '#4FC3F7')};">${esc(page.button_text)}</button>
+  ` : '');
 }
 
 function nbToggleStyle(key, btnId) {
@@ -8899,10 +9071,18 @@ function nbApplyCommand(command, value = null) {
 function nbClearSelectedBackground() {
   const editor = document.getElementById('nb-text');
   editor?.focus();
-  document.execCommand('removeFormat', false, null);
+  document.execCommand('backColor', false, 'transparent');
   nbBlock().background_color = '';
   document.getElementById('nb-bg').dataset.enabled = 'false';
   document.getElementById('nb-bg-clear').classList.remove('active');
+  nbRender();
+}
+
+function nbClearFormat() {
+  const editor = document.getElementById('nb-text');
+  editor?.focus();
+  document.execCommand('removeFormat', false, null);
+  document.execCommand('foreColor', false, '#ffffff');
   nbRender();
 }
 
@@ -8910,7 +9090,7 @@ function nbInit() {
   if (!document.getElementById('nb-publish')) return;
   nbRenderPages();
   nbLoadCurrent();
-  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align'].forEach(id =>
+  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align','nb-btn-text','nb-btn-url','nb-btn-color'].forEach(id =>
     document.getElementById(id)?.addEventListener('input', nbRender)
   );
   document.getElementById('nb-color')?.addEventListener('change', e => nbApplyCommand('foreColor', e.target.value));
@@ -8918,13 +9098,20 @@ function nbInit() {
     nbApplyCommand('backColor', e.target.value);
     nbRender();
   });
+  document.getElementById('nb-color-default')?.addEventListener('click', () => {
+    document.getElementById('nb-color').value = '#ffffff';
+    nbApplyCommand('foreColor', '#ffffff');
+  });
+  document.getElementById('nb-clear-format')?.addEventListener('click', nbClearFormat);
+  document.getElementById('nb-undo')?.addEventListener('click', () => nbApplyCommand('undo'));
+  document.getElementById('nb-redo')?.addEventListener('click', () => nbApplyCommand('redo'));
   document.getElementById('nb-bg-clear')?.addEventListener('click', nbClearSelectedBackground);
   document.getElementById('nb-bold')?.addEventListener('click', () => nbApplyCommand('bold'));
   document.getElementById('nb-italic')?.addEventListener('click', () => nbApplyCommand('italic'));
   document.getElementById('nb-underline')?.addEventListener('click', () => nbApplyCommand('underline'));
   document.getElementById('nb-add-page')?.addEventListener('click', () => {
     nbSaveCurrent();
-    nbPages.push({ blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }] });
+    nbPages.push({ blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left' }], button_text: '', button_url: '', button_color: '#4FC3F7' });
     nbPageIndex = nbPages.length - 1;
     nbRenderPages();
     nbLoadCurrent();
@@ -8944,8 +9131,13 @@ async function nbPublish() {
   const title = document.getElementById('nb-title').value.trim() || 'Обновление Vlineups';
   const version = parseInt(document.getElementById('nb-version').value || '1', 10);
   const pages = nbPages
-    .map(p => ({ blocks: p.blocks.filter(b => (b.text || '').trim()) }))
-    .filter(p => p.blocks.length);
+    .map(p => ({
+      blocks: p.blocks.filter(b => (b.text || '').trim()),
+      button_text: p.button_text || '',
+      button_url: p.button_url || '',
+      button_color: p.button_color || '#4FC3F7',
+    }))
+    .filter(p => p.blocks.length || (p.button_text && p.button_url));
   if (!pages.length) { toast('Заполни хотя бы одну страницу банера', 'e'); return; }
   const btn = document.getElementById('nb-publish');
   const status = document.getElementById('nb-status');
@@ -9303,6 +9495,12 @@ document.getElementById('bn-test-agent')?.addEventListener('click', async () => 
       },
       allowAll: _ncAllowAll(),
     });
+    await addUpdateEvent({
+      title: `Новостной банер: ${title}`,
+      body: pages.map((p, i) => `Стр. ${i + 1}: ${p.blocks.map(b => b.text).join(' ').trim()}`).join('\n').slice(0, 900),
+      type: 'content',
+      source: 'news_banner',
+    }).catch(() => {});
     _ncSetStatus('banner-test', true, _ncTargetName ? `✅ Тест банера → ${_ncTargetName}` : '✅ Тест банера отправлен всем');
     toast(_ncTargetName ? `Тест банера → ${_ncTargetName}` : 'Тест банера отправлен всем', 's');
   } catch (e) {
