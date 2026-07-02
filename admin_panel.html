@@ -1741,6 +1741,8 @@
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
           <div class="form-title" style="margin:0;font-size:14px;letter-spacing:2px;">📋 НАСТРОЕННЫЕ РАДИУСЫ</div>
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
+          <button id="rng-backfill-missing" class="btn btn-save" style="font-size:12px;padding:5px 12px;">Синхронизировать радиусы</button>
+          <span id="rng-backfill-status" style="font-size:12px;color:var(--text2);"></span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -11042,6 +11044,7 @@ function _rngWireEvents() {
   });
 
   document.getElementById('rng-list-reload').addEventListener('click', rngLoadList);
+  document.getElementById('rng-backfill-missing').addEventListener('click', rngBackfillMissingLineupRadii);
 
   document.getElementById('rng-shot-file').addEventListener('change', function() {
     const file = this.files[0]; if (!file) return;
@@ -11237,6 +11240,68 @@ async function rngLoadList() {
   } catch(e) {
     console.error('rngLoadList', e);
     body.innerHTML = `<div style="color:var(--red);font-size:13px;">Ошибка: ${e.message}</div>`;
+  }
+}
+
+async function rngBackfillMissingLineupRadii() {
+  const btn = document.getElementById('rng-backfill-missing');
+  const status = document.getElementById('rng-backfill-status');
+  btn.disabled = true;
+  status.textContent = 'Синхронизирую с range_config...';
+  try {
+    const rangesSnap = await getDocs(collection(db, 'range_config'));
+    const ranges = new Map();
+    rangesSnap.forEach(d => {
+      const data = d.data();
+      const radius = Number(data.range_radius || 0);
+      if (Number.isFinite(radius) && radius > 0) {
+        ranges.set(rangeConfigId(data.map, data.agent, data.ability), radius);
+      }
+    });
+    if (!ranges.size) {
+      status.textContent = 'Нет настроенных радиусов';
+      toast('Нет настроенных радиусов', 'w');
+      return;
+    }
+
+    const lineupsSnap = await getDocs(collection(db, 'lineups'));
+    const updates = [];
+    lineupsSnap.forEach(d => {
+      const data = d.data();
+      const key = rangeConfigId(data.map, data.agent, data.ability);
+      const expected = ranges.get(key);
+      if (!expected) return;
+      const current = Number(data.range_radius || 0);
+      if (!Number.isFinite(current) || Math.abs(current - expected) > 0.0005) {
+        updates.push({ ref: d.ref, expected });
+      }
+    });
+
+    if (!updates.length) {
+      status.textContent = 'Все лайнапы уже совпадают';
+      toast('Радиусы уже синхронизированы', 's');
+      return;
+    }
+
+    let done = 0;
+    for (let i = 0; i < updates.length; i += 450) {
+      const batch = writeBatch(db);
+      updates.slice(i, i + 450).forEach(item => {
+        batch.update(item.ref, { range_radius: item.expected });
+      });
+      await batch.commit();
+      done += Math.min(450, updates.length - i);
+      status.textContent = `Обновлено ${done}/${updates.length}`;
+    }
+    status.textContent = `Готово: обновлено ${updates.length}`;
+    toast(`Радиусы синхронизированы: ${updates.length}`, 's');
+    renderList();
+  } catch (e) {
+    console.error('rngBackfillMissingLineupRadii', e);
+    status.textContent = 'Ошибка: ' + e.message;
+    toast('Ошибка синхронизации радиусов: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
   }
 }
 
