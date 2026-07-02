@@ -1117,6 +1117,25 @@
               <span id="users-count" style="font-size:11px;color:var(--text2);"></span>
             </div>
             <input class="finput" id="user-search" placeholder="Поиск по нику или email…" style="margin-bottom:10px;">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+              <select class="fselect" id="user-auth-filter" style="flex:1;min-width:130px;font-size:12px;padding:6px 9px;">
+                <option value="all">Все входы</option>
+                <option value="google">Google</option>
+                <option value="email">Почта</option>
+                <option value="yandex">Яндекс</option>
+              </select>
+              <select class="fselect" id="user-verif-filter" style="flex:1;min-width:150px;font-size:12px;padding:6px 9px;">
+                <option value="all">Все проверки</option>
+                <option value="verified">Подтверждённые</option>
+                <option value="unverified">Не подтверждённые</option>
+                <option value="warning">Под угрозой</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px;">
+              <input class="finput" id="user-verify-before-date" type="date" value="2026-06-20" style="width:145px;font-size:12px;padding:6px 9px;background:var(--bg);">
+              <button class="btn btn-save" id="user-verify-before-btn" style="font-size:12px;padding:7px 10px;">✅ Подтвердить всех до даты</button>
+              <span id="user-verify-before-status" style="font-size:11px;color:var(--text2);"></span>
+            </div>
             <div id="user-search-results" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
               <div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>
             </div>
@@ -9671,6 +9690,67 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
 // ── Пользователи ──────────────────────────────────────────────────────────────
 
 let _allUsers = [];
+let _userSearchQuery = '';
+let _userAuthFilter = 'all';
+let _userVerifFilter = 'all';
+
+const USER_REQUIRED_VIEWS = 5;
+const USER_TRIAL_DAYS = 7;
+const USER_WARNING_DAYS = 3;
+
+function userAuthKind(u) {
+  const provider = String(u.auth_provider || u.auth_provider_linked || '').toLowerCase();
+  const email = String(u.user_email || '').toLowerCase();
+  if (provider.includes('yandex') || u.yandex_id || u.yandex_email || u.id?.startsWith?.('yandex_')) return 'yandex';
+  if (provider.includes('google') || (!email && !u.yandex_id)) return 'google';
+  return 'email';
+}
+
+function userAuthLabel(kind) {
+  if (kind === 'yandex') return 'Яндекс';
+  if (kind === 'google') return 'Google';
+  return 'Почта';
+}
+
+function userDaysSinceReg(u) {
+  const reg = u.created_at?.toDate?.() ?? null;
+  return reg ? Math.floor((Date.now() - reg.getTime()) / 86400000) : null;
+}
+
+function userTrialInfo(u) {
+  const viewed = Number(u.lineups_viewed || 0);
+  const daysSince = userDaysSinceReg(u);
+  const daysLeft = daysSince !== null ? Math.max(0, USER_TRIAL_DAYS - daysSince) : null;
+  const verified = !!u.verified_not_fake || viewed >= USER_REQUIRED_VIEWS || Number(u.approved_lineups || 0) > 0;
+  const warning = !verified && daysLeft !== null && daysLeft > 0 && daysLeft <= USER_WARNING_DAYS;
+  const expired = !verified && daysLeft === 0;
+  return { viewed, daysLeft, verified, warning, expired };
+}
+
+function applyUserFilters() {
+  let list = _allUsers;
+  const q = _userSearchQuery;
+  if (q) {
+    list = list.filter(u =>
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.user_email || '').toLowerCase().includes(q) ||
+      (u.yandex_email || '').toLowerCase().includes(q)
+    );
+  }
+  if (_userAuthFilter !== 'all') {
+    list = list.filter(u => userAuthKind(u) === _userAuthFilter);
+  }
+  if (_userVerifFilter !== 'all') {
+    list = list.filter(u => {
+      const info = userTrialInfo(u);
+      if (_userVerifFilter === 'verified') return info.verified;
+      if (_userVerifFilter === 'unverified') return !info.verified;
+      if (_userVerifFilter === 'warning') return info.warning || info.expired;
+      return true;
+    });
+  }
+  return list;
+}
 
 async function loadAllUsers() {
   const resultsEl = document.getElementById('user-search-results');
@@ -9680,8 +9760,7 @@ async function loadAllUsers() {
   try {
     const snap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc')));
     _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (countEl) countEl.textContent = `${_allUsers.length} пользователей`;
-    renderUsersList(_allUsers);
+    renderUsersList(applyUserFilters());
   } catch(e) {
     resultsEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px;">Ошибка: ${e.message}</div>`;
   }
@@ -9689,6 +9768,8 @@ async function loadAllUsers() {
 
 function renderUsersList(users) {
   const resultsEl = document.getElementById('user-search-results');
+  const countEl   = document.getElementById('users-count');
+  if (countEl) countEl.textContent = `${users.length} из ${_allUsers.length} пользователей`;
   if (!users.length) {
     resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Не найдено</div>';
     return;
@@ -9701,6 +9782,15 @@ function renderUsersList(users) {
     const bannedTag = isBanned
       ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,0.15);color:#FF4655;margin-left:4px;">бан</span>`
       : '';
+    const authKind = userAuthKind(u);
+    const trial = userTrialInfo(u);
+    const trialTag = trial.verified
+      ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(34,197,94,.12);color:var(--green);margin-left:4px;">✓ ${trial.viewed}/${USER_REQUIRED_VIEWS}</span>`
+      : trial.expired
+        ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,.15);color:var(--red);margin-left:4px;">удаление ${trial.viewed}/${USER_REQUIRED_VIEWS}</span>`
+        : trial.warning
+          ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(249,115,22,.15);color:var(--orange);margin-left:4px;">${trial.daysLeft}д ${trial.viewed}/${USER_REQUIRED_VIEWS}</span>`
+          : `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--surface2);color:var(--text2);margin-left:4px;">${trial.viewed}/${USER_REQUIRED_VIEWS}</span>`;
     const initial = esc((u.name || '?')[0].toUpperCase());
     return `<div onclick="openUserProfilePanel('${u.id}')"
         style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;"
@@ -9709,9 +9799,9 @@ function renderUsersList(users) {
       <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:var(--text);">${initial}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:500;color:${isBanned ? '#FF4655' : 'var(--text)'};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
-          ${isBanned ? '🚫 ' : ''}${esc(u.name || '—')}${role}${bannedTag}
+          ${isBanned ? '🚫 ' : ''}${esc(u.name || '—')}${role}${bannedTag}${trialTag}
         </div>
-        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(u.user_email || '')}</div>
+        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${userAuthLabel(authKind)} · ${esc(u.user_email || u.yandex_email || '')}</div>
       </div>
       <div style="font-size:10px;color:var(--text2);flex-shrink:0;">${u.approved_lineups ?? 0} лайн.</div>
     </div>`;
@@ -9719,12 +9809,63 @@ function renderUsersList(users) {
 }
 
 document.getElementById('user-search').addEventListener('input', e => {
-  const q = e.target.value.trim().toLowerCase();
-  if (!q) { renderUsersList(_allUsers); return; }
-  renderUsersList(_allUsers.filter(u =>
-    (u.name || '').toLowerCase().includes(q) ||
-    (u.user_email || '').toLowerCase().includes(q)
-  ));
+  _userSearchQuery = e.target.value.trim().toLowerCase();
+  renderUsersList(applyUserFilters());
+});
+
+document.getElementById('user-auth-filter')?.addEventListener('change', e => {
+  _userAuthFilter = e.target.value;
+  renderUsersList(applyUserFilters());
+});
+
+document.getElementById('user-verif-filter')?.addEventListener('change', e => {
+  _userVerifFilter = e.target.value;
+  renderUsersList(applyUserFilters());
+});
+
+document.getElementById('user-verify-before-btn')?.addEventListener('click', async () => {
+  const dateValue = document.getElementById('user-verify-before-date')?.value || '2026-06-20';
+  const cutoff = new Date(dateValue + 'T00:00:00Z');
+  if (!Number.isFinite(cutoff.getTime())) { toast('Укажи корректную дату', 'e'); return; }
+  const candidates = _allUsers.filter(u => {
+    if (u.verified_not_fake) return false;
+    const created = u.created_at?.toDate?.() ?? null;
+    return created && created < cutoff;
+  });
+  if (!candidates.length) {
+    toast('Нет неподтверждённых аккаунтов до этой даты', 'i');
+    return;
+  }
+  if (!confirm(`Подтвердить ${candidates.length} аккаунтов, зарегистрированных до ${dateValue}?`)) return;
+  const btn = document.getElementById('user-verify-before-btn');
+  const status = document.getElementById('user-verify-before-status');
+  btn.disabled = true;
+  if (status) status.textContent = `0/${candidates.length}`;
+  try {
+    let done = 0;
+    for (let i = 0; i < candidates.length; i += 450) {
+      const batch = writeBatch(db);
+      candidates.slice(i, i + 450).forEach(u => {
+        batch.update(doc(db, 'users', u.id), {
+          verified_not_fake: true,
+          verified_at: serverTimestamp(),
+          verification_reason: 'pre_tracking_manual_batch',
+        });
+      });
+      await batch.commit();
+      done += Math.min(450, candidates.length - i);
+      if (status) status.textContent = `${done}/${candidates.length}`;
+    }
+    _allUsers = _allUsers.map(u => candidates.some(c => c.id === u.id)
+      ? { ...u, verified_not_fake: true, verification_reason: 'pre_tracking_manual_batch' }
+      : u);
+    renderUsersList(applyUserFilters());
+    toast(`Подтверждено аккаунтов: ${candidates.length}`, 's');
+  } catch (e) {
+    toast('Ошибка подтверждения: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 
@@ -9771,23 +9912,32 @@ async function _renderUserProfileInto(uid, panel) {
     if (!panel.id) panel.id = 'up-tmp-' + uid;
     const _panelId = panel.id;
 
+    const REQUIRED_VIEWS = 5;
+    const TRIAL_DAYS = 7;
+    const WARNING_DAYS = 3;
     const regTs        = u.created_at?.toDate?.() ?? null;
     const daysSinceReg = regTs ? Math.floor((Date.now() - regTs.getTime()) / 86400000) : null;
     const isManualVerif = !!u.verified_not_fake;
-    const goodActivity = totalViewed >= 3 || timeSpent >= 120;
-    const isAutoVerif  = !isManualVerif && goodActivity;
-    const isSuspicious = !isManualVerif && !isAutoVerif && daysSinceReg !== null && daysSinceReg >= 7;
-    const daysLeft     = daysSinceReg !== null && daysSinceReg < 7 ? 7 - daysSinceReg : 0;
+    const hasRequiredViews = totalViewed >= REQUIRED_VIEWS;
+    const hasCreatorTrust = (u.approved_lineups || 0) > 0;
+    const isTrialPassed = isManualVerif || hasRequiredViews || hasCreatorTrust;
+    const daysLeft = daysSinceReg !== null ? Math.max(0, TRIAL_DAYS - daysSinceReg) : null;
+    const isTrialWarning = !isTrialPassed && daysLeft !== null && daysLeft > 0 && daysLeft <= WARNING_DAYS;
+    const isTrialExpired = !isTrialPassed && daysLeft === 0;
     let verifDot, verifLabel, verifClr;
     if (isManualVerif) {
       const vd = u.verified_at?.toDate?.()?.toLocaleDateString('ru') || '';
-      verifDot = '✅'; verifLabel = `Подтверждён вручную${vd ? ' · ' + vd : ''}`; verifClr = 'var(--green)';
-    } else if (isAutoVerif) {
-      verifDot = '✅'; verifLabel = `Авто — активность засчитана (${totalViewed} просмотров, ${fmtTimeApp(timeSpent)})`; verifClr = 'var(--green)';
-    } else if (isSuspicious) {
-      verifDot = '⚠️'; verifLabel = `Не подтверждён — подозрительный`; verifClr = 'var(--red)';
+      verifDot = '✅'; verifLabel = `Проверка пройдена вручную${vd ? ' · ' + vd : ''}`; verifClr = 'var(--green)';
+    } else if (hasRequiredViews) {
+      verifDot = '✅'; verifLabel = `Проверка пройдена — просмотрено ${totalViewed}/${REQUIRED_VIEWS} лайнапов`; verifClr = 'var(--green)';
+    } else if (hasCreatorTrust) {
+      verifDot = '✅'; verifLabel = `Проверка пройдена — есть одобренные лайнапы`; verifClr = 'var(--green)';
+    } else if (isTrialExpired) {
+      verifDot = '🚨'; verifLabel = `Срок истёк — просмотрено ${totalViewed}/${REQUIRED_VIEWS}, аккаунт под удаление`; verifClr = 'var(--red)';
+    } else if (isTrialWarning) {
+      verifDot = '⚠️'; verifLabel = `Осталось ${daysLeft} дн. до удаления — просмотрено ${totalViewed}/${REQUIRED_VIEWS}`; verifClr = 'var(--orange)';
     } else if (daysSinceReg !== null) {
-      verifDot = '⏳'; verifLabel = `Ещё ${daysLeft} дн. до проверки активности (${daysSinceReg} из 7)`; verifClr = '#facc15';
+      verifDot = '⏳'; verifLabel = `Нужно посмотреть ${REQUIRED_VIEWS} лайнапов за ${TRIAL_DAYS} дней — ${totalViewed}/${REQUIRED_VIEWS}, осталось ${daysLeft} дн.`; verifClr = '#facc15';
     } else {
       verifDot = '—'; verifLabel = 'Нет данных'; verifClr = 'var(--text2)';
     }
@@ -9861,12 +10011,12 @@ async function _renderUserProfileInto(uid, panel) {
           </div>
         </div>
 
-        <div style="background:var(--surface2);border:1px solid ${isSuspicious ? 'rgba(239,68,68,.35)' : isManualVerif || isAutoVerif ? 'rgba(34,197,94,.25)' : 'rgba(250,204,21,.25)'};border-radius:var(--r);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="background:var(--surface2);border:1px solid ${isTrialExpired ? 'rgba(239,68,68,.35)' : isTrialPassed ? 'rgba(34,197,94,.25)' : isTrialWarning ? 'rgba(249,115,22,.35)' : 'rgba(250,204,21,.25)'};border-radius:var(--r);padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
           <div>
-            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Верификация аккаунта</div>
+            <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Проверка пользователя</div>
             <div style="font-size:13px;color:${verifClr};font-weight:600;">${verifDot} ${verifLabel}</div>
-            ${isSuspicious ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">7+ дней, но мало активности (просмотров < 3, времени < 2м)</div>` : ''}
-            ${!isManualVerif && isAutoVerif ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Можно подтвердить вручную для надёжности</div>` : ''}
+            ${!isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">План: минимум ${REQUIRED_VIEWS} просмотренных лайнапов за ${TRIAL_DAYS} дней после регистрации.</div>` : ''}
+            ${!isManualVerif && isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Можно подтвердить вручную для надёжности</div>` : ''}
           </div>
           ${!isManualVerif ? `<button class="btn btn-approve" onclick="verifyUserAccount('${uid}','${esc(u.name||'')}','${_panelId}')" style="font-size:12px;padding:7px 14px;flex-shrink:0;">✅ Подтвердить</button>` : ''}
         </div>

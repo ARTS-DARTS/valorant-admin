@@ -2,7 +2,8 @@
  * Ежедневный cron: удаление ботов и альт-аккаунтов.
  *
  * Защита: lineups_viewed >= 5 ИЛИ verified_not_fake = true → никогда не удалять.
- * Кандидат: lineups_viewed < 5 И не верифицирован И зарегистрирован 30+ дней назад.
+ * Испытательный срок: 7 дней после регистрации, нужно посмотреть 5 лайнапов.
+ * Напоминания: за 3, 2 и 1 день до удаления.
  *
  * Countdown (deletion_day):
  *   0 → 1: пуш "через 3 дня"
@@ -56,7 +57,7 @@ async function archiveAndDelete(uid, u) {
     lineups_viewed:     u.lineups_viewed   || 0,
     approved_lineups:   u.approved_lineups || 0,
     created_at:         u.created_at       || null,
-    reason:             'Меньше 5 просмотров за 30+ дней (бот/альт)',
+    reason:             'Меньше 5 просмотров за 7 дней испытательного срока',
     deleted_at:         admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -80,7 +81,11 @@ async function archiveAndDelete(uid, u) {
 // ── Основная логика ──────────────────────────────────────────────────────────
 async function run() {
   const now       = new Date();
-  const threshold = new Date(now.getTime() - 30 * 24 * 3600 * 1000); // 30 дней назад
+  const REQUIRED_VIEWS = 5;
+  const TRIAL_DAYS = 7;
+  const WARNING_DAYS = 3;
+  const msPerDay = 24 * 3600 * 1000;
+  const threshold = new Date(now.getTime() - (TRIAL_DAYS - WARNING_DAYS) * msPerDay);
 
   const snap = await db.collection('users')
     .where('created_at', '<', threshold)
@@ -92,7 +97,7 @@ async function run() {
     const uid = doc.id;
     const u   = doc.data();
 
-    const viewed          = u.lineups_viewed   || 0;
+    const viewed          = Number(u.lineups_viewed || 0);
     const verified        = !!u.verified_not_fake;
     const approvedLineups = u.approved_lineups || 0;
     const deletionDay     = u.deletion_day     || 0;
@@ -103,7 +108,28 @@ async function run() {
     const isPreTracking   = regDate !== null && regDate < TRACKING_START;
 
     // Защищённый пользователь — сбросить countdown если был
-    if (viewed >= 5 || verified || approvedLineups > 0 || isPreTracking) {
+    if (viewed >= REQUIRED_VIEWS || verified || approvedLineups > 0 || isPreTracking) {
+      const clear = {};
+      if (deletionDay > 0) clear.deletion_day = admin.firestore.FieldValue.delete();
+      if (!verified && (viewed >= REQUIRED_VIEWS || isPreTracking)) {
+        clear.verified_not_fake = true;
+        clear.verified_at = admin.firestore.FieldValue.serverTimestamp();
+        clear.verification_reason = isPreTracking ? 'pre_tracking_user' : 'viewed_5_lineups';
+      }
+      if (Object.keys(clear).length) {
+        await doc.ref.update(clear);
+        stats.cleared++;
+      }
+      continue;
+    }
+
+    const daysSinceReg = regDate
+      ? Math.floor((now.getTime() - regDate.getTime()) / msPerDay)
+      : TRIAL_DAYS;
+    const daysLeft = TRIAL_DAYS - daysSinceReg;
+
+    // Ещё не подошли последние 3 дня испытательного срока
+    if (daysLeft > WARNING_DAYS) {
       if (deletionDay > 0) {
         await doc.ref.update({ deletion_day: admin.firestore.FieldValue.delete() });
         stats.cleared++;
@@ -111,34 +137,45 @@ async function run() {
       continue;
     }
 
-    // Кандидат на удаление
+    // Кандидат на предупреждение или удаление.
+    // Если старый аккаунт уже просрочен, но раньше не получал предупреждения,
+    // сначала выдаём полный 3-дневный grace-период вместо мгновенного удаления.
     try {
-      if (deletionDay === 0) {
-        await doc.ref.update({ deletion_day: 1 });
-        await sendPush(uid,
-          '⚠️ Аккаунт под угрозой удаления',
-          'Открой приложение и посмотри 5 лайнапов, чтобы сохранить аккаунт. Осталось 3 дня.'
-        );
-        stats.warned++;
-      } else if (deletionDay === 1) {
-        await doc.ref.update({ deletion_day: 2 });
-        await sendPush(uid,
-          '⚠️ Аккаунт будет удалён через 2 дня',
-          'Посмотри 5 лайнапов — и аккаунт будет в безопасности.'
-        );
-        stats.warned++;
-      } else if (deletionDay === 2) {
-        await doc.ref.update({ deletion_day: 3 });
-        await sendPush(uid,
-          '🚨 Последний шанс! Аккаунт удаляется завтра',
-          'Открой приложение и посмотри 5 лайнапов прямо сейчас.'
-        );
-        stats.warned++;
-      } else {
-        // deletion_day >= 3 → удаляем
+      const warningStep = daysLeft > 0
+        ? WARNING_DAYS - daysLeft + 1 // 3д → 1, 2д → 2, 1д → 3
+        : deletionDay + 1;
+
+      if (warningStep > WARNING_DAYS) {
         await archiveAndDelete(uid, u);
         stats.deleted++;
         console.log(`[deleted] ${uid} (${u.name || 'no name'}, viewed=${viewed})`);
+      } else {
+        if (deletionDay >= warningStep) continue;
+        const pushDaysLeft = WARNING_DAYS - warningStep + 1;
+        await doc.ref.update({
+          deletion_day: warningStep,
+          trial_days_left: Math.max(1, daysLeft),
+          trial_required_views: REQUIRED_VIEWS,
+          trial_updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        if (pushDaysLeft === 3) {
+          await sendPush(uid,
+            '⚠️ Аккаунт под угрозой удаления',
+            'Открой приложение и посмотри 5 лайнапов, чтобы сохранить аккаунт. Осталось 3 дня.'
+          );
+        } else if (pushDaysLeft === 2) {
+          await sendPush(uid,
+            '⚠️ Аккаунт будет удалён через 2 дня',
+            'Посмотри 5 лайнапов — и аккаунт будет в безопасности.'
+          );
+        } else {
+          await sendPush(uid,
+            '🚨 Последний шанс! Аккаунт удаляется завтра',
+            'Открой приложение и посмотри 5 лайнапов прямо сейчас.'
+          );
+        }
+        stats.warned++;
       }
     } catch (e) {
       console.error(`[error] ${uid}:`, e.message);
