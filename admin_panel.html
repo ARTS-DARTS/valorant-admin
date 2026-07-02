@@ -683,7 +683,16 @@
     }
     #desc-template-panel.open { transform: translateX(0); }
     .dtp-header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .dtp-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
     .dtp-title { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+    .dtp-title-row .dtp-title { margin-bottom: 0; }
+    .dtp-close {
+      width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text2); cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 18px; line-height: 1; transition: .15s;
+    }
+    .dtp-close:hover { color: var(--primary); border-color: var(--primary); }
     .dtp-fselect {
       width: 100%; background: var(--surface2); border: 1px solid var(--border);
       border-radius: var(--r); color: var(--text); padding: 7px 11px;
@@ -2341,7 +2350,10 @@
 <!-- Desc Template Panel -->
 <div id="desc-template-panel">
   <div class="dtp-header">
-    <div class="dtp-title">⚡ Быстрый ввод</div>
+    <div class="dtp-title-row">
+      <div class="dtp-title">⚡ Быстрый ввод</div>
+      <button class="dtp-close" id="dtp-close-btn" type="button" aria-label="Закрыть">×</button>
+    </div>
     <select class="dtp-fselect" id="dtp-map-select">
       <option value="all">Все карты</option>
       <option value="Haven">Haven</option>
@@ -2630,6 +2642,7 @@ function switchTab(t) {
   if (t === 'modapps') loadModAppsTab();
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
+window.switchTab = switchTab;
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
 let _iconsReady = null;
@@ -7593,6 +7606,7 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
           title: `${tpl.emoji} ${title}`,
           body:  pushBody,
           type:  'changelog',
+          allowAll: true,
         });
         toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 \u043f\u0443\u0448\u0435\u043c \u2705', 's');
       } catch (pushErr) {
@@ -7742,10 +7756,10 @@ window._openNuUserDetail = function(uid, dat) {
   const auth    = _nuAuthMethod(dat);
   const created = dat.created_at?.toDate ? dat.created_at.toDate() : null;
   const lastSeen = dat.last_seen?.toDate ? dat.last_seen.toDate() : null;
-  const spent   = dat.time_spent_seconds || 0;
+  const spent   = Number(dat.time_spent_seconds || 0);
   const banned  = dat.is_banned === true;
   const approved = dat.approved_lineups || 0;
-  const viewed  = dat.lineups_viewed || 0;
+  const viewed  = Number(dat.lineups_viewed || 0);
   const isFake  = viewed < 5;
 
   const field = (lbl, val) => `<div class="nu-field">
@@ -7777,7 +7791,7 @@ window._openNuUserDetail = function(uid, dat) {
       ${field('Уведомления', dat.onesignal_id ? '<span style="color:var(--green);">Подключены</span>' : '<span style="color:var(--text2);">Нет данных</span>')}
     </div>
     ${isFake ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.25);border-radius:8px;font-size:12px;color:#ffcc00;">⚠️ Просмотрено меньше 5 лайнапов (${viewed}) — вероятно фиктивный/неактивный аккаунт</div>` : ''}
-    ${spent === 0 && !lastSeen ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Нет активности — тестовый или брошенный аккаунт.</div>` : ''}
+    ${spent === 0 && !lastSeen && viewed === 0 ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Нет активности — тестовый или брошенный аккаунт.</div>` : ''}
     <div style="display:flex;gap:10px;margin-top:20px;">
       <button onclick="document.getElementById('nu-user-modal').classList.remove('open');switchTab('admins');setTimeout(()=>openUserProfilePanel('${uid}'),80);"
               style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
@@ -8031,7 +8045,6 @@ function stopAdsRealtime() {
 }
 
 let _activityUnsub = null;
-let _activityTotalAll = null; // all-time счётчик сессий (one-time)
 
 function subscribeActivity() {
   if (_activityUnsub) return;
@@ -8041,11 +8054,6 @@ function subscribeActivity() {
   const today = new Date().toISOString().slice(0, 10);
   const days  = [];
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
-
-  // Всего сессий (all-time) — один раз, не в реальном времени (дорого считать постоянно)
-  getCountFromServer(collection(db, 'user_sessions'))
-    .then(s => { _activityTotalAll = s.data().count; })
-    .catch(() => {});
 
   const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts'));
   _activityUnsub = onSnapshot(q, snap => {
@@ -8067,13 +8075,13 @@ function subscribeActivity() {
     const dauArr  = days.map(d => dauByDay[d].size);
     const peakDau = Math.max(0, ...dauArr);
     const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
-    const total   = _activityTotalAll != null ? _activityTotalAll : snap.size;
+    const total   = snap.size;
 
     document.getElementById('ses-stat-cards').innerHTML = [
       [dauUids.size, 'DAU (сегодня)'],
       [wauUids.size, 'WAU (7 дней)'],
       [mauUids.size, 'MAU (30 дней)'],
-      [total,        'Всего сессий'],
+      [total,        'Сессий (30 дней)'],
       [peakDau,      'Пик DAU (30 дн)'],
       [avgDau,       'Среднее DAU'],
     ].map(([v, l]) =>
@@ -8937,6 +8945,7 @@ nbInit();
 
 let _ncTargetUid  = null;
 let _ncTargetName = null;
+let _ncMode       = 'one';
 
 function initNotifCategories() {
   document.querySelectorAll('[data-notif-cat]').forEach(btn => {
@@ -8953,8 +8962,11 @@ function initNotifCategories() {
 }
 initNotifCategories();
 
-async function sendPushNotification({ title, body, type, targetUid, data }) {
+async function sendPushNotification({ title, body, type, targetUid, data, allowAll = false }) {
   const uid = targetUid ?? _ncTargetUid;
+  if (!uid && !allowAll) {
+    throw new Error('Выбери конкретного получателя или явно включи режим "Все пользователи"');
+  }
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
@@ -8978,6 +8990,7 @@ async function writeUserNotification(uid, payload) {
 
 // ── Target picker logic ───────────────────────────────────────────────────────
 document.getElementById('nc-mode-all').addEventListener('click', () => {
+  _ncMode = 'all';
   _ncTargetUid = null; _ncTargetName = null;
   document.getElementById('nc-mode-all').className = 'btn btn-save';
   document.getElementById('nc-mode-all').style.cssText = '';
@@ -8989,6 +9002,7 @@ document.getElementById('nc-mode-all').addEventListener('click', () => {
 });
 
 document.getElementById('nc-mode-one').addEventListener('click', () => {
+  _ncMode = 'one';
   document.getElementById('nc-mode-one').className = 'btn btn-save';
   document.getElementById('nc-mode-one').style.cssText = '';
   document.getElementById('nc-mode-all').className = 'btn';
@@ -9046,6 +9060,21 @@ document.getElementById('nc-clear-user').addEventListener('click', () => {
   if (clBtn) clBtn.innerHTML = '📢 Отправить всем';
 });
 
+function _ncCanSend(label) {
+  if (_ncTargetUid) return true;
+  if (_ncMode !== 'all') {
+    toast('Выбери получателя. Массовая отправка включается отдельной кнопкой "Все пользователи".', 'e');
+    return false;
+  }
+  return confirm(`Отправить "${label}" всем пользователям?`);
+}
+
+function _ncAllowAll() {
+  return !_ncTargetUid && _ncMode === 'all';
+}
+
+document.getElementById('nc-mode-one')?.click();
+
 const NC_PRESETS = {
   liked:        { title: '❤️ Новый лайк',                      body: 'Твой лайнап нравится людям',                           type: 'lineup_liked' },
   rejected:     { title: 'Лайнап отклонён ❌',                  body: 'Твой лайнап не прошёл модерацию',                      type: 'lineup_rejected' },
@@ -9068,10 +9097,11 @@ document.querySelectorAll('.nc-btn').forEach(btn => {
     const id = btn.dataset.nc;
     const preset = NC_PRESETS[id];
     if (!preset) return;
+    if (!_ncCanSend(preset.title)) return;
     btn.disabled = true;
     _ncSetStatus(id, true, 'Отправка…');
     try {
-      await sendPushNotification(preset);
+      await sendPushNotification({ ...preset, allowAll: _ncAllowAll() });
       _ncSetStatus(id, true, _ncTargetName ? `✅ Отправлено → ${_ncTargetName}` : '✅ Отправлено всем');
       toast(_ncTargetName ? `${preset.title} → ${_ncTargetName} ✅` : `Отправлено всем: ${preset.title}`, 's');
     } catch (e) {
@@ -9087,11 +9117,12 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   const title = document.getElementById('notif-cl-title').value.trim();
   const body  = document.getElementById('notif-cl-body').value.trim();
   if (!title || !body) { toast('Заполни заголовок и текст', 'e'); return; }
+  if (!_ncCanSend(title)) return;
   const btn = document.getElementById('notif-cl-btn');
   btn.disabled = true;
   _ncSetStatus('changelog', true, 'Отправка…');
   try {
-    await sendPushNotification({ title, body, type: 'changelog' });
+    await sendPushNotification({ title, body, type: 'changelog', allowAll: _ncAllowAll() });
     _ncSetStatus('changelog', true, '✅ Отправлено — придёт даже при закрытом приложении');
     toast(_ncTargetName ? `Отправлено: ${_ncTargetName} ✅` : 'Отправлено всем пользователям ✅', 's');
   } catch (e) {
@@ -9210,6 +9241,7 @@ document.getElementById('bn-save-settings')?.addEventListener('click', async () 
 document.getElementById('bn-test-agent')?.addEventListener('click', async () => {
   const rows = bnCleanRows();
   if (!rows.length) { toast('Добавь хотя бы одного агента', 'e'); return; }
+  if (!_ncCanSend('Тест банера новых лайнапов')) return;
   const total = rows.reduce((s, r) => s + r.total, 0);
   const btn = document.getElementById('bn-test-agent');
   btn.disabled = true;
@@ -9226,6 +9258,7 @@ document.getElementById('bn-test-agent')?.addEventListener('click', async () => 
         items: JSON.stringify(rows),
         test: '1',
       },
+      allowAll: _ncAllowAll(),
     });
     _ncSetStatus('banner-test', true, _ncTargetName ? `✅ Тест банера → ${_ncTargetName}` : '✅ Тест банера отправлен всем');
     toast(_ncTargetName ? `Тест банера → ${_ncTargetName}` : 'Тест банера отправлен всем', 's');
@@ -9280,7 +9313,7 @@ document.getElementById('fu-push-btn')?.addEventListener('click', async () => {
   btn.disabled = true;
   _ncSetStatus('forceupdate', true, 'Отправка…');
   try {
-    await sendPushNotification({ title: '🆕 Обновление приложения', body, type: 'force_update' });
+    await sendPushNotification({ title: '🆕 Обновление приложения', body, type: 'force_update', allowAll: true });
     _ncSetStatus('forceupdate', true, '✅ Отправлено — при клике откроется Google Play');
     toast('Пуш об обновлении отправлен всем', 's');
   } catch (e) {
@@ -9447,11 +9480,14 @@ document.getElementById('add-slots-container')?.addEventListener('focusin', e =>
 document.addEventListener('click', e => {
   if (!dtpOpen) return;
   const panel = document.getElementById('desc-template-panel');
-  const form  = document.querySelector('#tab-add .form-wrap');
-  if (panel && !panel.contains(e.target) && form && !form.contains(e.target)) {
-    closeDescPanel();
-  }
+  const active = dtpActiveField ? document.getElementById(dtpActiveField) : null;
+  if (panel?.contains(e.target) || active?.contains(e.target)) return;
+  closeDescPanel();
 }, true);
+document.getElementById('dtp-close-btn')?.addEventListener('click', closeDescPanel);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && dtpOpen) closeDescPanel();
+});
 
 // Смена карты в фильтре панели → перерисовать
 document.getElementById('dtp-map-select')?.addEventListener('change', renderDescTemplates);
@@ -9891,13 +9927,13 @@ async function _renderUserProfileInto(uid, panel) {
 
       </div>`;
   loadUserBadges(uid);
-  loadUserActivity(uid);
+  loadUserActivity(uid, { totalViewed, timeSpent, hasLastSeen: !!lastSeenTs });
   } catch(e) {
     panel.innerHTML = `<div style="color:var(--red);padding:16px;">Ошибка: ${e.message}</div>`;
   }
 }
 
-async function loadUserActivity(uid) {
+async function loadUserActivity(uid, fallback = {}) {
   const el = document.getElementById('usr-activity-' + uid);
   if (!el) return;
   try {
@@ -9909,13 +9945,22 @@ async function loadUserActivity(uid) {
     ]);
     const sessCount  = sessSnap.size;
     const adCount    = adSnap.size;
-    const viewsCount = viewsSnap.size;
+    const fallbackViews = Number(fallback.totalViewed || 0);
+    const viewsCount = Math.max(viewsSnap.size, fallbackViews);
     el.innerHTML = `
       <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--primary);">${sessCount}</div><div class="usr-stat-lbl">Сессий (30д)</div></div>
       <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--orange);">${viewsCount}</div><div class="usr-stat-lbl">Просмотров (30д)</div></div>
       <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--green);">${adCount}</div><div class="usr-stat-lbl">Реклама досмотрена</div></div>`;
   } catch (_) {
-    if (el) el.innerHTML = '<div style="color:var(--text2);font-size:11px;grid-column:1/-1;padding:4px 0;">Нет данных об активности</div>';
+    const fallbackViews = Number(fallback.totalViewed || 0);
+    if (fallbackViews > 0 || fallback.timeSpent > 0 || fallback.hasLastSeen) {
+      el.innerHTML = `
+        <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--text2);">${fallback.hasLastSeen ? 'есть' : '—'}</div><div class="usr-stat-lbl">Последний вход</div></div>
+        <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--orange);">${fallbackViews}</div><div class="usr-stat-lbl">Просмотров всего</div></div>
+        <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--text2);">${fallback.timeSpent || 0}</div><div class="usr-stat-lbl">Время, сек</div></div>`;
+    } else if (el) {
+      el.innerHTML = '<div style="color:var(--text2);font-size:11px;grid-column:1/-1;padding:4px 0;">Нет данных об активности</div>';
+    }
   }
 }
 
