@@ -8794,9 +8794,7 @@ function nbSaveCurrent() {
   b.html = editor?.innerHTML ?? '';
   b.text = editor?.innerText ?? '';
   b.color = document.getElementById('nb-color')?.value ?? '#ffffff';
-  b.background_color = document.getElementById('nb-bg')?.dataset.enabled === 'true'
-    ? document.getElementById('nb-bg').value
-    : '';
+  b.background_color = '';
   b.font_size = parseInt(document.getElementById('nb-size')?.value || '16', 10);
   b.align = document.getElementById('nb-align')?.value || 'left';
 }
@@ -8882,7 +8880,6 @@ function nbInit() {
   );
   document.getElementById('nb-color')?.addEventListener('change', e => nbApplyCommand('foreColor', e.target.value));
   document.getElementById('nb-bg')?.addEventListener('input', e => {
-    e.target.dataset.enabled = 'true';
     nbApplyCommand('backColor', e.target.value);
     nbRender();
   });
