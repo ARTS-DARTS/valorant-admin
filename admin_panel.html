@@ -4838,52 +4838,111 @@ async function notifySubscribersViaServer(lineup) {
   return data;
 }
 
-async function notifySubscribers(lineup) {
-  try {
-    const agent = lineup.agent || lineup.agent_name || lineup.agentName || '';
-    const map   = lineup.map || lineup.map_name || lineup.mapName || '';
-    if (!agent || !map || !lineup.id) return { subscribers: 0, pushSent: 0, pushFailed: 0 };
+function normalizeLineupForNotification(lineup) {
+  const agent = String(lineup?.agent || lineup?.agent_name || lineup?.agentName || '').trim();
+  const map = String(lineup?.map || lineup?.map_name || lineup?.mapName || '').trim();
+  const id = String(lineup?.id || '').trim();
+  if (!agent || !map || !id) return null;
+  return { ...lineup, id, agent, map, title: lineup?.title || '' };
+}
 
-    const uids = await findAgentSubscriberUids(agent);
-    if (!uids.length) {
-      console.info(`notifySubscribers: no subscribers for ${agent}`);
+function groupLineupsForBanner(lineups) {
+  const grouped = new Map();
+  lineups.forEach(lineup => {
+    const key = `${lineup.agent}__${lineup.map}`;
+    const existing = grouped.get(key) || {
+      agent: lineup.agent,
+      map: lineup.map,
+      total: 0,
+      lineup_ids: [],
+      titles: [],
+    };
+    existing.total += 1;
+    existing.lineup_ids.push(lineup.id);
+    if (lineup.title) existing.titles.push(lineup.title);
+    grouped.set(key, existing);
+  });
+  return [...grouped.values()];
+}
+
+function buildNewLineupsPushBody(items, total) {
+  if (!items.length) return 'Открой приложение, чтобы посмотреть новые лайнапы.';
+  if (items.length === 1) {
+    const item = items[0];
+    return `На ${item.agent} вышло ${item.total} лайнап(ов) на карте ${item.map}`;
+  }
+  const agents = [...new Set(items.map(item => item.agent))];
+  return `Вышло ${total} лайнап(ов): ${agents.slice(0, 3).join(', ')}${agents.length > 3 ? ' и другие' : ''}`;
+}
+
+async function notifySubscribersBatch(rawLineups) {
+  try {
+    const normalized = (Array.isArray(rawLineups) ? rawLineups : [rawLineups])
+      .map(normalizeLineupForNotification)
+      .filter(Boolean);
+    if (!normalized.length) return { subscribers: 0, pushSent: 0, pushFailed: 0 };
+
+    const agents = [...new Set(normalized.map(lineup => lineup.agent))];
+    const agentSubscribers = new Map();
+    await Promise.all(agents.map(async agent => {
+      agentSubscribers.set(agent, await findAgentSubscriberUids(agent));
+    }));
+
+    const byUser = new Map();
+    normalized.forEach(lineup => {
+      const uids = agentSubscribers.get(lineup.agent) || [];
+      uids.forEach(uid => {
+        if (!byUser.has(uid)) byUser.set(uid, []);
+        byUser.get(uid).push(lineup);
+      });
+    });
+
+    if (!byUser.size) {
+      console.info('notifySubscribers: no subscribers for published lineups');
       return { subscribers: 0, pushSent: 0, pushFailed: 0 };
     }
 
-    // Пишем in-app уведомления
     const batch = writeBatch(db);
-    uids.forEach(uid => {
+    const pushJobs = [];
+    byUser.forEach((userLineups, uid) => {
+      const items = groupLineupsForBanner(userLineups);
+      const total = userLineups.length;
+      const lineupIds = userLineups.map(lineup => lineup.id);
+      const maps = [...new Set(userLineups.map(lineup => lineup.map))];
+      const first = userLineups[0];
+      const body = buildNewLineupsPushBody(items, total);
       batch.set(doc(collection(db, 'users', uid, 'notifications')), {
         type: 'new_lineups_batch',
-        lineup_id: lineup.id,
-        lineup_ids: [lineup.id],
-        agent, map,
-        maps: [map],
-        total: 1,
-        title: lineup.title || '',
-        body: `На ${agent} вышел новый лайнап на карте ${map}`,
+        lineup_id: first.id,
+        lineup_ids: lineupIds,
+        agent: first.agent,
+        map: first.map,
+        maps,
+        total,
+        title: total === 1 ? first.title : '',
+        body,
+        items: JSON.stringify(items),
         created_at: serverTimestamp(),
         read: false,
       });
+      pushJobs.push({ uid, first, total, items, lineupIds, body });
     });
     await batch.commit();
 
-    // Шлём OneSignal-пуш каждому подписчику через прокси
     const pushTitle = 'Поступили новые лайнапы!';
-    const pushBody  = `На ${agent} вышел 1 лайнап на карте ${map}`;
-    const pushResults = await Promise.allSettled(uids.map(uid =>
+    const pushResults = await Promise.allSettled(pushJobs.map(job =>
       sendPushNotification({
         title: pushTitle,
-        body: pushBody,
+        body: job.body,
         type: 'new_lineups_batch',
-        targetUid: uid,
+        targetUid: job.uid,
         data: {
-          lineup_id: lineup.id,
-          lineup_ids: lineup.id,
-          agent,
-          map,
-          total: '1',
-          items: JSON.stringify([{ agent, map, total: 1, lineup_ids: [lineup.id] }]),
+          lineup_id: job.first.id,
+          lineup_ids: job.lineupIds.join(','),
+          agent: job.first.agent,
+          map: job.first.map,
+          total: String(job.total),
+          items: JSON.stringify(job.items),
         },
       })
     ));
@@ -4892,13 +4951,17 @@ async function notifySubscribers(lineup) {
     if (pushFailed) {
       console.warn('notifySubscribers push failed:', pushResults.filter(r => r.status === 'rejected').map(r => r.reason?.message || r.reason));
     }
-    const result = { subscribers: uids.length, pushSent, pushFailed };
+    const result = { subscribers: byUser.size, pushSent, pushFailed };
     console.info('notifySubscribers:', result);
     return result;
   } catch (e) {
     console.warn('notifySubscribers:', e.message);
     return { subscribers: 0, pushSent: 0, pushFailed: 0, error: e.message };
   }
+}
+
+async function notifySubscribers(lineup) {
+  return notifySubscribersBatch([lineup]);
 }
 
 function lineupAuthorUid(lineup, fallbackUid = '') {
@@ -5112,23 +5175,25 @@ async function publishAllHot() {
     hotList.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
     await b.commit();
     const authorGroups = new Map();
+    const publishedLineups = [];
     for (const l of hotList) {
       try {
         const snap = await getDoc(doc(db, 'lineups', l.id));
         if (snap.exists()) {
           const d = snap.data();
+          publishedLineups.push({ id: l.id, ...d });
           const authorUid = lineupAuthorUid({ id: l.id, ...d }, l.user_id);
           if (authorUid) {
             if (!authorGroups.has(authorUid)) authorGroups.set(authorUid, []);
             authorGroups.get(authorUid).push({ id: l.id, ...d });
           }
-          const subResult = await notifySubscribers({ id: l.id, ...d });
-          console.info('publishAll subscriber notifications:', { lineupId: l.id, subResult });
         }
       } catch (_) {}
       writeAudit(l.id, 'approved').catch(() => {});
       patchStatus(l.id, 'approved');
     }
+    const subResult = await notifySubscribersBatch(publishedLineups);
+    console.info('publishAll subscriber notifications:', subResult);
     for (const [authorUid, approvedLineups] of authorGroups.entries()) {
       updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(approvedLineups.length) }).catch(() => {});
       const authorResult = await notifyLineupAuthorApprovedBatch(authorUid, approvedLineups).catch(e => ({ ok: false, error: e.message }));

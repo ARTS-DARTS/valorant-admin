@@ -71,7 +71,8 @@ service cloud.firestore {
       allow delete: if isOwner(uid) || isAdmin();
 
       match /subscriptions/{subId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
       }
 
       match /notifications/{notifId} {
