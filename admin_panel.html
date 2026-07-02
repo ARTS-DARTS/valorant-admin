@@ -4877,6 +4877,22 @@ function normalizeLineupForNotification(lineup) {
   return { ...lineup, id, agent, map, title: lineup?.title || '' };
 }
 
+function rangeConfigId(map, agent, ability) {
+  return (String(map || '') + '__' + String(agent || '') + '__' + String(ability || '')).replace(/[\\/. ]/g, '_');
+}
+
+async function getConfiguredRangeRadius(map, agent, ability) {
+  if (!map || !agent || !ability) return 0;
+  try {
+    const snap = await getDoc(doc(db, 'range_config', rangeConfigId(map, agent, ability)));
+    const radius = Number(snap.data()?.range_radius || 0);
+    return Number.isFinite(radius) ? radius : 0;
+  } catch (e) {
+    console.warn('getConfiguredRangeRadius', e.message);
+    return 0;
+  }
+}
+
 function groupLineupsForBanner(lineups) {
   const grouped = new Map();
   lineups.forEach(lineup => {
@@ -5827,6 +5843,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const btn=document.getElementById('btn-add-lineup');
   btn.disabled=true; btn.textContent='Сохранение…';
   try {
+    const rangeRadius = await getConfiguredRangeRadius(map, agent, ability);
     const saves=slotIds.map(id=>{
       const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
@@ -5836,6 +5853,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       return addDoc(collection(db,'lineups'),{
         map,agent,ability,category,title,description:desc,video_url:videoUrl,screenshots,
         position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
+        range_radius: rangeRadius,
         status,is_exclusive:excl,submitted_at:serverTimestamp(),
         user_id:selectedAuthor?.uid??currentUser?.uid??'',
         submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin',
