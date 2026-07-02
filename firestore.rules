@@ -256,6 +256,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /update_events/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /push_queue/{docId} {
       allow create: if isAdmin();
       allow read: if isAdmin();
