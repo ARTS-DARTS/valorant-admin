@@ -4978,6 +4978,97 @@ async function notifyLineupAuthorApprovedBatch(uid, approvedLineups) {
   return { ok: true, uid, count };
 }
 
+function askLineupRejectReason(lineup) {
+  return new Promise((resolve) => {
+    const old = document.getElementById('lineup-reject-modal');
+    if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'lineup-reject-modal';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:18px;';
+    const title = lineup?.title || 'Лайнап';
+    const meta = [lineup?.agent, lineup?.map, lineup?.ability].filter(Boolean).join(' · ');
+    wrap.innerHTML = `
+      <div style="width:min(560px,100%);background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;">
+        <div style="padding:18px 20px;border-bottom:1px solid var(--border);">
+          <div style="font-size:18px;font-weight:900;color:var(--text);">Причина отклонения лайнапа</div>
+          <div style="margin-top:6px;font-size:12px;color:var(--text2);">${esc(title)}${meta ? ' · ' + esc(meta) : ''}</div>
+        </div>
+        <div style="padding:18px 20px;">
+          <label style="display:block;font-size:11px;color:var(--text2);font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Что нужно исправить?</label>
+          <textarea id="lineup-reject-reason" placeholder="Например: плохо видно место броска, не хватает скриншота позиции, видео слишком короткое..." style="width:100%;min-height:150px;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:14px;line-height:1.45;outline:none;"></textarea>
+          <div style="margin-top:10px;font-size:12px;color:var(--text2);">Это сообщение уйдёт пользователю в Профиль → Обратная связь → Мои сообщения и пушем на телефон.</div>
+        </div>
+        <div style="display:flex;gap:10px;padding:0 20px 18px;">
+          <button id="lineup-reject-cancel" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);">Отмена</button>
+          <button id="lineup-reject-submit" class="btn btn-reject" style="flex:1;">Отклонить</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+    const textarea = document.getElementById('lineup-reject-reason');
+    const close = (value) => { wrap.remove(); resolve(value); };
+    document.getElementById('lineup-reject-cancel').onclick = () => close(null);
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) close(null); });
+    document.getElementById('lineup-reject-submit').onclick = () => {
+      const reason = textarea.value.trim();
+      if (!reason) { toast('Напиши причину отклонения', 'e'); textarea.focus(); return; }
+      close(reason);
+    };
+    setTimeout(() => textarea.focus(), 50);
+  });
+}
+
+async function notifyLineupAuthorRejected(uid, lineup, reason) {
+  uid = lineupAuthorUid(lineup, uid);
+  if (!uid) {
+    console.warn('notifyLineupAuthorRejected: no uid for lineup', lineup?.id || lineup);
+    return { ok: false, error: 'no_uid' };
+  }
+  const title = 'Ваш лайнап отклонён';
+  const body = reason.length > 120 ? reason.slice(0, 117) + '…' : reason;
+  await addDoc(collection(db, 'feedback'), {
+    text: title,
+    category: 'причина',
+    username: lineup?.submitted_by || lineup?.author || '',
+    user_id: uid,
+    lineup_id: lineup?.id || '',
+    lineup_title: lineup?.title || '',
+    lineup_agent: lineup?.agent || '',
+    lineup_map: lineup?.map || '',
+    thread: [{ from: 'admin', text: reason, ts: Date.now() }],
+    reply: reason,
+    reply_read: false,
+    user_unread: true,
+    is_read: true,
+    admin_unread: false,
+    status: 'answered',
+    last_from: 'admin',
+    created_at: serverTimestamp(),
+    replied_at: serverTimestamp(),
+  });
+  await writeUserNotification(uid, {
+    type: 'lineup_rejected',
+    lineup_id: lineup?.id || '',
+    title,
+    body,
+    reason,
+    agent: lineup?.agent || '',
+    map: lineup?.map || '',
+  });
+  await sendPushNotification({
+    title,
+    body,
+    type: 'lineup_rejected',
+    targetUid: uid,
+    data: {
+      lineup_id: lineup?.id || '',
+      agent: lineup?.agent || '',
+      map: lineup?.map || '',
+    },
+  });
+  return { ok: true, uid };
+}
+
 async function approveLineup(id, userId) {
   if (!confirm('Отправить лайнап в «Горячие пирожки»?\nОн станет виден пользователям только после финального подтверждения.')) return;
   try {
@@ -5094,12 +5185,26 @@ async function markLegacyHotConfirmed() {
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 async function rejectLineup(id) {
-  if (!confirm('Отклонить лайнап?')) return;
+  const localLineup = lineups.find(x => x.id === id) || { id };
+  const reason = await askLineupRejectReason(localLineup);
+  if (!reason) return;
   try {
-    await updateDoc(doc(db, 'lineups', id), { status: 'rejected' });
-    await writeAudit(id, 'rejected');
+    const ref = doc(db, 'lineups', id);
+    await updateDoc(ref, {
+      status: 'rejected',
+      rejection_reason: reason,
+      rejected_at: serverTimestamp(),
+      rejected_by_uid: currentUser?.uid || null,
+      rejected_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+    });
+    const snap = await getDoc(ref);
+    const lineup = snap.exists() ? { id, ...snap.data() } : localLineup;
+    const authorUid = lineupAuthorUid(lineup, localLineup.user_id);
+    const notifyResult = await notifyLineupAuthorRejected(authorUid, lineup, reason)
+      .catch(e => ({ ok: false, error: e.message }));
+    await writeAudit(id, 'rejected', { reason, notified: !!notifyResult.ok });
     patchStatus(id, 'rejected');
-    toast('Лайнап отклонён', 'i');
+    toast(notifyResult.ok ? 'Лайнап отклонён, причина отправлена пользователю' : 'Лайнап отклонён, но уведомление не ушло: ' + notifyResult.error, notifyResult.ok ? 'i' : 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 async function deleteLineup(id) {
