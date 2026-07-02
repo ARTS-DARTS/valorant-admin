@@ -9719,7 +9719,8 @@ let _userAuthFilter = 'all';
 let _userVerifFilter = 'all';
 
 const USER_REQUIRED_VIEWS = 5;
-const USER_TRIAL_DAYS = 7;
+const USER_DEFAULT_TRIAL_DAYS = 7;
+const USER_GOOGLE_TRIAL_DAYS = 30;
 const USER_WARNING_DAYS = 3;
 
 function userAuthKind(u) {
@@ -9736,6 +9737,10 @@ function userAuthLabel(kind) {
   return 'Почта';
 }
 
+function userTrialDays(u) {
+  return userAuthKind(u) === 'google' ? USER_GOOGLE_TRIAL_DAYS : USER_DEFAULT_TRIAL_DAYS;
+}
+
 function userDaysSinceReg(u) {
   const reg = u.created_at?.toDate?.() ?? null;
   return reg ? Math.floor((Date.now() - reg.getTime()) / 86400000) : null;
@@ -9743,12 +9748,13 @@ function userDaysSinceReg(u) {
 
 function userTrialInfo(u) {
   const viewed = Number(u.lineups_viewed || 0);
+  const trialDays = userTrialDays(u);
   const daysSince = userDaysSinceReg(u);
-  const daysLeft = daysSince !== null ? Math.max(0, USER_TRIAL_DAYS - daysSince) : null;
+  const daysLeft = daysSince !== null ? Math.max(0, trialDays - daysSince) : null;
   const verified = !!u.verified_not_fake || viewed >= USER_REQUIRED_VIEWS || Number(u.approved_lineups || 0) > 0;
   const warning = !verified && daysLeft !== null && daysLeft > 0 && daysLeft <= USER_WARNING_DAYS;
   const expired = !verified && daysLeft === 0;
-  return { viewed, daysLeft, verified, warning, expired };
+  return { viewed, daysLeft, trialDays, verified, warning, expired };
 }
 
 function applyUserFilters() {
@@ -9937,7 +9943,7 @@ async function _renderUserProfileInto(uid, panel) {
     const _panelId = panel.id;
 
     const REQUIRED_VIEWS = 5;
-    const TRIAL_DAYS = 7;
+    const TRIAL_DAYS = userTrialDays({ id: uid, ...u });
     const WARNING_DAYS = 3;
     const regTs        = u.created_at?.toDate?.() ?? null;
     const daysSinceReg = regTs ? Math.floor((Date.now() - regTs.getTime()) / 86400000) : null;
@@ -10039,7 +10045,8 @@ async function _renderUserProfileInto(uid, panel) {
           <div>
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Проверка пользователя</div>
             <div style="font-size:13px;color:${verifClr};font-weight:600;">${verifDot} ${verifLabel}</div>
-            ${!isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">План: минимум ${REQUIRED_VIEWS} просмотренных лайнапов за ${TRIAL_DAYS} дней после регистрации.</div>` : ''}
+            ${!isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">План: минимум ${REQUIRED_VIEWS} просмотренных лайнапов за ${TRIAL_DAYS} дней после регистрации. Предупреждения уходят за 3 дня и за 1 день до удаления.</div>` : ''}
+            ${!isTrialPassed && (u.trial_warning_3d_sent_at || u.trial_warning_1d_sent_at) ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Оповещения: ${u.trial_warning_3d_sent_at ? '3д ✓ ' : ''}${u.trial_warning_1d_sent_at ? '1д ✓' : ''}</div>` : ''}
             ${!isManualVerif && isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Можно подтвердить вручную для надёжности</div>` : ''}
           </div>
           ${!isManualVerif ? `<button class="btn btn-approve" onclick="verifyUserAccount('${uid}','${esc(u.name||'')}','${_panelId}')" style="font-size:12px;padding:7px 14px;flex-shrink:0;">✅ Подтвердить</button>` : ''}
