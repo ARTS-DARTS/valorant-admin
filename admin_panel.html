@@ -8153,13 +8153,20 @@ window._openNuUserDetail = function(uid, dat) {
     ${isFake ? `<div style="margin-top:12px;padding:10px 14px;background:rgba(255,200,0,.08);border:1px solid rgba(255,200,0,.25);border-radius:8px;font-size:12px;color:#ffcc00;">⚠️ Просмотрено меньше 5 лайнапов (${viewed}) — вероятно фиктивный/неактивный аккаунт</div>` : ''}
     ${spent === 0 && !lastSeen && viewed === 0 ? `<div style="margin-top:8px;padding:10px 14px;background:rgba(255,70,85,.08);border:1px solid rgba(255,70,85,.2);border-radius:8px;font-size:12px;color:var(--primary);">Нет активности — тестовый или брошенный аккаунт.</div>` : ''}
     <div style="display:flex;gap:10px;margin-top:20px;">
-      <button onclick="document.getElementById('nu-user-modal').classList.remove('open');switchTab('admins');setTimeout(()=>openUserProfilePanel('${uid}'),80);"
+      <button onclick="_nuOpenFullUserProfile('${uid}')"
               style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
         Открыть полный профиль
       </button>
     </div>
   `;
   document.getElementById('nu-user-modal').classList.add('open');
+};
+
+window._nuOpenFullUserProfile = async function(uid) {
+  document.getElementById('nu-user-modal')?.classList.remove('open');
+  switchTab('admins');
+  await openUserProfilePanel(uid);
+  document.getElementById('user-profile-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 async function loadNewUsersAnalytics() {
@@ -10090,6 +10097,7 @@ const USER_REQUIRED_VIEWS = 5;
 const USER_DEFAULT_TRIAL_DAYS = 7;
 const USER_GOOGLE_TRIAL_DAYS = 30;
 const USER_WARNING_DAYS = 3;
+const USER_TRACKING_START = new Date('2026-06-20T00:00:00Z');
 
 function userAuthKind(u) {
   const provider = String(u.auth_provider || u.auth_provider_linked || '').toLowerCase();
@@ -10119,10 +10127,12 @@ function userTrialInfo(u) {
   const trialDays = userTrialDays(u);
   const daysSince = userDaysSinceReg(u);
   const daysLeft = daysSince !== null ? Math.max(0, trialDays - daysSince) : null;
-  const verified = !!u.verified_not_fake || viewed >= USER_REQUIRED_VIEWS || Number(u.approved_lineups || 0) > 0;
+  const created = u.created_at?.toDate?.() ?? null;
+  const preTracking = created !== null && created < USER_TRACKING_START;
+  const verified = !!u.verified_not_fake || viewed >= USER_REQUIRED_VIEWS || Number(u.approved_lineups || 0) > 0 || preTracking;
   const warning = !verified && daysLeft !== null && daysLeft > 0 && daysLeft <= USER_WARNING_DAYS;
   const expired = !verified && daysLeft === 0;
-  return { viewed, daysLeft, trialDays, verified, warning, expired };
+  return { viewed, daysLeft, trialDays, verified, warning, expired, preTracking };
 }
 
 function applyUserFilters() {
@@ -10318,7 +10328,8 @@ async function _renderUserProfileInto(uid, panel) {
     const isManualVerif = !!u.verified_not_fake;
     const hasRequiredViews = totalViewed >= REQUIRED_VIEWS;
     const hasCreatorTrust = (u.approved_lineups || 0) > 0;
-    const isTrialPassed = isManualVerif || hasRequiredViews || hasCreatorTrust;
+    const isPreTracking = regTs !== null && regTs < USER_TRACKING_START;
+    const isTrialPassed = isManualVerif || hasRequiredViews || hasCreatorTrust || isPreTracking;
     const daysLeft = daysSinceReg !== null ? Math.max(0, TRIAL_DAYS - daysSinceReg) : null;
     const isTrialWarning = !isTrialPassed && daysLeft !== null && daysLeft > 0 && daysLeft <= WARNING_DAYS;
     const isTrialExpired = !isTrialPassed && daysLeft === 0;
@@ -10330,6 +10341,8 @@ async function _renderUserProfileInto(uid, panel) {
       verifDot = '✅'; verifLabel = `Проверка пройдена — просмотрено ${totalViewed}/${REQUIRED_VIEWS} лайнапов`; verifClr = 'var(--green)';
     } else if (hasCreatorTrust) {
       verifDot = '✅'; verifLabel = `Проверка пройдена — есть одобренные лайнапы`; verifClr = 'var(--green)';
+    } else if (isPreTracking) {
+      verifDot = '✅'; verifLabel = `Проверка пройдена — аккаунт создан до начала трекинга`; verifClr = 'var(--green)';
     } else if (isTrialExpired) {
       verifDot = '🚨'; verifLabel = `Срок истёк — просмотрено ${totalViewed}/${REQUIRED_VIEWS}, аккаунт под удаление`; verifClr = 'var(--red)';
     } else if (isTrialWarning) {
