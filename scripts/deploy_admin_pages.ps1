@@ -15,7 +15,7 @@ New-Item -ItemType Directory -Path $deployPath | Out-Null
 
 $commit = (git -C $repoRoot rev-parse --short HEAD).Trim()
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
-$versionLabel = "$commit · $stamp"
+$versionLabel = "$commit | $stamp"
 $adminHtml = Get-Content -LiteralPath (Join-Path $repoRoot 'admin_panel.html') -Raw
 $adminHtml = $adminHtml -replace '(<span class="admin-version" id="admin-build-version">).*?(</span>)', "`$1$versionLabel`$2"
 Set-Content -LiteralPath (Join-Path $deployPath 'admin_panel.html') -Value $adminHtml -Encoding UTF8
