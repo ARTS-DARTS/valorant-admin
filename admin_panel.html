@@ -2635,6 +2635,11 @@ const SEL_BUCKET     = 'valorant-lineups-video';
 const SEL_S3_HOST    = 'valorant-lineups-video.s3.ru-3.storage.selcloud.ru';
 const SEL_REGION     = 'ru-3';
 const SEL_CDN_URL    = 'https://d5adab93-7400-49ad-b1f9-66966c03d203.selstorage.ru';
+const ADMIN_USERS_ANALYTICS_LIMIT = 500;
+const ADMIN_USERS_LIST_LIMIT = 300;
+const ADMIN_ANALYTICS_EVENTS_LIMIT = 600;
+const ADMIN_SESSION_EVENTS_LIMIT = 600;
+const ADMIN_AD_EVENTS_LIMIT = 600;
 
 let lineups       = [];
 let currentFilter = 'all';
@@ -8264,7 +8269,7 @@ async function loadAgentSubscriptionAnalytics() {
       });
     } catch (e) {
       console.warn('subscription collectionGroup unavailable, using users scan:', e.message);
-      const usersSnap = await getDocs(collection(db, 'users'));
+      const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc'), limit(ADMIN_USERS_LIST_LIMIT)));
       for (const userDoc of usersSnap.docs) {
         const snap = await getDocs(collection(db, 'users', userDoc.id, 'subscriptions'));
         snap.forEach(subDoc => addSub(userDoc.id, subDoc.data() || {}));
@@ -8380,8 +8385,15 @@ async function loadNewUsersAnalytics() {
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
   try {
-    const snap = await getDocs(query(collection(db, 'users'), orderBy('created_at', 'desc')));
-    const realTotal = snap.size;
+    const totalSnap = await getCountFromServer(collection(db, 'users'));
+    const snap = await getDocs(query(
+      collection(db, 'users'),
+      where('created_at', '>=', d30),
+      orderBy('created_at', 'desc'),
+      limit(ADMIN_USERS_ANALYTICS_LIMIT)
+    ));
+    const realTotal = totalSnap.data().count || 0;
+    const sampledTotal = snap.size;
     let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0, nuPassword = 0, nuGoogle = 0, nuYandex = 0;
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
@@ -8408,8 +8420,8 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-month').textContent       = nuMonth;
     document.getElementById('nu-total').textContent       = realTotal;
     document.getElementById('nu-by-password').textContent = nuPassword;
-    document.getElementById('nu-by-google').textContent   = `${nuGoogle} (${realTotal ? Math.round(nuGoogle/realTotal*100) : 0}%)`;
-    document.getElementById('nu-by-yandex').textContent   = `${nuYandex} (${realTotal ? Math.round(nuYandex/realTotal*100) : 0}%)`;
+    document.getElementById('nu-by-google').textContent   = `${nuGoogle} (${sampledTotal ? Math.round(nuGoogle/sampledTotal*100) : 0}%)`;
+    document.getElementById('nu-by-yandex').textContent   = `${nuYandex} (${sampledTotal ? Math.round(nuYandex/sampledTotal*100) : 0}%)`;
     document.getElementById('nu-24h-count').textContent   = _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
@@ -8455,7 +8467,8 @@ async function loadAnalytics() {
       collection(db, 'analytics_events'),
       where('type', '==', 'lineup_viewed'),
       where('ts', '>=', d30),
-      orderBy('ts')
+      orderBy('ts'),
+      limit(ADMIN_ANALYTICS_EVENTS_LIMIT)
     ));
 
     let totalViews = 0;
@@ -8536,7 +8549,7 @@ function subscribeAds() {
   const days = [];
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
-  const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts'));
+  const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts'), limit(ADMIN_AD_EVENTS_LIMIT));
   _adsUnsub = onSnapshot(q, snap => {
     const totals = {
       rewardedShown: 0,
@@ -8623,7 +8636,7 @@ function subscribeActivity() {
   const days  = [];
   for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
 
-  const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts'));
+  const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts'), limit(ADMIN_SESSION_EVENTS_LIMIT));
   _activityUnsub = onSnapshot(q, snap => {
     const dauByDay = {};
     days.forEach(d => { dauByDay[d] = new Set(); });
@@ -10609,7 +10622,7 @@ async function loadAllUsers() {
   if (!resultsEl) return;
   resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>';
   try {
-    const snap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc')));
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc'), limit(ADMIN_USERS_LIST_LIMIT)));
     _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderUsersList(applyUserFilters());
   } catch(e) {
@@ -10620,7 +10633,7 @@ async function loadAllUsers() {
 function renderUsersList(users) {
   const resultsEl = document.getElementById('user-search-results');
   const countEl   = document.getElementById('users-count');
-  if (countEl) countEl.textContent = `${users.length} из ${_allUsers.length} пользователей`;
+  if (countEl) countEl.textContent = `${users.length} из ${_allUsers.length} загруженных пользователей`;
   if (!users.length) {
     resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Не найдено</div>';
     return;
