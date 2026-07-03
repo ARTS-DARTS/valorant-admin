@@ -1306,19 +1306,22 @@
     <div id="tab-analytics" style="display:none;">
 
       <!-- ── Sub-tab navigation ── -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;">
-        <button class="an-tab-btn active" data-an-tab="ads">📺 Реклама</button>
-        <button class="an-tab-btn" data-an-tab="activity">👥 Активность</button>
-        <button class="an-tab-btn" data-an-tab="users">🆕 Пользователи</button>
-        <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
-        <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:14px;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="an-tab-btn active" data-an-tab="ads">📺 Реклама</button>
+          <button class="an-tab-btn" data-an-tab="activity">👥 Активность</button>
+          <button class="an-tab-btn" data-an-tab="users">🆕 Пользователи</button>
+          <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
+          <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
+        </div>
+        <button class="btn" id="analytics-refresh-btn" style="border:1px solid var(--border);color:var(--text2);">Обновить</button>
       </div>
 
       <!-- ── Реклама ── -->
       <div id="an-section-ads" class="an-section">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
           <div class="form-title" style="margin:0;">📺 РЕКЛАМА — последние 30 дней</div>
-          <div class="an-live"><span class="an-live-dot"></span>в реальном времени</div>
+          <div class="an-live">ручное обновление</div>
         </div>
         <div class="an-cards" id="ad-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Показов сегодня</div></div>
@@ -1349,7 +1352,7 @@
       <div id="an-section-activity" class="an-section" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
           <div class="form-title" style="margin:0;">👥 ОНЛАЙН / АКТИВНОСТЬ — последние 30 дней</div>
-          <div class="an-live"><span class="an-live-dot"></span>в реальном времени</div>
+          <div class="an-live">ручное обновление</div>
         </div>
         <div class="an-cards" id="ses-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">DAU (сегодня)</div></div>
@@ -2637,6 +2640,7 @@ const SEL_REGION     = 'ru-3';
 const SEL_CDN_URL    = 'https://d5adab93-7400-49ad-b1f9-66966c03d203.selstorage.ru';
 const ADMIN_USERS_ANALYTICS_LIMIT = 500;
 const ADMIN_USERS_LIST_LIMIT = 300;
+const ADMIN_LINEUPS_LIST_LIMIT = 500;
 const ADMIN_ANALYTICS_EVENTS_LIMIT = 600;
 const ADMIN_SESSION_EVENTS_LIMIT = 600;
 const ADMIN_AD_EVENTS_LIMIT = 600;
@@ -3260,6 +3264,7 @@ function startMessagesRealtime() {
   list.innerHTML = '<div class="state" style="padding:20px;color:var(--text2);">Загрузка…</div>';
   const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
   _msgUnsub = onSnapshot(q, async snap => {
+    if (_msgLoaded && snap.docChanges().length === 0) return;
     _msgAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     _msgLoaded = true;
     if (!_msgHousekeepingDone && !snap.metadata.hasPendingWrites) {
@@ -4587,51 +4592,23 @@ document.getElementById('search').addEventListener('input', () => {
   _searchTimer = setTimeout(renderList, 250);
 });
 
-// ── Real-time lineup listener ─────────────────────────────────────────────────
+// ── Lineups list (manual refresh) ─────────────────────────────────────────────
 let _lineupsUnsub = null;
 let _lineupsReady = false;
 
-function loadLineups() {
-  if (_lineupsUnsub) return; // already listening
+async function loadLineups() {
   lineups = [];
-  _lineupsReady = false;
   document.getElementById('lineup-list').innerHTML = '<div class="state">Загрузка…</div>';
-  const q = query(collection(db, 'lineups'), orderBy('submitted_at', 'desc'));
-  _lineupsUnsub = onSnapshot(q, snap => {
-    const wasReady = _lineupsReady;
+  try {
+    const q = query(collection(db, 'lineups'), orderBy('submitted_at', 'desc'), limit(ADMIN_LINEUPS_LIST_LIMIT));
+    const snap = await getDocs(q);
+    lineups = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     _lineupsReady = true;
-    snap.docChanges().forEach(change => {
-      const data = { id: change.doc.id, ...change.doc.data() };
-      if (change.type === 'added') {
-        if (wasReady) {
-          const existIdx = lineups.findIndex(l => l.id === data.id);
-          if (existIdx !== -1) {
-            // Already added locally (admin just saved it) — refresh data, skip toast
-            lineups[existIdx] = data;
-          } else {
-            lineups.unshift(data);
-            // Only notify for lineups written by other clients (not local optimistic writes)
-            if (!change.doc.metadata.hasPendingWrites) {
-              toast(`Новый лайнап: «${esc(data.title || '—')}»  📥`, 'i');
-            }
-          }
-        } else {
-          lineups.push(data);
-        }
-      } else if (change.type === 'modified') {
-        const idx = lineups.findIndex(l => l.id === data.id);
-        if (idx !== -1) lineups[idx] = data; else lineups.push(data);
-      } else if (change.type === 'removed') {
-        lineups = lineups.filter(l => l.id !== data.id);
-      }
+    lineups.sort((a, b) => {
+      const ta = a.submitted_at?.toMillis?.() ?? 0;
+      const tb = b.submitted_at?.toMillis?.() ?? 0;
+      return tb - ta;
     });
-    if (!wasReady) {
-      lineups.sort((a, b) => {
-        const ta = a.submitted_at?.toMillis?.() ?? 0;
-        const tb = b.submitted_at?.toMillis?.() ?? 0;
-        return tb - ta;
-      });
-    }
     renderList();
     initMapPanel();
     if (_selectedId) {
@@ -4644,11 +4621,11 @@ function loadLineups() {
         if (content) { content.style.display = 'none'; content.innerHTML = ''; }
       }
     }
-  }, e => {
+  } catch (e) {
     document.getElementById('lineup-list').innerHTML =
       `<div class="state" style="color:var(--red)">Ошибка загрузки: ${esc(e.message)}<br>
        <button class="reload-btn" onclick="loadLineups()">Повторить</button></div>`;
-  });
+  }
 }
 window.loadLineups = loadLineups;
 
@@ -8181,6 +8158,16 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
   });
 });
 
+document.getElementById('analytics-refresh-btn')?.addEventListener('click', async () => {
+  analyticsLoaded = false;
+  await loadAnalytics(true);
+  const usersVisible = document.getElementById('an-section-users')?.style.display !== 'none';
+  if (usersVisible) {
+    _nuLoaded = false;
+    await loadNewUsersAnalytics();
+  }
+});
+
 let _nuLoaded    = false;
 let _nuAllRecent = [];  // все за последние 24ч
 let _nuFilter    = 'all';
@@ -8439,14 +8426,15 @@ async function loadNewUsersAnalytics() {
 
 let analyticsLoaded = false;
 
-async function loadAnalytics() {
-  if (analyticsLoaded) return;
+async function loadAnalytics(force = false) {
+  if (analyticsLoaded && !force) return;
   analyticsLoaded = true;
-  loadStorageStats();
+  const btn = document.getElementById('analytics-refresh-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Обновляю…'; }
+  await loadStorageStats();
 
   const now   = Date.now();
   const d30   = new Date(now - 30 * 864e5);
-  const d7    = new Date(now -  7 * 864e5);
   const today = new Date().toISOString().slice(0, 10);
 
   // Last-30-days labels array
@@ -8456,11 +8444,8 @@ async function loadAnalytics() {
   }
 
   try {
-    // \u2500\u2500 Ad events \u2500\u2500
-    subscribeAds();  // real-time: \u043f\u043e\u0434\u043f\u0438\u0441\u043a\u0430 \u043d\u0430 ad_events, \u0441\u0430\u043c\u0430 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u0442 \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0438 + \u0433\u0440\u0430\u0444\u0438\u043a
-
-    // \u2500\u2500 User sessions \u2500\u2500
-    subscribeActivity();  // real-time: подписка на user_sessions, сама обновляет карточки + график
+    await loadAdsAnalytics(days, d30, today);
+    await loadActivityAnalytics(days, d30, today);
 
     // ── Content views ──
     const viewsSnap = await getDocs(query(
@@ -8524,11 +8509,10 @@ async function loadAnalytics() {
     console.error('Analytics error:', e);
     toast('\u041e\u0448\u0438\u0431\u043a\u0430 \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0438: ' + e.message, 'e');
     analyticsLoaded = false; // allow retry
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Обновить'; }
   }
 }
-
-// ── Real-time ads analytics ───────────────────────────────────────────────────
-let _adsUnsub = null;
 
 function _adEventKind(type) {
   const t = String(type || '').toLowerCase();
@@ -8541,151 +8525,118 @@ function _adEventKind(type) {
   return 'other';
 }
 
-function subscribeAds() {
-  if (_adsUnsub) return; // уже подписаны
-  const now = Date.now();
-  const d30 = new Date(now - 30 * 864e5);
-  const today = new Date().toISOString().slice(0, 10);
-  const days = [];
-  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
-
+async function loadAdsAnalytics(days, d30, today) {
   const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts'), limit(ADMIN_AD_EVENTS_LIMIT));
-  _adsUnsub = onSnapshot(q, snap => {
-    const totals = {
+  const snap = await getDocs(q);
+  const totals = {
+    rewardedShown: 0,
+    rewardedDone: 0,
+    rewardedSkip: 0,
+    interstitialShown: 0,
+    bannerShown: 0,
+    appOpenShown: 0,
+    other: 0,
+    totalShown: 0,
+  };
+  const adByDay = {};
+  days.forEach(d => {
+    adByDay[d] = {
+      totalShown: 0,
       rewardedShown: 0,
       rewardedDone: 0,
-      rewardedSkip: 0,
       interstitialShown: 0,
       bannerShown: 0,
       appOpenShown: 0,
-      other: 0,
-      totalShown: 0,
     };
-    const adByDay = {};
-    days.forEach(d => {
-      adByDay[d] = {
-        totalShown: 0,
-        rewardedShown: 0,
-        rewardedDone: 0,
-        interstitialShown: 0,
-        bannerShown: 0,
-        appOpenShown: 0,
-      };
-    });
+  });
 
-    snap.forEach(doc => {
-      const dat = doc.data();
-      if (!dat.ts?.toDate) return;
-      const day = dat.ts.toDate().toISOString().slice(0, 10);
-      const kind = _adEventKind(dat.type);
-      if (totals[kind] !== undefined) totals[kind]++; else totals.other++;
-      if (kind.endsWith('Shown')) {
-        totals.totalShown++;
-        if (adByDay[day]) {
-          adByDay[day].totalShown++;
-          if (adByDay[day][kind] !== undefined) adByDay[day][kind]++;
-        }
-      } else if (kind === 'rewardedDone' && adByDay[day]) {
-        adByDay[day].rewardedDone++;
+  snap.forEach(doc => {
+    const dat = doc.data();
+    if (!dat.ts?.toDate) return;
+    const day = dat.ts.toDate().toISOString().slice(0, 10);
+    const kind = _adEventKind(dat.type);
+    if (totals[kind] !== undefined) totals[kind]++; else totals.other++;
+    if (kind.endsWith('Shown')) {
+      totals.totalShown++;
+      if (adByDay[day]) {
+        adByDay[day].totalShown++;
+        if (adByDay[day][kind] !== undefined) adByDay[day][kind]++;
       }
-    });
-    const pct = totals.rewardedShown > 0 ? Math.round(totals.rewardedDone / totals.rewardedShown * 100) : 0;
-    const avgDaily = Math.round(totals.totalShown / 30);
-    const todayShown = adByDay[today]?.totalShown || 0;
+    } else if (kind === 'rewardedDone' && adByDay[day]) {
+      adByDay[day].rewardedDone++;
+    }
+  });
+  const pct = totals.rewardedShown > 0 ? Math.round(totals.rewardedDone / totals.rewardedShown * 100) : 0;
+  const avgDaily = Math.round(totals.totalShown / 30);
+  const todayShown = adByDay[today]?.totalShown || 0;
 
-    document.getElementById('ad-stat-cards').innerHTML = [
-      [todayShown, 'Показов сегодня'],
-      [totals.totalShown, 'Показов за 30 дней'],
-      [avgDaily, 'Среднее в день'],
-      [totals.rewardedShown, 'Rewarded показов'],
-      [totals.rewardedDone, 'Rewarded досмотрено'],
-      [totals.rewardedSkip, 'Rewarded пропущено'],
-      [pct + '%', '% досмотра'],
-      [totals.interstitialShown, 'Interstitial показов'],
-      [totals.bannerShown, 'Banner показов'],
-      [totals.appOpenShown, 'App Open показов'],
-      [totals.other, 'Другие события'],
-    ].map(([v, l]) =>
-      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
-    ).join('');
+  document.getElementById('ad-stat-cards').innerHTML = [
+    [todayShown, 'Показов сегодня'],
+    [totals.totalShown, 'Показов за 30 дней'],
+    [avgDaily, 'Среднее в день'],
+    [totals.rewardedShown, 'Rewarded показов'],
+    [totals.rewardedDone, 'Rewarded досмотрено'],
+    [totals.rewardedSkip, 'Rewarded пропущено'],
+    [pct + '%', '% досмотра'],
+    [totals.interstitialShown, 'Interstitial показов'],
+    [totals.bannerShown, 'Banner показов'],
+    [totals.appOpenShown, 'App Open показов'],
+    [totals.other, 'Другие события'],
+  ].map(([v, l]) =>
+    `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+  ).join('');
 
-    drawInteractiveChart('ad-chart', 'ad-tip', [
-      { name: 'Все показы',   data: days.map(d => adByDay[d].totalShown),        color: '#4FC3F7' },
-      { name: 'Rewarded',     data: days.map(d => adByDay[d].rewardedShown),     color: '#22C55E' },
-      { name: 'Interstitial', data: days.map(d => adByDay[d].interstitialShown), color: '#F59E0B' },
-      { name: 'Banner',       data: days.map(d => adByDay[d].bannerShown),       color: '#A78BFA' },
-    ], days);
-  }, err => console.error('subscribeAds', err));
+  drawInteractiveChart('ad-chart', 'ad-tip', [
+    { name: 'Все показы',   data: days.map(d => adByDay[d].totalShown),        color: '#4FC3F7' },
+    { name: 'Rewarded',     data: days.map(d => adByDay[d].rewardedShown),     color: '#22C55E' },
+    { name: 'Interstitial', data: days.map(d => adByDay[d].interstitialShown), color: '#F59E0B' },
+    { name: 'Banner',       data: days.map(d => adByDay[d].bannerShown),       color: '#A78BFA' },
+  ], days);
 }
 
-function stopAdsRealtime() {
-  if (_adsUnsub) {
-    _adsUnsub();
-    _adsUnsub = null;
-  }
-}
-
-let _activityUnsub = null;
-
-function subscribeActivity() {
-  if (_activityUnsub) return;
-  const now   = Date.now();
-  const d30   = new Date(now - 30 * 864e5);
-  const d7    = new Date(now -  7 * 864e5);
-  const today = new Date().toISOString().slice(0, 10);
-  const days  = [];
-  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
-
+async function loadActivityAnalytics(days, d30, today) {
+  const now = Date.now();
+  const d7 = new Date(now - 7 * 864e5);
   const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts'), limit(ADMIN_SESSION_EVENTS_LIMIT));
-  _activityUnsub = onSnapshot(q, snap => {
-    const dauByDay = {};
-    days.forEach(d => { dauByDay[d] = new Set(); });
-    const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
+  const snap = await getDocs(q);
+  const dauByDay = {};
+  days.forEach(d => { dauByDay[d] = new Set(); });
+  const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
 
-    snap.forEach(doc => {
-      const dat = doc.data();
-      if (!dat.ts?.toDate) return;
-      const uid = dat.uid;
-      const day = dat.date || dat.ts.toDate().toISOString().slice(0, 10);
-      if (dauByDay[day]) dauByDay[day].add(uid);
-      mauUids.add(uid);
-      if (dat.ts.toDate() >= d7) wauUids.add(uid);
-      if (day === today)         dauUids.add(uid);
-    });
+  snap.forEach(doc => {
+    const dat = doc.data();
+    if (!dat.ts?.toDate) return;
+    const uid = dat.uid;
+    const day = dat.date || dat.ts.toDate().toISOString().slice(0, 10);
+    if (dauByDay[day]) dauByDay[day].add(uid);
+    mauUids.add(uid);
+    if (dat.ts.toDate() >= d7) wauUids.add(uid);
+    if (day === today)         dauUids.add(uid);
+  });
 
-    const dauArr  = days.map(d => dauByDay[d].size);
-    const peakDau = Math.max(0, ...dauArr);
-    const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
-    const total   = snap.size;
+  const dauArr  = days.map(d => dauByDay[d].size);
+  const peakDau = Math.max(0, ...dauArr);
+  const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
+  const total   = snap.size;
 
-    document.getElementById('ses-stat-cards').innerHTML = [
-      [dauUids.size, 'DAU (сегодня)'],
-      [wauUids.size, 'WAU (7 дней)'],
-      [mauUids.size, 'MAU (30 дней)'],
-      [total,        'Сессий (30 дней)'],
-      [peakDau,      'Пик DAU (30 дн)'],
-      [avgDau,       'Среднее DAU'],
-    ].map(([v, l]) =>
-      `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
-    ).join('');
+  document.getElementById('ses-stat-cards').innerHTML = [
+    [dauUids.size, 'DAU (сегодня)'],
+    [wauUids.size, 'WAU (7 дней)'],
+    [mauUids.size, 'MAU (30 дней)'],
+    [total,        'Сессий (30 дней)'],
+    [peakDau,      'Пик DAU (30 дн)'],
+    [avgDau,       'Среднее DAU'],
+  ].map(([v, l]) =>
+    `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
+  ).join('');
 
-    drawInteractiveChart('dau-chart', 'dau-tip', [
-      { name: 'DAU', data: dauArr, color: '#4FC3F7' },
-    ], days);
-  }, err => console.error('subscribeActivity', err));
-}
-
-function stopActivityRealtime() {
-  if (_activityUnsub) {
-    _activityUnsub();
-    _activityUnsub = null;
-  }
+  drawInteractiveChart('dau-chart', 'dau-tip', [
+    { name: 'DAU', data: dauArr, color: '#4FC3F7' },
+  ], days);
 }
 
 function stopAnalyticsRealtime() {
-  stopAdsRealtime();
-  stopActivityRealtime();
-  analyticsLoaded = false;
+  // Analytics uses manual getDocs refresh only. Keep loaded data on tab switches.
 }
 
 // Интерактивный график с наведением (тултип за день) + точки.
