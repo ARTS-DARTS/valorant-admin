@@ -227,7 +227,7 @@
     .abil-btn   { padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .13s; }
     .abil-btn:hover { border-color: var(--primary); color: var(--primary); }
     .abil-btn.sel   { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 9/16; width: min(100%, 320px); }
+    .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 1; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
     .map-marker { position: absolute; width: 20px; height: 20px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -1384,6 +1384,22 @@
           <div class="an-card"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего</div></div>
           <div class="an-card" title="Регистрация через логин + пароль"><div class="an-val an-loading" id="nu-by-password">…</div><div class="an-lbl">🔑 Пароль</div></div>
           <div class="an-card" title="Регистрация через Google Sign-In"><div class="an-val an-loading" id="nu-by-google">…</div><div class="an-lbl">🔴 Google</div></div>
+          <div class="an-card" title="Аккаунты Яндекс ID"><div class="an-val an-loading" id="nu-by-yandex">…</div><div class="an-lbl">🟡 Яндекс</div></div>
+        </div>
+        <div class="an-chart-box" style="margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
+            <div>
+              <div class="dlabel" style="margin:0 0 4px;">Подписки на агентов</div>
+              <div style="font-size:11px;color:var(--text2);">Считает документы <code>users/{uid}/subscriptions/*</code>. Запускай вручную, чтобы не тратить квоту зря.</div>
+            </div>
+            <button class="btn" id="subs-load-btn" style="border:1px solid var(--border);color:var(--text2);">Обновить подписки</button>
+          </div>
+          <div class="an-cards" id="subs-stat-cards" style="margin-bottom:12px;">
+            <div class="an-card"><div class="an-val" id="subs-users">—</div><div class="an-lbl">Пользователей</div></div>
+            <div class="an-card"><div class="an-val" id="subs-total">—</div><div class="an-lbl">Подписок</div></div>
+            <div class="an-card"><div class="an-val" id="subs-agents">—</div><div class="an-lbl">Агентов</div></div>
+          </div>
+          <div id="subs-agent-list" style="display:grid;gap:7px;"></div>
         </div>
         <div class="an-chart-box" style="margin-top:14px;">
           <div class="dlabel" style="margin-bottom:8px;">Новые регистрации по дням</div>
@@ -1398,6 +1414,7 @@
             <div style="font-size:13px;font-weight:600;color:var(--text);">За последние 24 часа: <span id="nu-24h-count" style="color:var(--primary);">…</span></div>
             <div style="display:flex;gap:6px;">
               <button class="an-tab-btn active" data-nu-filter="all"    onclick="_nuSetFilter('all')">Все</button>
+              <button class="an-tab-btn"        data-nu-filter="yandex" onclick="_nuSetFilter('yandex')">Яндекс</button>
               <button class="an-tab-btn"        data-nu-filter="google" onclick="_nuSetFilter('google')">Google</button>
               <button class="an-tab-btn"        data-nu-filter="email"  onclick="_nuSetFilter('email')">Email/пароль</button>
             </div>
@@ -1516,7 +1533,7 @@
         <select class="fselect" id="guide-cat-select">
           <option value="molly">🧨 Молики (molly)</option>
           <option value="reveal">🔦 Ревил (reveal)</option>
-          <option value="smoke">💨 Смоки (smoke)</option>
+          <option value="smoke">💥 Прострелы (smoke)</option>
         </select>
       </div>
       <div class="row" style="margin-bottom:18px;">
@@ -1601,7 +1618,7 @@
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="agents-cat-tabs">
           <button class="btn btn-save" data-cat="lineup"  id="agents-tab-lineup" >🎯 Лайнапы</button>
           <button class="btn"          data-cat="combo"   id="agents-tab-combo"  style="border:1px solid var(--border);color:var(--text2);">⚡ Комбо</button>
-          <button class="btn"          data-cat="smoke"   id="agents-tab-smoke"  style="border:1px solid var(--border);color:var(--text2);">💨 Смоки</button>
+          <button class="btn"          data-cat="smoke"   id="agents-tab-smoke"  style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
           <button class="btn"          data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
         </div>
 
@@ -1907,6 +1924,40 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="form-title">🏅 ШТОРКА УРОВНЯ</div>
+      <div class="notif-card" style="margin-bottom:22px;">
+        <div class="nc-header">
+          <span class="nc-icon">🏅</span>
+          <div>
+            <div class="nc-title">Шторка после изменения прогресса</div>
+            <div class="nc-desc">Показывается в приложении после approve. Для удаления/отклонения используется красная убывающая версия.</div>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:9px;margin:12px 0;color:var(--text);font-size:13px;">
+          <input type="checkbox" id="lo-enabled" checked>
+          Включить шторку уровня
+        </label>
+        <div style="display:grid;grid-template-columns:160px 1fr 1fr;gap:10px;">
+          <div>
+            <label class="flabel">Длительность, мс</label>
+            <input class="finput" id="lo-duration" type="number" min="1800" max="9000" step="100" value="3600" style="background:var(--bg);">
+          </div>
+          <div>
+            <label class="flabel">Фразы approve (по строке)</label>
+            <textarea class="finput" id="lo-approved" rows="5" style="height:auto;background:var(--bg);line-height:1.5;"></textarea>
+          </div>
+          <div>
+            <label class="flabel">Фразы удаление/отклонение</label>
+            <textarea class="finput" id="lo-removed" rows="5" style="height:auto;background:var(--bg);line-height:1.5;"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-save" id="lo-save">💾 Сохранить шторку</button>
+          <button class="btn" id="lo-load" style="border:1px solid var(--border);color:var(--text2);">Обновить</button>
+        </div>
+        <div class="nc-status" id="nc-status-level-overlay"></div>
       </div>
 
       <div class="form-title">🎯 БАНЕР НОВЫХ ЛАЙНАПОВ</div>
@@ -2752,6 +2803,33 @@ function switchTab(t) {
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
 window.switchTab = switchTab;
+
+// ── Экономия квоты Firestore: приостанавливаем live-listeners, когда вкладка
+// браузера скрыта (админ ушёл / AFK). Пока вкладка открыта на 'list'/'messages'/
+// 'analytics', onSnapshot читает каждое изменение (лайки/голоса от живых юзеров) —
+// за часы AFK это выжигает лимит Spark. Отцепляем через 60с после скрытия,
+// заново подписываемся при возврате на активную вкладку.
+let _afkListenerTimer = null;
+function _suspendRealtimeListeners() {
+  stopLineupsRealtime();
+  stopMessagesRealtime();
+  stopAnalyticsRealtime();
+}
+function _resumeRealtimeForActiveTab() {
+  if (_activeTab === 'list')      loadLineups();
+  else if (_activeTab === 'messages')  startMessagesRealtime();
+  else if (_activeTab === 'analytics') loadAnalytics();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (_afkListenerTimer) clearTimeout(_afkListenerTimer);
+    _afkListenerTimer = setTimeout(_suspendRealtimeListeners, 60000);
+  } else {
+    if (_afkListenerTimer) { clearTimeout(_afkListenerTimer); _afkListenerTimer = null; }
+    _resumeRealtimeForActiveTab();
+  }
+});
+
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
 let _addTabReady = false;
 let _iconsReady = null;
@@ -3877,7 +3955,7 @@ function _renderAgentCards() {
       <div class="agent-cat-dots" data-name="${agent.displayName}">
         <span class="cat-dot" data-cat="lineup" title="Лайнапы"></span>
         <span class="cat-dot" data-cat="combo" title="Комбо"></span>
-        <span class="cat-dot" data-cat="smoke" title="Смоки"></span>
+        <span class="cat-dot" data-cat="smoke" title="Прострелы"></span>
         <span class="cat-dot" data-cat="defense" title="Защита"></span>
       </div>`;
     card.addEventListener('click', () => _selectAgentCard(agent.displayName));
@@ -8113,8 +8191,9 @@ window._nuSetFilter = _nuSetFilter;
 function _nuRenderList() {
   const filtered = _nuFilter === 'all' ? _nuAllRecent : _nuAllRecent.filter(r => {
     const method = _nuAuthMethod(r.dat).label;
+    if (_nuFilter === 'yandex') return method === 'Яндекс';
     if (_nuFilter === 'google') return method === 'Google';
-    if (_nuFilter === 'email')  return method !== 'Google';
+    if (_nuFilter === 'email')  return method === 'Email/пароль' || method === 'Email';
     return true;
   });
   const listEl = document.getElementById('nu-recent-list');
@@ -8147,10 +8226,77 @@ function _nuRenderList() {
 
 function _nuAuthMethod(dat) {
   const email = dat.user_email || '';
+  const provider = String(dat.auth_provider || dat.provider || dat.sign_in_provider || '').toLowerCase();
+  if (provider.includes('yandex') || dat.yandex_id || dat.yandex_email) {
+    return { label: 'Яндекс', color: '#FC3F1D', icon: 'Я' };
+  }
   if (!email) return { label: 'Google', color: '#4285F4', icon: 'G' };
   if (email.endsWith('@valorantlineups.app')) return { label: 'Email/пароль', color: 'var(--orange)', icon: '✉' };
   return { label: 'Email', color: 'var(--primary)', icon: '✉' };
 }
+
+async function loadAgentSubscriptionAnalytics() {
+  const btn = document.getElementById('subs-load-btn');
+  const list = document.getElementById('subs-agent-list');
+  if (!list) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Считаю…'; }
+  list.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка подписок…</div>';
+  try {
+    const agentCounts = new Map();
+    const userIds = new Set();
+    let total = 0;
+
+    const addSub = (uid, data) => {
+      const type = String(data.type || 'agent').toLowerCase();
+      const agent = String(data.agent || data.agent_name || data.name || '').trim();
+      if (type && type !== 'agent') return;
+      if (!agent) return;
+      total++;
+      if (uid) userIds.add(uid);
+      agentCounts.set(agent, (agentCounts.get(agent) || 0) + 1);
+    };
+
+    try {
+      const subSnap = await getDocs(collectionGroup(db, 'subscriptions'));
+      subSnap.forEach(subDoc => {
+        const uid = subDoc.ref.parent?.parent?.id || '';
+        addSub(uid, subDoc.data() || {});
+      });
+    } catch (e) {
+      console.warn('subscription collectionGroup unavailable, using users scan:', e.message);
+      const usersSnap = await getDocs(collection(db, 'users'));
+      for (const userDoc of usersSnap.docs) {
+        const snap = await getDocs(collection(db, 'users', userDoc.id, 'subscriptions'));
+        snap.forEach(subDoc => addSub(userDoc.id, subDoc.data() || {}));
+      }
+    }
+
+    document.getElementById('subs-users').textContent = userIds.size;
+    document.getElementById('subs-total').textContent = total;
+    document.getElementById('subs-agents').textContent = agentCounts.size;
+
+    const rows = [...agentCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...rows.map(([, count]) => count));
+    list.innerHTML = rows.length ? rows.map(([agent, count]) => {
+      const icon = AGENT_ICONS[agent] || '';
+      const pct = Math.max(5, Math.round(count / max * 100));
+      return `<div style="display:grid;grid-template-columns:32px 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;">
+        <div style="width:32px;height:32px;border-radius:6px;overflow:hidden;background:var(--surface2);">${icon ? `<img src="${esc(icon)}" style="width:100%;height:100%;object-fit:cover;">` : ''}</div>
+        <div style="min-width:0;">
+          <div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;color:var(--text);"><span>${esc(agent)}</span></div>
+          <div style="height:5px;background:var(--surface2);border-radius:999px;overflow:hidden;margin-top:5px;"><div style="height:100%;width:${pct}%;background:var(--primary);"></div></div>
+        </div>
+        <div style="font-size:15px;font-weight:900;color:var(--primary);">${count}</div>
+      </div>`;
+    }).join('') : '<div style="color:var(--text2);font-size:13px;">Подписок пока нет</div>';
+  } catch (e) {
+    console.error('loadAgentSubscriptionAnalytics', e);
+    list.innerHTML = `<div style="color:var(--red);font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Обновить подписки'; }
+  }
+}
+document.getElementById('subs-load-btn')?.addEventListener('click', loadAgentSubscriptionAnalytics);
 
 function _nuFmtDuration(sec) {
   if (!sec || sec < 60) return sec ? `${sec} сек` : '—';
@@ -8236,7 +8382,7 @@ async function loadNewUsersAnalytics() {
   try {
     const snap = await getDocs(query(collection(db, 'users'), orderBy('created_at', 'desc')));
     const realTotal = snap.size;
-    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0, nuPassword = 0, nuGoogle = 0;
+    let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0, nuPassword = 0, nuGoogle = 0, nuYandex = 0;
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
     _nuAllRecent = [];
@@ -8244,10 +8390,10 @@ async function loadNewUsersAnalytics() {
     for (const docSnap of snap.docs) {
       const dat   = docSnap.data();
       const ts    = dat.created_at?.toDate ? dat.created_at.toDate() : null;
-      const email = dat.user_email || '';
-      // Google-пользователи не имеют user_email в Firestore (saveGoogleUsername его не пишет)
-      if (email.endsWith('@valorantlineups.app')) nuPassword++;
-      else nuGoogle++;
+      const method = _nuAuthMethod(dat).label;
+      if (method === 'Яндекс') nuYandex++;
+      else if (method === 'Google') nuGoogle++;
+      else if (method === 'Email/пароль') nuPassword++;
       if (!ts) continue;
       nuWithDate++;
       const day = ts.toISOString().slice(0, 10);
@@ -8263,6 +8409,7 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-total').textContent       = realTotal;
     document.getElementById('nu-by-password').textContent = nuPassword;
     document.getElementById('nu-by-google').textContent   = `${nuGoogle} (${realTotal ? Math.round(nuGoogle/realTotal*100) : 0}%)`;
+    document.getElementById('nu-by-yandex').textContent   = `${nuYandex} (${realTotal ? Math.round(nuYandex/realTotal*100) : 0}%)`;
     document.getElementById('nu-24h-count').textContent   = _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
@@ -9579,6 +9726,10 @@ function initNotifCategories() {
       document.getElementById('notif-section-push')?.classList.add('active');
       document.getElementById('notif-section-push-rest')?.classList.toggle('active', cat === 'push');
       document.getElementById('notif-section-banners')?.classList.toggle('active', cat === 'banners');
+      if (cat === 'banners' && !window._levelOverlayLoaded) {
+        window._levelOverlayLoaded = true;
+        loadLevelOverlaySettings().catch(() => {});
+      }
     });
   });
 }
@@ -9875,6 +10026,72 @@ document.getElementById('bn-save-settings')?.addEventListener('click', async () 
     btn.disabled = false;
   }
 });
+
+const LEVEL_OVERLAY_DEFAULTS = {
+  enabled: true,
+  duration_ms: 3600,
+  approved_phrases: [
+    'Спасибо за помощь сообществу!',
+    'Ты сделал базу лайнапов сильнее!',
+    'Игроки точно оценят этот лайнап.',
+    'Красиво. Сообщество стало полезнее.',
+    'Ещё один хороший лайнап в копилку!',
+  ],
+  removed_phrases: [
+    'Лайнап снят с публикации.',
+    'Прогресс немного откатился.',
+    'Минус один одобренный лайнап.',
+  ],
+};
+
+function _loLines(id, fallback) {
+  const raw = document.getElementById(id)?.value || '';
+  const lines = raw.split('\n').map(s => s.trim()).filter(Boolean);
+  return lines.length ? lines : fallback;
+}
+
+function _loFill(data = LEVEL_OVERLAY_DEFAULTS) {
+  document.getElementById('lo-enabled').checked = data.enabled !== false;
+  document.getElementById('lo-duration').value = Number(data.duration_ms || 3600);
+  document.getElementById('lo-approved').value = (data.approved_phrases || LEVEL_OVERLAY_DEFAULTS.approved_phrases).join('\n');
+  document.getElementById('lo-removed').value = (data.removed_phrases || LEVEL_OVERLAY_DEFAULTS.removed_phrases).join('\n');
+}
+
+async function loadLevelOverlaySettings() {
+  _ncSetStatus('level-overlay', true, 'Загружаю…');
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'level_overlay'));
+    _loFill(snap.exists() ? { ...LEVEL_OVERLAY_DEFAULTS, ...snap.data() } : LEVEL_OVERLAY_DEFAULTS);
+    _ncSetStatus('level-overlay', true, '✅ Настройки загружены');
+  } catch (e) {
+    _loFill();
+    _ncSetStatus('level-overlay', false, `❌ ${e.message}`);
+  }
+}
+
+async function saveLevelOverlaySettings() {
+  const btn = document.getElementById('lo-save');
+  btn.disabled = true;
+  _ncSetStatus('level-overlay', true, 'Сохраняю…');
+  try {
+    const duration = Math.max(1800, Math.min(9000, Number(document.getElementById('lo-duration').value || 3600)));
+    await setDoc(doc(db, 'settings', 'level_overlay'), {
+      enabled: document.getElementById('lo-enabled').checked,
+      duration_ms: duration,
+      approved_phrases: _loLines('lo-approved', LEVEL_OVERLAY_DEFAULTS.approved_phrases),
+      removed_phrases: _loLines('lo-removed', LEVEL_OVERLAY_DEFAULTS.removed_phrases),
+      updated_at: serverTimestamp(),
+    }, { merge: true });
+    _ncSetStatus('level-overlay', true, '✅ Шторка сохранена');
+  } catch (e) {
+    _ncSetStatus('level-overlay', false, `❌ ${e.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('lo-load')?.addEventListener('click', loadLevelOverlaySettings);
+document.getElementById('lo-save')?.addEventListener('click', saveLevelOverlaySettings);
 
 document.getElementById('bn-test-agent')?.addEventListener('click', async () => {
   const rows = bnCleanRows();
