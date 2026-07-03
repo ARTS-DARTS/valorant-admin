@@ -8173,6 +8173,27 @@ let _nuLoaded    = false;
 let _nuAllRecent = [];  // все за последние 24ч
 let _nuFilter    = 'all';
 
+function _anPad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function _anLocalDayKey(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  return `${d.getFullYear()}-${_anPad2(d.getMonth() + 1)}-${_anPad2(d.getDate())}`;
+}
+
+function _anLastLocalDayKeys(count, nowMs = Date.now()) {
+  const base = new Date(nowMs);
+  base.setHours(12, 0, 0, 0);
+  const days = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(base);
+    d.setDate(base.getDate() - i);
+    days.push(_anLocalDayKey(d));
+  }
+  return days;
+}
+
 function _nuSetFilter(f) {
   _nuFilter = f;
   document.querySelectorAll('[data-nu-filter]').forEach(b =>
@@ -8365,12 +8386,11 @@ window._nuOpenFullUserProfile = async function(uid) {
 async function loadNewUsersAnalytics() {
   _nuLoaded = true;
   const now    = Date.now();
-  const today  = new Date().toISOString().slice(0, 10);
+  const today  = _anLocalDayKey(new Date(now));
   const d24h   = new Date(now -       864e5);
   const d7     = new Date(now -  7  * 864e5);
   const d30    = new Date(now -  30 * 864e5);
-  const days   = [];
-  for (let i = 29; i >= 0; i--) days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
+  const days   = _anLastLocalDayKeys(30, now);
 
   try {
     const totalSnap = await getCountFromServer(collection(db, 'users'));
@@ -8396,7 +8416,7 @@ async function loadNewUsersAnalytics() {
       else if (method === 'Email/пароль') nuPassword++;
       if (!ts) continue;
       nuWithDate++;
-      const day = ts.toISOString().slice(0, 10);
+      const day = _anLocalDayKey(ts);
       if (day === today) nuToday++;
       if (ts >= d7)  nuWeek++;
       if (ts >= d30) { nuMonth++; if (nuByDay[day] !== undefined) nuByDay[day]++; }
@@ -8436,13 +8456,10 @@ async function loadAnalytics(force = false) {
 
   const now   = Date.now();
   const d30   = new Date(now - 30 * 864e5);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = _anLocalDayKey(new Date(now));
 
   // Last-30-days labels array
-  const days = [];
-  for (let i = 29; i >= 0; i--) {
-    days.push(new Date(now - i * 864e5).toISOString().slice(0, 10));
-  }
+  const days = _anLastLocalDayKeys(30, now);
 
   try {
     await loadAdsAnalytics(days, d30, today);
@@ -8453,7 +8470,7 @@ async function loadAnalytics(force = false) {
       collection(db, 'analytics_events'),
       where('type', '==', 'lineup_viewed'),
       where('ts', '>=', d30),
-      orderBy('ts'),
+      orderBy('ts', 'desc'),
       limit(ADMIN_ANALYTICS_EVENTS_LIMIT)
     ));
 
@@ -8465,7 +8482,7 @@ async function loadAnalytics(force = false) {
 
     for (const d of viewsSnap.docs) {
       const dat = d.data();
-      const day = dat.ts.toDate().toISOString().slice(0, 10);
+      const day = _anLocalDayKey(dat.ts.toDate());
       totalViews++;
       if (viewsByDay[day] !== undefined) viewsByDay[day]++;
       const lid = dat.lineup_id || '';
@@ -8527,7 +8544,7 @@ function _adEventKind(type) {
 }
 
 async function loadAdsAnalytics(days, d30, today) {
-  const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts'), limit(ADMIN_AD_EVENTS_LIMIT));
+  const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts', 'desc'), limit(ADMIN_AD_EVENTS_LIMIT));
   const snap = await getDocs(q);
   const totals = {
     rewardedShown: 0,
@@ -8554,7 +8571,7 @@ async function loadAdsAnalytics(days, d30, today) {
   snap.forEach(doc => {
     const dat = doc.data();
     if (!dat.ts?.toDate) return;
-    const day = dat.ts.toDate().toISOString().slice(0, 10);
+    const day = _anLocalDayKey(dat.ts.toDate());
     const kind = _adEventKind(dat.type);
     if (totals[kind] !== undefined) totals[kind]++; else totals.other++;
     if (kind.endsWith('Shown')) {
@@ -8598,7 +8615,7 @@ async function loadAdsAnalytics(days, d30, today) {
 async function loadActivityAnalytics(days, d30, today) {
   const now = Date.now();
   const d7 = new Date(now - 7 * 864e5);
-  const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts'), limit(ADMIN_SESSION_EVENTS_LIMIT));
+  const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts', 'desc'), limit(ADMIN_SESSION_EVENTS_LIMIT));
   const snap = await getDocs(q);
   const dauByDay = {};
   days.forEach(d => { dauByDay[d] = new Set(); });
@@ -8608,7 +8625,7 @@ async function loadActivityAnalytics(days, d30, today) {
     const dat = doc.data();
     if (!dat.ts?.toDate) return;
     const uid = dat.uid;
-    const day = dat.date || dat.ts.toDate().toISOString().slice(0, 10);
+    const day = _anLocalDayKey(dat.ts.toDate());
     if (dauByDay[day]) dauByDay[day].add(uid);
     mauUids.add(uid);
     if (dat.ts.toDate() >= d7) wauUids.add(uid);
