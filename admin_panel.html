@@ -1148,6 +1148,7 @@
             <div id="user-search-results" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
               <div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>
             </div>
+            <button class="btn" id="users-load-more-btn" style="display:none;width:100%;margin-top:8px;border:1px solid var(--border);color:var(--text2);">Загрузить ещё</button>
           </div>
           <div id="user-profile-panel" style="display:none;"></div>
         </div>
@@ -9136,16 +9137,18 @@ function _renderLineupDetail(l) {
 function renderInteractiveMap(lineup) {
   const STATIC_MAPS = {
     'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
-    'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4bbe-4143-b2b1-1c5d92c14786/displayicon.png',
+    'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/displayicon.png',
     'Bind':     'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png',
     'Split':    'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png',
     'Fracture': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png',
     'Breeze':   'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/displayicon.png',
     'Icebox':   'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/displayicon.png',
-    'Pearl':    'https://media.valorant-api.com/maps/33bb57b4-4e5b-8d85-0505-b8c5b8b36136/displayicon.png',
-    'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-01bc-1236-069b34a8b785/displayicon.png',
-    'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39eb02e28435/displayicon.png',
-    'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-d703-cc5f-3e8e0f488ea8/displayicon.png',
+    'Pearl':    'https://media.valorant-api.com/maps/fd267378-4d1d-484f-ff52-77821ed10dc2/displayicon.png',
+    'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/displayicon.png',
+    'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png',
+    'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/displayicon.png',
+    'Corrode':  'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/displayicon.png',
+    'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png',
   };
 
   const container = document.getElementById('dcMapContainer');
@@ -9191,6 +9194,7 @@ function renderInteractiveMap(lineup) {
 
     if (hasTarget) {
       const points = traj.map(p => toCanvas(parseFloat(p.x), parseFloat(p.y)));
+      points[0] = start;
 
       // Solid red polyline (matches phone app style)
       ctx.save();
@@ -10499,6 +10503,10 @@ let _allUsers = [];
 let _userSearchQuery = '';
 let _userAuthFilter = 'all';
 let _userVerifFilter = 'all';
+let _usersCursor = null;
+let _usersHasMore = false;
+let _usersTotal = null;
+let _usersLoading = false;
 
 const USER_REQUIRED_VIEWS = 5;
 const USER_DEFAULT_TRIAL_DAYS = 30;
@@ -10567,24 +10575,51 @@ function applyUserFilters() {
   return list;
 }
 
-async function loadAllUsers() {
+async function loadAllUsers({ append = false } = {}) {
   const resultsEl = document.getElementById('user-search-results');
   const countEl   = document.getElementById('users-count');
+  const moreBtn   = document.getElementById('users-load-more-btn');
   if (!resultsEl) return;
-  resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>';
+  if (_usersLoading) return;
+  _usersLoading = true;
+  if (!append) {
+    _usersCursor = null;
+    _usersHasMore = false;
+    _usersTotal = null;
+    _allUsers = [];
+    resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>';
+  }
+  if (moreBtn) { moreBtn.disabled = true; moreBtn.textContent = append ? 'Загружаю…' : 'Загрузить ещё'; }
   try {
-    const snap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc'), limit(ADMIN_USERS_LIST_LIMIT)));
-    _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (_usersTotal === null) {
+      const totalSnap = await getCountFromServer(collection(db, 'users'));
+      _usersTotal = totalSnap.data().count || 0;
+    }
+    const constraints = [orderBy('name_lower', 'asc'), limit(ADMIN_USERS_LIST_LIMIT)];
+    if (append && _usersCursor) constraints.splice(1, 0, startAfter(_usersCursor));
+    const snap = await getDocs(query(collection(db, 'users'), ...constraints));
+    _usersCursor = snap.docs[snap.docs.length - 1] || _usersCursor;
+    _usersHasMore = snap.size === ADMIN_USERS_LIST_LIMIT && _allUsers.length + snap.size < _usersTotal;
+    const next = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _allUsers = append ? [..._allUsers, ...next] : next;
     renderUsersList(applyUserFilters());
   } catch(e) {
     resultsEl.innerHTML = `<div style="color:var(--red);font-size:12px;padding:8px;">Ошибка: ${e.message}</div>`;
+  } finally {
+    _usersLoading = false;
+    if (moreBtn) {
+      moreBtn.style.display = _usersHasMore ? '' : 'none';
+      moreBtn.disabled = false;
+      moreBtn.textContent = 'Загрузить ещё';
+    }
   }
 }
 
 function renderUsersList(users) {
   const resultsEl = document.getElementById('user-search-results');
   const countEl   = document.getElementById('users-count');
-  if (countEl) countEl.textContent = `${users.length} из ${_allUsers.length} загруженных пользователей`;
+  const totalLabel = _usersTotal === null ? '?' : _usersTotal;
+  if (countEl) countEl.textContent = `${users.length} из ${_allUsers.length} загруженных / ${totalLabel} всего`;
   if (!users.length) {
     resultsEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:8px;">Не найдено</div>';
     return;
@@ -10627,6 +10662,8 @@ document.getElementById('user-search').addEventListener('input', e => {
   _userSearchQuery = e.target.value.trim().toLowerCase();
   renderUsersList(applyUserFilters());
 });
+
+document.getElementById('users-load-more-btn')?.addEventListener('click', () => loadAllUsers({ append: true }));
 
 document.getElementById('user-auth-filter')?.addEventListener('change', e => {
   _userAuthFilter = e.target.value;
