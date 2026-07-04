@@ -221,7 +221,7 @@
     .cat-dot { width:6px; height:6px; border-radius:50%; background:var(--border); transition:.15s; }
     .cat-dot.has-abilities { background:var(--primary); }
     .cat-dot[data-cat="combo"].has-abilities { background:#f97316; }
-    .cat-dot[data-cat="smoke"].has-abilities { background:#7a9bb5; }
+    .cat-dot[data-cat="wallbang"].has-abilities { background:#7a9bb5; }
     .cat-dot[data-cat="defense"].has-abilities { background:#22c55e; }
     .ability-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .abil-btn   { padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .13s; }
@@ -260,6 +260,14 @@
     .page-title-bar .bi { font-size: 18px; color: var(--primary); }
     .page-title-bar h1 { font-size: 16px; font-weight: 800; letter-spacing: 1px; color: var(--text); }
     .page-title-bar .page-subtitle { font-size: 12px; color: var(--text2); margin-left: 4px; }
+    .content-category-switch { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 10px; margin: -8px 0 14px; max-width: 920px; }
+    .content-category-btn { min-height: 54px; border: 1px solid var(--border2); border-radius: 8px; background: var(--surface); color: var(--text2); cursor: pointer; padding: 10px 12px; text-align: left; transition: border-color .15s, background .15s, color .15s, box-shadow .15s; }
+    .content-category-btn:hover { border-color: rgba(255,70,85,.45); color: var(--text); background: rgba(255,255,255,.035); }
+    .content-category-btn.active { border-color: var(--primary); background: var(--primary-dim); color: var(--text); box-shadow: 0 0 0 1px rgba(255,70,85,.16); }
+    .content-category-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; }
+    .content-category-hint { margin-top: 4px; font-size: 11px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .content-category-btn.active .content-category-hint { color: rgba(226,232,240,.7); }
+    @media (max-width: 900px) { .content-category-switch { grid-template-columns: repeat(2, minmax(140px, 1fr)); } }
 
     /* ── Stats bar ── */
     .lineup-stats-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -900,7 +908,26 @@
       <div class="lineups-sticky-top">
         <div class="page-title-bar">
           <i class="bi bi-list-ul"></i>
-          <h1>ЛАЙНАПЫ</h1>
+          <h1 id="content-list-title">ЛАЙНАПЫ</h1>
+        </div>
+
+        <div class="content-category-switch" id="content-category-switch">
+          <button class="content-category-btn active" data-content-category="lineup">
+            <div class="content-category-name">🎯 Лайнапы</div>
+            <div class="content-category-hint">агент + абилка</div>
+          </button>
+          <button class="content-category-btn" data-content-category="combo">
+            <div class="content-category-name">⚡ Комбо</div>
+            <div class="content-category-hint">агент + агент</div>
+          </button>
+          <button class="content-category-btn" data-content-category="wallbang">
+            <div class="content-category-name">💥 Прострелы</div>
+            <div class="content-category-hint">карта без агента</div>
+          </button>
+          <button class="content-category-btn" data-content-category="defense">
+            <div class="content-category-name">🛡 Защита</div>
+            <div class="content-category-hint">защитные сетапы</div>
+          </button>
         </div>
 
         <div id="lineup-stats-bar" class="lineup-stats-bar"></div>
@@ -1030,7 +1057,7 @@
               <option value="">— Выбери категорию —</option>
               <option value="lineup">lineup</option>
               <option value="combo">combo</option>
-              <option value="smoke">smoke</option>
+              <option value="wallbang">wallbang</option>
               <option value="defense">defense</option>
             </select>
           </div>
@@ -1537,7 +1564,7 @@
         <select class="fselect" id="guide-cat-select">
           <option value="molly">🧨 Молики (molly)</option>
           <option value="reveal">🔦 Ревил (reveal)</option>
-          <option value="smoke">💥 Прострелы (smoke)</option>
+          <option value="wallbang">💥 Прострелы</option>
         </select>
       </div>
       <div class="row" style="margin-bottom:18px;">
@@ -1622,7 +1649,7 @@
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="agents-cat-tabs">
           <button class="btn btn-save" data-cat="lineup"  id="agents-tab-lineup" >🎯 Лайнапы</button>
           <button class="btn"          data-cat="combo"   id="agents-tab-combo"  style="border:1px solid var(--border);color:var(--text2);">⚡ Комбо</button>
-          <button class="btn"          data-cat="smoke"   id="agents-tab-smoke"  style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
+          <button class="btn"          data-cat="wallbang" id="agents-tab-wallbang" style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
           <button class="btn"          data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
         </div>
 
@@ -2649,9 +2676,31 @@ const ADMIN_AD_EVENTS_LIMIT = 600;
 let lineups       = [];
 let currentFilter = 'all';
 let currentUser   = null;
+let currentContentCategory = 'lineup';
 let uploadedScreenshots = [];
 let addVideoState = { status: 'idle', url: null, localUrl: null, progress: 0, xhr: null };
 let selectedAuthor = null;
+
+const CONTENT_CATEGORIES = {
+  lineup:   { title: 'ЛАЙНАПЫ',   label: 'лайнап',   plural: 'лайнапов',   empty: 'Лайнапы не найдены' },
+  combo:    { title: 'КОМБО',     label: 'комбо',    plural: 'комбо',      empty: 'Комбо не найдены' },
+  wallbang: { title: 'ПРОСТРЕЛЫ', label: 'прострел', plural: 'прострелов', empty: 'Прострелы не найдены', legacy: ['smoke'] },
+  defense:  { title: 'ЗАЩИТА',    label: 'защита',   plural: 'защит',      empty: 'Защита не найдена' },
+};
+
+function normalizeContentCategory(value) {
+  if (!value) return 'lineup';
+  if (value === 'smoke') return 'wallbang';
+  return value;
+}
+
+function contentCategoryOf(item) {
+  return normalizeContentCategory(item?.content_type || item?.category);
+}
+
+function contentMeta(cat = currentContentCategory) {
+  return CONTENT_CATEGORIES[cat] || CONTENT_CATEGORIES.lineup;
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
@@ -3969,7 +4018,7 @@ function _renderAgentCards() {
       <div class="agent-cat-dots" data-name="${agent.displayName}">
         <span class="cat-dot" data-cat="lineup" title="Лайнапы"></span>
         <span class="cat-dot" data-cat="combo" title="Комбо"></span>
-        <span class="cat-dot" data-cat="smoke" title="Прострелы"></span>
+        <span class="cat-dot" data-cat="wallbang" title="Прострелы"></span>
         <span class="cat-dot" data-cat="defense" title="Защита"></span>
       </div>`;
     card.addEventListener('click', () => _selectAgentCard(agent.displayName));
@@ -4007,11 +4056,14 @@ async function _refreshAgentCatDots(agentName, force = false) {
     return;
   }
   const agentId = sanitizeAgentId(agentName);
-  const cats = ['lineup', 'combo', 'smoke', 'defense'];
+  const cats = ['lineup', 'combo', 'wallbang', 'defense'];
   const result = {};
   await Promise.all(cats.map(async cat => {
     try {
-      const snap = await getDoc(doc(db, 'agents_config', agentId, 'categories', cat));
+      let snap = await getDoc(doc(db, 'agents_config', agentId, 'categories', cat));
+      if (!snap.exists() && cat === 'wallbang') {
+        snap = await getDoc(doc(db, 'agents_config', agentId, 'categories', 'smoke'));
+      }
       const abilities = snap.exists() ? (snap.data().abilities || {}) : {};
       result[cat] = Object.values(abilities).some(v => v !== false);
     } catch(_) { result[cat] = false; }
@@ -4024,7 +4076,7 @@ let _selectedAgentCategory = 'lineup';
 
 function _setAgentCategoryTab(cat) {
   _selectedAgentCategory = cat;
-  ['lineup','combo','smoke','defense'].forEach(c => {
+  ['lineup','combo','wallbang','defense'].forEach(c => {
     const btn = document.getElementById('agents-tab-'+c); if (!btn) return;
     const active = c === cat;
     btn.className      = active ? 'btn btn-save' : 'btn';
@@ -4041,7 +4093,10 @@ async function _loadAgentAbilitiesForCategory() {
   const name = _selectedAgentName; if (!name) return;
   const agent = _agentsData.find(a => a.displayName === name); if (!agent) return;
   try {
-    const snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', _selectedAgentCategory));
+    let snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', _selectedAgentCategory));
+    if (!snap.exists() && _selectedAgentCategory === 'wallbang') {
+      snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', 'smoke'));
+    }
     _agentAbilitiesConfig = snap.exists() ? (snap.data().abilities || {}) : {};
   } catch (_) { _agentAbilitiesConfig = {}; }
   const abilities = (agent.abilities || []).filter(a => a.displayIcon);
@@ -4644,7 +4699,7 @@ function stopLineupsRealtime() {
 function updateStatsBar() {
   const bar = document.getElementById('lineup-stats-bar');
   if (!bar) return;
-  const all = lineups;
+  const all = lineups.filter(l => contentCategoryOf(l) === currentContentCategory);
   const counts = {
     pending:  all.filter(l => l.status === 'pending').length,
     approved: all.filter(l => l.status === 'approved').length,
@@ -4665,14 +4720,17 @@ function renderList() {
   updateStatsBar();
 
   // Панель "Горячие пирожки" — показываем всегда когда есть hot лайнапы
-  const hotCount = lineups.filter(l => l.status === 'hot').length;
+  const hotCount = lineups.filter(l => contentCategoryOf(l) === currentContentCategory && l.status === 'hot').length;
   const hotBar   = document.getElementById('hot-buns-bar');
   const hotBadge = document.getElementById('hot-filter-badge');
   if (hotBar) {
     if (hotCount > 0) {
       hotBar.style.display = 'flex';
       const desc = document.getElementById('hot-buns-desc');
-      if (desc) desc.textContent = `${hotCount} ${hotCount === 1 ? 'лайнап ждёт' : hotCount < 5 ? 'лайнапа ждут' : 'лайнапов ждут'} финального подтверждения`;
+      if (desc) {
+        const meta = contentMeta();
+        desc.textContent = `${hotCount} ${hotCount === 1 ? meta.label + ' ждёт' : meta.plural + ' ждут'} финального подтверждения`;
+      }
     } else {
       hotBar.style.display = 'none';
     }
@@ -4684,10 +4742,11 @@ function renderList() {
 
   const q  = document.getElementById('search').value.toLowerCase();
   const fl = lineups.filter(l => {
+    if (contentCategoryOf(l) !== currentContentCategory) return false;
     if (currentFilter === 'all' && (l.status === 'archived' || l.status === 'hot')) return false;
     if (currentFilter !== 'all' && l.status !== currentFilter) return false;
     if (q) {
-      const hay = `${l.title} ${l.agent} ${l.map} ${l.ability} ${l.submitted_by ?? ''}`.toLowerCase();
+      const hay = `${l.title} ${l.agent} ${l.map} ${l.ability} ${l.category} ${l.submitted_by ?? ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -4695,14 +4754,15 @@ function renderList() {
   const listEl = document.getElementById('lineup-list');
   const cntEl  = document.getElementById('list-panel-count');
   if (!fl.length) {
-    listEl.innerHTML = '<div class="state">Лайнапы не найдены</div>';
-    if (cntEl) cntEl.textContent = '0 лайнапов';
+    listEl.innerHTML = `<div class="state">${contentMeta().empty}</div>`;
+    if (cntEl) cntEl.textContent = `0 ${contentMeta().plural}`;
     return;
   }
   listEl.innerHTML = fl.map(cardHtml).join('');
   if (cntEl) {
     const n = fl.length;
-    cntEl.textContent = `${n} ${n === 1 ? 'лайнап' : n < 5 ? 'лайнапа' : 'лайнапов'}`;
+    const meta = contentMeta();
+    cntEl.textContent = `${n} ${n === 1 ? meta.label : meta.plural}`;
   }
   if (_selectedId) {
     const card = document.getElementById('lcard-' + _selectedId);
@@ -4769,7 +4829,7 @@ function detailHtml(l) {
 </div>
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
-  <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(l.category ?? '—')}</div></div>
+  <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(contentMeta(contentCategoryOf(l)).title)}</div></div>
   <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
   <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
   <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
@@ -5922,7 +5982,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const map      = document.getElementById('f-map').value;
   const agent    = pickedAgent;
   const ability  = pickedAbility;
-  const category = document.getElementById('f-category').value;
+  const category = normalizeContentCategory(document.getElementById('f-category').value);
   const status   = document.getElementById('f-status').value;
   const excl     = document.getElementById('f-exclusive').checked;
   if (!map)      { toast('Выбери карту','e'); return; }
@@ -5982,7 +6042,7 @@ function savePreset() {
   if (saveMap)  data.map     = document.getElementById('f-map')?.value ?? '';
   if (saveAgt)  data.agent   = pickedAgent;
   if (saveAbl)  data.ability = pickedAbility;
-  if (saveCat)  data.category = document.getElementById('f-category')?.value ?? '';
+  if (saveCat)  data.category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
   if (saveStat) data.status   = document.getElementById('f-status')?.value ?? '';
   if (saveAuth && selectedAuthor) { data.authorName = selectedAuthor.name; data.authorUid = selectedAuthor.uid; }
   if (Object.keys(data).length) localStorage.setItem('lineup_preset', JSON.stringify(data));
@@ -6003,7 +6063,7 @@ function _restorePreset() {
       pickedAbility=p.ability||''; renderAbilityRow();
       if(p.ability) setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===p.ability)),0);
     }
-    if (p.category) { const sel=document.getElementById('f-category'); if(sel) sel.value=p.category; }
+    if (p.category) { const sel=document.getElementById('f-category'); if(sel) sel.value=normalizeContentCategory(p.category); }
     if (p.status)   { const sel=document.getElementById('f-status');   if(sel) sel.value=p.status; }
     if (p.authorName && p.authorUid) {
       selectedAuthor = { name: p.authorName, uid: p.authorUid };
@@ -6042,7 +6102,7 @@ function resetForm() {
         pickedAbility=p.ability||''; renderAbilityRow();
         if(p.ability)setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===p.ability)),0);
       }
-      if(p.category){const sel=document.getElementById('f-category');if(sel)sel.value=p.category;}
+      if(p.category){const sel=document.getElementById('f-category');if(sel)sel.value=normalizeContentCategory(p.category);}
       if(p.status){const sel=document.getElementById('f-status');if(sel)sel.value=p.status;}
       if(p.authorName&&p.authorUid){
         selectedAuthor={name:p.authorName,uid:p.authorUid};
@@ -6777,9 +6837,10 @@ function _getEditSession(id, l) {
 
 function buildEditForm(id, l) {
   const maps = ['Haven','Bind','Ascent','Split','Icebox','Breeze','Fracture','Pearl','Lotus','Sunset','Abyss','Corrode','Summit'];
-  const cats = ['lineup','combo','smoke','defense'];
+  const cats = ['lineup','combo','wallbang','defense'];
+  const selectedCategory = contentCategoryOf(l);
   const mapOpts = maps.map(m => `<option value="${m}"${m === (l.map ?? '') ? ' selected' : ''}>${m}</option>`).join('');
-  const catOpts = cats.map(c => `<option value="${c}"${c === (l.category ?? '') ? ' selected' : ''}>${c}</option>`).join('');
+  const catOpts = cats.map(c => `<option value="${c}"${c === selectedCategory ? ' selected' : ''}>${c}</option>`).join('');
   return `
 <div class="edit-sep"></div>
 <div class="edit-form-title">✏️ РЕДАКТИРОВАНИЕ</div>
@@ -7193,7 +7254,7 @@ async function saveEditedLineup(id) {
   const title    = (document.getElementById('ce-title-' + id)?.value ?? '').trim();
   const desc     = (document.getElementById('ce-desc-'  + id)?.value ?? '').trim();
   const map      = document.getElementById('ce-map-'    + id)?.value ?? '';
-  const category = document.getElementById('ce-cat-'    + id)?.value ?? '';
+  const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
   const excl     = document.getElementById('ce-excl-'   + id)?.checked ?? false;
   if (!title)        { toast('Введи название',    'e'); return; }
   if (!map)          { toast('Выбери карту',       'e'); return; }
@@ -8193,6 +8254,31 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
       if (el) el.style.display = (id === tab) ? 'block' : 'none';
     });
     if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
+  });
+});
+
+document.querySelectorAll('[data-content-category]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-content-category]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentContentCategory = normalizeContentCategory(btn.dataset.contentCategory);
+    const title = document.getElementById('content-list-title');
+    if (title) title.textContent = contentMeta().title;
+    if (_selectedId) {
+      const selected = lineups.find(l => l.id === _selectedId);
+      if (selected && contentCategoryOf(selected) !== currentContentCategory) {
+        _selectedId = null;
+        const empty = document.getElementById('editor-empty');
+        const content = document.getElementById('editor-content');
+        if (empty) {
+          empty.style.display = '';
+          const p = empty.querySelector('p');
+          if (p) p.textContent = `Выбери ${contentMeta().label} слева`;
+        }
+        if (content) { content.style.display = 'none'; content.innerHTML = ''; }
+      }
+    }
+    renderList();
   });
 });
 
