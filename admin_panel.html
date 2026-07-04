@@ -6009,7 +6009,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
       const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
       return addDoc(collection(db,'lineups'),{
-        map,agent,ability,category,title,description:desc,video_url:videoUrl,screenshots,
+        map,agent,ability,category,content_type:category,schema_version:1,title,description:desc,video_url:videoUrl,screenshots,
         position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
         range_radius: rangeRadius,
         status,is_exclusive:excl,submitted_at:serverTimestamp(),
@@ -7272,7 +7272,7 @@ async function saveEditedLineup(id) {
   try {
     const updates = {
       title, description: desc, map, agent: sess.agent, ability: sess.ability,
-      category, is_exclusive: excl, screenshots,
+      category, content_type: category, schema_version: l.schema_version ?? 1, is_exclusive: excl, screenshots,
       range_radius: parseFloat(document.getElementById('ce-range-' + id)?.value || '0') || 0,
       video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
       position_x: sess.markerX ?? l.position_x ?? 0,
@@ -7283,6 +7283,7 @@ async function saveEditedLineup(id) {
     if ((l.title ?? '') !== title) changes.title = { from: (l.title ?? '').slice(0, 80), to: title.slice(0, 80) };
     if ((l.description ?? '') !== desc) changes.description = { from: (l.description ?? '').slice(0, 80), to: desc.slice(0, 80) };
     if ((l.category ?? '') !== category) changes.category = { from: l.category ?? '', to: category };
+    if (contentCategoryOf(l) !== category) changes.content_type = { from: contentCategoryOf(l), to: category };
     if ((l.map ?? '') !== map) changes.map = { from: l.map ?? '', to: map };
     if ((l.agent ?? '') !== sess.agent) changes.agent = { from: l.agent ?? '', to: sess.agent };
     if ((l.ability ?? '') !== sess.ability) changes.ability = { from: l.ability ?? '', to: sess.ability };
