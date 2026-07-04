@@ -1011,11 +1011,11 @@
         <div class="form-title-row">
           <div class="form-title">ДОБАВИТЬ ЛАЙНАП</div>
           <div id="bulk-video-zone">
-            <input type="file" id="bulk-video-input" accept="video/mp4" multiple style="display:none">
+            <input type="file" id="bulk-video-input" accept="video/*,.mp4,.mov" multiple style="display:none">
             <span style="font-size:20px;">🎬</span>
             <div>
               <div style="font-weight:700;margin-bottom:2px;">Перетащи видео для массовой загрузки</div>
-              <div style="font-size:11px;opacity:.6;">MP4 · можно несколько файлов</div>
+              <div style="font-size:11px;opacity:.6;">Видео · можно несколько файлов</div>
             </div>
           </div>
         </div>
@@ -5667,8 +5667,8 @@ function _buildSlotHtml(id) {
       </div>
       <div class="fg full">
         <label class="flabel">Видео (необязательно)</label>
-        <div class="video-upload-zone" id="slot-${id}-video-zone"><div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div><div class="uz-hint">MP4 · максимум 50 MB</div></div>
-        <input type="file" id="slot-${id}-video-file" accept="video/mp4,.mp4" style="display:none;">
+        <div class="video-upload-zone" id="slot-${id}-video-zone"><div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div><div class="uz-hint">Видео · максимум 50 MB</div></div>
+        <input type="file" id="slot-${id}-video-file" accept="video/*,.mp4,.mov" style="display:none;">
         <div id="slot-${id}-video-preview"></div>
       </div>
       <div class="fg full">
@@ -5855,7 +5855,7 @@ function _renderSlotVideoPreview(id) {
 }
 function _handleSlotVideoFile(id, file) {
   const s = addSlotSessions[id]; if (!s) return;
-  if (!file || (file.type !== 'video/mp4' && !file.name.toLowerCase().endsWith('.mp4'))) { toast('Выбери MP4-видео','e'); return; }
+  if (!isVideoFile(file)) { toast('Выбери видеофайл','e'); return; }
   if (file.size>50*1024*1024) { toast('Видео превышает 50 MB','e'); return; }
   const vs=s.videoState; if(vs.xhr)vs.xhr.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl);
   s.videoState={status:'uploading',url:null,localUrl:URL.createObjectURL(file),progress:0,xhr:null};
@@ -6526,22 +6526,22 @@ createAddSlot();
   }
 
   async function handleBulkVideos(fileList) {
-    const mp4Files = Array.from(fileList).filter(f => {
-      if (f.type !== 'video/mp4' && !f.name.toLowerCase().endsWith('.mp4')) {
-        toast(`Пропущен «${f.name}» — не MP4`, 'i'); return false;
+    const videoFiles = Array.from(fileList).filter(f => {
+      if (!isVideoFile(f)) {
+        toast(`Пропущен «${f.name}» — не видео`, 'i'); return false;
       }
       if (f.size > 50 * 1024 * 1024) {
         toast(`Пропущен «${f.name}» — больше 50 MB`, 'i'); return false;
       }
       return true;
     });
-    if (!mp4Files.length) return;
+    if (!videoFiles.length) return;
 
     const available = 12 - Object.keys(addSlotSessions).length;
     if (available <= 0) { toast('Достигнут лимит 12 слотов', 'e'); return; }
-    const toProcess = mp4Files.slice(0, available);
-    if (mp4Files.length > available) {
-      toast(`Лимит: пропущено ${mp4Files.length - available} видео`, 'i');
+    const toProcess = videoFiles.slice(0, available);
+    if (videoFiles.length > available) {
+      toast(`Лимит: пропущено ${videoFiles.length - available} видео`, 'i');
     }
 
     showBulkProgress(toProcess.length);
@@ -6904,9 +6904,9 @@ function buildEditForm(id, l) {
       ${l.video_url ? _buildVfeHtml('cevfe-'+id, l.video_url) : `
       <div class="video-upload-zone" id="ce-vzone-${id}">
         <div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div>
-        <div class="uz-hint">MP4 · максимум 50 MB</div>
+        <div class="uz-hint">Видео · максимум 50 MB</div>
       </div>
-      <input type="file" id="ce-vfile-${id}" accept="video/mp4,.mp4" style="display:none;">
+      <input type="file" id="ce-vfile-${id}" accept="video/*,.mp4,.mov" style="display:none;">
       <div id="ce-vprog-${id}"></div>`}
     </div>
   </div>
@@ -7339,6 +7339,19 @@ async function _selSigningKey(dateStamp) {
 }
 
 // ── Video upload ──────────────────────────────────────────────────────────────
+function isVideoFile(file) {
+  return !!file && (
+    file.type.startsWith('video/') ||
+    /\.(mp4|mov)$/i.test(file.name)
+  );
+}
+
+function videoContentType(file) {
+  if (file.type) return file.type;
+  if (/\.mov$/i.test(file.name)) return 'video/quicktime';
+  return 'video/mp4';
+}
+
 function uploadVideoToSelectel(file, onProgress) {
   const fileName  = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
   const objectKey = `lineups_videos/${fileName}`;
@@ -7353,7 +7366,7 @@ function uploadVideoToSelectel(file, onProgress) {
       const buffer      = await file.arrayBuffer();
       if (aborted) { reject(new Error('canceled')); return; }
 
-      const contentType    = file.type || 'video/mp4';
+      const contentType    = videoContentType(file);
       const payloadHash    = await _sha256Hex(buffer);
       const signedHeaders  = 'content-type;host;x-amz-content-sha256;x-amz-date';
       const canonHeaders   = `content-type:${contentType}\nhost:${SEL_S3_HOST}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
@@ -7481,7 +7494,7 @@ function renderAddVideoPreview() {
 }
 
 function _handleAddVideoFile(file) {
-  if (!file || (file.type !== 'video/mp4' && !file.name.toLowerCase().endsWith('.mp4'))) { toast('Выбери MP4-видео', 'e'); return; }
+  if (!isVideoFile(file)) { toast('Выбери видеофайл', 'e'); return; }
   if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
   if (addVideoState.xhr) addVideoState.xhr.abort();
   if (addVideoState.localUrl) URL.revokeObjectURL(addVideoState.localUrl);
@@ -7530,9 +7543,9 @@ function _resetEditVideoWrap(id) {
   wrap.innerHTML = `
     <div class="video-upload-zone" id="ce-vzone-${id}">
       <div class="uz-icon">🎬</div><div class="uz-text">Нажми или перетащи видео сюда</div>
-      <div class="uz-hint">MP4 · максимум 50 MB</div>
+      <div class="uz-hint">Видео · максимум 50 MB</div>
     </div>
-    <input type="file" id="ce-vfile-${id}" accept="video/mp4,.mp4" style="display:none;">
+    <input type="file" id="ce-vfile-${id}" accept="video/*,.mp4,.mov" style="display:none;">
     <div id="ce-vprog-${id}"></div>`;
   _wireEditVideoZone(id);
 }
@@ -7542,7 +7555,7 @@ function _wireEditVideoZone(id) {
   if (!zone || !input) return;
   const sess = editSessions[id]; if (!sess) return;
   function handle(file) {
-    if (!file || (file.type !== 'video/mp4' && !file.name.toLowerCase().endsWith('.mp4'))) { toast('Выбери MP4-видео', 'e'); return; }
+    if (!isVideoFile(file)) { toast('Выбери видеофайл', 'e'); return; }
     if (file.size > 50 * 1024 * 1024) { toast('Видео превышает 50 MB', 'e'); return; }
     if (sess.videoXhr) sess.videoXhr.abort();
     if (sess._videoLocalUrl) { URL.revokeObjectURL(sess._videoLocalUrl); sess._videoLocalUrl = null; }
