@@ -4103,13 +4103,14 @@ async function _loadAgentAbilitiesForCategory() {
   const list = document.getElementById('agents-abilities-list');
   list.innerHTML = '';
   abilities.forEach(ability => {
-    const enabled = _agentAbilitiesConfig[ability.displayName] !== false;
+    const name = normalizeAbilityName(agent.displayName, ability.displayName, ability.slot);
+    const enabled = _agentAbilitiesConfig[name] !== false && _agentAbilitiesConfig[ability.displayName] !== false;
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:12px;background:var(--surface);padding:10px 14px;border-radius:8px;border:1px solid var(--border);';
-    const safeId = 'ab-' + ability.displayName.replace(/[^a-zA-Z0-9]/g, '_');
+    const safeId = 'ab-' + name.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
     row.innerHTML = `
       <img src="${ability.displayIcon}" width="32" height="32" style="border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">
-      <span style="flex:1;font-size:13px;font-weight:600;">${ability.displayName}</span>
+      <span style="flex:1;font-size:13px;font-weight:600;">${name}</span>
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="${safeId}" ${enabled ? 'checked' : ''}
           style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer;">
@@ -4140,9 +4141,10 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
   const abilities = (agent.abilities || []).filter(a => a.displayIcon);
   const config = {};
   abilities.forEach(ability => {
-    const safeId = 'ab-' + ability.displayName.replace(/[^a-zA-Z0-9]/g, '_');
+    const name = normalizeAbilityName(agent.displayName, ability.displayName, ability.slot);
+    const safeId = 'ab-' + name.replace(/[^a-zA-Z0-9а-яА-ЯёЁ]/g, '_');
     const chk = document.getElementById(safeId);
-    if (chk) config[ability.displayName] = chk.checked;
+    if (chk) config[name] = chk.checked;
   });
   try {
     await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _selectedAgentCategory), { abilities: config });
@@ -5009,14 +5011,16 @@ function rangeConfigId(map, agent, ability) {
 
 async function getConfiguredRangeRadius(map, agent, ability) {
   if (!map || !agent || !ability) return 0;
-  try {
-    const snap = await getDoc(doc(db, 'range_config', rangeConfigId(map, agent, ability)));
-    const radius = Number(snap.data()?.range_radius || 0);
-    return Number.isFinite(radius) ? radius : 0;
-  } catch (e) {
-    console.warn('getConfiguredRangeRadius', e.message);
-    return 0;
+  for (const name of abilityAliases(agent, ability)) {
+    try {
+      const snap = await getDoc(doc(db, 'range_config', rangeConfigId(map, agent, name)));
+      const radius = Number(snap.data()?.range_radius || 0);
+      if (Number.isFinite(radius) && radius > 0) return radius;
+    } catch (e) {
+      console.warn('getConfiguredRangeRadius', name, e.message);
+    }
   }
+  return 0;
 }
 
 function groupLineupsForBanner(lineups) {
@@ -6132,7 +6136,7 @@ const AGENTS = {
   'Skye':      ['Regrowth', 'Trailblazer', 'Guiding Light', 'Seekers'],
   'Yoru':      ['Fakeout', 'Blindside', 'Gatecrash', 'Dimensional Drift'],
   'Astra':     ['Gravity Well', 'Nova Pulse', 'Nebula', 'Cosmic Divide'],
-  'KAY/O':     ['ZERO/point', 'FLASH/drive', 'FRAG/ment', 'NULL/cmd'],
+  'KAY/O':     ['ЭПИ/центр', 'СВЕТО/вая граната', 'ФРАГ/мент', 'NULL/cmd'],
   'Chamber':   ['Trademark', 'Headhunter', 'Rendezvous', 'Tour De Force'],
   'Neon':      ['Fast Lane', 'Relay Bolt', 'High Gear', 'Overdrive'],
   'Fade':      ['Haunt', 'Seize', 'Prowler', 'Nightfall'],
@@ -6162,6 +6166,35 @@ const MAP_IMAGES = {
 const AGENT_ICONS = {};
 const AGENT_ABILITY_ICONS = {};
 const AGENT_ABILITIES = {};
+const ABILITY_NAME_FALLBACKS = {
+  'KAY/O': {
+    Grenade: 'ФРАГ/мент',
+    Flash: 'СВЕТО/вая граната',
+    Signature: 'ЭПИ/центр',
+    Ultimate: 'NULL/cmd',
+    'ZERO/point': 'ЭПИ/центр',
+    'FLASH/drive': 'СВЕТО/вая граната',
+    'FRAG/ment': 'ФРАГ/мент',
+  },
+};
+
+function normalizeAbilityName(agentName, abilityName, slot = '') {
+  const raw = String(abilityName || '').trim();
+  const slotName = String(slot || '').trim();
+  return ABILITY_NAME_FALLBACKS[agentName]?.[raw]
+    || ABILITY_NAME_FALLBACKS[agentName]?.[slotName]
+    || raw
+    || slotName;
+}
+
+function abilityAliases(agentName, abilityName) {
+  const aliases = new Set([abilityName, normalizeAbilityName(agentName, abilityName)]);
+  const fallbacks = ABILITY_NAME_FALLBACKS[agentName] || {};
+  Object.entries(fallbacks).forEach(([from, to]) => {
+    if (to === abilityName || to === normalizeAbilityName(agentName, abilityName)) aliases.add(from);
+  });
+  return [...aliases].filter(Boolean);
+}
 
 // ── API cache (localStorage, 24h TTL) ────────────────────────────────────────
 function _apiCacheGet(key) {
@@ -6232,8 +6265,11 @@ async function loadAgentIcons() {
       AGENT_ABILITIES[ag.displayName] = [];
       for (const ab of ag.abilities ?? []) {
         if (ab.displayName && ab.displayIcon) {
+          const normalized = normalizeAbilityName(ag.displayName, ab.displayName, ab.slot);
+          AGENT_ABILITY_ICONS[ag.displayName][normalized] = ab.displayIcon;
           AGENT_ABILITY_ICONS[ag.displayName][ab.displayName] = ab.displayIcon;
-          AGENT_ABILITIES[ag.displayName].push(ab.displayName);
+          if (ab.slot) AGENT_ABILITY_ICONS[ag.displayName][ab.slot] = ab.displayIcon;
+          AGENT_ABILITIES[ag.displayName].push(normalized);
         }
       }
     }
@@ -6246,8 +6282,11 @@ async function loadAgentIcons() {
       AGENT_ABILITIES[ag.displayName] = [];
       for (const ab of ag.abilities ?? []) {
         if (ab.displayName && ab.displayIcon) {
+          const normalized = normalizeAbilityName(ag.displayName, ab.displayName, ab.slot);
+          AGENT_ABILITY_ICONS[ag.displayName][normalized] = ab.displayIcon;
           AGENT_ABILITY_ICONS[ag.displayName][ab.displayName] = ab.displayIcon;
-          AGENT_ABILITIES[ag.displayName].push(ab.displayName);
+          if (ab.slot) AGENT_ABILITY_ICONS[ag.displayName][ab.slot] = ab.displayIcon;
+          AGENT_ABILITIES[ag.displayName].push(normalized);
         }
       }
     }
