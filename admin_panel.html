@@ -3314,7 +3314,9 @@ async function _msgCleanupClosed() {
   const toDel = _msgAll.filter(m =>
     m.status === 'closed' && m.closed_at?.toDate && m.closed_at.toDate().getTime() < weekAgo);
   for (const m of toDel) {
-    try { await deleteDoc(doc(db, 'feedback', m.id)); } catch (_) {}
+    try {
+      await auditDeleteDoc('feedback', m.id, { reason: 'closed_feedback_auto_cleanup', snapshot: m });
+    } catch (_) {}
   }
   if (toDel.length) _msgAll = _msgAll.filter(m => !toDel.includes(m));
 }
@@ -3406,7 +3408,8 @@ function _ideasRender() {
 window._ideaDelete = async function(id) {
   if (!confirm('Удалить идею?')) return;
   try {
-    await deleteDoc(doc(db, 'valuable_ideas', id));
+    const idea = _ideasAll.find(i => i.id === id);
+    await auditDeleteDoc('valuable_ideas', id, { reason: 'idea_delete_button', snapshot: idea });
     _ideasAll = _ideasAll.filter(i => i.id !== id);
     _ideasRender();
     toast('Идея удалена', 'i');
@@ -5387,7 +5390,7 @@ async function deleteLineup(id) {
   try {
     const l = lineups.find(x => x.id === id);
     await writeAudit(id, 'deleted');
-    await deleteDoc(doc(db, 'lineups', id));
+    await auditDeleteDoc('lineups', id, { reason: 'lineup_delete_button', snapshot: l });
     if (_selectedId === id) {
       _selectedId = null;
       document.getElementById('editor-empty').style.display = '';
@@ -5464,6 +5467,38 @@ function addAuditLog(actionOrMsg, data) {
     };
     addDoc(collection(db, 'admin_log'), entry).catch(() => {});
   } catch (e) { console.warn('addAuditLog:', e.message); }
+}
+
+function auditSnapshot(data) {
+  if (!data || typeof data !== 'object') return null;
+  const copy = {};
+  [
+    'title', 'name', 'username', 'displayName', 'email', 'role', 'status',
+    'map', 'agent', 'ability', 'category', 'type', 'message', 'text',
+    'user_id', 'uid', 'platform', 'appVersion', 'created_at', 'submitted_at',
+  ].forEach(k => {
+    if (typeof data[k] !== 'undefined') copy[k] = data[k];
+  });
+  return Object.keys(copy).length ? copy : null;
+}
+
+async function auditDeleteDoc(collectionPath, id, options = {}) {
+  const ref = doc(db, collectionPath, id);
+  const entry = {
+    at: serverTimestamp(),
+    by_uid: auth.currentUser?.uid || null,
+    by_name: auth.currentUser?.displayName || auth.currentUser?.email || 'Admin',
+    action: 'delete',
+    collection_path: collectionPath,
+    doc_id: id,
+    doc_path: `${collectionPath}/${id}`,
+    reason: options.reason || null,
+    snapshot: auditSnapshot(options.snapshot || null),
+  };
+  await addDoc(collection(db, 'admin_log'), entry).catch(e => {
+    console.warn('auditDeleteDoc log:', e.message);
+  });
+  await deleteDoc(ref);
 }
 
 async function writeAudit(lineupId, action, changes = null) {
@@ -7821,7 +7856,8 @@ async function togglePioneer(uid, currentIsBeta, name) {
 async function removeAdminAccess(uid, name) {
   if (!confirm(`Удалить доступ для ${name}?`)) return;
   try {
-    await deleteDoc(doc(db, 'users', uid));
+    const admin = admins.find(a => a.uid === uid);
+    await auditDeleteDoc('users', uid, { reason: 'admin_access_remove', snapshot: admin || { uid, displayName: name } });
     admins = admins.filter(a => a.uid !== uid);
     renderAdmins();
     toast(`Доступ для ${name} удалён`, 'i');
@@ -8030,7 +8066,7 @@ function clPostHtml(id, d) {
 async function clDeletePost(id) {
   if (!confirm('\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u043d\u043e\u0432\u043e\u0441\u0442\u044c?')) return;
   try {
-    await deleteDoc(doc(db, 'changelog', id));
+    await auditDeleteDoc('changelog', id, { reason: 'changelog_delete_button' });
     toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u0443\u0434\u0430\u043b\u0435\u043d\u0430', 'i');
     loadChangelogPosts();
   } catch (e) { toast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + e.message, 'e'); }
@@ -8108,7 +8144,8 @@ async function loadUpdateEvents() {
 async function deleteUpdateEvent(id) {
   if (!confirm('Удалить событие?')) return;
   try {
-    await deleteDoc(doc(db, 'update_events', id));
+    const ev = _updateEventsCache.find(x => x.id === id);
+    await auditDeleteDoc('update_events', id, { reason: 'update_event_delete_button', snapshot: ev });
     toast('Событие удалено', 'i');
     loadUpdateEvents();
   } catch (e) {
@@ -10460,7 +10497,8 @@ function _renderLogs() {
 async function _deleteLog(id, btn) {
   btn.disabled = true;
   try {
-    await deleteDoc(doc(db, 'app_errors', id));
+    const log = _logsCache.find(l => l.id === id);
+    await auditDeleteDoc('app_errors', id, { reason: 'app_error_delete_button', snapshot: log });
     _logsCache = _logsCache.filter(l => l.id !== id);
     btn.closest('.log-card').remove();
     if (!document.querySelector('#logs-list .log-card')) {
@@ -10480,7 +10518,9 @@ document.getElementById('logs-clear-btn').addEventListener('click', async () => 
   btn.disabled = true;
   btn.textContent = 'Удаляем…';
   try {
-    await Promise.all(_logsCache.map(l => deleteDoc(doc(db, 'app_errors', l.id))));
+    await Promise.all(_logsCache.map(l =>
+      auditDeleteDoc('app_errors', l.id, { reason: 'app_errors_clear_all', snapshot: l })
+    ));
     _logsCache = [];
     document.getElementById('logs-list').innerHTML = '<div class="state">Нет логов 🎉</div>';
     toast('Логи очищены', 's');
@@ -11108,7 +11148,7 @@ async function unbanUserAccount(uid, name) {
 async function deleteUserAccount(uid, name) {
   if (!confirm(`УДАЛИТЬ аккаунт ${name}? Это действие необратимо!`)) return;
   if (!confirm(`Подтверди ещё раз: удалить ${name} навсегда?`)) return;
-  await deleteDoc(doc(db, 'users', uid));
+  await auditDeleteDoc('users', uid, { reason: 'user_profile_delete_account', snapshot: { uid, displayName: name } });
   toast(`Аккаунт ${name} удалён 🗑`, 'w');
   addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
   document.getElementById('user-profile-panel').style.display = 'none';
