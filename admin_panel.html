@@ -525,7 +525,7 @@
     .an-card       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 16px; }
     .an-val        { font-size: 26px; font-weight: 800; color: var(--primary); margin-bottom: 4px; line-height: 1.1; }
     .an-lbl        { font-size: 11px; color: var(--text2); letter-spacing: .4px; }
-    .an-chart-box  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 16px 10px; overflow: hidden; }
+    .an-chart-box  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 16px 10px; overflow: visible; }
     .an-legend     { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
     .an-leg-item   { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
     .an-leg-dot    { width: 22px; height: 3px; border-radius: 2px; flex-shrink: 0; }
@@ -534,7 +534,7 @@
     .an-live-dot   { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(34,197,94,.6); animation: an-live-pulse 1.6s ease-out infinite; }
     @keyframes an-live-pulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.55); } 70% { box-shadow: 0 0 0 7px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
     .an-chart-wrap { position: relative; }
-    .an-tip        { position: absolute; pointer-events: none; z-index: 20; background: var(--bg); border: 1px solid var(--border2, var(--border)); border-radius: 8px; padding: 8px 11px; font-size: 12px; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,.5); white-space: nowrap; transform: translate(-50%, -110%); transition: opacity .08s; }
+    .an-tip        { position: absolute; pointer-events: none; z-index: 20; background: var(--bg); border: 1px solid var(--border2, var(--border)); border-radius: 8px; padding: 8px 11px; font-size: 12px; color: var(--text); box-shadow: 0 8px 24px rgba(0,0,0,.5); white-space: nowrap; transition: opacity .08s; }
     .an-tip-date   { font-size: 11px; color: var(--text2); margin-bottom: 5px; font-weight: 600; }
     .an-tip-row    { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
     .an-tip-dot    { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -8989,9 +8989,17 @@ function drawInteractiveChart(svgId, tipId, series, days) {
       tip.innerHTML = `<div class="an-tip-date">${days[idx]}</div>${rows}`;
       const pxX = gx / W * rect.width;
       const pxY = yp(Math.max(...series.map(s => s.data[idx]))) / H * rect.height;
-      tip.style.left = pxX + 'px';
-      tip.style.top  = pxY + 'px';
       tip.style.display = 'block';
+      const tipW = tip.offsetWidth || 160;
+      const tipH = tip.offsetHeight || 70;
+      const margin = 8;
+      let left = pxX - tipW / 2;
+      let top = pxY - tipH - 12;
+      if (top < margin) top = pxY + 12;
+      left = Math.max(margin, Math.min(rect.width - tipW - margin, left));
+      top = Math.max(margin, Math.min(rect.height - tipH - margin, top));
+      tip.style.left = left + 'px';
+      tip.style.top  = top + 'px';
     }
   };
   svg.onmouseleave = () => {
