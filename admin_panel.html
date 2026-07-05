@@ -1414,13 +1414,16 @@
       <div id="an-section-users" class="an-section" style="display:none;">
         <div class="form-title">🆕 НОВЫЕ ПОЛЬЗОВАТЕЛИ</div>
         <div class="an-cards" id="nu-stat-cards">
-          <div class="an-card"><div class="an-val an-loading" id="nu-today">…</div><div class="an-lbl">Сегодня</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">За 7 дней</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">За 30 дней</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего</div></div>
-          <div class="an-card" title="Регистрация через логин + пароль"><div class="an-val an-loading" id="nu-by-password">…</div><div class="an-lbl">🔑 Пароль</div></div>
-          <div class="an-card" title="Регистрация через Google Sign-In"><div class="an-val an-loading" id="nu-by-google">…</div><div class="an-lbl">🔴 Google</div></div>
-          <div class="an-card" title="Аккаунты Яндекс ID"><div class="an-val an-loading" id="nu-by-yandex">…</div><div class="an-lbl">🟡 Яндекс</div></div>
+          <div class="an-card"><div class="an-val an-loading" id="nu-today">…</div><div class="an-lbl">Новые сегодня</div></div>
+          <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">Новые 7д</div></div>
+          <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">Новые 30д</div></div>
+          <div class="an-card" title="Количество документов в коллекции users"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего профилей</div></div>
+          <div class="an-card" title="Уникальные uid в user_sessions за 24 часа"><div class="an-val an-loading" id="nu-active-24h">…</div><div class="an-lbl">Актив 24ч</div></div>
+          <div class="an-card" title="Уникальные uid в user_sessions за 7 дней"><div class="an-val an-loading" id="nu-active-7d">…</div><div class="an-lbl">Актив 7д</div></div>
+          <div class="an-card" title="Уникальные uid в user_sessions за 30 дней"><div class="an-val an-loading" id="nu-active-30d">…</div><div class="an-lbl">Актив 30д</div></div>
+          <div class="an-card" title="Новые регистрации за 30 дней через логин + пароль"><div class="an-val an-loading" id="nu-by-password">…</div><div class="an-lbl">🔑 Пароль 30д</div></div>
+          <div class="an-card" title="Новые регистрации за 30 дней через Google Sign-In"><div class="an-val an-loading" id="nu-by-google">…</div><div class="an-lbl">🔴 Google 30д</div></div>
+          <div class="an-card" title="Новые аккаунты Яндекс ID за 30 дней"><div class="an-val an-loading" id="nu-by-yandex">…</div><div class="an-lbl">🟡 Яндекс 30д</div></div>
         </div>
         <div class="an-chart-box" style="margin-top:14px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
@@ -2671,12 +2674,14 @@ const SEL_BUCKET     = 'valorant-lineups-video';
 const SEL_S3_HOST    = 'valorant-lineups-video.s3.ru-3.storage.selcloud.ru';
 const SEL_REGION     = 'ru-3';
 const SEL_CDN_URL    = 'https://d5adab93-7400-49ad-b1f9-66966c03d203.selstorage.ru';
-const ADMIN_USERS_ANALYTICS_LIMIT = 500;
+const ADMIN_USERS_ANALYTICS_PAGE_SIZE = 1000;
+const ADMIN_USERS_ANALYTICS_MAX = 20000;
 const ADMIN_USERS_LIST_LIMIT = 300;
 const ADMIN_LINEUPS_LIST_LIMIT = 500;
 const ADMIN_ANALYTICS_EVENTS_PAGE_SIZE = 1000;
 const ADMIN_ANALYTICS_EVENTS_MAX = 20000;
-const ADMIN_SESSION_EVENTS_LIMIT = 600;
+const ADMIN_SESSION_EVENTS_PAGE_SIZE = 1000;
+const ADMIN_SESSION_EVENTS_MAX = 20000;
 const ADMIN_AD_EVENTS_LIMIT = 600;
 
 let lineups       = [];
@@ -8602,20 +8607,37 @@ async function loadNewUsersAnalytics() {
 
   try {
     const totalSnap = await getCountFromServer(collection(db, 'users'));
-    const snap = await getDocs(query(
+    const usersResult = await loadPagedDocs(
       collection(db, 'users'),
-      where('created_at', '>=', d30),
-      orderBy('created_at', 'desc'),
-      limit(ADMIN_USERS_ANALYTICS_LIMIT)
-    ));
+      [
+        where('created_at', '>=', d30),
+        orderBy('created_at', 'desc'),
+      ],
+      {
+        pageSize: ADMIN_USERS_ANALYTICS_PAGE_SIZE,
+        maxDocs: ADMIN_USERS_ANALYTICS_MAX,
+      }
+    );
+    const sessionsResult = await loadPagedDocs(
+      collection(db, 'user_sessions'),
+      [
+        where('ts', '>=', d30),
+        orderBy('ts', 'desc'),
+      ],
+      {
+        pageSize: ADMIN_SESSION_EVENTS_PAGE_SIZE,
+        maxDocs: ADMIN_SESSION_EVENTS_MAX,
+      }
+    );
     const realTotal = totalSnap.data().count || 0;
-    const sampledTotal = snap.size;
+    const sampledTotal = usersResult.docs.length;
     let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0, nuPassword = 0, nuGoogle = 0, nuYandex = 0;
+    const active24h = new Set(), active7d = new Set(), active30d = new Set();
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
     _nuAllRecent = [];
 
-    for (const docSnap of snap.docs) {
+    for (const docSnap of usersResult.docs) {
       const dat   = docSnap.data();
       const ts    = dat.created_at?.toDate ? dat.created_at.toDate() : null;
       const method = _nuAuthMethod(dat).label;
@@ -8631,10 +8653,23 @@ async function loadNewUsersAnalytics() {
       if (ts >= d24h) _nuAllRecent.push({ uid: docSnap.id, dat, ts });
     }
 
+    for (const docSnap of sessionsResult.docs) {
+      const dat = docSnap.data();
+      const uid = dat.uid || dat.user_id;
+      const ts = dat.ts?.toDate ? dat.ts.toDate() : null;
+      if (!uid || !ts) continue;
+      active30d.add(uid);
+      if (ts >= d7) active7d.add(uid);
+      if (ts >= d24h) active24h.add(uid);
+    }
+
     document.getElementById('nu-today').textContent       = nuToday;
     document.getElementById('nu-week').textContent        = nuWeek;
-    document.getElementById('nu-month').textContent       = nuMonth;
+    document.getElementById('nu-month').textContent       = usersResult.truncated ? `${nuMonth}+` : nuMonth;
     document.getElementById('nu-total').textContent       = realTotal;
+    document.getElementById('nu-active-24h').textContent  = active24h.size;
+    document.getElementById('nu-active-7d').textContent   = active7d.size;
+    document.getElementById('nu-active-30d').textContent  = sessionsResult.truncated ? `${active30d.size}+` : active30d.size;
     document.getElementById('nu-by-password').textContent = nuPassword;
     document.getElementById('nu-by-google').textContent   = `${nuGoogle} (${sampledTotal ? Math.round(nuGoogle/sampledTotal*100) : 0}%)`;
     document.getElementById('nu-by-yandex').textContent   = `${nuYandex} (${sampledTotal ? Math.round(nuYandex/sampledTotal*100) : 0}%)`;
@@ -8646,6 +8681,10 @@ async function loadNewUsersAnalytics() {
     _nuFilter = 'all';
     document.querySelectorAll('[data-nu-filter]').forEach(b => b.classList.toggle('active', b.dataset.nuFilter === 'all'));
     _nuRenderList();
+
+    if (usersResult.truncated || sessionsResult.truncated) {
+      toast('Статистика пользователей ограничена 20000 документами. Нужны агрегаты.', 'i');
+    }
 
   } catch(e) {
     console.error('New users analytics:', e);
@@ -8832,16 +8871,26 @@ async function loadAdsAnalytics(days, d30, today) {
 async function loadActivityAnalytics(days, d30, today) {
   const now = Date.now();
   const d7 = new Date(now - 7 * 864e5);
-  const q = query(collection(db, 'user_sessions'), where('ts', '>=', d30), orderBy('ts', 'desc'), limit(ADMIN_SESSION_EVENTS_LIMIT));
-  const snap = await getDocs(q);
+  const sessionsResult = await loadPagedDocs(
+    collection(db, 'user_sessions'),
+    [
+      where('ts', '>=', d30),
+      orderBy('ts', 'desc'),
+    ],
+    {
+      pageSize: ADMIN_SESSION_EVENTS_PAGE_SIZE,
+      maxDocs: ADMIN_SESSION_EVENTS_MAX,
+    }
+  );
   const dauByDay = {};
   days.forEach(d => { dauByDay[d] = new Set(); });
   const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
 
-  snap.forEach(doc => {
-    const dat = doc.data();
+  sessionsResult.docs.forEach(docSnap => {
+    const dat = docSnap.data();
     if (!dat.ts?.toDate) return;
-    const uid = dat.uid;
+    const uid = dat.uid || dat.user_id;
+    if (!uid) return;
     const day = _anLocalDayKey(dat.ts.toDate());
     if (dauByDay[day]) dauByDay[day].add(uid);
     mauUids.add(uid);
@@ -8852,13 +8901,13 @@ async function loadActivityAnalytics(days, d30, today) {
   const dauArr  = days.map(d => dauByDay[d].size);
   const peakDau = Math.max(0, ...dauArr);
   const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
-  const total   = snap.size;
+  const total   = sessionsResult.docs.length;
 
   document.getElementById('ses-stat-cards').innerHTML = [
     [dauUids.size, 'DAU (сегодня)'],
     [wauUids.size, 'WAU (7 дней)'],
     [mauUids.size, 'MAU (30 дней)'],
-    [total,        'Сессий (30 дней)'],
+    [sessionsResult.truncated ? `${total}+` : total, 'Сессий (30 дней)'],
     [peakDau,      'Пик DAU (30 дн)'],
     [avgDau,       'Среднее DAU'],
   ].map(([v, l]) =>
@@ -8868,6 +8917,10 @@ async function loadActivityAnalytics(days, d30, today) {
   drawInteractiveChart('dau-chart', 'dau-tip', [
     { name: 'DAU', data: dauArr, color: '#4FC3F7' },
   ], days);
+
+  if (sessionsResult.truncated) {
+    toast('Активность ограничена 20000 сессиями. Нужны агрегаты.', 'i');
+  }
 }
 
 function stopAnalyticsRealtime() {
