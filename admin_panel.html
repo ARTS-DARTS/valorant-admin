@@ -233,6 +233,11 @@
     .map-marker { position: absolute; width: 20px; height: 20px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .map-marker img { width: 14px; height: 14px; object-fit: cover; }
     .map-marker.dot { background: var(--primary); border-color: #fff; box-shadow: 0 0 8px rgba(255,70,85,.85); }
+    .map-marker.target { background: #f97316; border-color: #fff7ed; color: #fff; font-size: 11px; font-weight: 900; box-shadow: 0 0 8px rgba(249,115,22,.85); z-index: 3; }
+    .content-extra-panel { display: none; grid-column: 1/-1; background: rgba(15,23,42,.55); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; }
+    .content-extra-panel.show { display: block; }
+    .weapon-check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 7px; }
+    .weapon-check-grid .fcheck-row { min-width: 0; }
     .map-ph { display: flex; align-items: center; justify-content: center; min-height: 80px; color: var(--text2); font-size: 13px; padding: 16px; text-align: center; }
     .coords-row { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--text2); align-items: center; }
     .coord-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 3px 10px; font-family: monospace; letter-spacing: .5px; }
@@ -1078,6 +1083,30 @@
               <input type="checkbox" id="f-exclusive">
               <span>Эксклюзивный доступ 👑</span>
             </label>
+          </div>
+
+          <div class="content-extra-panel" id="add-wallbang-extra">
+            <div class="flabel" style="margin-bottom:9px;">Прострелы</div>
+            <div class="fgrid">
+              <div class="fg full">
+                <label class="flabel">Оружие</label>
+                <div class="weapon-check-grid" id="add-wallbang-weapons"></div>
+              </div>
+              <div class="fg"><label class="flabel">Точка прострела X</label><input class="finput" id="add-wallbang-target-x" type="number" step="0.0001" min="0" max="1" placeholder="Поставь на карте"></div>
+              <div class="fg"><label class="flabel">Точка прострела Y</label><input class="finput" id="add-wallbang-target-y" type="number" step="0.0001" min="0" max="1" placeholder="Поставь на карте"></div>
+            </div>
+          </div>
+
+          <div class="content-extra-panel" id="add-defense-extra">
+            <div class="flabel" style="margin-bottom:9px;">Защита</div>
+            <div class="fgrid">
+              <div class="fg"><label class="flabel">Зона / плент</label><input class="finput" id="add-defense-site" placeholder="A, B, C, Mid"></div>
+              <div class="fg"><label class="flabel">Номер сетапа</label><input class="finput" id="add-defense-number" type="number" min="1" step="1" placeholder="1"></div>
+              <div class="fg"><label class="flabel">Zoom X</label><input class="finput" id="add-defense-zoom-x" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
+              <div class="fg"><label class="flabel">Zoom Y</label><input class="finput" id="add-defense-zoom-y" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
+              <div class="fg"><label class="flabel">Zoom ширина</label><input class="finput" id="add-defense-zoom-w" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
+              <div class="fg"><label class="flabel">Zoom высота</label><input class="finput" id="add-defense-zoom-h" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
+            </div>
           </div>
 
           <div class="fg full">
@@ -3355,6 +3384,7 @@ let _ccWeapons = new Set(CC_WEAPON_DEFAULTS);
 let _ccDefenseAgents = new Set(CC_DEFENSE_DEFAULTS);
 let _ccVersions = {};
 let _ccAgents = [];
+let _ccLoadPromise = null;
 
 async function bumpConfigVersions(keys) {
   const now = Date.now();
@@ -3370,6 +3400,117 @@ function _ccCheckbox(label, checked, group, icon = '') {
     ${icon ? `<img src="${esc(icon)}" alt="" width="24" height="24" style="border-radius:5px;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
     <span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(label)}</span>
   </label>`;
+}
+
+function _contentWeaponChoices() {
+  const fromSettings = _ccWeapons && _ccWeapons.size ? [..._ccWeapons] : CC_WEAPON_DEFAULTS;
+  return fromSettings.filter(w => CC_WEAPON_OPTIONS.includes(w));
+}
+
+function _weaponCheckboxes(name, selected = []) {
+  const picked = new Set(Array.isArray(selected) && selected.length ? selected : _contentWeaponChoices());
+  return _contentWeaponChoices().map(w => `
+    <label class="fcheck-row">
+      <input type="checkbox" name="${name}" value="${esc(w)}"${picked.has(w) ? ' checked' : ''}>
+      <span>${esc(w)}</span>
+    </label>
+  `).join('');
+}
+
+function _checkedValues(name) {
+  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
+}
+
+function _numOrNull(id) {
+  const raw = document.getElementById(id)?.value;
+  if (raw === undefined || raw === null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function _zoomAreaFrom(prefix) {
+  const x = _numOrNull(`${prefix}-zoom-x`);
+  const y = _numOrNull(`${prefix}-zoom-y`);
+  const width = _numOrNull(`${prefix}-zoom-w`);
+  const height = _numOrNull(`${prefix}-zoom-h`);
+  if ([x, y, width, height].some(v => v === null)) return null;
+  return { x, y, width, height };
+}
+
+function _contentExtrasForSave(category, prefix, sess = null) {
+  if (category === 'wallbang') {
+    const targetX = sess?.targetX ?? _numOrNull(`${prefix}-target-x`);
+    const targetY = sess?.targetY ?? _numOrNull(`${prefix}-target-y`);
+    return {
+      weapons: _checkedValues(`${prefix}-weapons`),
+      target_x: targetX ?? 0,
+      target_y: targetY ?? 0,
+      range_radius: 0,
+    };
+  }
+  if (category === 'defense') {
+    const site = (document.getElementById(`${prefix}-site`)?.value ?? '').trim();
+    const number = _numOrNull(`${prefix}-number`);
+    const zoom = _zoomAreaFrom(prefix);
+    const extra = { site, number: number ?? 1 };
+    if (zoom) extra.zoom_area = zoom;
+    return extra;
+  }
+  return {};
+}
+
+function _contentEditExtrasForSave(category, id, sess = null) {
+  if (category === 'wallbang') {
+    const targetX = sess?.targetX ?? _numOrNull(`ce-wallbang-target-x-${id}`);
+    const targetY = sess?.targetY ?? _numOrNull(`ce-wallbang-target-y-${id}`);
+    return {
+      weapons: _checkedValues(`ce-wallbang-weapons-${id}`),
+      target_x: targetX ?? 0,
+      target_y: targetY ?? 0,
+      range_radius: 0,
+    };
+  }
+  if (category === 'defense') {
+    const site = (document.getElementById(`ce-defense-site-${id}`)?.value ?? '').trim();
+    const number = _numOrNull(`ce-defense-number-${id}`);
+    const x = _numOrNull(`ce-defense-zoom-x-${id}`);
+    const y = _numOrNull(`ce-defense-zoom-y-${id}`);
+    const width = _numOrNull(`ce-defense-zoom-w-${id}`);
+    const height = _numOrNull(`ce-defense-zoom-h-${id}`);
+    const extra = { site, number: number ?? 1 };
+    if ([x, y, width, height].every(v => v !== null)) extra.zoom_area = { x, y, width, height };
+    return extra;
+  }
+  return {};
+}
+
+function refreshEditContentExtras(id) {
+  const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
+  document.getElementById('ce-wallbang-extra-' + id)?.classList.toggle('show', category === 'wallbang');
+  document.getElementById('ce-defense-extra-' + id)?.classList.toggle('show', category === 'defense');
+  const sess = editSessions[id];
+  if (sess) {
+    _setEditMapMode(id, sess.mapMode || 'position');
+    renderEditMarker(id);
+    updateEditCoords(id);
+  }
+}
+
+function refreshAddContentExtras() {
+  const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
+  if (category === 'wallbang' && !_ccLoaded) {
+    ensureContentConfigLoaded().then(refreshAddContentExtras).catch(e => console.warn('content config lazy load:', e.message));
+  }
+  document.getElementById('add-wallbang-extra')?.classList.toggle('show', category === 'wallbang');
+  document.getElementById('add-defense-extra')?.classList.toggle('show', category === 'defense');
+  document.getElementById('add-wallbang-weapons')?.replaceChildren();
+  const wg = document.getElementById('add-wallbang-weapons');
+  if (wg) wg.innerHTML = _weaponCheckboxes('add-wallbang-weapons');
+  Object.keys(addSlotSessions).forEach(id => {
+    _setSlotMapMode(Number(id), addSlotSessions[id]?.mapMode || 'position');
+    updateSlotCoords(Number(id));
+    renderSlotMarker(Number(id));
+  });
 }
 
 function _ccRenderVersions() {
@@ -3438,6 +3579,12 @@ async function loadContentConfigTab() {
     _ccLoaded = true;
   }
   _ccRender();
+}
+
+async function ensureContentConfigLoaded() {
+  if (_ccLoaded) return;
+  if (!_ccLoadPromise) _ccLoadPromise = loadContentConfigTab().finally(() => { _ccLoadPromise = null; });
+  await _ccLoadPromise;
 }
 
 function _ccSelected(group) {
@@ -5036,6 +5183,29 @@ function lineupActionButtonsHtml(l, compact = false) {
   `;
 }
 
+function contentExtraDetailHtml(l) {
+  const category = contentCategoryOf(l);
+  if (category === 'wallbang') {
+    const weapons = Array.isArray(l.weapons) && l.weapons.length ? l.weapons.join(', ') : '—';
+    return `
+      <div class="dfield"><div class="dlabel">Оружие</div><div class="dval">${esc(weapons)}</div></div>
+      <div class="dfield"><div class="dlabel">Цель X</div><div class="dval">${fmtNum(l.target_x)}</div></div>
+      <div class="dfield"><div class="dlabel">Цель Y</div><div class="dval">${fmtNum(l.target_y)}</div></div>
+    `;
+  }
+  if (category === 'defense') {
+    const zoom = l.zoom_area && typeof l.zoom_area === 'object'
+      ? `${fmtNum(l.zoom_area.x)}, ${fmtNum(l.zoom_area.y)} · ${fmtNum(l.zoom_area.width)}×${fmtNum(l.zoom_area.height)}`
+      : '—';
+    return `
+      <div class="dfield"><div class="dlabel">Зона</div><div class="dval">${esc(l.site || '—')}</div></div>
+      <div class="dfield"><div class="dlabel">Номер</div><div class="dval">${esc(l.number ?? '—')}</div></div>
+      <div class="dfield"><div class="dlabel">Область зума</div><div class="dval">${esc(zoom)}</div></div>
+    `;
+  }
+  return '';
+}
+
 function detailHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
@@ -5075,6 +5245,7 @@ ${l.description ? `<div class="section"><div class="dlabel">Описание</di
   <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
   <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
   <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
+  ${contentExtraDetailHtml(l)}
 </div>
 ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
   <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
@@ -5902,10 +6073,11 @@ function _buildSlotHtml(id) {
         <div class="upload-previews" id="slot-${id}-upload-previews"></div>
       </div>
       <div class="fg full">
-        <label class="flabel">Точка на карте — <b>ЛКМ</b> ставит метку · <b>ПКМ</b> добавляет точку траектории</label>
+        <label class="flabel">Точка на карте — <b>ЛКМ</b> ставит выбранную метку · <b>ПКМ</b> добавляет точку траектории</label>
         <div id="slot-${id}-map-wrap" class="map-picker-wrap"><div class="map-ph">Сначала выбери карту ↑</div></div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button id="slot-${id}-mode-pos"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+          <button id="slot-${id}-mode-target" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);display:none;">🎯 Точка прострела</button>
           <button id="slot-${id}-mode-traj" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
         </div>
         <div id="slot-${id}-traj-actions" style="display:none;gap:8px;margin-top:6px;">
@@ -5915,6 +6087,10 @@ function _buildSlotHtml(id) {
         <div class="coords-row">
           X: <span class="coord-pill" id="slot-${id}-coord-x">—</span>
           Y: <span class="coord-pill" id="slot-${id}-coord-y">—</span>
+          <span id="slot-${id}-target-coords" style="display:none;">Цель:
+            <span class="coord-pill" id="slot-${id}-target-x">—</span>
+            <span class="coord-pill" id="slot-${id}-target-y">—</span>
+          </span>
           <span id="slot-${id}-coord-hint" style="font-size:11px;opacity:.6;">Кликни на карту</span>
         </div>
       </div>
@@ -5926,8 +6102,7 @@ function _sApply(id) {
   const s = addSlotSessions[id]; if (!s) return;
   const c = _sCanvas(id); if (!c) return;
   c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
-  const m = c.querySelector('.map-marker');
-  if (m) m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`;
+  c.querySelectorAll('.map-marker').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`; });
 }
 function _sClamp(id) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -5948,22 +6123,44 @@ function renderSlotMarker(id) {
   const s = addSlotSessions[id]; if (!s) return;
   const c = _sCanvas(id); if (!c) return;
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
-  if (s.markerX === null) return;
-  const dot = document.createElement('div');
-  const iconUrl = _currentAbilityIcon();
-  dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
-  dot.style.left = (s.markerX*100)+'%'; dot.style.top = (s.markerY*100)+'%';
-  if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
-  c.appendChild(dot); _sApply(id);
+  if (s.markerX !== null) {
+    const dot = document.createElement('div');
+    const iconUrl = _currentAbilityIcon();
+    dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
+    dot.style.left = (s.markerX*100)+'%'; dot.style.top = (s.markerY*100)+'%';
+    if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
+    c.appendChild(dot);
+  }
+  if (s.targetX !== null && s.targetX !== undefined) {
+    const target = document.createElement('div');
+    target.className = 'map-marker target';
+    target.textContent = 'T';
+    target.style.left = (s.targetX*100)+'%'; target.style.top = (s.targetY*100)+'%';
+    c.appendChild(target);
+  }
+  _sApply(id);
 }
 function updateSlotCoords(id) {
   const s = addSlotSessions[id]; if (!s) return;
   const cx = document.getElementById('slot-'+id+'-coord-x');
   const cy = document.getElementById('slot-'+id+'-coord-y');
+  const tx = document.getElementById('slot-'+id+'-target-x');
+  const ty = document.getElementById('slot-'+id+'-target-y');
+  const targetWrap = document.getElementById('slot-'+id+'-target-coords');
   const ch = document.getElementById('slot-'+id+'-coord-hint');
+  const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
   if (cx) cx.textContent = s.markerX !== null ? s.markerX.toFixed(4) : '—';
   if (cy) cy.textContent = s.markerY !== null ? s.markerY.toFixed(4) : '—';
-  if (ch) ch.textContent = s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+  if (targetWrap) targetWrap.style.display = category === 'wallbang' ? 'inline-flex' : 'none';
+  if (tx) tx.textContent = s.targetX !== null && s.targetX !== undefined ? s.targetX.toFixed(4) : '—';
+  if (ty) ty.textContent = s.targetY !== null && s.targetY !== undefined ? s.targetY.toFixed(4) : '—';
+  const gtx = document.getElementById('add-wallbang-target-x');
+  const gty = document.getElementById('add-wallbang-target-y');
+  if (gtx && s.targetX !== null && s.targetX !== undefined) gtx.value = s.targetX.toFixed(4);
+  if (gty && s.targetY !== null && s.targetY !== undefined) gty.value = s.targetY.toFixed(4);
+  if (ch) ch.textContent = s.mapMode === 'target'
+    ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
+    : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
 }
 function renderSlotTraj(id) {
   const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
@@ -5976,11 +6173,17 @@ function _setSlotMapMode(id, mode) {
   const s = addSlotSessions[id]; if (!s) return;
   s.mapMode = mode;
   const posBtn  = document.getElementById('slot-'+id+'-mode-pos');
+  const targetBtn = document.getElementById('slot-'+id+'-mode-target');
   const trajBtn = document.getElementById('slot-'+id+'-mode-traj');
   const trajAct = document.getElementById('slot-'+id+'-traj-actions');
+  const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
+  if (targetBtn) targetBtn.style.display = category === 'wallbang' ? '' : 'none';
+  if (category !== 'wallbang' && mode === 'target') { s.mapMode = 'position'; mode = 'position'; }
   if (posBtn)  { posBtn.className  = mode==='position'   ? 'btn btn-save':'btn'; posBtn.style.cssText  = mode==='position'   ? 'flex:1;':'flex:1;border:1px solid var(--border);color:var(--text2);'; }
+  if (targetBtn) { targetBtn.className = mode==='target' ? 'btn btn-save':'btn'; targetBtn.style.cssText = (category === 'wallbang' ? 'flex:1;' : 'flex:1;display:none;') + (mode==='target' ? '' : 'border:1px solid var(--border);color:var(--text2);'); }
   if (trajBtn) { trajBtn.className = mode==='trajectory' ? 'btn btn-save':'btn'; trajBtn.style.cssText = mode==='trajectory' ? 'flex:1;':'flex:1;border:1px solid var(--border);color:var(--text2);'; }
   if (trajAct) trajAct.style.display = mode==='trajectory' ? 'flex':'none';
+  updateSlotCoords(id);
 }
 function updateSlotMapWrap(id, mapName) {
   const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
@@ -6027,8 +6230,13 @@ function initSlotMapWrap(id) {
         const ir = _sImgRect(id);
         const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale))/wrap.clientWidth;
         const ny = Math.max(ir.top,  Math.min(ir.top+ir.height,  (cy-s.mapTy)/s.mapScale))/wrap.clientHeight;
-        s.markerX=nx; s.markerY=ny; renderSlotMarker(id); updateSlotCoords(id);
-        _setSlotMapMode(id, 'position');
+        if (s.mapMode === 'target') {
+          s.targetX = nx; s.targetY = ny;
+          renderSlotMarker(id); updateSlotCoords(id);
+        } else {
+          s.markerX=nx; s.markerY=ny; renderSlotMarker(id); updateSlotCoords(id);
+          _setSlotMapMode(id, 'position');
+        }
       }
     };
     document.addEventListener('mousemove', onMove);
@@ -6045,6 +6253,7 @@ function initSlotMapWrap(id) {
     _setSlotMapMode(id, 'trajectory');
   });
   document.getElementById('slot-'+id+'-mode-pos')?.addEventListener('click',  () => _setSlotMapMode(id,'position'));
+  document.getElementById('slot-'+id+'-mode-target')?.addEventListener('click',  () => _setSlotMapMode(id,'target'));
   document.getElementById('slot-'+id+'-mode-traj')?.addEventListener('click', () => _setSlotMapMode(id,'trajectory'));
   document.getElementById('slot-'+id+'-traj-undo')?.addEventListener('click', () => { s.trajectory.pop(); renderSlotTraj(id); });
   document.getElementById('slot-'+id+'-traj-clear')?.addEventListener('click',() => { s.trajectory=[]; renderSlotTraj(id); });
@@ -6168,7 +6377,7 @@ function _syncAddSlotBtn() {
 function createAddSlot() {
   if(Object.keys(addSlotSessions).length>=12){toast('Максимум 12 слотов','e');return;}
   const id=_nextAddSlotId++;
-  addSlotSessions[id]={markerX:null,markerY:null,trajectory:[],mapMode:'position',mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,videoState:{status:'idle',url:null,localUrl:null,progress:0,xhr:null},screenshots:[]};
+  addSlotSessions[id]={markerX:null,markerY:null,targetX:null,targetY:null,trajectory:[],mapMode:'position',mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,videoState:{status:'idle',url:null,localUrl:null,progress:0,xhr:null},screenshots:[]};
   const container=document.getElementById('add-slots-container');
   const el=document.createElement('div'); el.id='add-slot-'+id; el.className='slot-block';
   el.innerHTML=_buildSlotHtml(id); container.appendChild(el);
@@ -6176,6 +6385,7 @@ function createAddSlot() {
   _updateSlotNumbers();
   _updateSaveBtn();
   _syncAddSlotBtn();
+  refreshAddContentExtras();
 }
 function deleteAddSlot(id) {
   const s=addSlotSessions[id]; if(!s) return;
@@ -6209,33 +6419,39 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const category = normalizeContentCategory(document.getElementById('f-category').value);
   const status   = document.getElementById('f-status').value;
   const excl     = document.getElementById('f-exclusive').checked;
+  const needsAgent = category !== 'wallbang';
+  const needsAbility = category === 'lineup' || category === 'combo';
   if (!map)      { toast('Выбери карту','e'); return; }
-  if (!agent)    { toast('Выбери агента','e'); return; }
-  if (!ability)  { toast('Выбери способность','e'); return; }
   if (!category) { toast('Выбери категорию','e'); return; }
+  if (needsAgent && !agent)    { toast('Выбери агента','e'); return; }
+  if (needsAbility && !ability)  { toast('Выбери способность','e'); return; }
+  if (category === 'wallbang' && !_checkedValues('add-wallbang-weapons').length) { toast('Выбери оружие для прострела','e'); return; }
   const slotIds = Object.keys(addSlotSessions);
   for (const id of slotIds) {
     const s = addSlotSessions[id];
     const n = slotIds.indexOf(id)+1;
     if (!document.getElementById('slot-'+id+'-title')?.value.trim()) { toast(`Слот #${n}: заполни название`,'e'); return; }
     if (s.markerX===null) { toast(`Слот #${n}: поставь точку на карте`,'e'); return; }
+    if (category === 'wallbang' && (s.targetX === null || s.targetX === undefined)) { toast(`Слот #${n}: поставь точку прострела`,'e'); return; }
     if (s.videoState.status==='uploading') { toast('Подожди — видео ещё загружается…','i'); return; }
     if (s.screenshots.some(sc=>sc.status==='uploading')) { toast('Подожди — фото ещё загружаются…','i'); return; }
   }
   const btn=document.getElementById('btn-add-lineup');
   btn.disabled=true; btn.textContent='Сохранение…';
   try {
-    const rangeRadius = await getConfiguredRangeRadius(map, agent, ability);
+    const rangeRadius = category === 'wallbang' ? 0 : await getConfiguredRangeRadius(map, agent, ability);
     const saves=slotIds.map(id=>{
       const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
       const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
       const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
       const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
+      const extras = _contentExtrasForSave(category, category === 'wallbang' ? 'add-wallbang' : 'add-defense', s);
       return addDoc(collection(db,'lineups'),{
-        map,agent,ability,category,content_type:category,schema_version:1,title,description:desc,video_url:videoUrl,screenshots,
+        map,agent:needsAgent ? agent : '',ability:needsAbility ? ability : '',category,content_type:category,schema_version:1,title,description:desc,video_url:videoUrl,screenshots,
         position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
         range_radius: rangeRadius,
+        ...extras,
         status,is_exclusive:excl,submitted_at:serverTimestamp(),
         user_id:selectedAuthor?.uid??currentUser?.uid??'',
         submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin',
@@ -7088,6 +7304,8 @@ function _getEditSession(id, l) {
       screenshots: (Array.isArray(l.screenshots) ? l.screenshots : []).map(url => ({ type: 'existing', url })),
       videoUrl: l.video_url ?? null, videoXhr: null,
       trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
+      targetX: typeof l.target_x === 'number' ? l.target_x : null,
+      targetY: typeof l.target_y === 'number' ? l.target_y : null,
       mapMode: 'position',
     };
   }
@@ -7134,10 +7352,33 @@ function buildEditForm(id, l) {
            placeholder="Напр: 0.07 (≈7м)">
     <div style="font-size:10px;color:var(--text2);margin-top:4px;">0.035≈3.5м · 0.05≈5м · 0.07≈7м · 0.10≈10м · 0.15≈15м</div>
   </div>
+  <div class="content-extra-panel${selectedCategory === 'wallbang' ? ' show' : ''}" id="ce-wallbang-extra-${id}">
+    <div class="flabel" style="margin-bottom:9px;">Прострелы</div>
+    <div class="fgrid">
+      <div class="fg full">
+        <label class="flabel">Оружие</label>
+        <div class="weapon-check-grid">${_weaponCheckboxes(`ce-wallbang-weapons-${id}`, l.weapons)}</div>
+      </div>
+      <div class="fg"><label class="flabel">Точка прострела X</label><input class="finput" id="ce-wallbang-target-x-${id}" type="number" step="0.0001" min="0" max="1" value="${typeof l.target_x === 'number' ? l.target_x : ''}"></div>
+      <div class="fg"><label class="flabel">Точка прострела Y</label><input class="finput" id="ce-wallbang-target-y-${id}" type="number" step="0.0001" min="0" max="1" value="${typeof l.target_y === 'number' ? l.target_y : ''}"></div>
+    </div>
+  </div>
+  <div class="content-extra-panel${selectedCategory === 'defense' ? ' show' : ''}" id="ce-defense-extra-${id}">
+    <div class="flabel" style="margin-bottom:9px;">Защита</div>
+    <div class="fgrid">
+      <div class="fg"><label class="flabel">Зона / плент</label><input class="finput" id="ce-defense-site-${id}" value="${esc(l.site ?? '')}" placeholder="A, B, C, Mid"></div>
+      <div class="fg"><label class="flabel">Номер сетапа</label><input class="finput" id="ce-defense-number-${id}" type="number" min="1" step="1" value="${l.number ?? ''}"></div>
+      <div class="fg"><label class="flabel">Zoom X</label><input class="finput" id="ce-defense-zoom-x-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.x ?? ''}"></div>
+      <div class="fg"><label class="flabel">Zoom Y</label><input class="finput" id="ce-defense-zoom-y-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.y ?? ''}"></div>
+      <div class="fg"><label class="flabel">Zoom ширина</label><input class="finput" id="ce-defense-zoom-w-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.width ?? ''}"></div>
+      <div class="fg"><label class="flabel">Zoom высота</label><input class="finput" id="ce-defense-zoom-h-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.height ?? ''}"></div>
+    </div>
+  </div>
   <div class="fg full"><label class="flabel">Точка на карте</label>
     <div id="ce-map-wrap-${id}" class="map-picker-wrap"><div class="map-ph">Выбери карту выше</div></div>
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button id="ce-mode-pos-${id}"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+      <button id="ce-mode-target-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);${selectedCategory === 'wallbang' ? '' : 'display:none;'}">🎯 Точка прострела</button>
       <button id="ce-mode-traj-${id}" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
     </div>
     <div id="ce-traj-actions-${id}" style="display:none;gap:8px;margin-top:6px;">
@@ -7147,6 +7388,10 @@ function buildEditForm(id, l) {
     <div class="coords-row">
       X: <span class="coord-pill" id="ce-coord-x-${id}">—</span>
       Y: <span class="coord-pill" id="ce-coord-y-${id}">—</span>
+      <span id="ce-target-coords-${id}" style="${selectedCategory === 'wallbang' ? 'display:inline-flex;' : 'display:none;'}gap:6px;align-items:center;">Цель:
+        <span class="coord-pill" id="ce-target-x-${id}">—</span>
+        <span class="coord-pill" id="ce-target-y-${id}">—</span>
+      </span>
       <span id="ce-coord-hint-${id}" style="font-size:11px;opacity:.6;">Кликни на карту</span>
     </div>
   </div>
@@ -7216,7 +7461,7 @@ function _eApply(id)   {
   const s = editSessions[id]; if (!s) return;
   const c = _eCanvas(id); if (!c) return;
   c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
-  const m = c.querySelector('.map-marker'); if (m) m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`;
+  c.querySelectorAll('.map-marker').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`; });
 }
 function _eClamp(id) {
   const s = editSessions[id]; if (!s) return;
@@ -7258,23 +7503,45 @@ function renderEditMarker(id) {
   const s = editSessions[id]; if (!s) return;
   const c = _eCanvas(id); if (!c) return;
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
-  if (s.markerX === null) return;
-  const dot = document.createElement('div');
-  const iconUrl = _eAbilIcon(id);
-  dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
-  dot.style.left = (s.markerX * 100) + '%'; dot.style.top = (s.markerY * 100) + '%';
-  if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
-  c.appendChild(dot); _eApply(id);
+  if (s.markerX !== null) {
+    const dot = document.createElement('div');
+    const iconUrl = _eAbilIcon(id);
+    dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
+    dot.style.left = (s.markerX * 100) + '%'; dot.style.top = (s.markerY * 100) + '%';
+    if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
+    c.appendChild(dot);
+  }
+  if (s.targetX !== null && s.targetX !== undefined) {
+    const target = document.createElement('div');
+    target.className = 'map-marker target';
+    target.textContent = 'T';
+    target.style.left = (s.targetX * 100) + '%'; target.style.top = (s.targetY * 100) + '%';
+    c.appendChild(target);
+  }
+  _eApply(id);
 }
 
 function updateEditCoords(id) {
   const s = editSessions[id]; if (!s) return;
   const xe = document.getElementById('ce-coord-x-' + id);
   const ye = document.getElementById('ce-coord-y-' + id);
+  const tx = document.getElementById('ce-target-x-' + id);
+  const ty = document.getElementById('ce-target-y-' + id);
+  const tw = document.getElementById('ce-target-coords-' + id);
   const he = document.getElementById('ce-coord-hint-' + id);
+  const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
   if (xe) xe.textContent = s.markerX !== null ? s.markerX.toFixed(4) : '—';
   if (ye) ye.textContent = s.markerY !== null ? s.markerY.toFixed(4) : '—';
-  if (he) he.textContent = s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
+  if (tw) tw.style.display = category === 'wallbang' ? 'inline-flex' : 'none';
+  if (tx) tx.textContent = s.targetX !== null && s.targetX !== undefined ? s.targetX.toFixed(4) : '—';
+  if (ty) ty.textContent = s.targetY !== null && s.targetY !== undefined ? s.targetY.toFixed(4) : '—';
+  const ix = document.getElementById('ce-wallbang-target-x-' + id);
+  const iy = document.getElementById('ce-wallbang-target-y-' + id);
+  if (ix && s.targetX !== null && s.targetX !== undefined) ix.value = s.targetX.toFixed(4);
+  if (iy && s.targetY !== null && s.targetY !== undefined) iy.value = s.targetY.toFixed(4);
+  if (he) he.textContent = s.mapMode === 'target'
+    ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
+    : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
 }
 
 function renderEditTrajectory(id) {
@@ -7289,14 +7556,23 @@ function _setEditMapMode(id, mode) {
   const sess = editSessions[id]; if (!sess) return;
   sess.mapMode = mode;
   const posBtn  = document.getElementById('ce-mode-pos-' + id);
+  const targetBtn = document.getElementById('ce-mode-target-' + id);
   const trajBtn = document.getElementById('ce-mode-traj-' + id);
   const trajAct = document.getElementById('ce-traj-actions-' + id);
   if (!posBtn || !trajBtn) return;
+  const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
+  if (targetBtn) targetBtn.style.display = category === 'wallbang' ? '' : 'none';
+  if (category !== 'wallbang' && mode === 'target') { sess.mapMode = 'position'; mode = 'position'; }
   posBtn.className      = mode === 'position'   ? 'btn btn-save' : 'btn';
   posBtn.style.cssText  = mode === 'position'   ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
+  if (targetBtn) {
+    targetBtn.className = mode === 'target' ? 'btn btn-save' : 'btn';
+    targetBtn.style.cssText = (category === 'wallbang' ? 'flex:1;' : 'flex:1;display:none;') + (mode === 'target' ? '' : 'border:1px solid var(--border);color:var(--text2);');
+  }
   trajBtn.className     = mode === 'trajectory' ? 'btn btn-save' : 'btn';
   trajBtn.style.cssText = mode === 'trajectory' ? 'flex:1;' : 'flex:1;border:1px solid var(--border);color:var(--text2);';
   if (trajAct) trajAct.style.display = mode === 'trajectory' ? 'flex' : 'none';
+  updateEditCoords(id);
 }
 
 function initEditMapInteraction(id, initialMap) {
@@ -7333,8 +7609,13 @@ function initEditMapInteraction(id, initialMap) {
         const ir = _eImgRect(id);
         const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
         const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
-        s.markerX = nx; s.markerY = ny; renderEditMarker(id); updateEditCoords(id);
-        _setEditMapMode(id, 'position');
+        if (s.mapMode === 'target') {
+          s.targetX = nx; s.targetY = ny;
+          renderEditMarker(id); updateEditCoords(id);
+        } else {
+          s.markerX = nx; s.markerY = ny; renderEditMarker(id); updateEditCoords(id);
+          _setEditMapMode(id, 'position');
+        }
       }
     };
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
@@ -7350,10 +7631,12 @@ function initEditMapInteraction(id, initialMap) {
     _setEditMapMode(id, 'trajectory');
   });
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
-    s.mapScale = 1; s.mapTx = 0; s.mapTy = 0; s.markerX = null; s.markerY = null; s.trajectory = [];
+    s.mapScale = 1; s.mapTx = 0; s.mapTy = 0; s.markerX = null; s.markerY = null; s.targetX = null; s.targetY = null; s.trajectory = [];
     updateEditMapPicker(id, e.target.value); updateEditCoords(id); _setEditMapMode(id, 'position');
   });
+  document.getElementById('ce-cat-' + id)?.addEventListener('change', () => refreshEditContentExtras(id));
   document.getElementById('ce-mode-pos-'  + id)?.addEventListener('click', () => _setEditMapMode(id, 'position'));
+  document.getElementById('ce-mode-target-'  + id)?.addEventListener('click', () => _setEditMapMode(id, 'target'));
   document.getElementById('ce-mode-traj-' + id)?.addEventListener('click', () => _setEditMapMode(id, 'trajectory'));
   document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory.pop(); renderEditTrajectory(id); });
   document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory = []; renderEditTrajectory(id); });
@@ -7494,6 +7777,7 @@ async function openEditForm(id) {
     return;
   }
   const l = lineups.find(l => l.id === id); if (!l) return;
+  if (contentCategoryOf(l) === 'wallbang') await ensureContentConfigLoaded();
   delete editSessions[id]; _getEditSession(id, l);
   container.innerHTML = buildEditForm(id, l);
   container.style.display = 'block';
@@ -7515,11 +7799,17 @@ async function saveEditedLineup(id) {
   const map      = document.getElementById('ce-map-'    + id)?.value ?? '';
   const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
   const excl     = document.getElementById('ce-excl-'   + id)?.checked ?? false;
+  const needsAgent = category !== 'wallbang';
+  const needsAbility = category === 'lineup' || category === 'combo';
   if (!title)        { toast('Введи название',    'e'); return; }
   if (!map)          { toast('Выбери карту',       'e'); return; }
-  if (!sess.agent)   { toast('Выбери агента',      'e'); return; }
-  if (!sess.ability) { toast('Выбери способность', 'e'); return; }
   if (!category)     { toast('Выбери категорию',   'e'); return; }
+  if (needsAgent && !sess.agent)   { toast('Выбери агента',      'e'); return; }
+  if (needsAbility && !sess.ability) { toast('Выбери способность', 'e'); return; }
+  if (category === 'wallbang' && !_checkedValues(`ce-wallbang-weapons-${id}`).length) { toast('Выбери оружие для прострела', 'e'); return; }
+  const editTargetX = sess.targetX ?? _numOrNull(`ce-wallbang-target-x-${id}`);
+  const editTargetY = sess.targetY ?? _numOrNull(`ce-wallbang-target-y-${id}`);
+  if (category === 'wallbang' && (editTargetX === null || editTargetY === null)) { toast('Поставь точку прострела', 'e'); return; }
   if (sess.videoXhr) { toast('Подожди — видео ещё загружается…', 'i'); return; }
   if (sess.screenshots.some(s => s.type === 'new' && s.status === 'uploading'))
     { toast('Подожди — фото ещё загружаются…', 'i'); return; }
@@ -7529,14 +7819,16 @@ async function saveEditedLineup(id) {
   const saveBtn = document.getElementById('ce-save-' + id);
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Сохранение…'; }
   try {
+    const extras = _contentEditExtrasForSave(category, id, sess);
     const updates = {
-      title, description: desc, map, agent: sess.agent, ability: sess.ability,
+      title, description: desc, map, agent: needsAgent ? sess.agent : '', ability: needsAbility ? sess.ability : '',
       category, content_type: category, schema_version: l.schema_version ?? 1, is_exclusive: excl, screenshots,
       range_radius: parseFloat(document.getElementById('ce-range-' + id)?.value || '0') || 0,
       video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
       position_x: sess.markerX ?? l.position_x ?? 0,
       position_y: sess.markerY ?? l.position_y ?? 0,
       trajectory: sess.trajectory,
+      ...extras,
     };
     const changes = {};
     if ((l.title ?? '') !== title) changes.title = { from: (l.title ?? '').slice(0, 80), to: title.slice(0, 80) };
@@ -7544,8 +7836,8 @@ async function saveEditedLineup(id) {
     if ((l.category ?? '') !== category) changes.category = { from: l.category ?? '', to: category };
     if (contentCategoryOf(l) !== category) changes.content_type = { from: contentCategoryOf(l), to: category };
     if ((l.map ?? '') !== map) changes.map = { from: l.map ?? '', to: map };
-    if ((l.agent ?? '') !== sess.agent) changes.agent = { from: l.agent ?? '', to: sess.agent };
-    if ((l.ability ?? '') !== sess.ability) changes.ability = { from: l.ability ?? '', to: sess.ability };
+    if ((l.agent ?? '') !== updates.agent) changes.agent = { from: l.agent ?? '', to: updates.agent };
+    if ((l.ability ?? '') !== updates.ability) changes.ability = { from: l.ability ?? '', to: updates.ability };
 
     await updateDoc(doc(db, 'lineups', id), updates);
     await writeAudit(id, 'edited', changes);
@@ -8001,7 +8293,7 @@ document.getElementById('f-author-input')?.addEventListener('input', e => {
 document.getElementById('ap-close')?.addEventListener('click', closeAuthorPanel);
 document.getElementById('ap-overlay')?.addEventListener('click', closeAuthorPanel);
 
-document.getElementById('f-category')?.addEventListener('change', savePreset);
+document.getElementById('f-category')?.addEventListener('change', () => { savePreset(); refreshAddContentExtras(); });
 document.getElementById('f-status')?.addEventListener('change', savePreset);
 
 document.getElementById('ap-search')?.addEventListener('input', e => {
