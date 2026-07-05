@@ -782,6 +782,7 @@
       scrollbar-color: var(--border2) transparent;
     }
     .audit-actions {
+      display: none;
       flex: 0 0 auto;
       min-height: 0;
       max-height: calc(100vh - 430px);
@@ -4671,6 +4672,14 @@ document.getElementById('search').addEventListener('input', () => {
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(renderList, 250);
 });
+
+const lineupListScroll = document.querySelector('.list-panel-scroll');
+lineupListScroll?.addEventListener('wheel', e => {
+  const el = e.currentTarget;
+  const before = el.scrollTop;
+  el.scrollTop += e.deltaY;
+  if (el.scrollTop !== before) e.preventDefault();
+}, { passive: false });
 
 // ── Lineups list (manual refresh) ─────────────────────────────────────────────
 let _lineupsUnsub = null;
