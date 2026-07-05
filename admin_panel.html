@@ -820,6 +820,8 @@
     .audit-changes { font-size: 11px; color: var(--text2); background: rgba(255,255,255,.04); border-radius: 4px; padding: 4px 8px; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
     .audit-empty { color: var(--text2); font-size: 12px; text-align: center; padding: 32px 0; }
     .editor-detail-head { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .editor-primary-actions { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px; margin: -4px 0 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .editor-primary-actions .btn { justify-content: center; font-size: 12px; padding: 8px 10px; min-width: 0; }
     .lcard.selected { background: rgba(255,70,85,.06); border-color: var(--primary) !important; box-shadow: 0 0 0 1px rgba(255,70,85,.18); }
     .lcard-compact .lcard-head { padding: 10px 12px; }
     .lcard-compact .ltitle { font-size: 13px; }
@@ -4819,6 +4821,24 @@ function cardHtml(l) {
 </div>`;
 }
 
+function lineupActionButtonsHtml(l, compact = false) {
+  const btnStyle = compact ? ' style="font-size:12px;"' : '';
+  return `
+    ${l.status === 'pending' || l.status === 'rejected' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">🔥 В пирожки</button>` : ''}
+    ${l.status === 'hot' ? `<button class="btn btn-publish" data-action="publish" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✅ Опубликовать</button>` : ''}
+    ${l.status !== 'rejected' ? `<button class="btn btn-reject" data-action="reject" data-id="${l.id}">✕ Отклонить</button>` : ''}
+    ${l.status !== 'archived'
+      ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
+      : `<button class="btn btn-approve" data-action="restore" data-id="${l.id}">✅ Восстановить</button>`}
+    <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
+    <button class="btn"${btnStyle} data-action="detail" data-id="${l.id}">👁 Открыть</button>
+    <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
+    ${l.user_id && l.submitted_by
+      ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
+      : ''}
+  `;
+}
+
 function detailHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
@@ -4846,6 +4866,7 @@ function detailHtml(l) {
   </div>
   <span class="badge ${bc}" style="flex-shrink:0;">${bl}</span>
 </div>
+<div class="editor-primary-actions">${lineupActionButtonsHtml(l, true)}</div>
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
   <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(contentMeta(contentCategoryOf(l)).title)}</div></div>
@@ -4891,24 +4912,7 @@ function selectLineup(id) {
           <div id="audit-log-${l.id}"><div class="audit-empty">Загрузка…</div></div>
         </div>
         <div class="audit-actions">
-          <div class="row">
-            ${l.status === 'pending' || l.status === 'rejected' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">🔥 В пирожки</button>` : ''}
-            ${l.status === 'hot' ? `<button class="btn btn-publish" data-action="publish" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✅ Опубликовать</button>` : ''}
-            ${l.status !== 'rejected' ? `<button class="btn btn-reject" data-action="reject" data-id="${l.id}">✕ Отклонить</button>` : ''}
-            ${l.status !== 'archived'
-              ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
-              : `<button class="btn btn-approve" data-action="restore" data-id="${l.id}">✅ Восстановить</button>`}
-          </div>
-          <div class="row">
-            <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
-            ${l.user_id && l.submitted_by
-              ? `<button class="btn btn-ban" data-action="ban" data-id="${l.id}" data-uid="${esc(l.user_id)}" data-name="${esc(l.submitted_by)}">🚫 Бан ${esc(l.submitted_by)}</button>`
-              : ''}
-          </div>
-          <div class="row">
-            <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
-            <button class="btn" style="font-size:12px;" data-action="detail" data-id="${l.id}">👁 Открыть</button>
-          </div>
+          <div class="row">${lineupActionButtonsHtml(l, true)}</div>
           <div class="row" id="save-btn-row-${l.id}" style="display:none;">
             <button class="btn btn-save" id="ce-save-${l.id}" data-action="save" data-id="${l.id}" style="width:100%;justify-content:center;padding:10px;font-size:13px;">💾 Сохранить изменения</button>
           </div>
