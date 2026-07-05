@@ -7443,7 +7443,7 @@ function uploadVideoToSelectel(file, onProgress) {
 // ── Video frame editor helpers ────────────────────────────────────────────────
 function _buildVfeHtml(prefix, videoSrc) {
   return `<div class="vfe-wrap">
-    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata" crossorigin="anonymous"></video>
+    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata"></video>
     <div class="vfe-controls">
       <button class="vfe-play" id="${prefix}-vplay">▶</button>
       <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
@@ -7487,7 +7487,12 @@ function _initVfe(prefix, onRemove, onCapture) {
       await onCapture(blob);
       toast('Кадр добавлен ✅', 's');
     } catch (e) {
-      if (e.message !== 'canceled') toast('Ошибка захвата кадра: ' + e.message, 'e');
+      if (e.message !== 'canceled') {
+        const msg = e.name === 'SecurityError'
+          ? 'Кадр из этого видео недоступен без CORS. Добавь скриншот вручную.'
+          : 'Ошибка захвата кадра: ' + e.message;
+        toast(msg, 'e');
+      }
     } finally {
       cap.disabled = false; cap.textContent = '📷 Кадр';
     }
@@ -9221,7 +9226,7 @@ function _renderLineupDetail(l) {
       ${l.video_url && !l.video_url.match(/youtube\.com|youtu\.be/) ? `
       <div class="section" id="ld-vid-editor">
         <div class="dlabel" style="margin-bottom:8px;">📷 Скриншоты из видео</div>
-        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" crossorigin="anonymous" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
+        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
           <button id="ld-frame-btn" class="btn btn-save" style="padding:6px 14px;font-size:12px;">📷 Сделать кадр</button>
           <span id="ld-frame-status" style="font-size:12px;color:var(--text2);"></span>
@@ -9298,7 +9303,10 @@ function _renderLineupDetail(l) {
         setTimeout(() => { frameStatus.textContent = ''; }, 2000);
       } catch (e) {
         frameStatus.textContent = '';
-        toast('Ошибка: ' + e.message, 'e');
+        const msg = e.name === 'SecurityError'
+          ? 'Кадр из этого видео недоступен без CORS. Добавь скриншот вручную.'
+          : 'Ошибка: ' + e.message;
+        toast(msg, 'e');
       } finally {
         frameBtn.disabled = false;
       }
