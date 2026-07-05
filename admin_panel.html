@@ -2674,7 +2674,8 @@ const SEL_CDN_URL    = 'https://d5adab93-7400-49ad-b1f9-66966c03d203.selstorage.
 const ADMIN_USERS_ANALYTICS_LIMIT = 500;
 const ADMIN_USERS_LIST_LIMIT = 300;
 const ADMIN_LINEUPS_LIST_LIMIT = 500;
-const ADMIN_ANALYTICS_EVENTS_LIMIT = 600;
+const ADMIN_ANALYTICS_EVENTS_PAGE_SIZE = 1000;
+const ADMIN_ANALYTICS_EVENTS_MAX = 20000;
 const ADMIN_SESSION_EVENTS_LIMIT = 600;
 const ADMIN_AD_EVENTS_LIMIT = 600;
 
@@ -8380,6 +8381,27 @@ function _anLastLocalDayKeys(count, nowMs = Date.now()) {
   return days;
 }
 
+async function loadPagedDocs(ref, constraints, options = {}) {
+  const pageSize = options.pageSize || 1000;
+  const maxDocs = options.maxDocs || 20000;
+  const docs = [];
+  let lastDoc = null;
+
+  while (docs.length < maxDocs) {
+    const pageLimit = Math.min(pageSize, maxDocs - docs.length);
+    const pageQuery = lastDoc
+      ? query(ref, ...constraints, startAfter(lastDoc), limit(pageLimit))
+      : query(ref, ...constraints, limit(pageLimit));
+    const snap = await getDocs(pageQuery);
+    docs.push(...snap.docs);
+    if (snap.size < pageLimit) return { docs, truncated: false };
+    lastDoc = snap.docs[snap.docs.length - 1];
+    if (!lastDoc) return { docs, truncated: false };
+  }
+
+  return { docs, truncated: true };
+}
+
 function _nuSetFilter(f) {
   _nuFilter = f;
   document.querySelectorAll('[data-nu-filter]').forEach(b =>
@@ -8652,13 +8674,18 @@ async function loadAnalytics(force = false) {
     await loadActivityAnalytics(days, d30, today);
 
     // ── Content views ──
-    const viewsSnap = await getDocs(query(
+    const viewsResult = await loadPagedDocs(
       collection(db, 'analytics_events'),
-      where('type', '==', 'lineup_viewed'),
-      where('ts', '>=', d30),
-      orderBy('ts', 'desc'),
-      limit(ADMIN_ANALYTICS_EVENTS_LIMIT)
-    ));
+      [
+        where('type', '==', 'lineup_viewed'),
+        where('ts', '>=', d30),
+        orderBy('ts', 'desc'),
+      ],
+      {
+        pageSize: ADMIN_ANALYTICS_EVENTS_PAGE_SIZE,
+        maxDocs: ADMIN_ANALYTICS_EVENTS_MAX,
+      }
+    );
 
     let totalViews = 0;
     const viewsByDay = {};
@@ -8666,7 +8693,7 @@ async function loadAnalytics(force = false) {
     const lineupTitles = {};
     days.forEach(d => { viewsByDay[d] = 0; });
 
-    for (const d of viewsSnap.docs) {
+    for (const d of viewsResult.docs) {
       const dat = d.data();
       const day = _anLocalDayKey(dat.ts.toDate());
       totalViews++;
@@ -8683,12 +8710,16 @@ async function loadAnalytics(force = false) {
     const viewsArr = days.map(d => viewsByDay[d]);
 
     document.getElementById('content-stat-cards').innerHTML = [
-      [totalViews,    'Просмотров всего'],
+      [viewsResult.truncated ? `${totalViews}+` : totalViews, 'Просмотров всего'],
       [uniqueLineups, 'Уникальных лайнапов'],
       [todayViews,    'Сегодня'],
     ].map(([v, l]) =>
       `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
     ).join('');
+
+    if (viewsResult.truncated) {
+      toast(`Контент-аналитика ограничена ${ADMIN_ANALYTICS_EVENTS_MAX} событиями. Нужна агрегированная статистика.`, 'i');
+    }
 
     drawInteractiveChart('views-chart', 'views-tip', [
       { name: 'Просмотров', data: viewsArr, color: 'var(--orange)' },
