@@ -889,6 +889,7 @@
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
         <button class="tab"        id="tab-btn-mappool"><i class="bi bi-star"></i><span>Маппул</span></button>
+        <button class="tab"        id="tab-btn-contentcfg"><i class="bi bi-sliders"></i><span>Справочники</span></button>
         <button class="tab"        id="tab-btn-messages"><i class="bi bi-chat-dots"></i><span>Сообщения</span><span id="msg-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
         <button class="tab"        id="tab-btn-modapps"><i class="bi bi-shield-check"></i><span>Заявки</span><span id="ma-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
       </div>
@@ -2477,6 +2478,55 @@
   </div>
 </div>
 
+<!-- ── Content Config Tab ──────────────────────────────────────────────────── -->
+<div id="tab-contentcfg" style="display:none;padding:20px;">
+  <div style="max-width:980px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <h3 style="margin:0;color:var(--text);">🎛 Справочники контента</h3>
+        <p style="color:var(--text2);font-size:13px;margin:6px 0 0;">
+          Лёгкие конфиги для новых режимов. Приложение и сайты смогут читать <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;">settings/config_versions</code> и обновлять кэш только при изменениях.
+        </p>
+      </div>
+      <span id="cc-version-hint" style="font-size:12px;color:var(--text2);">Версии: загрузка…</span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:18px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <h4 style="margin:0 0 4px;color:var(--text);">💥 Оружие для прострелов</h4>
+            <p style="margin:0;color:var(--text2);font-size:12px;">Только оружие, которым реально делают wallbang. Не добавлять пистолеты, дробовики, Spectre.</p>
+          </div>
+          <span id="cc-weapons-count" style="font-size:12px;color:var(--primary);font-weight:800;white-space:nowrap;">…</span>
+        </div>
+        <div id="cc-weapons-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:14px 0;">
+          <div class="state" style="grid-column:1/-1;padding:14px;">Загрузка…</div>
+        </div>
+        <button id="cc-weapons-save" class="btn btn-save" style="width:100%;justify-content:center;">💾 Сохранить оружие</button>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;">
+          <div>
+            <h4 style="margin:0 0 4px;color:var(--text);">🛡 Агенты защиты</h4>
+            <p style="margin:0;color:var(--text2);font-size:12px;">Кто показывается в будущем режиме “Защита”. Chamber можно не включать, если пока нет смысла.</p>
+          </div>
+          <span id="cc-defense-count" style="font-size:12px;color:var(--primary);font-weight:800;white-space:nowrap;">…</span>
+        </div>
+        <div id="cc-defense-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px;margin:14px 0;">
+          <div class="state" style="grid-column:1/-1;padding:14px;">Загрузка…</div>
+        </div>
+        <button id="cc-defense-save" class="btn btn-save" style="width:100%;justify-content:center;">💾 Сохранить агентов защиты</button>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;background:rgba(79,195,247,.07);border:1px solid rgba(79,195,247,.25);border-radius:10px;padding:13px 15px;color:var(--text2);font-size:12px;line-height:1.6;">
+      Сейчас это только основа для следующих фаз. Эти документы маленькие: их можно кэшировать в приложении/сайтах и не читать тяжёлые каталоги каждый раз.
+    </div>
+  </div>
+</div>
+
 <!-- ── Messages Tab ─────────────────────────────────────────────────────────── -->
 <div id="tab-messages" style="display:none;padding:20px;">
   <div style="max-width:980px;margin:0 auto;">
@@ -2825,6 +2875,7 @@ function switchTab(t) {
   document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
   document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-mappool').style.display        = t === 'mappool'      ? 'block' : 'none';
+  document.getElementById('tab-contentcfg').style.display     = t === 'contentcfg'   ? 'block' : 'none';
   document.getElementById('tab-messages').style.display       = t === 'messages'     ? 'block' : 'none';
   document.getElementById('tab-modapps').style.display        = t === 'modapps'      ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
@@ -2842,6 +2893,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-mapstyle').classList.toggle('active',     t === 'mapstyle');
   document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
   document.getElementById('tab-btn-mappool').classList.toggle('active', t === 'mappool');
+  document.getElementById('tab-btn-contentcfg').classList.toggle('active', t === 'contentcfg');
   document.getElementById('tab-btn-messages').classList.toggle('active', t === 'messages');
   document.getElementById('tab-btn-modapps').classList.toggle('active', t === 'modapps');
   if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
@@ -2855,6 +2907,7 @@ function switchTab(t) {
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') { loadAgentColorsSection('ac-grid2'); loadAbilityStyleEditor(); }
   if (t === 'mappool') loadMapPoolTab();
+  if (t === 'contentcfg') loadContentConfigTab();
   if (t === 'list') loadLineups();
   if (t === 'messages') startMessagesRealtime();
   if (t === 'modapps') loadModAppsTab();
@@ -2917,6 +2970,7 @@ document.getElementById('tab-btn-ranges').addEventListener('click',    () => swi
 document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => switchTab('mapstyle'));
 document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
 document.getElementById('tab-btn-mappool').addEventListener('click',      () => switchTab('mappool'));
+document.getElementById('tab-btn-contentcfg').addEventListener('click',   () => switchTab('contentcfg'));
 document.getElementById('tab-btn-messages').addEventListener('click',     () => switchTab('messages'));
 document.getElementById('tab-btn-modapps').addEventListener('click',      () => switchTab('modapps'));
 
@@ -3267,10 +3321,164 @@ document.getElementById('mp-save-btn')?.addEventListener('click', async function
     const maps = MP_ALL_MAPS.map(m => m.name).filter(n => _mpPool.has(n)); // стабильный порядок
     await setDoc(doc(db, 'settings', 'map_pool'),
       { maps, updatedAt: serverTimestamp() }, { merge: true });
+    await bumpConfigVersions(['maps']);
     toast(`Маппул сохранён (${maps.length} карт)`, 's');
     if (typeof addAuditLog === 'function') addAuditLog('map_pool_updated', { maps });
   } catch (e) {
     console.error('mp-save', e); toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
+
+// ── Content config ────────────────────────────────────────────────────────────
+// Firestore:
+//   settings/weapon_whitelist { weapons: [...] }
+//   settings/defense_agents { agents: [...] }
+//   settings/config_versions { weapon_whitelist: number, defense_agents: number, ... }
+const CC_WEAPON_OPTIONS = [
+  'Vandal', 'Phantom', 'Guardian', 'Ares', 'Odin', 'Operator', 'Marshal',
+];
+const CC_WEAPON_DEFAULTS = ['Vandal', 'Phantom', 'Guardian', 'Ares', 'Odin'];
+const CC_DEFENSE_DEFAULTS = ['Cypher', 'Killjoy', 'Deadlock', 'Sage', 'Viper', 'Vyse'];
+let _ccLoaded = false;
+let _ccWeapons = new Set(CC_WEAPON_DEFAULTS);
+let _ccDefenseAgents = new Set(CC_DEFENSE_DEFAULTS);
+let _ccVersions = {};
+let _ccAgents = [];
+
+async function bumpConfigVersions(keys) {
+  const now = Date.now();
+  const payload = { updated_at: serverTimestamp() };
+  keys.forEach(k => { payload[k] = now; });
+  await setDoc(doc(db, 'settings', 'config_versions'), payload, { merge: true });
+}
+
+function _ccCheckbox(label, checked, group, icon = '') {
+  return `<label style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 10px;cursor:pointer;min-width:0;">
+    <input type="checkbox" data-cc-group="${group}" value="${esc(label)}" ${checked ? 'checked' : ''}
+      style="width:17px;height:17px;accent-color:var(--primary);flex-shrink:0;">
+    ${icon ? `<img src="${esc(icon)}" alt="" width="24" height="24" style="border-radius:5px;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+    <span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(label)}</span>
+  </label>`;
+}
+
+function _ccRenderVersions() {
+  const el = document.getElementById('cc-version-hint');
+  if (!el) return;
+  const w = _ccVersions.weapon_whitelist ? new Date(_ccVersions.weapon_whitelist).toLocaleString('ru-RU') : 'нет';
+  const d = _ccVersions.defense_agents ? new Date(_ccVersions.defense_agents).toLocaleString('ru-RU') : 'нет';
+  el.textContent = `Версии: оружие ${w} · защита ${d}`;
+}
+
+function _ccRender() {
+  const wg = document.getElementById('cc-weapons-grid');
+  const dg = document.getElementById('cc-defense-grid');
+  if (wg) {
+    wg.innerHTML = CC_WEAPON_OPTIONS
+      .map(w => _ccCheckbox(w, _ccWeapons.has(w), 'weapons'))
+      .join('');
+    document.getElementById('cc-weapons-count').textContent = `${_ccWeapons.size} шт.`;
+  }
+  if (dg) {
+    const agents = _ccAgents.length ? _ccAgents : CC_DEFENSE_DEFAULTS.map(name => ({ displayName: name }));
+    dg.innerHTML = agents
+      .map(a => _ccCheckbox(a.displayName, _ccDefenseAgents.has(a.displayName), 'defense', a.displayIconSmall || a.displayIcon || ''))
+      .join('');
+    document.getElementById('cc-defense-count').textContent = `${_ccDefenseAgents.size} аг.`;
+  }
+  _ccRenderVersions();
+}
+
+async function _ccLoadAgents() {
+  try {
+    let agents = _apiCacheGet('_api_agents');
+    if (!agents) {
+      const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
+      const json = await res.json();
+      agents = json.data || [];
+      _apiCacheSet('_api_agents', agents);
+    }
+    _ccAgents = agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
+  } catch (e) {
+    console.warn('content config agents:', e.message);
+    _ccAgents = CC_DEFENSE_DEFAULTS.map(name => ({ displayName: name }));
+  }
+}
+
+async function loadContentConfigTab() {
+  if (!_ccLoaded) {
+    try {
+      const [wSnap, dSnap, vSnap] = await Promise.all([
+        getDoc(doc(db, 'settings', 'weapon_whitelist')),
+        getDoc(doc(db, 'settings', 'defense_agents')),
+        getDoc(doc(db, 'settings', 'config_versions')),
+        _ccLoadAgents(),
+      ]);
+      _ccWeapons = new Set(wSnap.exists() && Array.isArray(wSnap.data().weapons)
+        ? wSnap.data().weapons
+        : CC_WEAPON_DEFAULTS);
+      _ccDefenseAgents = new Set(dSnap.exists() && Array.isArray(dSnap.data().agents)
+        ? dSnap.data().agents
+        : CC_DEFENSE_DEFAULTS);
+      _ccVersions = vSnap.exists() ? vSnap.data() : {};
+    } catch (e) {
+      console.error('loadContentConfigTab', e);
+      toast('Ошибка справочников: ' + e.message, 'e');
+    }
+    _ccLoaded = true;
+  }
+  _ccRender();
+}
+
+function _ccSelected(group) {
+  return [...document.querySelectorAll(`[data-cc-group="${group}"]:checked`)]
+    .map(el => el.value);
+}
+
+document.getElementById('cc-weapons-save')?.addEventListener('click', async function() {
+  const btn = this;
+  const weapons = _ccSelected('weapons');
+  if (!weapons.length) { toast('Оставь хотя бы одно оружие', 'e'); return; }
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = '⏳ Сохраняю…';
+  try {
+    await setDoc(doc(db, 'settings', 'weapon_whitelist'), {
+      weapons,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'Admin',
+    }, { merge: true });
+    await bumpConfigVersions(['weapon_whitelist']);
+    _ccWeapons = new Set(weapons);
+    _ccVersions.weapon_whitelist = Date.now();
+    _ccRender();
+    toast(`Оружие для прострелов сохранено (${weapons.length})`, 's');
+    addAuditLog('weapon_whitelist_updated', { weapons });
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+});
+
+document.getElementById('cc-defense-save')?.addEventListener('click', async function() {
+  const btn = this;
+  const agents = _ccSelected('defense');
+  if (!agents.length) { toast('Оставь хотя бы одного агента защиты', 'e'); return; }
+  btn.disabled = true; const orig = btn.textContent; btn.textContent = '⏳ Сохраняю…';
+  try {
+    await setDoc(doc(db, 'settings', 'defense_agents'), {
+      agents,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'Admin',
+    }, { merge: true });
+    await bumpConfigVersions(['defense_agents']);
+    _ccDefenseAgents = new Set(agents);
+    _ccVersions.defense_agents = Date.now();
+    _ccRender();
+    toast(`Агенты защиты сохранены (${agents.length})`, 's');
+    addAuditLog('defense_agents_updated', { agents });
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = orig;
   }
