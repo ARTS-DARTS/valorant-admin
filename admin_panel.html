@@ -798,6 +798,15 @@
     .audit-meta { font-size: 11px; color: var(--text2); }
     .audit-changes { font-size: 11px; color: var(--text2); background: rgba(255,255,255,.04); border-radius: 4px; padding: 4px 8px; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
     .audit-empty { color: var(--text2); font-size: 12px; text-align: center; padding: 32px 0; }
+    .editor-action-pin {
+      position: sticky;
+      top: 54px;
+      z-index: 110;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--surface) 88%, rgba(17,24,39,0) 100%);
+      padding-top: 20px;
+      margin: -20px 0 16px;
+      box-shadow: 0 12px 18px rgba(5, 10, 22, .36);
+    }
     .editor-detail-head { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
     .editor-primary-actions { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px; margin: -4px 0 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
     .editor-primary-actions .btn { justify-content: center; font-size: 12px; padding: 8px 10px; min-width: 0; }
@@ -5040,6 +5049,7 @@ function detailHtml(l) {
   const date  = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
   const shots = Array.isArray(l.screenshots) ? l.screenshots : [];
   return `
+<div class="editor-action-pin">
 <div class="editor-detail-head">
   <div style="flex:1;min-width:0;">
     <div style="font-size:17px;font-weight:800;margin-bottom:8px;line-height:1.3;">${esc(l.title ?? '—')}</div>
@@ -5057,6 +5067,7 @@ function detailHtml(l) {
 <div class="editor-primary-actions">${lineupActionButtonsHtml(l, true)}</div>
 <div class="editor-save-row" id="save-btn-row-${l.id}" style="display:none;">
   <button class="btn btn-save" id="ce-save-${l.id}" data-action="save" data-id="${l.id}" style="width:100%;justify-content:center;padding:10px;font-size:13px;">💾 Сохранить изменения</button>
+</div>
 </div>
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
