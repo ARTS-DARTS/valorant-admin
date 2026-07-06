@@ -3407,6 +3407,33 @@ function _contentWeaponChoices() {
   return fromSettings.filter(w => CC_WEAPON_OPTIONS.includes(w));
 }
 
+function _coordToWrap(normX, normY, ir, wrap) {
+  const w = wrap?.clientWidth || 1;
+  const h = wrap?.clientHeight || 1;
+  return {
+    x: (ir.left + Number(normX) * ir.width) / w,
+    y: (ir.top + Number(normY) * ir.height) / h,
+  };
+}
+
+function _pointsToWrap(points, ir, wrap) {
+  return (Array.isArray(points) ? points : [])
+    .map(p => _coordToWrap(p.x, p.y, ir, wrap))
+    .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
+}
+
+function _eventToMapNorm(clientX, clientY, wrap, ir, tx = 0, ty = 0, scale = 1) {
+  const rect = wrap.getBoundingClientRect();
+  const localX = (clientX - rect.left - tx) / scale;
+  const localY = (clientY - rect.top - ty) / scale;
+  const clampedX = Math.max(ir.left, Math.min(ir.left + ir.width, localX));
+  const clampedY = Math.max(ir.top, Math.min(ir.top + ir.height, localY));
+  return {
+    x: ir.width ? (clampedX - ir.left) / ir.width : 0,
+    y: ir.height ? (clampedY - ir.top) / ir.height : 0,
+  };
+}
+
 function _weaponCheckboxes(name, selected = []) {
   const picked = new Set(Array.isArray(selected) && selected.length ? selected : _contentWeaponChoices());
   return _contentWeaponChoices().map(w => `
@@ -5248,7 +5275,7 @@ ${l.description ? `<div class="section"><div class="dlabel">Описание</di
   ${contentExtraDetailHtml(l)}
 </div>
 ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
-  <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
+  <video src="${esc(l.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
 </div>` : ''}
 ${shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
   <div class="ss-grid">${shots.map(u => `
@@ -6122,20 +6149,24 @@ function _sImgRect(id) {
 function renderSlotMarker(id) {
   const s = addSlotSessions[id]; if (!s) return;
   const c = _sCanvas(id); if (!c) return;
+  const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
+  const ir = _sImgRect(id);
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
   if (s.markerX !== null) {
+    const p = _coordToWrap(s.markerX, s.markerY, ir, wrap);
     const dot = document.createElement('div');
     const iconUrl = _currentAbilityIcon();
     dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
-    dot.style.left = (s.markerX*100)+'%'; dot.style.top = (s.markerY*100)+'%';
+    dot.style.left = (p.x*100)+'%'; dot.style.top = (p.y*100)+'%';
     if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
     c.appendChild(dot);
   }
   if (s.targetX !== null && s.targetX !== undefined) {
+    const p = _coordToWrap(s.targetX, s.targetY, ir, wrap);
     const target = document.createElement('div');
     target.className = 'map-marker target';
     target.textContent = 'T';
-    target.style.left = (s.targetX*100)+'%'; target.style.top = (s.targetY*100)+'%';
+    target.style.left = (p.x*100)+'%'; target.style.top = (p.y*100)+'%';
     c.appendChild(target);
   }
   _sApply(id);
@@ -6167,7 +6198,7 @@ function renderSlotTraj(id) {
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
   c.querySelector('.traj-svg')?.remove();
   const s = addSlotSessions[id]; if (!s || s.trajectory.length === 0) return;
-  c.appendChild(_buildTrajSvg(s.trajectory, wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id));
+  c.appendChild(_buildTrajSvg(_pointsToWrap(s.trajectory, _sImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id));
 }
 function _setSlotMapMode(id, mode) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -6193,6 +6224,12 @@ function updateSlotMapWrap(id, mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
+  const img = wrap.querySelector('.map-canvas img');
+  if (img) {
+    const tryRender = () => { renderSlotMarker(id); renderSlotTraj(id); };
+    img.addEventListener('load', tryRender);
+    if (img.complete) requestAnimationFrame(tryRender);
+  }
 }
 function initSlotMapWrap(id) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -6225,16 +6262,13 @@ function initSlotMapWrap(id) {
       document.removeEventListener('mouseup', onUp);
       wrap.style.cursor = 'crosshair';
       if (!s._mapDragging) {
-        const r2 = wrap.getBoundingClientRect();
-        const cx = up.clientX-r2.left, cy = up.clientY-r2.top;
         const ir = _sImgRect(id);
-        const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale))/wrap.clientWidth;
-        const ny = Math.max(ir.top,  Math.min(ir.top+ir.height,  (cy-s.mapTy)/s.mapScale))/wrap.clientHeight;
+        const p = _eventToMapNorm(up.clientX, up.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
         if (s.mapMode === 'target') {
-          s.targetX = nx; s.targetY = ny;
+          s.targetX = p.x; s.targetY = p.y;
           renderSlotMarker(id); updateSlotCoords(id);
         } else {
-          s.markerX=nx; s.markerY=ny; renderSlotMarker(id); updateSlotCoords(id);
+          s.markerX=p.x; s.markerY=p.y; renderSlotMarker(id); updateSlotCoords(id);
           _setSlotMapMode(id, 'position');
         }
       }
@@ -6244,12 +6278,9 @@ function initSlotMapWrap(id) {
   });
   wrap.addEventListener('contextmenu', e => {
     if (!_sCanvas(id)) return; e.preventDefault();
-    const r2 = wrap.getBoundingClientRect();
-    const cx = e.clientX - r2.left, cy = e.clientY - r2.top;
     const ir = _sImgRect(id);
-    const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
-    const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
-    s.trajectory.push({x:nx, y:ny}); renderSlotTraj(id);
+    const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
+    s.trajectory.push({x:p.x, y:p.y}); renderSlotTraj(id);
     _setSlotMapMode(id, 'trajectory');
   });
   document.getElementById('slot-'+id+'-mode-pos')?.addEventListener('click',  () => _setSlotMapMode(id,'position'));
@@ -6773,8 +6804,7 @@ function _mapCanvas() { return document.querySelector('#map-picker-wrap .map-can
 function _mapApply() {
   const c = _mapCanvas(); if (!c) return;
   c.style.transform = `translate(${mapTx}px,${mapTy}px) scale(${mapScale})`;
-  const m = c.querySelector('.map-marker');
-  if (m) m.style.transform = `translate(-50%,-50%) scale(${1 / mapScale})`;
+  c.querySelectorAll('.map-marker').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1 / mapScale})`; });
 }
 function _mapClamp() {
   const w = document.getElementById('map-picker-wrap');
@@ -6807,16 +6837,25 @@ function updateMapPicker(mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
+  const img = wrap.querySelector('.map-canvas img');
+  if (img) {
+    const tryRender = () => { renderMarker(); renderTrajectory(); };
+    img.addEventListener('load', tryRender);
+    if (img.complete) requestAnimationFrame(tryRender);
+  }
 }
 function renderMarker() {
   const c = _mapCanvas(); if (!c) return;
+  const wrap = document.getElementById('map-picker-wrap'); if (!wrap) return;
+  const ir = _getImageRect();
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
   if (markerX === null) return;
+  const p = _coordToWrap(markerX, markerY, ir, wrap);
   const dot = document.createElement('div');
   const iconUrl = _currentAbilityIcon();
   dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
-  dot.style.left = (markerX * 100) + '%';
-  dot.style.top  = (markerY * 100) + '%';
+  dot.style.left = (p.x * 100) + '%';
+  dot.style.top  = (p.y * 100) + '%';
   if (iconUrl) {
     const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = '';
     dot.appendChild(ico);
@@ -6884,7 +6923,7 @@ function renderTrajectory() {
   c.querySelector('.traj-svg')?.remove();
   if (trajectoryPoints.length === 0) return;
   const wrap = document.getElementById('map-picker-wrap');
-  c.appendChild(_buildTrajSvg(trajectoryPoints, wrap.clientWidth, wrap.clientHeight, 'traj-arrow-add'));
+  c.appendChild(_buildTrajSvg(_pointsToWrap(trajectoryPoints, _getImageRect(), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-add'));
 }
 
 function _setMapMode(mode) {
@@ -6932,12 +6971,9 @@ function initMapPicker() {
       document.removeEventListener('mouseup', onUp);
       wrap.style.cursor = 'crosshair';
       if (!_mapDragging) {
-        const rect = wrap.getBoundingClientRect();
-        const cx = up.clientX - rect.left, cy = up.clientY - rect.top;
         const ir = _getImageRect();
-        const nx = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale)) / wrap.clientWidth;
-        const ny = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale)) / wrap.clientHeight;
-        markerX = nx; markerY = ny; renderMarker(); updateCoordDisplay();
+        const p = _eventToMapNorm(up.clientX, up.clientY, wrap, ir, mapTx, mapTy, mapScale);
+        markerX = p.x; markerY = p.y; renderMarker(); updateCoordDisplay();
         _setMapMode('position');
       }
     };
@@ -6947,12 +6983,9 @@ function initMapPicker() {
   wrap.addEventListener('contextmenu', e => {
     if (!_mapCanvas()) return;
     e.preventDefault();
-    const rect = wrap.getBoundingClientRect();
-    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
     const ir = _getImageRect();
-    const nx = Math.max(ir.left, Math.min(ir.left + ir.width,  (cx - mapTx) / mapScale)) / wrap.clientWidth;
-    const ny = Math.max(ir.top,  Math.min(ir.top  + ir.height, (cy - mapTy) / mapScale)) / wrap.clientHeight;
-    trajectoryPoints.push({ x: nx, y: ny }); renderTrajectory();
+    const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, mapTx, mapTy, mapScale);
+    trajectoryPoints.push({ x: p.x, y: p.y }); renderTrajectory();
     _setMapMode('trajectory');
   });
 }
@@ -7493,7 +7526,7 @@ function updateEditMapPicker(id, mapName) {
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${esc(key)}" crossorigin="anonymous" draggable="false"></div>`;
   const img = wrap.querySelector('.map-canvas img');
   if (!img) return;
-  const tryRender = () => { if (_eCanvas(id)) renderEditMarker(id); };
+  const tryRender = () => { if (_eCanvas(id)) { renderEditMarker(id); renderEditTrajectory(id); } };
   img.addEventListener('load', tryRender);
   img.addEventListener('error', () => { wrap.innerHTML = `<div class="map-ph">⚠ Не удалось загрузить карту "${esc(key)}"</div>`; });
   if (img.complete) requestAnimationFrame(tryRender);
@@ -7502,20 +7535,24 @@ function updateEditMapPicker(id, mapName) {
 function renderEditMarker(id) {
   const s = editSessions[id]; if (!s) return;
   const c = _eCanvas(id); if (!c) return;
+  const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
+  const ir = _eImgRect(id);
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
   if (s.markerX !== null) {
+    const p = _coordToWrap(s.markerX, s.markerY, ir, wrap);
     const dot = document.createElement('div');
     const iconUrl = _eAbilIcon(id);
     dot.className = 'map-marker' + (iconUrl ? '' : ' dot');
-    dot.style.left = (s.markerX * 100) + '%'; dot.style.top = (s.markerY * 100) + '%';
+    dot.style.left = (p.x * 100) + '%'; dot.style.top = (p.y * 100) + '%';
     if (iconUrl) { const ico = document.createElement('img'); ico.src = iconUrl; ico.alt = ''; dot.appendChild(ico); }
     c.appendChild(dot);
   }
   if (s.targetX !== null && s.targetX !== undefined) {
+    const p = _coordToWrap(s.targetX, s.targetY, ir, wrap);
     const target = document.createElement('div');
     target.className = 'map-marker target';
     target.textContent = 'T';
-    target.style.left = (s.targetX * 100) + '%'; target.style.top = (s.targetY * 100) + '%';
+    target.style.left = (p.x * 100) + '%'; target.style.top = (p.y * 100) + '%';
     c.appendChild(target);
   }
   _eApply(id);
@@ -7549,7 +7586,7 @@ function renderEditTrajectory(id) {
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
   c.querySelector('.traj-svg')?.remove();
   const sess = editSessions[id]; if (!sess || sess.trajectory.length === 0) return;
-  c.appendChild(_buildTrajSvg(sess.trajectory, wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
+  c.appendChild(_buildTrajSvg(_pointsToWrap(sess.trajectory, _eImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
 }
 
 function _setEditMapMode(id, mode) {
@@ -7604,16 +7641,13 @@ function initEditMapInteraction(id, initialMap) {
       document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
       wrap.style.cursor = 'crosshair';
       if (!s.mapDragging) {
-        const rect = wrap.getBoundingClientRect();
-        const cx = up.clientX - rect.left, cy = up.clientY - rect.top;
         const ir = _eImgRect(id);
-        const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
-        const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
+        const p = _eventToMapNorm(up.clientX, up.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
         if (s.mapMode === 'target') {
-          s.targetX = nx; s.targetY = ny;
+          s.targetX = p.x; s.targetY = p.y;
           renderEditMarker(id); updateEditCoords(id);
         } else {
-          s.markerX = nx; s.markerY = ny; renderEditMarker(id); updateEditCoords(id);
+          s.markerX = p.x; s.markerY = p.y; renderEditMarker(id); updateEditCoords(id);
           _setEditMapMode(id, 'position');
         }
       }
@@ -7622,12 +7656,9 @@ function initEditMapInteraction(id, initialMap) {
   });
   wrap.addEventListener('contextmenu', e => {
     if (!_eCanvas(id)) return; e.preventDefault();
-    const rect = wrap.getBoundingClientRect();
-    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
     const ir = _eImgRect(id);
-    const nx = Math.max(ir.left, Math.min(ir.left+ir.width,  (cx-s.mapTx)/s.mapScale)) / wrap.clientWidth;
-    const ny = Math.max(ir.top,  Math.min(ir.top +ir.height, (cy-s.mapTy)/s.mapScale)) / wrap.clientHeight;
-    s.trajectory.push({ x: nx, y: ny }); renderEditTrajectory(id);
+    const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
+    s.trajectory.push({ x: p.x, y: p.y }); renderEditTrajectory(id);
     _setEditMapMode(id, 'trajectory');
   });
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
@@ -7955,7 +7986,7 @@ function uploadVideoToSelectel(file, onProgress) {
 // ── Video frame editor helpers ────────────────────────────────────────────────
 function _buildVfeHtml(prefix, videoSrc) {
   return `<div class="vfe-wrap">
-    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata"></video>
+    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata" crossorigin="anonymous"></video>
     <div class="vfe-controls">
       <button class="vfe-play" id="${prefix}-vplay">▶</button>
       <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
@@ -9752,7 +9783,7 @@ function _renderLineupDetail(l) {
         </div></div>`;
     } else {
       videoHtml = `<div class="section"><div class="dlabel">Видео</div>
-        <video src="${esc(l.video_url)}" controls preload="metadata" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
+        <video src="${esc(l.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
       </div>`;
     }
   }
@@ -9824,7 +9855,7 @@ function _renderLineupDetail(l) {
       ${l.video_url && !l.video_url.match(/youtube\.com|youtu\.be/) ? `
       <div class="section" id="ld-vid-editor">
         <div class="dlabel" style="margin-bottom:8px;">📷 Скриншоты из видео</div>
-        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
+        <video id="ld-vid-el" src="${esc(l.video_url)}" preload="metadata" crossorigin="anonymous" style="width:100%;max-height:220px;border-radius:6px;background:#000;display:block;"></video>
         <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
           <button id="ld-frame-btn" class="btn btn-save" style="padding:6px 14px;font-size:12px;">📷 Сделать кадр</button>
           <span id="ld-frame-status" style="font-size:12px;color:var(--text2);"></span>
