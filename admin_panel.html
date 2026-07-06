@@ -5250,6 +5250,59 @@ function contentExtraDetailHtml(l) {
   return '';
 }
 
+function lineupMapPreviewHtml(prefix, height = 280) {
+  return `
+<div class="section">
+  <div class="dlabel">Карта</div>
+  <div id="${prefix}MapContainer" data-interactive-map style="position:relative;width:100%;height:${height}px;background:#0e1016;overflow:hidden;cursor:grab;user-select:none;border-radius:8px;">
+    <div class="dc-map-inner" style="position:absolute;inset:0;transform-origin:50% 50%;">
+      <img id="${prefix}MapImg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
+      <canvas id="${prefix}MapCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+    </div>
+    <div style="position:absolute;bottom:10px;left:14px;pointer-events:none;z-index:5;">
+      <div id="${prefix}MapLabel" style="font-size:16px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.9);"></div>
+      <div id="${prefix}MapSublabel" style="font-size:11px;color:rgba(255,255,255,0.55);text-shadow:0 1px 4px rgba(0,0,0,0.9);margin-top:2px;"></div>
+    </div>
+    <div style="position:absolute;top:10px;right:12px;pointer-events:none;z-index:5;display:flex;flex-direction:column;gap:4px;">
+      <div style="display:flex;align-items:center;gap:5px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ff4655;border:2px solid #fff;flex-shrink:0;"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Позиция</span>
+      </div>
+      <div id="${prefix}LegendTarget" style="display:none;align-items:center;gap:5px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#00c86e;border:2px solid #fff;flex-shrink:0;"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Цель</span>
+      </div>
+      <div id="${prefix}LegendAim" style="display:none;align-items:center;gap:5px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#f5a623;border:2px solid #fff;flex-shrink:0;"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Прицел</span>
+      </div>
+    </div>
+    <div style="position:absolute;bottom:10px;right:12px;font-size:9px;color:rgba(255,255,255,0.3);pointer-events:none;text-align:right;line-height:1.6;z-index:5;">
+      Колёсико — зум<br>Зажать — перемещение<br>2×клик — сброс
+    </div>
+  </div>
+</div>`;
+}
+
+function cleanupInteractiveMap(container) {
+  if (!container) return;
+  if (container._resizeObserver) {
+    container._resizeObserver.disconnect();
+    container._resizeObserver = null;
+  }
+  if (container._cleanupInteraction) {
+    container._cleanupInteraction();
+    container._cleanupInteraction = null;
+  }
+}
+
+function hydrateLineupDetailMap(l) {
+  const container = document.getElementById('edMapContainer');
+  if (!container) return;
+  renderInteractiveMap(l, 'ed');
+  initMapInteraction(container);
+}
+
 function detailHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
@@ -5291,6 +5344,7 @@ ${l.description ? `<div class="section"><div class="dlabel">Описание</di
   <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
   ${contentExtraDetailHtml(l)}
 </div>
+${lineupMapPreviewHtml('ed', 320)}
 ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
   <video src="${esc(l.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
 </div>` : ''}
@@ -5320,6 +5374,7 @@ function selectLineup(id) {
   document.getElementById('editor-empty').style.display = 'none';
   const content = document.getElementById('editor-content');
   content.style.display = 'block';
+  cleanupInteractiveMap(document.getElementById('edMapContainer'));
   content.innerHTML = `
     <div class="editor-columns">
       <div class="editor-main">${detailHtml(l)}</div>
@@ -5334,6 +5389,7 @@ function selectLineup(id) {
       </div>
     </div>
   `;
+  hydrateLineupDetailMap(l);
   loadAuditLog(id);
 }
 
@@ -5965,11 +6021,17 @@ async function swapLineupPathEndpoints(id) {
     if (_selectedId === id) {
       const mainPanel = document.querySelector('#editor-content .editor-main');
       if (mainPanel) {
+        cleanupInteractiveMap(document.getElementById('edMapContainer'));
         mainPanel.innerHTML = detailHtml(l);
+        hydrateLineupDetailMap(l);
         loadAuditLog(id);
       } else {
         const content = document.getElementById('editor-content');
-        if (content) content.innerHTML = detailHtml(l);
+        if (content) {
+          cleanupInteractiveMap(document.getElementById('edMapContainer'));
+          content.innerHTML = detailHtml(l);
+          hydrateLineupDetailMap(l);
+        }
       }
     }
     toast('Точки поменяны местами ↕️', 's');
@@ -6131,10 +6193,16 @@ function patchStatus(id, status) {
     if (updated) {
       const mainPanel = document.querySelector('#editor-content .editor-main');
       if (mainPanel) {
+        cleanupInteractiveMap(document.getElementById('edMapContainer'));
         mainPanel.innerHTML = detailHtml(updated);
+        hydrateLineupDetailMap(updated);
       } else {
         const content = document.getElementById('editor-content');
-        if (content) content.innerHTML = detailHtml(updated);
+        if (content) {
+          cleanupInteractiveMap(document.getElementById('edMapContainer'));
+          content.innerHTML = detailHtml(updated);
+          hydrateLineupDetailMap(updated);
+        }
       }
     }
   }
@@ -7966,11 +8034,17 @@ async function saveEditedLineup(id) {
     if (savedL && _selectedId === id) {
       const mainPanel = document.querySelector('#editor-content .editor-main');
       if (mainPanel) {
+        cleanupInteractiveMap(document.getElementById('edMapContainer'));
         mainPanel.innerHTML = detailHtml(savedL);
+        hydrateLineupDetailMap(savedL);
         loadAuditLog(id);
       } else {
         const content = document.getElementById('editor-content');
-        if (content) content.innerHTML = detailHtml(savedL);
+        if (content) {
+          cleanupInteractiveMap(document.getElementById('edMapContainer'));
+          content.innerHTML = detailHtml(savedL);
+          hydrateLineupDetailMap(savedL);
+        }
       }
       const saveRow = document.getElementById('save-btn-row-' + id);
       if (saveRow) saveRow.style.display = 'none';
@@ -10048,7 +10122,7 @@ function _renderLineupDetail(l) {
   overlay._closeDetail = closeDetail;
 }
 
-function renderInteractiveMap(lineup) {
+function renderInteractiveMap(lineup, prefix = 'dc') {
   const STATIC_MAPS = {
     'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
     'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/displayicon.png',
@@ -10065,14 +10139,19 @@ function renderInteractiveMap(lineup) {
     'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png',
   };
 
-  const container = document.getElementById('dcMapContainer');
-  const img       = document.getElementById('dcMapImg');
-  const canvas    = document.getElementById('dcMapCanvas');
+  const el = suffix => document.getElementById(prefix + suffix);
+  const container = el('MapContainer');
+  const img       = el('MapImg');
+  const canvas    = el('MapCanvas');
+  if (!container || !img || !canvas) return;
+
+  cleanupInteractiveMap(container);
 
   img.src = _resolveMapUrl(lineup.map) || STATIC_MAPS[lineup.map] || '';
-  document.getElementById('dcMapLabel').textContent    = lineup.map || '';
-  document.getElementById('dcMapSublabel').textContent =
-    [lineup.agent, lineup.ability].filter(Boolean).join(' · ');
+  const label = el('MapLabel');
+  const sublabel = el('MapSublabel');
+  if (label) label.textContent = lineup.map || '';
+  if (sublabel) sublabel.textContent = [lineup.agent, lineup.ability].filter(Boolean).join(' · ');
 
   const px = parseFloat(lineup.position_x);
   const py = parseFloat(lineup.position_y);
@@ -10081,8 +10160,10 @@ function renderInteractiveMap(lineup) {
   const hasTarget = traj.length >= 2;
   const useAppSquareCoords = lineup.trajectory_coord_space === 'app_square';
 
-  document.getElementById('dcLegendTarget').style.display = hasTarget ? 'flex' : 'none';
-  document.getElementById('dcLegendAim').style.display    = 'none';
+  const targetLegend = el('LegendTarget');
+  const aimLegend = el('LegendAim');
+  if (targetLegend) targetLegend.style.display = hasTarget ? 'flex' : 'none';
+  if (aimLegend) aimLegend.style.display = 'none';
 
   function drawCanvas() {
     const W = container.offsetWidth;
