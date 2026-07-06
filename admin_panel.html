@@ -1859,7 +1859,7 @@
 
       <div class="form-title">🔔 ТЕСТИРОВАНИЕ УВЕДОМЛЕНИЙ</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5;">
-        Выбери получателя и тип уведомления. Запись попадает в Firestore — Flutter-приложение подхватит и отправит через OneSignal.
+        Выбери получателя и тип уведомления. Push отправляется через серверный прокси OneSignal, без ожидания открытого приложения.
       </p>
 
       <div class="notif-cat-row">
@@ -4902,15 +4902,19 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
       createdAt: serverTimestamp(),
       createdBy: uid,
     });
-    await addDoc(collection(db, 'push_queue'), {
-      title: '⚔️ Новая дуэль!',
-      body: 'Проголосуй за лучший лайнап — дуэль уже идёт',
-      type: 'duel',
-      processed: false,
-      created_at: serverTimestamp(),
-    });
-    st.textContent = '✅ Дуэль запущена!';
-    toast('Дуэль создана', 's');
+    try {
+      await sendPushNotification({
+        title: '⚔️ Новая дуэль!',
+        body: 'Проголосуй за лучший лайнап — дуэль уже идёт',
+        type: 'duel',
+        allowAll: true,
+      });
+      st.textContent = '✅ Дуэль запущена, push отправлен!';
+      toast('Дуэль создана, push отправлен', 's');
+    } catch (pushErr) {
+      st.textContent = '✅ Дуэль запущена, но push не ушёл: ' + pushErr.message;
+      toast('Дуэль создана, но push не ушёл: ' + pushErr.message, 'e');
+    }
     _duel1 = null; _duel2 = null;
     document.getElementById('duel-selected1').textContent = '';
     document.getElementById('duel-selected2').textContent = '';
