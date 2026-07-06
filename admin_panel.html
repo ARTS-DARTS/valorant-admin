@@ -1064,9 +1064,9 @@
             <select class="fselect" id="f-category">
               <option value="">— Выбери категорию —</option>
               <option value="lineup">lineup</option>
-              <option value="combo">combo</option>
-              <option value="wallbang">wallbang</option>
-              <option value="defense">defense</option>
+              <option value="combo" disabled>combo — скоро</option>
+              <option value="wallbang" disabled>wallbang — скоро</option>
+              <option value="defense" disabled>defense — скоро</option>
             </select>
           </div>
 
@@ -2774,11 +2774,16 @@ const CONTENT_CATEGORIES = {
   wallbang: { title: 'ПРОСТРЕЛЫ', label: 'прострел', plural: 'прострелов', empty: 'Прострелы не найдены', legacy: ['smoke'] },
   defense:  { title: 'ЗАЩИТА',    label: 'защита',   plural: 'защит',      empty: 'Защита не найдена' },
 };
+const ENABLED_CONTENT_SAVE_CATEGORIES = new Set(['lineup']);
 
 function normalizeContentCategory(value) {
   if (!value) return 'lineup';
   if (value === 'smoke') return 'wallbang';
   return value;
+}
+
+function canSaveContentCategory(value) {
+  return ENABLED_CONTENT_SAVE_CATEGORIES.has(normalizeContentCategory(value));
 }
 
 function contentCategoryOf(item) {
@@ -6523,6 +6528,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const needsAbility = category === 'lineup' || category === 'combo';
   if (!map)      { toast('Выбери карту','e'); return; }
   if (!category) { toast('Выбери категорию','e'); return; }
+  if (!canSaveContentCategory(category)) { toast('Эта категория пока закрыта для добавления','e'); return; }
   if (needsAgent && !agent)    { toast('Выбери агента','e'); return; }
   if (needsAbility && !ability)  { toast('Выбери способность','e'); return; }
   if (category === 'wallbang' && !_checkedValues('add-wallbang-weapons').length) { toast('Выбери оружие для прострела','e'); return; }
@@ -7421,7 +7427,11 @@ function buildEditForm(id, l) {
   const cats = ['lineup','combo','wallbang','defense'];
   const selectedCategory = contentCategoryOf(l);
   const mapOpts = maps.map(m => `<option value="${m}"${m === (l.map ?? '') ? ' selected' : ''}>${m}</option>`).join('');
-  const catOpts = cats.map(c => `<option value="${c}"${c === selectedCategory ? ' selected' : ''}>${c}</option>`).join('');
+  const catOpts = cats.map(c => {
+    const locked = !canSaveContentCategory(c);
+    const label = locked ? `${c} — скоро` : c;
+    return `<option value="${c}"${c === selectedCategory ? ' selected' : ''}${locked ? ' disabled' : ''}>${label}</option>`;
+  }).join('');
   return `
 <div class="edit-sep"></div>
 <div class="edit-form-title">✏️ РЕДАКТИРОВАНИЕ</div>
@@ -7908,6 +7918,7 @@ async function saveEditedLineup(id) {
   if (!title)        { toast('Введи название',    'e'); return; }
   if (!map)          { toast('Выбери карту',       'e'); return; }
   if (!category)     { toast('Выбери категорию',   'e'); return; }
+  if (!canSaveContentCategory(category)) { toast('Эта категория пока закрыта для сохранения', 'e'); return; }
   if (needsAgent && !sess.agent)   { toast('Выбери агента',      'e'); return; }
   if (needsAbility && !sess.ability) { toast('Выбери способность', 'e'); return; }
   if (category === 'wallbang' && !_checkedValues(`ce-wallbang-weapons-${id}`).length) { toast('Выбери оружие для прострела', 'e'); return; }
