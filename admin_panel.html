@@ -4244,20 +4244,18 @@ window._maDecide = async function(uid, action) {
       ? `Одобрить заявку ${a.username}? Пользователь станет модератором.`
       : `Отклонить заявку ${a.username}?`)) return;
   try {
-    if (approve) {
-      await setDoc(doc(db, 'users', uid), {
-        role: 'moderator',
+    const res = await fetch('https://vlineups.ru/api/moderator-application', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+      body: JSON.stringify({
+        uid,
+        action,
+        username: a.username || '',
         email: a.user_email || '',
-        displayName: a.username || '',
-        name: a.username || '',
-        name_lower: String(a.username || '').toLowerCase(),
-        moderator_approved_at: serverTimestamp(),
-      }, { merge: true });
-    }
-    await updateDoc(doc(db, 'moderator_applications', uid), {
-      status: approve ? 'approved' : 'rejected',
-      decided_at: serverTimestamp(),
+      }),
     });
+    const apiData = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(apiData.error || `HTTP ${res.status}`);
     a.status = approve ? 'approved' : 'rejected';
     // Пуш пользователю
     _ncTargetUid = uid;
