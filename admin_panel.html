@@ -9753,9 +9753,9 @@ async function loadAnalytics(force = false) {
 
 function _adEventKind(type) {
   const t = String(type || '').toLowerCase();
-  if (t.includes('rewarded') && (t.includes('completed') || t.includes('complete') || t.includes('done') || t.includes('reward'))) return 'rewardedDone';
-  if (t.includes('rewarded') && (t.includes('skipped') || t.includes('skip') || t.includes('dismiss') || t.includes('fail'))) return 'rewardedSkip';
   if (t.includes('rewarded') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'rewardedShown';
+  if (t.includes('rewarded') && (t.includes('skipped') || t.includes('skip') || t.includes('dismiss') || t.includes('fail'))) return 'rewardedSkip';
+  if (t.includes('rewarded') && (t.includes('completed') || t.includes('complete') || t.includes('done') || t.includes('reward_granted'))) return 'rewardedDone';
   if (t.includes('interstitial') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'interstitialShown';
   if (t.includes('banner') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'bannerShown';
   if ((t.includes('app_open') || t.includes('appopen') || t.includes('open_ad')) && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'appOpenShown';
