@@ -10079,6 +10079,7 @@ function renderInteractiveMap(lineup) {
 
   const traj      = Array.isArray(lineup.trajectory) ? lineup.trajectory : [];
   const hasTarget = traj.length >= 2;
+  const useAppSquareCoords = lineup.trajectory_coord_space === 'app_square';
 
   document.getElementById('dcLegendTarget').style.display = hasTarget ? 'flex' : 'none';
   document.getElementById('dcLegendAim').style.display    = 'none';
@@ -10092,13 +10093,28 @@ function renderInteractiveMap(lineup) {
     ctx.clearRect(0, 0, W, H);
     if (isNaN(px) || isNaN(py)) return;
 
+    const side = Math.min(W, H);
+    const squareOffX = (W - side) / 2;
+    const squareOffY = (H - side) / 2;
     const imgNatW = img.naturalWidth  || W;
     const imgNatH = img.naturalHeight || H;
     const imgScale = Math.min(W / imgNatW, H / imgNatH);
-    const rendW    = imgNatW * imgScale;
-    const rendH    = imgNatH * imgScale;
-    const offX     = (W - rendW) / 2;
-    const offY     = (H - rendH) / 2;
+    const rendW    = useAppSquareCoords ? side : imgNatW * imgScale;
+    const rendH    = useAppSquareCoords ? side : imgNatH * imgScale;
+    const offX     = useAppSquareCoords ? squareOffX : (W - rendW) / 2;
+    const offY     = useAppSquareCoords ? squareOffY : (H - rendH) / 2;
+
+    if (useAppSquareCoords) {
+      img.style.left = offX + 'px';
+      img.style.top = offY + 'px';
+      img.style.width = side + 'px';
+      img.style.height = side + 'px';
+    } else {
+      img.style.left = '0';
+      img.style.top = '0';
+      img.style.width = '100%';
+      img.style.height = '100%';
+    }
 
     function toCanvas(normX, normY) {
       return { x: offX + normX * rendW, y: offY + normY * rendH };
