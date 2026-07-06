@@ -2823,6 +2823,7 @@ const ADMIN_AD_EVENTS_LIMIT = 600;
 let lineups       = [];
 let currentFilter = 'all';
 let currentUser   = null;
+let currentUserRole = 'user';
 let currentContentCategory = 'lineup';
 let uploadedScreenshots = [];
 let addVideoState = { status: 'idle', url: null, localUrl: null, progress: 0, xhr: null };
@@ -2860,7 +2861,8 @@ onAuthStateChanged(auth, async user => {
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     const role = snap.exists() ? (snap.data().role ?? 'user') : 'user';
-    if (role !== 'admin') { show('denied'); return; }
+    if (!['admin', 'moderator'].includes(role)) { show('denied'); return; }
+    currentUserRole = role;
   } catch (e) {
     console.error('[auth] role check failed:', e);
     loginErr('Ошибка проверки прав: ' + e.message);
@@ -2873,9 +2875,20 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('user-provider-icon').textContent =
     user.uid.startsWith('yandex_') ? 'Я ' : (_prov === 'google.com' ? '🇬 ' : '📧 ');
   show('app');
-  loadAdmins();
+  applyRoleUi(currentUserRole);
+  if (currentUserRole === 'admin') loadAdmins();
   switchTab('list');
 });
+
+function applyRoleUi(role) {
+  const isAdmin = role === 'admin';
+  document.querySelectorAll('.sidebar .tab').forEach(btn => {
+    btn.style.display = isAdmin || btn.id === 'tab-btn-list' ? '' : 'none';
+  });
+  document.querySelectorAll('.sidebar-section-label, .sidebar-divider').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+}
 
 document.getElementById('btn-login').addEventListener('click', async () => {
   const btn = document.getElementById('btn-login');
@@ -2989,6 +3002,7 @@ function stopInactiveRealtime(activeTab) {
 }
 
 function switchTab(t) {
+  if (currentUserRole !== 'admin' && t !== 'list') t = 'list';
   if (_activeTab === t) return;
   _activeTab = t;
   stopInactiveRealtime(t);
