@@ -2999,6 +2999,7 @@ function stopInactiveRealtime(activeTab) {
   if (activeTab !== 'list') stopLineupsRealtime();
   if (activeTab !== 'messages') stopMessagesRealtime();
   if (activeTab !== 'analytics') stopAnalyticsRealtime();
+  if (activeTab !== 'duels') stopDuelsRealtime();
 }
 
 function switchTab(t) {
@@ -4739,6 +4740,34 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
 // ── Duels ─────────────────────────────────────────────────────────────────────
 let _duel1 = null; // { id, title, mapName }
 let _duel2 = null;
+let _duelsUnsub = null;
+
+function stopDuelsRealtime() {
+  if (_duelsUnsub) {
+    _duelsUnsub();
+    _duelsUnsub = null;
+  }
+}
+
+function duelPressureBarHtml(v1, v2, compact = false) {
+  const total = v1 + v2;
+  const p1 = total ? Math.round(v1 / total * 100) : 50;
+  const p2 = total ? 100 - p1 : 50;
+  const w1 = Math.max(8, Math.min(92, p1));
+  const h = compact ? 16 : 20;
+  return `
+    <div style="min-width:${compact ? 150 : 190}px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:${compact ? 10 : 11}px;font-weight:800;">
+        <span style="color:var(--primary);">${v1} · ${p1}%</span>
+        <span style="color:var(--green);">${p2}% · ${v2}</span>
+      </div>
+      <div style="position:relative;height:${h}px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface2);box-shadow:inset 0 0 12px rgba(0,0,0,.25);">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:${w1}%;background:linear-gradient(90deg,var(--primary),rgba(255,70,85,.62));transition:width .55s cubic-bezier(.22,1,.36,1);"></div>
+        <div style="position:absolute;right:0;top:0;bottom:0;width:${100 - w1}%;background:linear-gradient(90deg,rgba(34,197,94,.62),var(--green));transition:width .55s cubic-bezier(.22,1,.36,1);"></div>
+        <div style="position:absolute;top:-2px;bottom:-2px;left:calc(${w1}% - 5px);width:10px;background:rgba(255,255,255,.28);transform:skewX(-12deg);box-shadow:0 0 12px rgba(255,255,255,.25);transition:left .55s cubic-bezier(.22,1,.36,1);"></div>
+      </div>
+    </div>`;
+}
 
 // helper because query() is variadic
 window._buildQuery = (ref, constraints) => query(ref, ...constraints);
@@ -5012,11 +5041,7 @@ async function loadFinishedDuels(append = false) {
         <td style="padding:8px 6px;color:var(--text2);">${esc(data.mapName ?? '—')}</td>
         <td style="padding:8px 6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
             title="${esc(t1)}">${esc(t1)}</td>
-        <td style="padding:8px 6px;text-align:center;white-space:nowrap;">
-          <span style="font-weight:700;${v1 >= v2 ? 'color:var(--green)' : 'color:var(--text2)'};">${v1} (${p1}%)</span>
-          <span style="color:var(--text2);margin:0 4px;">vs</span>
-          <span style="font-weight:700;${v2 >= v1 ? 'color:var(--green)' : 'color:var(--text2)'};">${v2} (${p2}%)</span>
-        </td>
+        <td style="padding:8px 6px;text-align:center;">${duelPressureBarHtml(v1, v2, true)}</td>
         <td style="padding:8px 6px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
             title="${esc(t2)}">${esc(t2)}</td>
         <td style="padding:8px 6px;text-align:center;">${winnerCell}</td>
@@ -5055,9 +5080,25 @@ async function loadDuelsTab() {
   await _initDuelPickers();
   const wrap = document.getElementById('duel-list-wrap'); if (!wrap) return;
   wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка…</div>';
+  stopDuelsRealtime();
+  loadFinishedDuels();
   try {
-    const snap = await getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')]));
-    if (snap.empty) { wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Активных дуэлей нет.</div>'; return; }
+    const q = window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')]);
+    _duelsUnsub = onSnapshot(q, snap => {
+      renderActiveDuelsSnapshot(snap).catch(e => {
+        wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+      });
+    }, e => {
+      wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+    });
+  } catch (e) {
+    wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+  }
+}
+
+async function renderActiveDuelsSnapshot(snap) {
+  const wrap = document.getElementById('duel-list-wrap'); if (!wrap) return;
+  if (snap.empty) { wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Активных дуэлей нет.</div>'; return; }
 
     const table = document.createElement('table');
     table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;';
@@ -5090,15 +5131,11 @@ async function loadDuelsTab() {
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid var(--border)';
       tr.innerHTML = `
-        <td style="padding:8px 6px;color:var(--text2);">${data.mapName ?? '—'}</td>
-        <td style="padding:8px 6px;">${t1}</td>
-        <td style="padding:8px 6px;text-align:center;white-space:nowrap;">
-          <span style="color:var(--primary);font-weight:700;">${v1}</span>
-          <span style="color:var(--text2);"> (${p1}%) vs (${p2}%) </span>
-          <span style="color:var(--primary);font-weight:700;">${v2}</span>
-        </td>
-        <td style="padding:8px 6px;">${t2}</td>
-        <td style="padding:8px 6px;text-align:right;color:var(--text2);">${remaining}</td>
+        <td style="padding:8px 6px;color:var(--text2);">${esc(data.mapName ?? '—')}</td>
+        <td style="padding:8px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(t1)}">${esc(t1)}</td>
+        <td style="padding:8px 6px;text-align:center;">${duelPressureBarHtml(v1, v2)}</td>
+        <td style="padding:8px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(t2)}">${esc(t2)}</td>
+        <td style="padding:8px 6px;text-align:right;color:var(--text2);">${esc(remaining)}</td>
         <td style="padding:8px 6px;">
           <button class="btn" data-duel-id="${d.id}" style="border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 10px;">Завершить</button>
         </td>`;
@@ -5112,10 +5149,6 @@ async function loadDuelsTab() {
         loadDuelsTab();
       });
     }
-  } catch (e) {
-    wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${e.message}</div>`;
-  }
-  loadFinishedDuels();
 }
 
 // ── Guide content editor ──────────────────────────────────────────────────────
