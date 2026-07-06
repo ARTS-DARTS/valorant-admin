@@ -834,6 +834,9 @@
     <button class="btn-google" id="btn-login">
       <span class="g-icon">G</span> Войти через Google
     </button>
+    <button class="btn-google" id="btn-yandex-login" style="margin-top:10px;background:#fc3f1d;color:#fff;">
+      <span style="font-size:15px;font-weight:900;">Я</span> Войти через Яндекс
+    </button>
     <div class="auth-divider"><span>или</span></div>
     <div class="fg" style="text-align:left;">
       <label class="flabel">Email или никнейм</label>
@@ -2779,6 +2782,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import {
   getAuth, signInWithPopup, GoogleAuthProvider,
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
@@ -2866,7 +2870,8 @@ onAuthStateChanged(auth, async user => {
   currentUser = user;
   document.getElementById('user-name').textContent = user.displayName || user.email;
   const _prov = user.providerData[0]?.providerId ?? '';
-  document.getElementById('user-provider-icon').textContent = _prov === 'google.com' ? '🇬 ' : '📧 ';
+  document.getElementById('user-provider-icon').textContent =
+    user.uid.startsWith('yandex_') ? 'Я ' : (_prov === 'google.com' ? '🇬 ' : '📧 ');
   show('app');
   loadAdmins();
   switchTab('list');
@@ -2886,6 +2891,34 @@ document.getElementById('btn-login').addEventListener('click', async () => {
     btn.disabled = false;
     btn.innerHTML = '<span class="g-icon">G</span> Войти через Google';
   }
+});
+
+function publicYandexAuthError(code) {
+  const key = String(code || '').toLowerCase();
+  if (key === 'auth_expired') return 'Сессия входа через Яндекс истекла. Нажми кнопку ещё раз.';
+  return 'Вход через Яндекс сейчас недоступен. Попробуй позже или войди другим способом.';
+}
+
+async function consumeYandexAdminReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('yandex_error');
+  const token = params.get('yandex_token');
+  if (!err && !token) return;
+  history.replaceState(null, '', window.location.pathname);
+  if (err) {
+    loginErr(publicYandexAuthError(decodeURIComponent(err)));
+    return;
+  }
+  try {
+    await signInWithCustomToken(auth, token);
+  } catch (e) {
+    loginErr('Вход через Яндекс не удался: ' + e.message);
+  }
+}
+consumeYandexAdminReturn();
+
+document.getElementById('btn-yandex-login').addEventListener('click', () => {
+  window.location.href = 'https://vlineups.ru/api/yandex-start?state=admin';
 });
 
 document.getElementById('btn-ep-login').addEventListener('click', _epLogin);
