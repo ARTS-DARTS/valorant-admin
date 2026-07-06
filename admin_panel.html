@@ -12075,6 +12075,22 @@ const USER_GOOGLE_TRIAL_DAYS = 30;
 const USER_WARNING_DAYS = 3;
 const USER_TRACKING_START = new Date('2026-06-20T00:00:00Z');
 
+function hasUsableUserName(u = {}) {
+  const name = String(u.name || u.username || u.displayName || '').trim();
+  const lower = String(u.name_lower || '').trim();
+  return !!(name && lower);
+}
+
+async function requireUsableUserName(uid) {
+  const snap = await getDoc(doc(db, 'users', uid));
+  const u = snap.data() || {};
+  if (hasUsableUserName(u)) return u;
+  toast('Сначала задай пользователю нормальный никнейм. Роли и бейджи нельзя выдавать пустому профилю.', 'e');
+  const sel = document.getElementById('up-role-' + uid);
+  if (sel) sel.value = u.role || 'user';
+  throw new Error('missing_user_nickname');
+}
+
 function userAuthKind(u) {
   const provider = String(u.auth_provider || u.auth_provider_linked || '').toLowerCase();
   const email = String(u.user_email || '').toLowerCase();
@@ -12187,6 +12203,7 @@ function renderUsersList(users) {
   }
   resultsEl.innerHTML = users.map(u => {
     const isBanned  = u.is_banned;
+    const hasName   = hasUsableUserName(u);
     const role      = u.role && u.role !== 'user'
       ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--primary-dim);color:var(--primary);margin-left:4px;">${u.role}</span>`
       : '';
@@ -12202,7 +12219,11 @@ function renderUsersList(users) {
         : trial.warning
           ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(249,115,22,.15);color:var(--orange);margin-left:4px;">${trial.daysLeft}д ${trial.viewed}/${USER_REQUIRED_VIEWS}</span>`
           : `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--surface2);color:var(--text2);margin-left:4px;">${trial.viewed}/${USER_REQUIRED_VIEWS}</span>`;
-    const initial = esc((u.name || '?')[0].toUpperCase());
+    const nameTag = hasName
+      ? ''
+      : `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,.15);color:var(--red);margin-left:4px;">без ника</span>`;
+    const displayName = u.name || u.username || u.displayName || 'Аноним';
+    const initial = esc((displayName || '?')[0].toUpperCase());
     return `<div onclick="openUserProfilePanel('${u.id}')"
         style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;"
         onmouseover="this.style.background='var(--surface2)'"
@@ -12210,7 +12231,7 @@ function renderUsersList(users) {
       <div style="width:30px;height:30px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:600;color:var(--text);">${initial}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:500;color:${isBanned ? '#FF4655' : 'var(--text)'};display:flex;align-items:center;flex-wrap:wrap;gap:2px;">
-          ${isBanned ? '🚫 ' : ''}${esc(u.name || '—')}${role}${bannedTag}${trialTag}
+          ${isBanned ? '🚫 ' : ''}${esc(displayName)}${role}${bannedTag}${nameTag}${trialTag}
         </div>
         <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${userAuthLabel(authKind)} · ${esc(u.user_email || u.yandex_email || '')}</div>
       </div>
@@ -12571,6 +12592,7 @@ function renderUserBadges(uid, badges) {
 }
 
 async function grantBadge(uid, type) {
+  await requireUsableUserName(uid);
   let url = null;
   if (['youtuber','twitch','tiktok'].includes(type)) {
     url = prompt(`Ссылка на ${type} канал пользователя:`);
@@ -12612,14 +12634,32 @@ window.revokeBadge = revokeBadge;
 async function saveUserName(uid) {
   const name = document.getElementById('up-name-' + uid)?.value?.trim();
   if (!name) return;
-  await updateDoc(doc(db, 'users', uid), { name, name_lower: name.toLowerCase() });
+  await updateDoc(doc(db, 'users', uid), {
+    name,
+    username: name,
+    displayName: name,
+    name_lower: name.toLowerCase(),
+    needs_nickname: false,
+    nickname_set_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+  });
   toast('Никнейм обновлён ✅', 's');
   addAuditLog(`Сменён никнейм пользователя → ${name}`);
+  const local = _allUsers.find(u => u.id === uid);
+  if (local) {
+    local.name = name;
+    local.username = name;
+    local.displayName = name;
+    local.name_lower = name.toLowerCase();
+    local.needs_nickname = false;
+  }
+  renderUsersList(applyUserFilters());
 }
 
 async function saveUserRole(uid) {
   const role = document.getElementById('up-role-' + uid)?.value;
   if (!role) return;
+  if (role !== 'user') await requireUsableUserName(uid);
   await updateDoc(doc(db, 'users', uid), { role });
   toast(`Роль обновлена → ${role} ✅`, 's');
   addAuditLog(`Изменена роль пользователя ${uid} → ${role}`);
