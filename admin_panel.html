@@ -3422,6 +3422,14 @@ function _pointsToWrap(points, ir, wrap) {
     .filter(p => Number.isFinite(p.x) && Number.isFinite(p.y));
 }
 
+function _trajectoryFromPosition(points, x, y) {
+  if (!Array.isArray(points) || points.length === 0) return [];
+  if (!Number.isFinite(Number(x)) || !Number.isFinite(Number(y))) return points;
+  const out = points.map(p => ({ x: Number(p.x), y: Number(p.y) }));
+  out[0] = { x: Number(x), y: Number(y) };
+  return out;
+}
+
 function _eventToMapNorm(clientX, clientY, wrap, ir, tx = 0, ty = 0, scale = 1) {
   const rect = wrap.getBoundingClientRect();
   const localX = (clientX - rect.left - tx) / scale;
@@ -6198,7 +6206,8 @@ function renderSlotTraj(id) {
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
   c.querySelector('.traj-svg')?.remove();
   const s = addSlotSessions[id]; if (!s || s.trajectory.length === 0) return;
-  c.appendChild(_buildTrajSvg(_pointsToWrap(s.trajectory, _sImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id));
+  const path = _trajectoryFromPosition(s.trajectory, s.markerX, s.markerY);
+  c.appendChild(_buildTrajSvg(_pointsToWrap(path, _sImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id));
 }
 function _setSlotMapMode(id, mode) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -6280,6 +6289,7 @@ function initSlotMapWrap(id) {
     if (!_sCanvas(id)) return; e.preventDefault();
     const ir = _sImgRect(id);
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
+    if (s.trajectory.length === 0 && s.markerX !== null) s.trajectory.push({ x: s.markerX, y: s.markerY });
     s.trajectory.push({x:p.x, y:p.y}); renderSlotTraj(id);
     _setSlotMapMode(id, 'trajectory');
   });
@@ -6923,7 +6933,8 @@ function renderTrajectory() {
   c.querySelector('.traj-svg')?.remove();
   if (trajectoryPoints.length === 0) return;
   const wrap = document.getElementById('map-picker-wrap');
-  c.appendChild(_buildTrajSvg(_pointsToWrap(trajectoryPoints, _getImageRect(), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-add'));
+  const path = _trajectoryFromPosition(trajectoryPoints, markerX, markerY);
+  c.appendChild(_buildTrajSvg(_pointsToWrap(path, _getImageRect(), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-add'));
 }
 
 function _setMapMode(mode) {
@@ -6985,6 +6996,7 @@ function initMapPicker() {
     e.preventDefault();
     const ir = _getImageRect();
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, mapTx, mapTy, mapScale);
+    if (trajectoryPoints.length === 0 && markerX !== null) trajectoryPoints.push({ x: markerX, y: markerY });
     trajectoryPoints.push({ x: p.x, y: p.y }); renderTrajectory();
     _setMapMode('trajectory');
   });
@@ -7586,7 +7598,8 @@ function renderEditTrajectory(id) {
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
   c.querySelector('.traj-svg')?.remove();
   const sess = editSessions[id]; if (!sess || sess.trajectory.length === 0) return;
-  c.appendChild(_buildTrajSvg(_pointsToWrap(sess.trajectory, _eImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
+  const path = _trajectoryFromPosition(sess.trajectory, sess.markerX, sess.markerY);
+  c.appendChild(_buildTrajSvg(_pointsToWrap(path, _eImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
 }
 
 function _setEditMapMode(id, mode) {
@@ -7658,6 +7671,7 @@ function initEditMapInteraction(id, initialMap) {
     if (!_eCanvas(id)) return; e.preventDefault();
     const ir = _eImgRect(id);
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
+    if (s.trajectory.length === 0 && s.markerX !== null) s.trajectory.push({ x: s.markerX, y: s.markerY });
     s.trajectory.push({ x: p.x, y: p.y }); renderEditTrajectory(id);
     _setEditMapMode(id, 'trajectory');
   });
