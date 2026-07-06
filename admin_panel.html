@@ -2340,6 +2340,43 @@
       </div>
     </div>
 
+    <!-- Map calibration -->
+    <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Калибровка бокса карты</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Сдвигает и масштабирует координаты маркеров/траекторий для выбранной карты. Приложение и админка читают один документ Firestore.</div>
+        </div>
+        <button id="mc-save-btn" class="btn btn-save" style="padding:8px 14px;font-size:12px;">💾 Сохранить бокс</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;">
+        <div>
+          <label class="flabel">Сдвиг X</label>
+          <input class="finput" id="mc-offset-x" type="number" step="0.001" value="0" style="background:var(--bg);">
+        </div>
+        <div>
+          <label class="flabel">Сдвиг Y</label>
+          <input class="finput" id="mc-offset-y" type="number" step="0.001" value="0" style="background:var(--bg);">
+        </div>
+        <div>
+          <label class="flabel">Масштаб X</label>
+          <input class="finput" id="mc-scale-x" type="number" step="0.001" value="1" style="background:var(--bg);">
+        </div>
+        <div>
+          <label class="flabel">Масштаб Y</label>
+          <input class="finput" id="mc-scale-y" type="number" step="0.001" value="1" style="background:var(--bg);">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button id="mc-nudge-left" class="btn" style="border:1px solid var(--border);color:var(--text2);font-size:12px;">← X -0.005</button>
+        <button id="mc-nudge-right" class="btn" style="border:1px solid var(--border);color:var(--text2);font-size:12px;">X +0.005 →</button>
+        <button id="mc-nudge-up" class="btn" style="border:1px solid var(--border);color:var(--text2);font-size:12px;">↑ Y -0.005</button>
+        <button id="mc-nudge-down" class="btn" style="border:1px solid var(--border);color:var(--text2);font-size:12px;">Y +0.005 ↓</button>
+        <button id="mc-reset-btn" class="btn btn-delete" style="font-size:12px;">Сбросить бокс</button>
+        <span id="mc-status" style="font-size:12px;color:var(--text2);align-self:center;"></span>
+      </div>
+    </div>
+
     <!-- Controls 2-col -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px;">
       <!-- Left col: tint + intensity -->
@@ -3046,6 +3083,8 @@ let _msOrigDataBefore = null;
 let _msRafPend        = false;
 let _msCurrentTheme   = 'standard';
 let _msThemesCache    = {};
+let _mapCalibrationCache = {};
+let _mapCalibrationPromise = null;
 
 const MS_THEME_DEFAULTS = {
   standard:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 70,  tint_b: 85  },
@@ -3193,9 +3232,12 @@ async function loadMapStyleTab() {
   try {
     const snap = await getDoc(doc(db, 'settings', 'map_style_themes'));
     if (snap.exists()) _msThemesCache = snap.data();
+    const calSnap = await getDoc(doc(db, 'settings', 'map_calibration'));
+    _mapCalibrationCache = calSnap.exists() ? calSnap.data() : {};
   } catch(e) { console.error('loadMapStyleTab', e); }
   _msSwitchTheme(_msCurrentTheme);
   _msRenderStylesTable();
+  _mcLoadSelectedMap();
   _msLoadMap(document.getElementById('ms-map-pick').value);
 }
 
@@ -3270,7 +3312,10 @@ document.getElementById('ms-color-custom').addEventListener('input', e => {
   const v = e.target.value;
   _msSetTint(parseInt(v.slice(1,3),16), parseInt(v.slice(3,5),16), parseInt(v.slice(5,7),16));
 });
-document.getElementById('ms-map-pick').addEventListener('change', e => _msLoadMap(e.target.value));
+document.getElementById('ms-map-pick').addEventListener('change', e => {
+  _mcLoadSelectedMap();
+  _msLoadMap(e.target.value);
+});
 document.getElementById('ms-reset-btn').addEventListener('click', () => {
   const d = MS_THEME_DEFAULTS[_msCurrentTheme] || MS_THEME_DEFAULTS.standard;
   _msApplyThemeData(d);
@@ -3390,6 +3435,64 @@ document.getElementById('mp-save-btn')?.addEventListener('click', async function
     console.error('mp-save', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = orig;
+  }
+});
+
+['mc-offset-x','mc-offset-y','mc-scale-x','mc-scale-y'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', () => {
+    _mcSetSelectedMapCalibration(_mcReadForm());
+    _mcRefreshOpenPreview();
+  });
+});
+
+function _mcRefreshOpenPreview() {
+  if (!_selectedId) return;
+  const current = lineups.find(l => l.id === _selectedId);
+  if (current) renderInteractiveMap(current, 'ed');
+}
+
+function _mcNudge(field, delta) {
+  const el = document.getElementById(field);
+  if (!el) return;
+  const next = (parseFloat(el.value) || 0) + delta;
+  el.value = next.toFixed(3);
+  _mcSetSelectedMapCalibration(_mcReadForm());
+  _mcRefreshOpenPreview();
+}
+
+document.getElementById('mc-nudge-left')?.addEventListener('click', () => _mcNudge('mc-offset-x', -0.005));
+document.getElementById('mc-nudge-right')?.addEventListener('click', () => _mcNudge('mc-offset-x', 0.005));
+document.getElementById('mc-nudge-up')?.addEventListener('click', () => _mcNudge('mc-offset-y', -0.005));
+document.getElementById('mc-nudge-down')?.addEventListener('click', () => _mcNudge('mc-offset-y', 0.005));
+document.getElementById('mc-reset-btn')?.addEventListener('click', () => {
+  _mcSetSelectedMapCalibration({ offset_x: 0, offset_y: 0, scale_x: 1, scale_y: 1 });
+  _mcRefreshOpenPreview();
+});
+document.getElementById('mc-save-btn')?.addEventListener('click', async () => {
+  const mapName = _selectedMapName();
+  if (!mapName) return;
+  const status = document.getElementById('mc-status');
+  const d = _mcReadForm();
+  _mapCalibrationCache[mapName] = d;
+  try {
+    await setDoc(doc(db, 'settings', 'map_calibration'), {
+      [mapName]: {
+        ...d,
+        updated_at: serverTimestamp(),
+        updated_by: adminUser?.email || adminUser?.displayName || 'admin',
+      },
+    }, { merge: true });
+    if (status) {
+      status.style.color = 'var(--green)';
+      status.textContent = `Сохранено для ${mapName}`;
+    }
+    toast(`Бокс карты ${mapName} сохранён`, 's');
+  } catch (e) {
+    if (status) {
+      status.style.color = 'var(--red)';
+      status.textContent = e.message;
+    }
+    toast('Ошибка: ' + e.message, 'e');
   }
 });
 
@@ -4109,7 +4212,14 @@ window._maDecide = async function(uid, action) {
       : `Отклонить заявку ${a.username}?`)) return;
   try {
     if (approve) {
-      await updateDoc(doc(db, 'users', uid), { role: 'moderator' });
+      await setDoc(doc(db, 'users', uid), {
+        role: 'moderator',
+        email: a.user_email || '',
+        displayName: a.username || '',
+        name: a.username || '',
+        name_lower: String(a.username || '').toLowerCase(),
+        moderator_approved_at: serverTimestamp(),
+      }, { merge: true });
     }
     await updateDoc(doc(db, 'moderator_applications', uid), {
       status: approve ? 'approved' : 'rejected',
@@ -5330,6 +5440,11 @@ function cleanupInteractiveMap(container) {
 function hydrateLineupDetailMap(l) {
   const container = document.getElementById('edMapContainer');
   if (!container) return;
+  ensureMapCalibrationLoaded().then(() => {
+    if (!document.getElementById('edMapContainer')) return;
+    renderInteractiveMap(l, 'ed');
+    initMapInteraction(document.getElementById('edMapContainer'));
+  }).catch(() => {});
   renderInteractiveMap(l, 'ed');
   initMapInteraction(container);
   _ensureIconsLoaded().then(() => {
@@ -6832,6 +6947,74 @@ const ABILITY_NAME_FALLBACKS = {
     'FRAG/ment': 'ФРАГ/мент',
   },
 };
+
+function _selectedMapName() {
+  const sel = document.getElementById('ms-map-pick');
+  return sel?.selectedOptions?.[0]?.textContent?.trim() || '';
+}
+
+function _calibrationForMap(mapName) {
+  const d = _mapCalibrationCache[mapName] || {};
+  return {
+    offset_x: Number.isFinite(Number(d.offset_x)) ? Number(d.offset_x) : 0,
+    offset_y: Number.isFinite(Number(d.offset_y)) ? Number(d.offset_y) : 0,
+    scale_x: Number.isFinite(Number(d.scale_x)) ? Number(d.scale_x) : 1,
+    scale_y: Number.isFinite(Number(d.scale_y)) ? Number(d.scale_y) : 1,
+  };
+}
+
+async function ensureMapCalibrationLoaded() {
+  if (_mapCalibrationPromise) return _mapCalibrationPromise;
+  _mapCalibrationPromise = getDoc(doc(db, 'settings', 'map_calibration'))
+    .then(snap => {
+      _mapCalibrationCache = snap.exists() ? snap.data() : {};
+      return _mapCalibrationCache;
+    })
+    .catch(e => {
+      console.warn('map_calibration load:', e.message || e);
+      return _mapCalibrationCache;
+    });
+  return _mapCalibrationPromise;
+}
+
+function _applyCalibrationPoint(mapName, x, y) {
+  const c = _calibrationForMap(mapName);
+  return {
+    x: c.offset_x + x * c.scale_x,
+    y: c.offset_y + y * c.scale_y,
+  };
+}
+
+function _mcReadForm() {
+  return {
+    offset_x: parseFloat(document.getElementById('mc-offset-x').value) || 0,
+    offset_y: parseFloat(document.getElementById('mc-offset-y').value) || 0,
+    scale_x: parseFloat(document.getElementById('mc-scale-x').value) || 1,
+    scale_y: parseFloat(document.getElementById('mc-scale-y').value) || 1,
+  };
+}
+
+function _mcWriteForm(d) {
+  document.getElementById('mc-offset-x').value = (d.offset_x ?? 0).toFixed(3);
+  document.getElementById('mc-offset-y').value = (d.offset_y ?? 0).toFixed(3);
+  document.getElementById('mc-scale-x').value = (d.scale_x ?? 1).toFixed(3);
+  document.getElementById('mc-scale-y').value = (d.scale_y ?? 1).toFixed(3);
+}
+
+function _mcLoadSelectedMap() {
+  const mapName = _selectedMapName();
+  if (!mapName) return;
+  _mcWriteForm(_calibrationForMap(mapName));
+  const status = document.getElementById('mc-status');
+  if (status) status.textContent = `Текущая карта: ${mapName}`;
+}
+
+function _mcSetSelectedMapCalibration(d) {
+  const mapName = _selectedMapName();
+  if (!mapName) return;
+  _mapCalibrationCache[mapName] = d;
+  _mcWriteForm(d);
+}
 
 function normalizeAbilityName(agentName, abilityName, slot = '') {
   const raw = String(abilityName || '').trim();
@@ -10264,7 +10447,8 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
     }
 
     function toCanvas(normX, normY) {
-      return { x: offX + normX * rendW, y: offY + normY * rendH };
+      const calibrated = _applyCalibrationPoint(lineup.map || '', normX, normY);
+      return { x: offX + calibrated.x * rendW, y: offY + calibrated.y * rendH };
     }
 
     const start = toCanvas(px, py);
