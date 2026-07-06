@@ -2232,6 +2232,25 @@
         </div>
       </div>
 
+      <!-- Active new-lineup notifications — manual cleanup -->
+      <div style="margin-top:16px;">
+        <div class="notif-card">
+          <div class="nc-header">
+            <span class="nc-icon">🧹</span>
+            <div>
+              <div class="nc-title">Активные банеры новых лайнапов</div>
+              <div class="nc-desc">Непрочитанные new_lineups_batch из users/*/notifications. Можно погасить или удалить зависшие уведомления.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;">
+            <button class="btn btn-save" id="bn-active-load">🔎 Загрузить активные</button>
+            <button class="btn btn-archive" id="bn-active-clear-stale" disabled>🧹 Погасить битые</button>
+          </div>
+          <div class="nc-status" id="bn-active-status"></div>
+          <div id="bn-active-list" style="margin-top:12px;display:grid;gap:8px;"></div>
+        </div>
+      </div>
+
       </div>
 
     </div>
@@ -5254,19 +5273,31 @@ function lineupMapPreviewHtml(prefix, height = 280) {
   return `
 <div class="section">
   <div class="dlabel">Карта</div>
-  <div id="${prefix}MapContainer" data-interactive-map style="position:relative;width:100%;height:${height}px;background:#0e1016;overflow:hidden;cursor:grab;user-select:none;border-radius:8px;">
+  <div id="${prefix}MapContainer" data-interactive-map style="position:relative;width:100%;height:${height}px;background:#0b0f18;overflow:hidden;cursor:grab;user-select:none;border-radius:8px;border:1px solid rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);">
     <div class="dc-map-inner" style="position:absolute;inset:0;transform-origin:50% 50%;">
       <img id="${prefix}MapImg" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
       <canvas id="${prefix}MapCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+      <div id="${prefix}AbilityMarker" style="position:absolute;display:none;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.25),rgba(255,70,85,.92) 52%,rgba(121,25,36,.98));border:2px solid rgba(255,255,255,.92);box-shadow:0 0 0 5px rgba(255,70,85,.20),0 10px 22px rgba(0,0,0,.45);align-items:center;justify-content:center;pointer-events:none;z-index:4;">
+        <img id="${prefix}AbilityIcon" src="" alt="" style="width:23px;height:23px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.75));display:none;">
+        <span id="${prefix}AbilityFallback" style="color:#fff;font-size:18px;font-weight:900;line-height:1;text-shadow:0 1px 4px rgba(0,0,0,.75);">✦</span>
+      </div>
     </div>
-    <div style="position:absolute;bottom:10px;left:14px;pointer-events:none;z-index:5;">
+    <div style="position:absolute;bottom:13px;left:14px;pointer-events:none;z-index:5;max-width:min(360px,58%);">
       <div id="${prefix}MapLabel" style="font-size:16px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,0.9);"></div>
       <div id="${prefix}MapSublabel" style="font-size:11px;color:rgba(255,255,255,0.55);text-shadow:0 1px 4px rgba(0,0,0,0.9);margin-top:2px;"></div>
+      <div id="${prefix}AbilityPill" style="display:none;margin-top:7px;align-items:center;gap:7px;width:max-content;max-width:100%;padding:5px 9px;border-radius:999px;background:rgba(10,15,26,.78);border:1px solid rgba(255,70,85,.35);box-shadow:0 8px 18px rgba(0,0,0,.25);backdrop-filter:blur(6px);">
+        <img id="${prefix}AbilityPillIcon" src="" alt="" style="width:18px;height:18px;object-fit:contain;display:none;">
+        <span id="${prefix}AbilityPillText" style="font-size:11px;color:rgba(255,255,255,.9);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+      </div>
     </div>
     <div style="position:absolute;top:10px;right:12px;pointer-events:none;z-index:5;display:flex;flex-direction:column;gap:4px;">
       <div style="display:flex;align-items:center;gap:5px;">
         <div style="width:10px;height:10px;border-radius:50%;background:#ff4655;border:2px solid #fff;flex-shrink:0;"></div>
         <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Позиция</span>
+      </div>
+      <div id="${prefix}LegendAbility" style="display:none;align-items:center;gap:5px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#ff4655;border:2px solid #fff;box-shadow:0 0 0 3px rgba(255,70,85,.18);flex-shrink:0;"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.6);text-shadow:0 1px 4px rgba(0,0,0,0.9);">Абилка</span>
       </div>
       <div id="${prefix}LegendTarget" style="display:none;align-items:center;gap:5px;">
         <div style="width:10px;height:10px;border-radius:50%;background:#00c86e;border:2px solid #fff;flex-shrink:0;"></div>
@@ -5301,6 +5332,20 @@ function hydrateLineupDetailMap(l) {
   if (!container) return;
   renderInteractiveMap(l, 'ed');
   initMapInteraction(container);
+  _ensureIconsLoaded().then(() => {
+    if (!document.getElementById('edMapContainer')) return;
+    renderInteractiveMap(l, 'ed');
+    initMapInteraction(document.getElementById('edMapContainer'));
+  }).catch(() => {});
+}
+
+function lineupAbilityIcon(lineup) {
+  const agent = String(lineup?.agent || '').trim();
+  const ability = String(lineup?.ability || '').trim();
+  if (!agent || !ability) return '';
+  const icons = AGENT_ABILITY_ICONS[agent] || {};
+  const normalized = normalizeAbilityName(agent, ability);
+  return icons[ability] || icons[normalized] || '';
 }
 
 function detailHtml(l) {
@@ -10159,11 +10204,32 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
   const traj      = Array.isArray(lineup.trajectory) ? lineup.trajectory : [];
   const hasTarget = traj.length >= 2;
   const useAppSquareCoords = lineup.trajectory_coord_space === 'app_square';
+  const abilityText = [lineup.agent, lineup.ability].filter(Boolean).join(' · ');
+  const abilityIconUrl = lineupAbilityIcon(lineup);
+  const abilityMarker = el('AbilityMarker');
+  const abilityIcon = el('AbilityIcon');
+  const abilityFallback = el('AbilityFallback');
+  const abilityPill = el('AbilityPill');
+  const abilityPillIcon = el('AbilityPillIcon');
+  const abilityPillText = el('AbilityPillText');
 
   const targetLegend = el('LegendTarget');
   const aimLegend = el('LegendAim');
+  const abilityLegend = el('LegendAbility');
   if (targetLegend) targetLegend.style.display = hasTarget ? 'flex' : 'none';
   if (aimLegend) aimLegend.style.display = 'none';
+  if (abilityLegend) abilityLegend.style.display = abilityText ? 'flex' : 'none';
+  if (abilityPill) abilityPill.style.display = abilityText ? 'flex' : 'none';
+  if (abilityPillText) abilityPillText.textContent = abilityText || '';
+  if (abilityIcon && abilityFallback) {
+    abilityIcon.style.display = abilityIconUrl ? 'block' : 'none';
+    abilityIcon.src = abilityIconUrl || '';
+    abilityFallback.style.display = abilityIconUrl ? 'none' : 'block';
+  }
+  if (abilityPillIcon) {
+    abilityPillIcon.style.display = abilityIconUrl ? 'block' : 'none';
+    abilityPillIcon.src = abilityIconUrl || '';
+  }
 
   function drawCanvas() {
     const W = container.offsetWidth;
@@ -10202,16 +10268,38 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
     }
 
     const start = toCanvas(px, py);
+    const abilityPoint = hasTarget
+      ? toCanvas(parseFloat(traj[traj.length - 1].x), parseFloat(traj[traj.length - 1].y))
+      : start;
+
+    if (abilityMarker && !isNaN(abilityPoint.x) && !isNaN(abilityPoint.y)) {
+      abilityMarker.style.display = abilityText ? 'flex' : 'none';
+      abilityMarker.style.left = abilityPoint.x + 'px';
+      abilityMarker.style.top = abilityPoint.y + 'px';
+    }
 
     if (hasTarget) {
       const points = traj.map(p => toCanvas(parseFloat(p.x), parseFloat(p.y)));
       points[0] = start;
 
-      // Solid red polyline (matches phone app style)
       ctx.save();
       ctx.setLineDash([]);
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = 'rgba(255,70,85,0.9)';
+      ctx.lineWidth = 8.5;
+      ctx.strokeStyle = 'rgba(255,70,85,0.18)';
+      ctx.shadowColor = 'rgba(255,70,85,0.75)';
+      ctx.shadowBlur = 7;
+      ctx.lineJoin = 'round';
+      ctx.lineCap  = 'round';
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(255,70,85,0.96)';
       ctx.lineJoin = 'round';
       ctx.lineCap  = 'round';
       ctx.beginPath();
@@ -10226,9 +10314,11 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
       const dx = last.x - prev.x, dy = last.y - prev.y;
       const len = Math.hypot(dx, dy);
       if (len > 1) {
-        const ux = dx/len, uy = dy/len, s = 8, hw = 4;
+        const ux = dx/len, uy = dy/len, s = 13, hw = 7;
         const bx = last.x - s*ux, by = last.y - s*uy;
         ctx.save();
+        ctx.shadowColor = 'rgba(255,70,85,0.75)';
+        ctx.shadowBlur = 8;
         ctx.fillStyle = 'rgba(255,70,85,0.9)';
         ctx.beginPath();
         ctx.moveTo(last.x, last.y);
@@ -10241,8 +10331,21 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
 
       // Small dots at every waypoint
       for (let i = 0; i < points.length; i++) {
-        drawDot(ctx, points[i].x, points[i].y, 'rgba(255,70,85,0.9)', 'rgba(255,255,255,0.45)', i === 0 ? 4 : 3.5);
+        drawDot(ctx, points[i].x, points[i].y, 'rgba(255,70,85,0.92)', 'rgba(255,255,255,0.65)', i === 0 ? 4.5 : 3.8);
       }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(last.x, last.y, 22, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,70,85,0.34)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(last.x, last.y, 31, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255,70,85,0.14)';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Red position dot on top
@@ -10882,6 +10985,221 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
     toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false;
+  }
+});
+
+let bnActiveRows = [];
+
+function bnActiveSetStatus(text, ok = true) {
+  const el = document.getElementById('bn-active-status');
+  if (!el) return;
+  el.className = `nc-status ${ok ? 'ok' : 'err'}`;
+  el.textContent = text;
+}
+
+function bnActiveParseLineupIds(data) {
+  const ids = new Set();
+  const add = raw => {
+    if (raw == null) return;
+    if (Array.isArray(raw)) { raw.forEach(add); return; }
+    const text = String(raw).trim();
+    if (!text) return;
+    if (text.startsWith('[')) {
+      try {
+        const decoded = JSON.parse(text);
+        if (Array.isArray(decoded)) { decoded.forEach(add); return; }
+      } catch (_) {}
+    }
+    text.split(',').map(s => s.trim()).filter(Boolean).forEach(id => ids.add(id));
+  };
+  add(data.lineup_id);
+  add(data.lineup_ids);
+  if (data.items) {
+    try {
+      const items = typeof data.items === 'string' ? JSON.parse(data.items) : data.items;
+      if (Array.isArray(items)) {
+        items.forEach(item => {
+          add(item?.lineup_id);
+          add(item?.lineup_ids);
+        });
+      }
+    } catch (_) {}
+  }
+  return [...ids];
+}
+
+function bnActiveItems(data) {
+  if (!data.items) return [];
+  try {
+    const items = typeof data.items === 'string' ? JSON.parse(data.items) : data.items;
+    return Array.isArray(items) ? items : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+async function bnActiveHasApprovedLineup(ids) {
+  if (!ids.length) return null;
+  for (const id of ids) {
+    try {
+      const snap = await getDoc(doc(db, 'lineups', id));
+      if (snap.exists() && snap.data()?.status === 'approved') return true;
+    } catch (_) {}
+  }
+  return false;
+}
+
+async function bnActiveFallbackHasApproved(data) {
+  const agent = String(data.agent || '').trim();
+  const map = String(data.map || '').trim();
+  if (!agent || !map) return null;
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('agent', '==', agent),
+      where('map', '==', map),
+      where('status', '==', 'approved'),
+      limit(1)
+    ));
+    return !snap.empty;
+  } catch (_) {
+    return null;
+  }
+}
+
+function bnActiveRender() {
+  const list = document.getElementById('bn-active-list');
+  const clearBtn = document.getElementById('bn-active-clear-stale');
+  if (!list) return;
+  const staleCount = bnActiveRows.filter(r => r.state === 'stale').length;
+  if (clearBtn) clearBtn.disabled = staleCount === 0;
+  if (!bnActiveRows.length) {
+    list.innerHTML = '<div class="state" style="padding:18px;color:var(--text2);">Активных банеров новых лайнапов нет</div>';
+    return;
+  }
+  list.innerHTML = bnActiveRows.map((row, i) => {
+    const data = row.data || {};
+    const items = row.items.length
+      ? row.items.map(item => `${esc(item.agent || data.agent || '—')} / ${esc(item.map || data.map || '—')} · ${esc(String(item.total || data.total || 1))}`).join('<br>')
+      : `${esc(data.agent || '—')} / ${esc(data.map || '—')} · ${esc(String(data.total || 1))}`;
+    const stateColor = row.state === 'ok' ? 'var(--green)' : row.state === 'stale' ? 'var(--orange)' : 'var(--text2)';
+    const stateLabel = row.state === 'ok' ? 'OK: лайнап есть' : row.state === 'stale' ? 'Битое: лайнап не найден' : 'Неясно';
+    return `
+      <div style="background:var(--surface2);border:1px solid ${row.state === 'stale' ? 'rgba(249,115,22,.55)' : 'var(--border)'};border-radius:8px;padding:12px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;">
+          <div style="min-width:0;">
+            <div style="font-size:12px;color:${stateColor};font-weight:800;margin-bottom:5px;">${stateLabel}</div>
+            <div style="font-size:13px;color:var(--text);font-weight:700;">${esc(row.userName || row.uid)}</div>
+            <div style="font-size:11px;color:var(--text2);font-family:monospace;margin-top:2px;">${esc(row.path)}</div>
+          </div>
+          <div style="display:flex;gap:7px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;">
+            <button class="btn btn-archive" data-bn-read="${i}" style="padding:6px 10px;font-size:12px;">✓ Прочитано</button>
+            <button class="btn btn-delete" data-bn-delete="${i}" style="padding:6px 10px;font-size:12px;">🗑 Удалить</button>
+          </div>
+        </div>
+        <div style="margin-top:9px;font-size:12px;color:var(--text2);line-height:1.55;">${items}</div>
+        <div style="margin-top:7px;font-size:11px;color:var(--text2);font-family:monospace;word-break:break-all;">lineup_ids: ${esc(row.lineupIds.join(', ') || '—')}</div>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('[data-bn-read]').forEach(btn => {
+    btn.addEventListener('click', () => bnActiveMarkRead(parseInt(btn.dataset.bnRead, 10)));
+  });
+  list.querySelectorAll('[data-bn-delete]').forEach(btn => {
+    btn.addEventListener('click', () => bnActiveDelete(parseInt(btn.dataset.bnDelete, 10)));
+  });
+}
+
+async function bnActiveLoad() {
+  const btn = document.getElementById('bn-active-load');
+  if (btn) btn.disabled = true;
+  bnActiveSetStatus('Загружаю пользователей и уведомления…');
+  try {
+    const usersSnap = await getDocs(query(collection(db, 'users'), limit(1000)));
+    const users = usersSnap.docs.map(d => ({ id: d.id, data: d.data() || {} }));
+    const rows = [];
+    let scanned = 0;
+    for (const u of users) {
+      const snap = await getDocs(collection(db, 'users', u.id, 'notifications')).catch(() => null);
+      if (!snap) continue;
+      scanned += snap.size;
+      for (const nd of snap.docs) {
+        const data = nd.data() || {};
+        if (data.type !== 'new_lineups_batch' || data.read !== false) continue;
+        const lineupIds = bnActiveParseLineupIds(data);
+        let hasApproved = await bnActiveHasApprovedLineup(lineupIds);
+        if (hasApproved == null) hasApproved = await bnActiveFallbackHasApproved(data);
+        rows.push({
+          uid: u.id,
+          userName: u.data.name || u.data.username || u.data.displayName || u.data.email || '',
+          id: nd.id,
+          ref: nd.ref,
+          path: `users/${u.id}/notifications/${nd.id}`,
+          data,
+          items: bnActiveItems(data),
+          lineupIds,
+          state: hasApproved === true ? 'ok' : hasApproved === false ? 'stale' : 'unknown',
+        });
+      }
+    }
+    bnActiveRows = rows.sort((a, b) => {
+      const rank = { stale: 0, unknown: 1, ok: 2 };
+      return (rank[a.state] ?? 9) - (rank[b.state] ?? 9);
+    });
+    const stale = bnActiveRows.filter(r => r.state === 'stale').length;
+    bnActiveSetStatus(`Готово: users ${users.length}, уведомлений просмотрено ${scanned}, активных ${bnActiveRows.length}, битых ${stale}`);
+    bnActiveRender();
+  } catch (e) {
+    bnActiveSetStatus('Ошибка: ' + e.message, false);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function bnActiveMarkRead(index) {
+  const row = bnActiveRows[index];
+  if (!row) return;
+  if (!confirm(`Пометить уведомление как прочитанное?\n${row.path}`)) return;
+  await updateDoc(row.ref, {
+    read: true,
+    read_at: serverTimestamp(),
+    admin_cleanup_reason: 'manual_new_lineup_notification_read',
+  });
+  bnActiveRows.splice(index, 1);
+  bnActiveSetStatus('Уведомление помечено прочитанным');
+  bnActiveRender();
+}
+
+async function bnActiveDelete(index) {
+  const row = bnActiveRows[index];
+  if (!row) return;
+  if (!confirm(`Удалить уведомление из Firestore?\n${row.path}`)) return;
+  await deleteDoc(row.ref);
+  bnActiveRows.splice(index, 1);
+  bnActiveSetStatus('Уведомление удалено');
+  bnActiveRender();
+}
+
+document.getElementById('bn-active-load')?.addEventListener('click', bnActiveLoad);
+document.getElementById('bn-active-clear-stale')?.addEventListener('click', async () => {
+  const staleRows = bnActiveRows.filter(r => r.state === 'stale');
+  if (!staleRows.length) return;
+  if (!confirm(`Пометить прочитанными ${staleRows.length} битых уведомлений?`)) return;
+  const btn = document.getElementById('bn-active-clear-stale');
+  if (btn) btn.disabled = true;
+  try {
+    await Promise.all(staleRows.map(row => updateDoc(row.ref, {
+      read: true,
+      read_at: serverTimestamp(),
+      admin_cleanup_reason: 'manual_stale_new_lineup_notification_cleanup',
+    })));
+    bnActiveRows = bnActiveRows.filter(r => r.state !== 'stale');
+    bnActiveSetStatus(`Погашено битых уведомлений: ${staleRows.length}`);
+    bnActiveRender();
+  } catch (e) {
+    bnActiveSetStatus('Ошибка: ' + e.message, false);
+  } finally {
+    if (btn) btn.disabled = false;
   }
 });
 
