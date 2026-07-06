@@ -5029,6 +5029,7 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
       if (action === 'ban')          banUser(uid, name);
       if (action === 'edit-toggle')  openEditForm(id);
       if (action === 'save')         saveEditedLineup(id);
+      if (action === 'swap-path')    swapLineupPathEndpoints(id);
       if (action === 'open-profile') openUserProfile(uid, name);
       if (action === 'detail')       openLineupDetail(id);
       return;
@@ -5210,6 +5211,9 @@ function lineupActionButtonsHtml(l, compact = false) {
       ? `<button class="btn btn-archive" data-action="archive" data-id="${l.id}">📦 В архив</button>`
       : `<button class="btn btn-approve" data-action="restore" data-id="${l.id}">✅ Восстановить</button>`}
     <button class="btn btn-edit-toggle" data-action="edit-toggle" data-id="${l.id}">✏️ Редактировать</button>
+    ${Array.isArray(l.trajectory) && l.trajectory.length >= 2
+      ? `<button class="btn" data-action="swap-path" data-id="${l.id}" title="Поменять местами позицию игрока и точку прилёта">↕️ Точки</button>`
+      : ''}
     <button class="btn"${btnStyle} data-action="detail" data-id="${l.id}">👁 Открыть</button>
     <button class="btn btn-delete" data-action="delete" data-id="${l.id}">🗑 Удалить</button>
     ${l.user_id && l.submitted_by
@@ -5915,6 +5919,60 @@ async function restoreLineup(id) {
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
+function _cleanPoint(p) {
+  const x = Number(p?.x);
+  const y = Number(p?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+async function swapLineupPathEndpoints(id) {
+  const l = lineups.find(x => x.id === id);
+  if (!l) { toast('Лайнап не найден', 'e'); return; }
+  const pos = _cleanPoint({ x: l.position_x, y: l.position_y });
+  const trajectory = Array.isArray(l.trajectory) ? l.trajectory.map(_cleanPoint).filter(Boolean) : [];
+  if (!pos || trajectory.length < 2) {
+    toast('Нужна позиция игрока и минимум 2 точки траектории', 'e');
+    return;
+  }
+  const target = trajectory[trajectory.length - 1];
+  if (!confirm('Поменять местами позицию игрока и точку прилёта?\nИспользуй это только если на карте радиус/траектория уехали наоборот.')) return;
+
+  const nextTrajectory = trajectory.map(p => ({ ...p }));
+  nextTrajectory[0] = { x: target.x, y: target.y };
+  nextTrajectory[nextTrajectory.length - 1] = { x: pos.x, y: pos.y };
+  const updates = {
+    position_x: target.x,
+    position_y: target.y,
+    trajectory: nextTrajectory,
+    updated_at: serverTimestamp(),
+  };
+  const changes = {
+    position_x: { from: pos.x, to: target.x },
+    position_y: { from: pos.y, to: target.y },
+    trajectory_swapped: true,
+  };
+
+  try {
+    await updateDoc(doc(db, 'lineups', id), updates);
+    await writeAudit(id, 'path_swapped', changes);
+    Object.assign(l, updates, { updated_at: new Date() });
+    renderList();
+    if (_selectedId === id) {
+      const mainPanel = document.querySelector('#editor-content .editor-main');
+      if (mainPanel) {
+        mainPanel.innerHTML = detailHtml(l);
+        loadAuditLog(id);
+      } else {
+        const content = document.getElementById('editor-content');
+        if (content) content.innerHTML = detailHtml(l);
+      }
+    }
+    toast('Точки поменяны местами ↕️', 's');
+  } catch (e) {
+    toast('Ошибка: ' + e.message, 'e');
+  }
+}
+
 // ── Счётчики лайнапов (settings/lineup_counts) ──────────────────────────────
 // delta = +1 при approve, -1 при archive/delete approved
 async function updateLineupCountStats(map, category, delta) {
@@ -6021,6 +6079,7 @@ async function loadAuditLog(lineupId) {
       archived: '📦 Архивирован',
       restored: '🔄 Восстановлен',
       edited:   '✏️ Отредактирован',
+      path_swapped: '↕️ Точки поменяны',
       deleted:  '🗑 Удалён',
     };
     container.innerHTML = snap.docs.map(d => {
