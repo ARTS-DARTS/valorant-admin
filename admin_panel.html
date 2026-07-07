@@ -2064,6 +2064,23 @@
         <div class="nc-status" id="nc-status-level-overlay"></div>
       </div>
 
+      <div class="form-title">⚔️ ШТОРКА ДУЭЛИ</div>
+      <div class="notif-card" style="margin-bottom:22px;">
+        <div class="nc-header">
+          <span class="nc-icon">⚔️</span>
+          <div>
+            <div class="nc-title">Тест шторки активной дуэли</div>
+            <div class="nc-desc">Выбери пользователя выше. Тестовый push откроет главную вкладку приложения, включит локальный тестовый флаг дуэльных уведомлений и покажет шторку активной дуэли.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn" id="do-load-active" style="border:1px solid var(--border);color:var(--text2);">Обновить активную дуэль</button>
+          <button class="btn btn-save" id="do-test-send">⚔️ Протестировать шторку</button>
+        </div>
+        <div class="nc-desc" id="do-active-info" style="margin-top:10px;">Активная дуэль ещё не загружена.</div>
+        <div class="nc-status" id="nc-status-duel-overlay"></div>
+      </div>
+
       <div class="form-title">🎯 БАНЕР НОВЫХ ЛАЙНАПОВ</div>
       <div class="bn-editor">
         <div class="notif-card">
@@ -11917,6 +11934,78 @@ document.getElementById('lo-test-clear-user')?.addEventListener('click', () => {
   document.getElementById('lo-test-user-input').value = '';
 });
 document.getElementById('lo-test-send')?.addEventListener('click', _loSendRewardTest);
+
+let _doActiveDuel = null;
+
+function _doSetInfo(text) {
+  const el = document.getElementById('do-active-info');
+  if (el) el.textContent = text;
+}
+
+async function loadActiveDuelOverlayTest() {
+  _ncSetStatus('duel-overlay', true, 'Ищу активную дуэль…');
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'duels'),
+      where('status', '==', 'active'),
+      orderBy('createdAt', 'desc'),
+      limit(1),
+    ));
+    if (snap.empty) {
+      _doActiveDuel = null;
+      _doSetInfo('Активной дуэли нет. Сначала запусти дуэль во вкладке «Дуэли».');
+      _ncSetStatus('duel-overlay', false, '❌ Активная дуэль не найдена');
+      return null;
+    }
+    const d = snap.docs[0];
+    const data = d.data() || {};
+    _doActiveDuel = { id: d.id, ...data };
+    const ends = data.endsAt?.toDate ? data.endsAt.toDate().toLocaleString('ru-RU') : 'без времени';
+    _doSetInfo(`Активная дуэль: ${d.id} · ${data.mapName || 'карта неизвестна'} · до ${ends}`);
+    _ncSetStatus('duel-overlay', true, '✅ Активная дуэль загружена');
+    return _doActiveDuel;
+  } catch (e) {
+    _doActiveDuel = null;
+    _doSetInfo('Не удалось загрузить активную дуэль.');
+    _ncSetStatus('duel-overlay', false, `❌ ${e.message}`);
+    return null;
+  }
+}
+
+async function sendDuelOverlayTest() {
+  if (!_ncTargetUid) {
+    _ncSetStatus('duel-overlay', false, 'Выбери конкретного пользователя в блоке «Получатель» выше');
+    toast('Для теста шторки дуэли выбери конкретного пользователя', 'e');
+    return;
+  }
+  const btn = document.getElementById('do-test-send');
+  btn.disabled = true;
+  _ncSetStatus('duel-overlay', true, 'Готовлю тест шторки…');
+  try {
+    const active = _doActiveDuel || await loadActiveDuelOverlayTest();
+    if (!active?.id) throw new Error('Нет активной дуэли для теста');
+    await sendPushNotification({
+      title: '⚔️ Тест шторки дуэли',
+      body: 'Открой приложение: тебя ждёт дуэль лайнапов.',
+      type: 'duel',
+      targetUid: _ncTargetUid,
+      data: {
+        duel_id: active.id,
+        test_duel_sheet: '1',
+      },
+    });
+    _ncSetStatus('duel-overlay', true, `✅ Тест отправлен → ${_ncTargetName || _ncTargetUid}`);
+    toast('Тест шторки дуэли отправлен', 's');
+  } catch (e) {
+    _ncSetStatus('duel-overlay', false, `❌ ${e.message}`);
+    toast('Ошибка теста шторки дуэли: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('do-load-active')?.addEventListener('click', loadActiveDuelOverlayTest);
+document.getElementById('do-test-send')?.addEventListener('click', sendDuelOverlayTest);
 
 document.getElementById('bn-test-agent')?.addEventListener('click', async () => {
   const rows = bnCleanRows();
