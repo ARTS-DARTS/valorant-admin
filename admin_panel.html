@@ -2070,8 +2070,21 @@
           <span class="nc-icon">⚔️</span>
           <div>
             <div class="nc-title">Тест шторки активной дуэли</div>
-            <div class="nc-desc">Выбери пользователя выше. Тестовый push откроет главную вкладку приложения, включит локальный тестовый флаг дуэльных уведомлений и покажет шторку активной дуэли.</div>
+            <div class="nc-desc">Выбери пользователя. Тестовый push откроет главную вкладку приложения, включит локальный тестовый флаг дуэльных уведомлений и покажет шторку активной дуэли.</div>
           </div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:8px;align-items:start;margin-top:12px;">
+          <div style="position:relative;">
+            <input class="finput" id="do-test-user-input" placeholder="Ник или UID пользователя" autocomplete="off" spellcheck="false" style="background:var(--bg);">
+            <div id="do-test-user-results" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);z-index:55;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
+          </div>
+          <button class="btn" id="do-test-user-find" style="border:1px solid var(--border);color:var(--text2);">Найти</button>
+        </div>
+        <div id="do-test-selected" style="display:none;margin-top:8px;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;">
+          <span style="font-size:16px;">👤</span>
+          <span id="do-test-selected-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);"></span>
+          <span id="do-test-selected-uid" style="font-size:10px;color:var(--text2);font-family:monospace;"></span>
+          <button id="do-test-clear-user" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;" title="Сбросить">✕</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
           <button class="btn" id="do-load-active" style="border:1px solid var(--border);color:var(--text2);">Обновить активную дуэль</button>
@@ -11936,10 +11949,80 @@ document.getElementById('lo-test-clear-user')?.addEventListener('click', () => {
 document.getElementById('lo-test-send')?.addEventListener('click', _loSendRewardTest);
 
 let _doActiveDuel = null;
+let _doTestUser = null;
 
 function _doSetInfo(text) {
   const el = document.getElementById('do-active-info');
   if (el) el.textContent = text;
+}
+
+function _doUserName(user) {
+  return user.name || user.username || user.displayName || 'Без ника';
+}
+
+function _doRenderUserResults(users) {
+  const box = document.getElementById('do-test-user-results');
+  if (!box) return;
+  if (!users.length) {
+    box.style.display = 'block';
+    box.innerHTML = '<div style="padding:10px 12px;color:var(--text2);font-size:12px;">Ничего не найдено</div>';
+    return;
+  }
+  box.style.display = 'block';
+  box.innerHTML = users.map(u => `
+    <button type="button" data-do-test-uid="${esc(u.id)}" style="width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--border);padding:9px 12px;color:var(--text);cursor:pointer;">
+      <div style="font-size:13px;font-weight:700;">${esc(_doUserName(u))}</div>
+      <div style="font-size:10px;color:var(--text2);font-family:monospace;">${esc(u.id)} · ${Number(u.approved_lineups || 0)} лайнапов</div>
+    </button>
+  `).join('');
+  box.querySelectorAll('[data-do-test-uid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const user = users.find(u => u.id === btn.dataset.doTestUid);
+      if (user) _doSelectTestUser(user);
+    });
+  });
+}
+
+function _doSelectTestUser(user) {
+  _doTestUser = user;
+  document.getElementById('do-test-user-results').style.display = 'none';
+  document.getElementById('do-test-selected').style.display = 'flex';
+  document.getElementById('do-test-selected-name').textContent = _doUserName(user);
+  document.getElementById('do-test-selected-uid').textContent = user.id;
+  document.getElementById('do-test-user-input').value = _doUserName(user);
+}
+
+async function _doFindTestUsers() {
+  const raw = (document.getElementById('do-test-user-input')?.value || '').trim();
+  if (raw.length < 2) {
+    _ncSetStatus('duel-overlay', false, 'Введи хотя бы 2 символа для поиска пользователя');
+    return;
+  }
+  _ncSetStatus('duel-overlay', true, 'Ищу пользователя…');
+  try {
+    const exact = await getDoc(doc(db, 'users', raw)).catch(() => null);
+    const snap = await getDocs(query(collection(db, 'users'), limit(1000)));
+    const q = raw.toLowerCase();
+    const map = new Map();
+    if (exact?.exists()) map.set(exact.id, { id: exact.id, ...(exact.data() || {}) });
+    snap.docs.forEach(d => {
+      const u = { id: d.id, ...(d.data() || {}) };
+      const haystack = [
+        u.id,
+        u.name,
+        u.username,
+        u.displayName,
+        u.user_email,
+        u.yandex_email,
+      ].map(v => String(v || '').toLowerCase()).join(' ');
+      if (haystack.includes(q)) map.set(u.id, u);
+    });
+    const users = [...map.values()].slice(0, 12);
+    _doRenderUserResults(users);
+    _ncSetStatus('duel-overlay', true, users.length ? `Найдено: ${users.length}` : 'Пользователь не найден');
+  } catch (e) {
+    _ncSetStatus('duel-overlay', false, `❌ ${e.message}`);
+  }
 }
 
 async function loadActiveDuelOverlayTest() {
@@ -11973,8 +12056,10 @@ async function loadActiveDuelOverlayTest() {
 }
 
 async function sendDuelOverlayTest() {
-  if (!_ncTargetUid) {
-    _ncSetStatus('duel-overlay', false, 'Выбери конкретного пользователя в блоке «Получатель» выше');
+  const targetUid = _doTestUser?.id || _ncTargetUid;
+  const targetName = _doTestUser ? _doUserName(_doTestUser) : _ncTargetName;
+  if (!targetUid) {
+    _ncSetStatus('duel-overlay', false, 'Сначала выбери пользователя в этом блоке');
     toast('Для теста шторки дуэли выбери конкретного пользователя', 'e');
     return;
   }
@@ -11988,13 +12073,13 @@ async function sendDuelOverlayTest() {
       title: '⚔️ Тест шторки дуэли',
       body: 'Открой приложение: тебя ждёт дуэль лайнапов.',
       type: 'duel',
-      targetUid: _ncTargetUid,
+      targetUid,
       data: {
         duel_id: active.id,
         test_duel_sheet: '1',
       },
     });
-    _ncSetStatus('duel-overlay', true, `✅ Тест отправлен → ${_ncTargetName || _ncTargetUid}`);
+    _ncSetStatus('duel-overlay', true, `✅ Тест отправлен → ${targetName || targetUid}`);
     toast('Тест шторки дуэли отправлен', 's');
   } catch (e) {
     _ncSetStatus('duel-overlay', false, `❌ ${e.message}`);
@@ -12004,6 +12089,18 @@ async function sendDuelOverlayTest() {
   }
 }
 
+document.getElementById('do-test-user-find')?.addEventListener('click', _doFindTestUsers);
+document.getElementById('do-test-user-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    _doFindTestUsers();
+  }
+});
+document.getElementById('do-test-clear-user')?.addEventListener('click', () => {
+  _doTestUser = null;
+  document.getElementById('do-test-selected').style.display = 'none';
+  document.getElementById('do-test-user-input').value = '';
+});
 document.getElementById('do-load-active')?.addEventListener('click', loadActiveDuelOverlayTest);
 document.getElementById('do-test-send')?.addEventListener('click', sendDuelOverlayTest);
 
