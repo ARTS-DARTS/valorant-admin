@@ -2026,6 +2026,41 @@
           <button class="btn btn-save" id="lo-save">💾 Сохранить шторку</button>
           <button class="btn" id="lo-load" style="border:1px solid var(--border);color:var(--text2);">Обновить</button>
         </div>
+        <div style="margin-top:16px;padding:13px;border:1px solid var(--border);border-radius:var(--r);background:rgba(255,255,255,.025);">
+          <div class="dlabel" style="margin-bottom:8px;">ТЕСТ НАГРАДЫ И ШТОРКИ</div>
+          <div class="nc-desc" style="margin-bottom:10px;">Выбери пользователя. Тест может реально начислить +5 к счётчику лайнапов и отправить push, чтобы открытое приложение показало шторку уровня.</div>
+          <div style="display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:8px;align-items:start;">
+            <div style="position:relative;">
+              <input class="finput" id="lo-test-user-input" placeholder="Ник, email или UID пользователя" autocomplete="off" spellcheck="false" style="background:var(--bg);">
+              <div id="lo-test-user-results" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);z-index:55;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
+            </div>
+            <button class="btn" id="lo-test-user-find" style="border:1px solid var(--border);color:var(--text2);">Найти</button>
+          </div>
+          <div id="lo-test-selected" style="display:none;margin-top:8px;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;">
+            <span style="font-size:16px;">👤</span>
+            <span id="lo-test-selected-name" style="flex:1;font-size:13px;font-weight:600;color:var(--text);"></span>
+            <span id="lo-test-selected-uid" style="font-size:10px;color:var(--text2);font-family:monospace;"></span>
+            <button id="lo-test-clear-user" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:15px;padding:0 4px;line-height:1;" title="Сбросить">✕</button>
+          </div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;color:var(--text);font-size:13px;">
+            <label style="display:flex;align-items:center;gap:7px;">
+              <input type="checkbox" id="lo-test-grant" checked>
+              Начислить +5 лайнапов
+            </label>
+            <label style="display:flex;align-items:center;gap:7px;">
+              <input type="checkbox" id="lo-test-push" checked>
+              Отправить push для шторки
+            </label>
+            <label style="display:flex;align-items:center;gap:7px;">
+              <input type="checkbox" id="lo-test-reset-easter">
+              Сбросить флаг пасхалки
+            </label>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <button class="btn btn-save" id="lo-test-send">🎁 Протестировать награду</button>
+          </div>
+          <div class="nc-status" id="nc-status-level-test"></div>
+        </div>
         <div class="nc-status" id="nc-status-level-overlay"></div>
       </div>
 
@@ -2570,6 +2605,9 @@
       </p>
       <button onclick="rebuildLineupCountStats()" style="padding:9px 18px;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.5);color:#818cf8;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:600;">
         🔢 Пересчитать счётчики
+      </button>
+      <button onclick="rebuildAuthorLeaderboardStats()" style="margin-left:8px;padding:9px 18px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.5);color:#22c55e;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:600;">
+        🏆 Пересчитать топ авторов
       </button>
     </div>
   </div>
@@ -6309,6 +6347,48 @@ async function rebuildLineupCountStats() {
     await setDoc(doc(db, 'settings', 'lineup_counts'), counts);
     toast(`Готово: ${snap.size} лайнапов посчитано ✅`, 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
+}
+
+async function rebuildAuthorLeaderboardStats() {
+  if (!confirm('Пересчитать топ авторов? Прочитает все одобренные лайнапы и обновит users.approved_lineups / users.total_likes.')) return;
+  try {
+    toast('Пересчёт топа авторов...', 'i');
+    const snap = await getDocs(query(collection(db, 'lineups'), where('status', '==', 'approved')));
+    const stats = new Map();
+    snap.docs.forEach(d => {
+      const data = d.data() || {};
+      const uid = String(data.user_id || data.author_uid || '').trim();
+      if (!uid) return;
+      const row = stats.get(uid) || { lineups: 0, likes: 0 };
+      row.lineups += 1;
+      row.likes += Number(data.likes_count ?? data.likes ?? 0) || 0;
+      stats.set(uid, row);
+    });
+
+    const entries = [...stats.entries()];
+    let batch = writeBatch(db);
+    let pending = 0;
+    let written = 0;
+    for (const [uid, row] of entries) {
+      batch.set(doc(db, 'users', uid), {
+        approved_lineups: row.lineups,
+        total_likes: row.likes,
+        leaderboard_stats_updated_at: serverTimestamp(),
+      }, { merge: true });
+      pending += 1;
+      written += 1;
+      if (pending >= 450) {
+        await batch.commit();
+        batch = writeBatch(db);
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+    toast(`Топ авторов пересчитан: ${written} авторов, ${snap.size} лайнапов ✅`, 's');
+    addAuditLog('Пересчитан топ авторов', { authors: written, approved_lineups: snap.size });
+  } catch (e) {
+    toast('Ошибка пересчёта топа авторов: ' + e.message, 'e');
+  }
 }
 
 // ── Audit log ─────────────────────────────────────────────────────────────────
@@ -11653,8 +11733,190 @@ async function saveLevelOverlaySettings() {
   }
 }
 
+const LO_LEVELS = [
+  { level: 1, name: 'Новобранец', minLineups: 0 },
+  { level: 2, name: 'Разведчик', minLineups: 3 },
+  { level: 3, name: 'Агент', minLineups: 7 },
+  { level: 4, name: 'Специалист', minLineups: 15 },
+  { level: 5, name: 'Ветеран', minLineups: 30 },
+  { level: 6, name: 'Элита', minLineups: 50 },
+  { level: 7, name: 'Легенда', minLineups: 100 },
+];
+
+let _loTestUser = null;
+
+function _loLevelFor(approvedLineups) {
+  return LO_LEVELS.reduce(
+    (current, level) => approvedLineups >= level.minLineups ? level : current,
+    LO_LEVELS[0],
+  );
+}
+
+function _loUserName(user) {
+  return user.name || user.username || user.displayName || 'Без ника';
+}
+
+function _loUserTitle(user) {
+  const name = _loUserName(user);
+  const email = user.user_email || user.yandex_email || '';
+  return email ? `${name} · ${email}` : name;
+}
+
+function _loRenderUserResults(users) {
+  const box = document.getElementById('lo-test-user-results');
+  if (!box) return;
+  if (!users.length) {
+    box.style.display = 'block';
+    box.innerHTML = '<div style="padding:10px 12px;color:var(--text2);font-size:12px;">Ничего не найдено</div>';
+    return;
+  }
+  box.style.display = 'block';
+  box.innerHTML = users.map(u => `
+    <button type="button" data-lo-test-uid="${esc(u.id)}" style="width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--border);padding:9px 12px;color:var(--text);cursor:pointer;">
+      <div style="font-size:13px;font-weight:700;">${esc(_loUserName(u))}</div>
+      <div style="font-size:10px;color:var(--text2);">${esc(u.user_email || u.yandex_email || 'почта не указана')}</div>
+      <div style="font-size:10px;color:var(--text2);font-family:monospace;">${esc(u.id)} · ${Number(u.approved_lineups || 0)} лайнапов</div>
+    </button>
+  `).join('');
+  box.querySelectorAll('[data-lo-test-uid]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const user = users.find(u => u.id === btn.dataset.loTestUid);
+      if (user) _loSelectTestUser(user);
+    });
+  });
+}
+
+function _loSelectTestUser(user) {
+  _loTestUser = user;
+  document.getElementById('lo-test-user-results').style.display = 'none';
+  document.getElementById('lo-test-selected').style.display = 'flex';
+  document.getElementById('lo-test-selected-name').textContent = _loUserName(user);
+  document.getElementById('lo-test-selected-uid').textContent = user.id;
+  document.getElementById('lo-test-user-input').value = _loUserName(user);
+}
+
+async function _loFindTestUsers() {
+  const raw = (document.getElementById('lo-test-user-input')?.value || '').trim();
+  if (raw.length < 2) {
+    _ncSetStatus('level-test', false, 'Введи хотя бы 2 символа для поиска');
+    return;
+  }
+  _ncSetStatus('level-test', true, 'Ищу пользователя…');
+  try {
+    const exact = await getDoc(doc(db, 'users', raw)).catch(() => null);
+    const snap = await getDocs(query(collection(db, 'users'), limit(1000)));
+    const q = raw.toLowerCase();
+    const map = new Map();
+    if (exact?.exists()) map.set(exact.id, { id: exact.id, ...(exact.data() || {}) });
+    snap.docs.forEach(d => {
+      const u = { id: d.id, ...(d.data() || {}) };
+      const haystack = [
+        u.id,
+        u.name,
+        u.username,
+        u.displayName,
+        u.user_email,
+        u.yandex_email,
+      ].map(v => String(v || '').toLowerCase()).join(' ');
+      if (haystack.includes(q)) map.set(u.id, u);
+    });
+    const users = [...map.values()].slice(0, 12);
+    _loRenderUserResults(users);
+    _ncSetStatus('level-test', true, users.length ? `Найдено: ${users.length}` : 'Пользователь не найден');
+  } catch (e) {
+    _ncSetStatus('level-test', false, `❌ ${e.message}`);
+  }
+}
+
+async function _loSendRewardTest() {
+  if (!_loTestUser?.id) {
+    _ncSetStatus('level-test', false, 'Сначала выбери пользователя');
+    return;
+  }
+  const grant = document.getElementById('lo-test-grant')?.checked !== false;
+  const push = document.getElementById('lo-test-push')?.checked !== false;
+  const resetEaster = document.getElementById('lo-test-reset-easter')?.checked === true;
+  if (!grant && !push && !resetEaster) {
+    _ncSetStatus('level-test', false, 'Выбери хотя бы одно действие');
+    return;
+  }
+
+  const btn = document.getElementById('lo-test-send');
+  btn.disabled = true;
+  _ncSetStatus('level-test', true, 'Готовлю тест награды…');
+  try {
+    const userRef = doc(db, 'users', _loTestUser.id);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) throw new Error('Пользователь не найден в Firestore');
+    const data = snap.data() || {};
+    const before = Number(data.approved_lineups || 0) + Number(data.bonus_lineups || 0);
+    const after = before + (grant ? 5 : 0);
+    const level = _loLevelFor(after);
+    const update = {
+      admin_reward_test_at: serverTimestamp(),
+      admin_reward_test_bonus: grant ? 5 : 0,
+    };
+    if (grant) {
+      update.bonus_lineups = increment(5);
+      update.level = level.level;
+    }
+    if (resetEaster) {
+      update.easter_notify_tapper_claimed = false;
+      update.easter_notify_tapper_claimed_at = null;
+    }
+    await updateDoc(userRef, update);
+    if (push) {
+      const body = grant
+        ? `Тест награды: +5 к счётчику лайнапов. Сейчас: ${after}.`
+        : 'Тест шторки уровня без начисления лайнапов.';
+      await sendPushNotification({
+        title: '🎁 Тест награды',
+        body,
+        type: 'lineups_approved_batch',
+        targetUid: _loTestUser.id,
+        data: {
+          test: '1',
+          reward: 'easter_notify_tapper',
+          bonus: String(grant ? 5 : 0),
+        },
+      });
+      await writeUserNotification(_loTestUser.id, {
+        title: '🎁 Тест награды',
+        body,
+        type: 'lineups_approved_batch',
+        test: true,
+        reward: 'easter_notify_tapper',
+        bonus: grant ? 5 : 0,
+      }).catch(() => {});
+    }
+    const fresh = await getDoc(userRef);
+    _loTestUser = { id: fresh.id, ...(fresh.data() || {}) };
+    _loSelectTestUser(_loTestUser);
+    _ncSetStatus('level-test', true, `✅ Готово. Было ${before}, стало ${after}. Уровень: ${level.name}`);
+    toast('Тест награды отправлен', 's');
+  } catch (e) {
+    _ncSetStatus('level-test', false, `❌ ${e.message}`);
+    toast('Ошибка теста награды: ' + e.message, 'e');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 document.getElementById('lo-load')?.addEventListener('click', loadLevelOverlaySettings);
 document.getElementById('lo-save')?.addEventListener('click', saveLevelOverlaySettings);
+document.getElementById('lo-test-user-find')?.addEventListener('click', _loFindTestUsers);
+document.getElementById('lo-test-user-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    _loFindTestUsers();
+  }
+});
+document.getElementById('lo-test-clear-user')?.addEventListener('click', () => {
+  _loTestUser = null;
+  document.getElementById('lo-test-selected').style.display = 'none';
+  document.getElementById('lo-test-user-input').value = '';
+});
+document.getElementById('lo-test-send')?.addEventListener('click', _loSendRewardTest);
 
 document.getElementById('bn-test-agent')?.addEventListener('click', async () => {
   const rows = bnCleanRows();
@@ -12360,6 +12622,16 @@ async function _renderUserProfileInto(uid, panel) {
       limit(5)
     ));
     const lineups = lineupsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let factualApproved = lineups.filter(l => l.status === 'approved').length;
+    let factualTotal = lineups.filter(l => l.status !== 'archived').length;
+    try {
+      const [approvedCountSnap, totalCountSnap] = await Promise.all([
+        getCountFromServer(query(collection(db, 'lineups'), where('user_id', '==', uid), where('status', '==', 'approved'))),
+        getCountFromServer(query(collection(db, 'lineups'), where('user_id', '==', uid))),
+      ]);
+      factualApproved = approvedCountSnap.data().count || 0;
+      factualTotal = totalCountSnap.data().count || 0;
+    } catch (_) {}
 
     let feedbacks = [];
     try {
@@ -12379,6 +12651,16 @@ async function _renderUserProfileInto(uid, panel) {
     const timeSpent   = Number(u.time_spent_seconds || 0);
     const fmtTimeApp  = s => { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60); return h>0?`${h}ч ${m}м`:m>0?`${m}м`:`${s}с`; };
     const totalViewed = Number(u.lineups_viewed || 0);
+    const storedApproved = Number(u.approved_lineups || 0);
+    const bonusLineups = Number(u.bonus_lineups || 0);
+    const effectiveApproved = Math.max(storedApproved, factualApproved) + bonusLineups;
+    const countDiff = storedApproved - factualApproved;
+    const countDiffLabel = countDiff === 0
+      ? 'совпадает'
+      : countDiff > 0
+        ? `+${countDiff} бонус/ручной счёт`
+        : `${countDiff} к факту`;
+    const countDiffColor = countDiff === 0 ? 'var(--green)' : countDiff > 0 ? 'var(--orange)' : 'var(--red)';
 
     if (!panel.id) panel.id = 'up-tmp-' + uid;
     const _panelId = panel.id;
@@ -12449,7 +12731,7 @@ async function _renderUserProfileInto(uid, panel) {
           </div>
           <div>
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Одобрено лайнапов</div>
-            <div style="font-size:13px;color:var(--text);">${u.approved_lineups ?? 0}</div>
+            <div style="font-size:13px;color:var(--text);">${storedApproved}</div>
           </div>
           <div>
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Статус</div>
@@ -12471,6 +12753,58 @@ async function _renderUserProfileInto(uid, panel) {
             <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Просмотрено лайнапов</div>
             <div style="font-size:13px;color:var(--text);">${totalViewed}</div>
           </div>
+        </div>
+
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+            <div>
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Счётчик лайнапов</div>
+              <div style="font-size:12px;color:var(--text2);line-height:1.5;">Реальные лайнапы хранятся в <b style="color:var(--text);">approved_lineups</b>, подарки и ручные бонусы в <b style="color:var(--text);">bonus_lineups</b>. Уровень считает факт/счётчик + бонус.</div>
+            </div>
+            <div style="font-size:11px;color:${countDiffColor};font-weight:700;">${countDiffLabel}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:10px;">
+            <div style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg);">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;">Счётчик</div>
+              <div style="font-size:22px;color:var(--primary);font-weight:800;">${storedApproved}</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg);">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;">Бонус</div>
+              <div style="font-size:22px;color:var(--orange);font-weight:800;">+${bonusLineups}</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg);">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;">Для уровня</div>
+              <div style="font-size:22px;color:var(--primary);font-weight:800;">${effectiveApproved}</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg);">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;">Факт approved</div>
+              <div style="font-size:22px;color:var(--green);font-weight:800;">${factualApproved}</div>
+            </div>
+            <div style="border:1px solid var(--border);border-radius:var(--r);padding:8px 10px;background:var(--bg);">
+              <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;">Все документы</div>
+              <div style="font-size:22px;color:var(--text);font-weight:800;">${factualTotal}</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;">
+            <input class="finput" id="up-approved-${uid}" type="number" min="0" step="1" value="${storedApproved}" style="background:var(--bg);">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn" onclick="adjustUserApprovedLineups('${uid}',-5,'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);padding:7px 10px;">-5</button>
+              <button class="btn" onclick="adjustUserApprovedLineups('${uid}',-1,'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);padding:7px 10px;">-1</button>
+              <button class="btn" onclick="adjustUserApprovedLineups('${uid}',1,'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);padding:7px 10px;">+1</button>
+              <button class="btn" onclick="adjustUserApprovedLineups('${uid}',5,'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);padding:7px 10px;">+5</button>
+              <button class="btn btn-save" onclick="saveUserApprovedLineups('${uid}','${_panelId}')">Сохранить</button>
+              <button class="btn" onclick="syncUserApprovedLineups('${uid}',${factualApproved},'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);">= факт</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin-top:8px;">
+            <input class="finput" id="up-bonus-${uid}" type="number" min="0" step="1" value="${bonusLineups}" style="background:var(--bg);">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn" onclick="adjustUserBonusLineups('${uid}',-5,'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);padding:7px 10px;">-5 бонус</button>
+              <button class="btn" onclick="adjustUserBonusLineups('${uid}',5,'${_panelId}')" style="border:1px solid var(--border);color:var(--text2);padding:7px 10px;">+5 бонус</button>
+              <button class="btn btn-save" onclick="saveUserBonusLineups('${uid}','${_panelId}')">Сохранить бонус</button>
+            </div>
+          </div>
+          <div id="up-approved-status-${uid}" style="margin-top:8px;font-size:11px;color:var(--text2);"></div>
         </div>
 
         <div style="margin-bottom:14px;">
@@ -12702,6 +13036,137 @@ async function saveUserRole(uid) {
   addAuditLog(`Изменена роль пользователя ${uid} → ${role}`);
 }
 
+function _setUserCounterStatus(uid, text, ok = true) {
+  const el = document.getElementById('up-approved-status-' + uid);
+  if (!el) return;
+  el.style.color = ok ? 'var(--green)' : 'var(--red)';
+  el.textContent = text;
+}
+
+function _readApprovedCounterInput(uid) {
+  const input = document.getElementById('up-approved-' + uid);
+  const value = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+  if (input) input.value = String(value);
+  return value;
+}
+
+function _readBonusCounterInput(uid) {
+  const input = document.getElementById('up-bonus-' + uid);
+  const value = Math.max(0, parseInt(input?.value || '0', 10) || 0);
+  if (input) input.value = String(value);
+  return value;
+}
+
+async function _factualApprovedLineups(uid) {
+  try {
+    const snap = await getCountFromServer(query(collection(db, 'lineups'), where('user_id', '==', uid), where('status', '==', 'approved')));
+    return snap.data().count || 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function setUserApprovedLineups(uid, value, panelId, reason = 'manual') {
+  const approved = Math.max(0, parseInt(value, 10) || 0);
+  const userSnap = await getDoc(doc(db, 'users', uid));
+  const userData = userSnap.data() || {};
+  const bonus = Number(userData.bonus_lineups || 0);
+  const factual = await _factualApprovedLineups(uid);
+  const level = _loLevelFor(Math.max(approved, factual) + bonus).level;
+  _setUserCounterStatus(uid, 'Сохраняю...');
+  await updateDoc(doc(db, 'users', uid), {
+    approved_lineups: approved,
+    level,
+    approved_lineups_updated_at: serverTimestamp(),
+    approved_lineups_update_reason: reason,
+  });
+  const local = _allUsers.find(u => u.id === uid);
+  if (local) {
+    local.approved_lineups = approved;
+    local.level = level;
+  }
+  renderUsersList(applyUserFilters());
+  const panel = document.getElementById(panelId || 'user-profile-panel');
+  if (panel) await _renderUserProfileInto(uid, panel);
+  toast(`Счётчик лайнапов: ${approved}`, 's');
+  addAuditLog(`Счётчик approved_lineups пользователя ${uid} → ${approved} (${reason})`);
+}
+
+async function setUserBonusLineups(uid, value, panelId, reason = 'manual_bonus') {
+  const bonus = Math.max(0, parseInt(value, 10) || 0);
+  const userSnap = await getDoc(doc(db, 'users', uid));
+  const userData = userSnap.data() || {};
+  const approved = Number(userData.approved_lineups || 0);
+  const factual = await _factualApprovedLineups(uid);
+  const level = _loLevelFor(Math.max(approved, factual) + bonus).level;
+  _setUserCounterStatus(uid, 'Сохраняю бонус...');
+  await updateDoc(doc(db, 'users', uid), {
+    bonus_lineups: bonus,
+    level,
+    bonus_lineups_updated_at: serverTimestamp(),
+    bonus_lineups_update_reason: reason,
+  });
+  const local = _allUsers.find(u => u.id === uid);
+  if (local) {
+    local.bonus_lineups = bonus;
+    local.level = level;
+  }
+  renderUsersList(applyUserFilters());
+  const panel = document.getElementById(panelId || 'user-profile-panel');
+  if (panel) await _renderUserProfileInto(uid, panel);
+  toast(`Бонус лайнапов: ${bonus}`, 's');
+  addAuditLog(`Бонус bonus_lineups пользователя ${uid} → ${bonus} (${reason})`);
+}
+
+async function saveUserApprovedLineups(uid, panelId) {
+  try {
+    await setUserApprovedLineups(uid, _readApprovedCounterInput(uid), panelId, 'manual_set');
+  } catch (e) {
+    _setUserCounterStatus(uid, 'Ошибка: ' + e.message, false);
+    toast('Ошибка счётчика: ' + e.message, 'e');
+  }
+}
+
+async function adjustUserApprovedLineups(uid, delta, panelId) {
+  try {
+    const current = _readApprovedCounterInput(uid);
+    await setUserApprovedLineups(uid, current + Number(delta || 0), panelId, `manual_delta_${delta}`);
+  } catch (e) {
+    _setUserCounterStatus(uid, 'Ошибка: ' + e.message, false);
+    toast('Ошибка счётчика: ' + e.message, 'e');
+  }
+}
+
+async function saveUserBonusLineups(uid, panelId) {
+  try {
+    await setUserBonusLineups(uid, _readBonusCounterInput(uid), panelId, 'manual_bonus_set');
+  } catch (e) {
+    _setUserCounterStatus(uid, 'Ошибка: ' + e.message, false);
+    toast('Ошибка бонуса: ' + e.message, 'e');
+  }
+}
+
+async function adjustUserBonusLineups(uid, delta, panelId) {
+  try {
+    const current = _readBonusCounterInput(uid);
+    await setUserBonusLineups(uid, current + Number(delta || 0), panelId, `manual_bonus_delta_${delta}`);
+  } catch (e) {
+    _setUserCounterStatus(uid, 'Ошибка: ' + e.message, false);
+    toast('Ошибка бонуса: ' + e.message, 'e');
+  }
+}
+
+async function syncUserApprovedLineups(uid, factualApproved, panelId) {
+  const value = Math.max(0, parseInt(factualApproved, 10) || 0);
+  if (!confirm(`Поставить счётчик approved_lineups = ${value} по фактическим опубликованным лайнапам?`)) return;
+  try {
+    await setUserApprovedLineups(uid, value, panelId, 'sync_with_approved_lineups');
+  } catch (e) {
+    _setUserCounterStatus(uid, 'Ошибка: ' + e.message, false);
+    toast('Ошибка синхронизации: ' + e.message, 'e');
+  }
+}
+
 async function resetUserPassword(email, name) {
   if (!email) { toast('Email не указан', 'e'); return; }
   if (!confirm(`Отправить письмо для сброса пароля на ${email}?`)) return;
@@ -12794,6 +13259,11 @@ async function loadStorageStats() {
 }
 window.saveUserName       = saveUserName;
 window.saveUserRole       = saveUserRole;
+window.saveUserApprovedLineups = saveUserApprovedLineups;
+window.adjustUserApprovedLineups = adjustUserApprovedLineups;
+window.syncUserApprovedLineups = syncUserApprovedLineups;
+window.saveUserBonusLineups = saveUserBonusLineups;
+window.adjustUserBonusLineups = adjustUserBonusLineups;
 window.resetUserPassword  = resetUserPassword;
 window.banUserAccount     = banUserAccount;
 window.unbanUserAccount   = unbanUserAccount;
