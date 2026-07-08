@@ -13121,10 +13121,10 @@ async function _renderUserProfileInto(uid, panel) {
           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Привязки</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             ${[
-              ['📧 Email',   !!u.user_email],
-              ['🔑 Пароль',  hasPassword],
-              ['🔔 Push',    !!u.fcm_token],
-            ].map(([label, ok]) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};">${label} ${ok?'✓':'✗'}</span>`).join('')
+              { icon: 'bi-envelope-fill', label: 'Email', ok: !!u.user_email },
+              { icon: 'bi-key-fill', label: 'Пароль', ok: hasPassword },
+              { icon: 'bi-bell-fill', label: 'Push', ok: !!u.fcm_token },
+            ].map(({ icon, label, ok }) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};display:inline-flex;align-items:center;gap:5px;"><i class="bi ${icon}"></i>${label} ${ok?'✓':'✗'}</span>`).join('')
             }
           </div>
         </div>
