@@ -623,6 +623,12 @@
     .log-stack pre { font-size: 11px; color: var(--text2); white-space: pre-wrap; word-break: break-all; line-height: 1.5; margin: 0; }
     .logs-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
     .logs-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .cron-panel { margin: 16px 20px 16px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
+    .cron-panel summary { list-style: none; cursor: pointer; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text); font-size: 13px; font-weight: 700; }
+    .cron-panel summary::-webkit-details-marker { display: none; }
+    .cron-panel summary .cron-chevron { transition: transform .18s ease; color: var(--text2); }
+    .cron-panel[open] summary .cron-chevron { transform: rotate(180deg); }
+    .cron-panel-body { border-top: 1px solid var(--border); padding: 12px 16px 16px; }
 
     /* ── Notifications test tab ── */
     .notif-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
@@ -2341,16 +2347,20 @@
 <div id="tab-logs" style="display:none;">
 
   <!-- ── Cron задачи ── -->
-  <div style="padding:16px 20px 0;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-size:13px;font-weight:700;color:var(--text);">🤖 Cron задачи (GitHub Actions)</span>
-      <button onclick="loadCronLogs()" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">🔄</button>
+  <details class="cron-panel" id="cron-panel">
+    <summary>
+      <span>🤖 Cron задачи (GitHub Actions)</span>
+      <span style="display:flex;align-items:center;gap:8px;">
+        <button onclick="event.preventDefault(); event.stopPropagation(); loadCronLogs();" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:4px 12px;border-radius:6px;font-size:11px;cursor:pointer;">🔄</button>
+        <i class="bi bi-chevron-down cron-chevron"></i>
+      </span>
+    </summary>
+    <div class="cron-panel-body">
+      <div id="cron-logs-list" style="display:flex;flex-direction:column;gap:6px;">
+        <div style="color:var(--text2);font-size:12px;">Открой шторку или нажми обновить</div>
+      </div>
     </div>
-    <div id="cron-logs-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">
-      <div style="color:var(--text2);font-size:12px;">Загрузка…</div>
-    </div>
-    <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
-  </div>
+  </details>
 
   <div class="logs-toolbar">
     <span style="font-size:15px;font-weight:700;color:var(--text);">⚠️ Логи / Ошибки</span>
@@ -3130,7 +3140,7 @@ function switchTab(t) {
   if (t === 'analytics') loadAnalytics();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
-  if (t === 'logs')  { loadLogsTab(); loadCronLogs(); }
+  if (t === 'logs')  { loadLogsTab(); }
   if (t === 'ranges') loadRangesTab();
   if (t === 'mapstyle') loadMapStyleTab();
   if (t === 'agentcolors') { loadAgentColorsSection('ac-grid2'); loadAbilityStyleEditor(); }
@@ -12513,6 +12523,13 @@ async function loadCronLogs() {
   }
 }
 window.loadCronLogs = loadCronLogs;
+
+document.getElementById('cron-panel')?.addEventListener('toggle', e => {
+  if (e.currentTarget.open && !e.currentTarget.dataset.loaded) {
+    e.currentTarget.dataset.loaded = '1';
+    loadCronLogs();
+  }
+});
 
 async function loadLogsTab() {
   const list = document.getElementById('logs-list');
