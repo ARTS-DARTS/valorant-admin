@@ -12629,11 +12629,7 @@ function applyUserFilters() {
   let list = _allUsers;
   const q = _userSearchQuery;
   if (q) {
-    list = list.filter(u =>
-      (u.name || '').toLowerCase().includes(q) ||
-      (u.user_email || '').toLowerCase().includes(q) ||
-      (u.yandex_email || '').toLowerCase().includes(q)
-    );
+    list = list.filter(u => userSearchText(u).includes(q));
   }
   if (_userAuthFilter !== 'all') {
     list = list.filter(u => userAuthKind(u) === _userAuthFilter);
@@ -12690,6 +12686,45 @@ async function loadAllUsers({ append = false } = {}) {
   }
 }
 
+function userSearchText(u = {}) {
+  return [
+    u.id,
+    u.uid,
+    u.name,
+    u.username,
+    u.displayName,
+    u.name_lower,
+    u.email,
+    u.user_email,
+    u.yandex_email,
+    u.linked_yandex_email,
+    u.auth_email,
+    u.provider_email,
+  ].map(v => String(v || '').toLowerCase()).join(' ');
+}
+
+async function ensureUserSearchLoaded(raw) {
+  const q = String(raw || '').trim();
+  if (q.length < 3) return;
+  const qLow = q.toLowerCase();
+  if (_allUsers.some(u => userSearchText(u).includes(qLow))) return;
+
+  const found = new Map();
+  const addSnap = snap => {
+    if (snap?.exists?.()) found.set(snap.id, { id: snap.id, ...(snap.data() || {}) });
+  };
+  await Promise.all([
+    getDoc(doc(db, 'users', q)).then(addSnap).catch(() => {}),
+    getDocs(query(collection(db, 'users'), where('user_email', '==', q), limit(5))).then(s => s.docs.forEach(addSnap)).catch(() => {}),
+    getDocs(query(collection(db, 'users'), where('email', '==', q), limit(5))).then(s => s.docs.forEach(addSnap)).catch(() => {}),
+    getDocs(query(collection(db, 'users'), where('yandex_email', '==', q), limit(5))).then(s => s.docs.forEach(addSnap)).catch(() => {}),
+    getDocs(query(collection(db, 'users'), where('linked_yandex_email', '==', q), limit(5))).then(s => s.docs.forEach(addSnap)).catch(() => {}),
+    getDocs(query(collection(db, 'users'), where('name_lower', '==', qLow), limit(5))).then(s => s.docs.forEach(addSnap)).catch(() => {}),
+  ]);
+  const extra = [...found.values()].filter(u => !_allUsers.some(x => x.id === u.id));
+  if (extra.length) _allUsers = [...extra, ..._allUsers];
+}
+
 function renderUsersList(users) {
   const resultsEl = document.getElementById('user-search-results');
   const countEl   = document.getElementById('users-count');
@@ -12738,8 +12773,9 @@ function renderUsersList(users) {
   }).join('');
 }
 
-document.getElementById('user-search').addEventListener('input', e => {
+document.getElementById('user-search').addEventListener('input', async e => {
   _userSearchQuery = e.target.value.trim().toLowerCase();
+  await ensureUserSearchLoaded(e.target.value);
   renderUsersList(applyUserFilters());
 });
 
