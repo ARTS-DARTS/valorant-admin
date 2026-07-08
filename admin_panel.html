@@ -1906,6 +1906,19 @@
             <input class="finput" id="nb-version" type="number" min="1" step="1" value="1" style="background:var(--bg);">
           </div>
           <div class="fg" style="margin-bottom:10px;">
+            <label class="flabel">Кому показывать в приложении</label>
+            <div style="display:grid;grid-template-columns:220px 1fr;gap:8px;">
+              <select class="fselect" id="nb-target-mode" style="background:var(--bg);">
+                <option value="all">Всем версиям</option>
+                <option value="min">Только min_version</option>
+                <option value="latest">Только latest_version</option>
+                <option value="custom">Вручную</option>
+              </select>
+              <input class="finput" id="nb-target-version" placeholder="Например 1.0.39" style="background:var(--bg);" disabled>
+            </div>
+            <div class="muted" id="nb-target-hint" style="font-size:12px;margin-top:6px;">Версии Firestore загружаются...</div>
+          </div>
+          <div class="fg" style="margin-bottom:10px;">
             <label class="flabel">Событие для вставки</label>
             <div style="display:grid;grid-template-columns:1fr auto;gap:8px;">
               <select class="fselect" id="nb-event-select" style="background:var(--bg);">
@@ -10818,6 +10831,58 @@ let nbPages = [
 ];
 let nbPageIndex = 0;
 let nbBlockIndex = 0;
+let nbAppVersions = { min_version: '', latest_version: '' };
+
+async function nbLoadAppVersions() {
+  const hint = document.getElementById('nb-target-hint');
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'app_version'));
+    const data = snap.exists() ? snap.data() : {};
+    nbAppVersions = {
+      min_version: String(data.min_version || '').trim(),
+      latest_version: String(data.latest_version || '').trim(),
+    };
+    nbSyncTargetVersion();
+  } catch (e) {
+    if (hint) hint.textContent = 'Не удалось загрузить версии Firestore: ' + e.message;
+  }
+}
+
+function nbSyncTargetVersion() {
+  const modeEl = document.getElementById('nb-target-mode');
+  const input = document.getElementById('nb-target-version');
+  const hint = document.getElementById('nb-target-hint');
+  if (!modeEl || !input) return;
+  const mode = modeEl.value || 'all';
+  let value = '';
+  if (mode === 'min') value = nbAppVersions.min_version || '';
+  if (mode === 'latest') value = nbAppVersions.latest_version || '';
+  if (mode !== 'custom') input.value = value;
+  input.disabled = mode !== 'custom';
+  if (hint) {
+    const min = nbAppVersions.min_version || 'не задано';
+    const latest = nbAppVersions.latest_version || 'не задано';
+    hint.textContent = `Firestore: min_version=${min}, latest_version=${latest}. Пусто = показать всем версиям.`;
+  }
+}
+
+function nbResolveTargetVersion() {
+  const mode = document.getElementById('nb-target-mode')?.value || 'all';
+  const input = document.getElementById('nb-target-version');
+  let version = '';
+  if (mode === 'min') version = nbAppVersions.min_version || '';
+  if (mode === 'latest') version = nbAppVersions.latest_version || '';
+  if (mode === 'custom') version = input?.value.trim() || '';
+  if (mode !== 'all' && !version) {
+    toast('Не выбрана версия приложения для банера', 'e');
+    return null;
+  }
+  if (version && !/^\d+\.\d+(?:\.\d+)?$/.test(version)) {
+    toast('Версия приложения должна быть в формате 1.0.39', 'e');
+    return null;
+  }
+  return { mode, version };
+}
 
 function nbRenderEventSelect() {
   const select = document.getElementById('nb-event-select');
@@ -11065,9 +11130,14 @@ function nbInit() {
   nbRenderPages();
   nbLoadCurrent();
   nbLoadEventsForSelect();
-  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align','nb-btn-text','nb-btn-url','nb-btn-color','nb-capsule-color','nb-capsule-width'].forEach(id =>
+  nbLoadAppVersions();
+  ['nb-title','nb-version','nb-text','nb-color','nb-size','nb-align','nb-btn-text','nb-btn-url','nb-btn-color','nb-capsule-color','nb-capsule-width','nb-target-version'].forEach(id =>
     document.getElementById(id)?.addEventListener('input', nbRender)
   );
+  document.getElementById('nb-target-mode')?.addEventListener('change', () => {
+    nbSyncTargetVersion();
+    nbRender();
+  });
   document.getElementById('nb-capsule-theme')?.addEventListener('change', nbLoadCurrent);
   document.getElementById('nb-color')?.addEventListener('change', e => nbApplyCommand('foreColor', e.target.value));
   document.getElementById('nb-bg')?.addEventListener('input', e => {
@@ -11110,6 +11180,8 @@ async function nbPublish() {
   nbSaveCurrent();
   const title = document.getElementById('nb-title').value.trim() || 'Обновление Vlineups';
   const version = parseInt(document.getElementById('nb-version').value || '1', 10);
+  const target = nbResolveTargetVersion();
+  if (!target) return;
   const pages = nbPages
     .map(p => ({
       blocks: p.blocks.filter(b => (b.text || '').trim()).map(b => ({
@@ -11141,6 +11213,8 @@ async function nbPublish() {
   try {
     const bannerRef = await addDoc(collection(db, 'news_banners'), {
       title, version, pages,
+      target_version_mode: target.mode,
+      target_version: target.version,
       active: true,
       likes_count: 0,
       created_at: serverTimestamp(),
@@ -11152,10 +11226,11 @@ async function nbPublish() {
         body: 'Открой приложение, чтобы посмотреть обновление.',
         type: 'news_banner',
         allowAll: true,
-        data: { banner_id: bannerRef.id, version },
+        data: { banner_id: bannerRef.id, version, target_version: target.version },
       });
-      status.textContent = '✅ Банер опубликован, push отправлен';
-      toast('Новостной банер опубликован и push отправлен', 's');
+      const targetLabel = target.version ? `для версии ${target.version}` : 'для всех версий';
+      status.textContent = `✅ Банер опубликован ${targetLabel}, push отправлен`;
+      toast(`Новостной банер опубликован ${targetLabel}`, 's');
     } catch (pushErr) {
       status.textContent = '✅ Банер опубликован, но push не ушёл: ' + pushErr.message;
       toast('Банер опубликован, push не ушёл: ' + pushErr.message, 'e');
