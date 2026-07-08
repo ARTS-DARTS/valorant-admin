@@ -13159,6 +13159,7 @@ async function _renderUserProfileInto(uid, panel) {
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
           ${hasPassword ? `<button class="btn" onclick="resetUserPassword('${esc(u.user_email||'')}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🔑 Сбросить пароль</button>` : ''}
+          <button class="btn" onclick="resetUserCooldown('${uid}','${esc(u.name||'')}','${_panelId}')" style="font-size:12px;padding:7px 12px;">⏱ Сбросить КД</button>
           <button class="btn" onclick="sendMessageToUser('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">💬 Сообщение</button>
           ${!isBanned
             ? `<button class="btn btn-reject" onclick="banUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🚫 Заблокировать</button>`
@@ -13501,6 +13502,21 @@ async function resetUserPassword(email, name) {
   await sendPasswordResetEmail(auth, email);
   toast(`Письмо отправлено на ${email} ✅`, 's');
   addAuditLog(`Запрошен сброс пароля для ${name} (${email})`);
+}
+
+async function resetUserCooldown(uid, name, panelId) {
+  if (!uid) return;
+  const label = name || uid.slice(0, 8);
+  if (!confirm(`Сбросить КД отправки лайнапов для ${label}? Пользователь сможет сразу отправить новый лайнап.`)) return;
+  try {
+    await deleteDoc(doc(db, 'rate_limits', uid));
+    toast('КД пользователя сброшен ✅', 's');
+    addAuditLog(`Сброшен КД отправки лайнапов пользователя ${label}`, { uid, name: name || null });
+    const panel = document.getElementById(panelId || 'user-profile-panel');
+    if (panel) await _renderUserProfileInto(uid, panel);
+  } catch (e) {
+    toast('Ошибка сброса КД: ' + e.message, 'e');
+  }
 }
 
 async function banUserAccount(uid, name) {
