@@ -612,6 +612,8 @@
     .log-type-dart    { background: rgba(249,115,22,.15);  color: var(--orange); border: 1px solid var(--orange); }
     .log-type-manual  { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.4); }
     .log-msg  { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }
+    .log-quick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+    .log-quick span { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 7px; border: 1px solid rgba(77,195,255,.22); border-radius: 999px; background: rgba(77,195,255,.08); color: var(--text2); font-size: 11px; }
     .log-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text2); margin-top: 4px; }
     .log-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .log-del { background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; transition: color .13s; }
@@ -12565,6 +12567,37 @@ function _logUserLabel(uid) {
   return name ? `${name} · ${uid.substring(0, 8)}…` : `${uid.substring(0, 8)}…`;
 }
 
+function _logQuickDetails(log) {
+  const ctx = log.context || {};
+  const user = ctx.user || {};
+  const payload = ctx.payload || {};
+  const rate = ctx.rate_limit || {};
+  const rules = ctx.rules_expectation || {};
+  const details = [];
+  const action = ctx.action || '';
+  const stage = ctx.stage || '';
+  if (action) details.push(`action: ${action}${stage ? ` / ${stage}` : ''}`);
+  const map = payload.map || ctx.map || '';
+  const agent = payload.agent || ctx.agent || '';
+  const ability = payload.normalized_ability || ctx.normalized_ability || ctx.ability || '';
+  if (map || agent || ability) details.push([map, agent, ability].filter(Boolean).join(' · '));
+  if (payload.lineup_id || ctx.lineup_id) details.push(`lineup: ${payload.lineup_id || ctx.lineup_id}`);
+  if (user.name || user.email) details.push(`user: ${user.name || '—'}${user.email ? ` / ${user.email}` : ''}`);
+  if (typeof user.lineups_viewed !== 'undefined') {
+    details.push(`viewed: ${user.lineups_viewed}, approved: ${user.approved_lineups || 0}, bonus: ${user.bonus_lineups || 0}, can_upload: ${!!user.can_upload}`);
+  }
+  if (rate.read) {
+    details.push(`rate_limit: ${rate.exists ? (rate.last_lineup_at || 'exists') : 'нет'}${rate.remaining_minutes ? `, осталось ${rate.remaining_minutes}м` : ''}`);
+  } else if (rate.error_message) {
+    details.push(`rate_limit read error: ${rate.error_message}`);
+  }
+  if (payload.client_block_reasons?.length) details.push(`client_block: ${payload.client_block_reasons.join(', ')}`);
+  if (Object.keys(rules).length) {
+    details.push(`rules_expected: data=${!!rules.isValidLineupData_expected}, user=${!!rules.userCanCreateLineup_expected}, cd=${!!rules.lineupNotOnCooldown_expected}`);
+  }
+  return details;
+}
+
 async function _loadLogUsers() {
   const uids = [...new Set(_logsCache.map(_logUid).filter(Boolean))].slice(0, 80);
   _logsUsers = {};
@@ -12599,6 +12632,7 @@ function _renderLogs() {
     const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const uid = _logUid(log);
     const userLabel = _logUserLabel(uid);
+    const quickDetails = _logQuickDetails(log);
     const ctx = log.context ? JSON.stringify(log.context, null, 2).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
     const hasStack = !!log.stack || !!ctx;
     const stackBody = `${stack}${ctx ? `${stack ? '\n\n' : ''}context:\n${ctx}` : ''}`;
@@ -12608,6 +12642,7 @@ function _renderLogs() {
         <span class="log-type ${typeClass}">${typeLabel}</span>
         <div style="flex:1;min-width:0;">
           <div class="log-msg">${msg.substring(0,300)}${msg.length>300?'…':''}</div>
+          ${quickDetails.length ? `<div class="log-quick">${quickDetails.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
           <div class="log-meta">
             <span>🕐 ${ts}</span>
             ${log.platform ? `<span>📱 ${log.platform}</span>` : ''}
