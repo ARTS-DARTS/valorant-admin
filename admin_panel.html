@@ -11964,8 +11964,9 @@ function _doRenderUserResults(users) {
   const box = document.getElementById('do-test-user-results');
   if (!box) return;
   if (!users.length) {
-    box.style.display = 'block';
-    box.innerHTML = '<div style="padding:10px 12px;color:var(--text2);font-size:12px;">Ничего не найдено</div>';
+    box.style.display = 'none';
+    box.innerHTML = '';
+    _ncSetStatus('duel-overlay', false, 'Пользователь не найден');
     return;
   }
   box.style.display = 'block';
@@ -11995,6 +11996,7 @@ function _doSelectTestUser(user) {
 async function _doFindTestUsers() {
   const raw = (document.getElementById('do-test-user-input')?.value || '').trim();
   if (raw.length < 2) {
+    document.getElementById('do-test-user-results').style.display = 'none';
     _ncSetStatus('duel-overlay', false, 'Введи хотя бы 2 символа для поиска пользователя');
     return;
   }
@@ -12094,12 +12096,23 @@ document.getElementById('do-test-user-input')?.addEventListener('keydown', e => 
   if (e.key === 'Enter') {
     e.preventDefault();
     _doFindTestUsers();
+  } else if (e.key === 'Escape') {
+    document.getElementById('do-test-user-results').style.display = 'none';
   }
+});
+document.getElementById('do-test-user-input')?.addEventListener('input', () => {
+  document.getElementById('do-test-user-results').style.display = 'none';
 });
 document.getElementById('do-test-clear-user')?.addEventListener('click', () => {
   _doTestUser = null;
   document.getElementById('do-test-selected').style.display = 'none';
   document.getElementById('do-test-user-input').value = '';
+  document.getElementById('do-test-user-results').style.display = 'none';
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#do-test-user-results') && !e.target.closest('#do-test-user-input') && !e.target.closest('#do-test-user-find')) {
+    document.getElementById('do-test-user-results').style.display = 'none';
+  }
 });
 document.getElementById('do-load-active')?.addEventListener('click', loadActiveDuelOverlayTest);
 document.getElementById('do-test-send')?.addEventListener('click', sendDuelOverlayTest);
