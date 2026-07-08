@@ -1068,7 +1068,7 @@
               <option value="">— Выбери категорию —</option>
               <option value="lineup">lineup</option>
               <option value="combo" disabled>combo — скоро</option>
-              <option value="wallbang" disabled>wallbang — скоро</option>
+              <option value="wallbang">wallbang — прострелы</option>
               <option value="defense" disabled>defense — скоро</option>
             </select>
           </div>
@@ -2903,7 +2903,7 @@ const CONTENT_CATEGORIES = {
   wallbang: { title: 'ПРОСТРЕЛЫ', label: 'прострел', plural: 'прострелов', empty: 'Прострелы не найдены', legacy: ['smoke'] },
   defense:  { title: 'ЗАЩИТА',    label: 'защита',   plural: 'защит',      empty: 'Защита не найдена' },
 };
-const ENABLED_CONTENT_SAVE_CATEGORIES = new Set(['lineup']);
+const ENABLED_CONTENT_SAVE_CATEGORIES = new Set(['lineup', 'wallbang']);
 
 function normalizeContentCategory(value) {
   if (!value) return 'lineup';
