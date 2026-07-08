@@ -12480,6 +12480,7 @@ document.getElementById('dtp-save-btn')?.addEventListener('click', () => {
 // ── Logs tab ──────────────────────────────────────────────────────────────────
 let _logsFilter = 'all';
 let _logsCache  = [];
+let _logsUsers  = {};
 
 async function loadCronLogs() {
   const list = document.getElementById('cron-logs-list');
@@ -12539,10 +12540,42 @@ async function loadLogsTab() {
     if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
     const snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
     _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    await _loadLogUsers();
     _renderLogs();
   } catch (e) {
     list.innerHTML = `<div class="state">Ошибка загрузки: ${e.message}</div>`;
   }
+}
+
+function _logUid(log) {
+  return String(
+    log.uid ||
+    log.user_id ||
+    log.userId ||
+    log.context?.uid ||
+    log.context?.user_id ||
+    ''
+  ).trim();
+}
+
+function _logUserLabel(uid) {
+  if (!uid) return '';
+  const u = _logsUsers[uid];
+  const name = u?.name || u?.username || u?.displayName || u?.email || '';
+  return name ? `${name} · ${uid.substring(0, 8)}…` : `${uid.substring(0, 8)}…`;
+}
+
+async function _loadLogUsers() {
+  const uids = [...new Set(_logsCache.map(_logUid).filter(Boolean))].slice(0, 80);
+  _logsUsers = {};
+  await Promise.all(uids.map(async uid => {
+    try {
+      const snap = await getDoc(doc(db, 'users', uid));
+      _logsUsers[uid] = snap.exists() ? snap.data() : null;
+    } catch (_) {
+      _logsUsers[uid] = null;
+    }
+  }));
 }
 
 function _renderLogs() {
@@ -12564,7 +12597,11 @@ function _renderLogs() {
     const typeLabel = (log.type || 'other').toUpperCase();
     const msg = (log.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const hasStack = !!log.stack;
+    const uid = _logUid(log);
+    const userLabel = _logUserLabel(uid);
+    const ctx = log.context ? JSON.stringify(log.context, null, 2).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+    const hasStack = !!log.stack || !!ctx;
+    const stackBody = `${stack}${ctx ? `${stack ? '\n\n' : ''}context:\n${ctx}` : ''}`;
 
     return `<div class="log-card" data-log-id="${log.id}">
       <div class="log-head" onclick="this.closest('.log-card').querySelector('.log-stack')?.classList.toggle('open')">
@@ -12575,7 +12612,7 @@ function _renderLogs() {
             <span>🕐 ${ts}</span>
             ${log.platform ? `<span>📱 ${log.platform}</span>` : ''}
             ${log.appVersion ? `<span>v${log.appVersion}</span>` : ''}
-            ${log.userId ? `<span style="font-family:monospace;">👤 ${log.userId.substring(0,8)}…</span>` : ''}
+            ${uid ? `<span title="${esc(uid)}">👤 ${esc(userLabel)}</span>` : ''}
           </div>
         </div>
         <div class="log-actions" onclick="event.stopPropagation()">
@@ -12583,7 +12620,7 @@ function _renderLogs() {
           <button class="log-del" title="Удалить" onclick="_deleteLog('${log.id}',this)">✕</button>
         </div>
       </div>
-      ${hasStack ? `<div class="log-stack"><pre>${stack}</pre></div>` : ''}
+      ${hasStack ? `<div class="log-stack"><pre>${stackBody}</pre></div>` : ''}
     </div>`;
   }).join('');
 }
