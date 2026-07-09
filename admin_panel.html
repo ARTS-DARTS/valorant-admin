@@ -80,6 +80,8 @@
     }
     .tab:hover { background: rgba(255,255,255,.05); color: var(--text); }
     .tab.active { background: var(--primary-dim); color: var(--primary); font-weight: 700; }
+    .tab.has-unread:not(.active) { background: rgba(255,70,85,.12); color: var(--primary); }
+    .tab.has-unread:not(.active) .bi { opacity: 1; }
     .tab .bi { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; opacity: .8; }
     .tab.active .bi { opacity: 1; }
 
@@ -2951,7 +2953,11 @@ function contentMeta(cat = currentContentCategory) {
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
-  if (!user) { show('login'); return; }
+  if (!user) {
+    stopMessagesBadgeRealtime();
+    show('login');
+    return;
+  }
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     const role = snap.exists() ? (snap.data().role ?? 'user') : 'user';
@@ -2971,6 +2977,7 @@ onAuthStateChanged(auth, async user => {
   show('app');
   applyRoleUi(currentUserRole);
   if (currentUserRole === 'admin') loadAdmins();
+  if (currentUserRole === 'admin') startMessagesBadgeRealtime();
   switchTab('list');
 });
 
@@ -3165,9 +3172,11 @@ let _afkListenerTimer = null;
 function _suspendRealtimeListeners() {
   stopLineupsRealtime();
   stopMessagesRealtime();
+  stopMessagesBadgeRealtime();
   stopAnalyticsRealtime();
 }
 function _resumeRealtimeForActiveTab() {
+  if (currentUserRole === 'admin') startMessagesBadgeRealtime();
   if (_activeTab === 'list')      loadLineups();
   else if (_activeTab === 'messages')  startMessagesRealtime();
   else if (_activeTab === 'analytics') loadAnalytics();
@@ -3954,6 +3963,7 @@ let _msgFilter = 'all';
 let _msgLoaded = false;
 let _ideasAll  = [];
 let _msgUnsub = null;
+let _msgBadgeUnsub = null;
 let _msgHousekeepingDone = false;
 
 function _msgCatColor(cat) {
@@ -4012,6 +4022,25 @@ function stopMessagesRealtime() {
   }
 }
 
+function startMessagesBadgeRealtime() {
+  if (_msgBadgeUnsub) return;
+  const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
+  _msgBadgeUnsub = onSnapshot(q, snap => {
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _msgUpdateBadge(items);
+  }, e => {
+    console.warn('messages badge realtime', e);
+  });
+}
+
+function stopMessagesBadgeRealtime() {
+  if (_msgBadgeUnsub) {
+    _msgBadgeUnsub();
+    _msgBadgeUnsub = null;
+  }
+  _msgUpdateBadge([]);
+}
+
 async function loadMessagesTab() {
   startMessagesRealtime();
 }
@@ -4052,12 +4081,23 @@ async function loadIdeas() {
   } catch (e) { console.error('loadIdeas', e); _ideasAll = []; }
 }
 
-function _msgUpdateBadge() {
-  const newCount = _msgAll.filter(m => m.status !== 'closed' && _msgIsNew(m)).length;
+function _msgUpdateBadge(source = _msgAll) {
+  const newCount = source.filter(m => m.status !== 'closed' && _msgIsNew(m)).length;
   const badge = document.getElementById('msg-nav-badge');
-  if (!badge) return;
-  if (newCount > 0) { badge.style.display = 'inline-block'; badge.textContent = newCount; }
-  else badge.style.display = 'none';
+  const tab = document.getElementById('tab-btn-messages');
+  if (badge) {
+    if (newCount > 0) {
+      badge.style.display = 'inline-flex';
+      badge.textContent = newCount > 99 ? '99+' : String(newCount);
+    } else {
+      badge.style.display = 'none';
+      badge.textContent = '0';
+    }
+  }
+  if (tab) {
+    tab.classList.toggle('has-unread', newCount > 0);
+    tab.title = newCount > 0 ? `Новых сообщений: ${newCount}` : '';
+  }
 }
 
 function _msgSetFilter(f) {
