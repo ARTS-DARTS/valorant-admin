@@ -1077,7 +1077,7 @@
               <option value="lineup">lineup</option>
               <option value="combo" disabled>combo — скоро</option>
               <option value="wallbang">wallbang — прострелы</option>
-              <option value="defense" disabled>defense — скоро</option>
+              <option value="defense">defense — защита</option>
             </select>
           </div>
 
@@ -2928,7 +2928,7 @@ const CONTENT_CATEGORIES = {
   wallbang: { title: 'ПРОСТРЕЛЫ', label: 'прострел', plural: 'прострелов', empty: 'Прострелы не найдены', legacy: ['smoke'] },
   defense:  { title: 'ЗАЩИТА',    label: 'защита',   plural: 'защит',      empty: 'Защита не найдена' },
 };
-const ENABLED_CONTENT_SAVE_CATEGORIES = new Set(['lineup', 'wallbang']);
+const ENABLED_CONTENT_SAVE_CATEGORIES = new Set(['lineup', 'wallbang', 'defense']);
 
 function normalizeContentCategory(value) {
   if (!value) return 'lineup';
@@ -6977,6 +6977,12 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   if (needsAgent && !agent)    { toast('Выбери агента','e'); return; }
   if (needsAbility && !ability)  { toast('Выбери способность','e'); return; }
   if (category === 'wallbang' && !_checkedValues('add-wallbang-weapons').length) { toast('Выбери оружие для прострела','e'); return; }
+  const defenseSite = (document.getElementById('add-defense-site')?.value ?? '').trim();
+  const defenseNumber = _numOrNull('add-defense-number');
+  const defenseZoom = _zoomAreaFrom('add-defense');
+  if (category === 'defense' && !defenseSite) { toast('Укажи зону защиты','e'); return; }
+  if (category === 'defense' && (!defenseNumber || defenseNumber < 1)) { toast('Укажи номер сетапа защиты','e'); return; }
+  if (category === 'defense' && !defenseZoom) { toast('Укажи zoom-область защиты','e'); return; }
   const slotIds = Object.keys(addSlotSessions);
   for (const id of slotIds) {
     const s = addSlotSessions[id];
@@ -8438,6 +8444,16 @@ async function saveEditedLineup(id) {
   const editTargetX = sess.targetX ?? _numOrNull(`ce-wallbang-target-x-${id}`);
   const editTargetY = sess.targetY ?? _numOrNull(`ce-wallbang-target-y-${id}`);
   if (category === 'wallbang' && (editTargetX === null || editTargetY === null)) { toast('Поставь точку прострела', 'e'); return; }
+  const defenseSite = (document.getElementById(`ce-defense-site-${id}`)?.value ?? '').trim();
+  const defenseNumber = _numOrNull(`ce-defense-number-${id}`);
+  const defenseZoomX = _numOrNull(`ce-defense-zoom-x-${id}`);
+  const defenseZoomY = _numOrNull(`ce-defense-zoom-y-${id}`);
+  const defenseZoomW = _numOrNull(`ce-defense-zoom-w-${id}`);
+  const defenseZoomH = _numOrNull(`ce-defense-zoom-h-${id}`);
+  const defenseZoom = [defenseZoomX, defenseZoomY, defenseZoomW, defenseZoomH].every(v => v !== null);
+  if (category === 'defense' && !defenseSite) { toast('Укажи зону защиты', 'e'); return; }
+  if (category === 'defense' && (!defenseNumber || defenseNumber < 1)) { toast('Укажи номер сетапа защиты', 'e'); return; }
+  if (category === 'defense' && !defenseZoom) { toast('Укажи zoom-область защиты', 'e'); return; }
   if (sess.videoXhr) { toast('Подожди — видео ещё загружается…', 'i'); return; }
   if (sess.screenshots.some(s => s.type === 'new' && s.status === 'uploading'))
     { toast('Подожди — фото ещё загружаются…', 'i'); return; }
