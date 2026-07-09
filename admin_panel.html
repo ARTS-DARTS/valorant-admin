@@ -612,6 +612,7 @@
     .log-type-dart    { background: rgba(249,115,22,.15);  color: var(--orange); border: 1px solid var(--orange); }
     .log-type-manual  { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.4); }
     .log-msg  { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }
+    .log-hint { margin: 6px 0 2px; padding: 7px 9px; border: 1px solid rgba(250,204,21,.28); border-radius: 7px; background: rgba(250,204,21,.08); color: #facc15; font-size: 12px; line-height: 1.45; }
     .log-quick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
     .log-quick span { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 7px; border: 1px solid rgba(77,195,255,.22); border-radius: 999px; background: rgba(77,195,255,.08); color: var(--text2); font-size: 11px; }
     .log-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text2); margin-top: 4px; }
@@ -12624,6 +12625,59 @@ function _logQuickDetails(log) {
   return details;
 }
 
+function _logHumanComment(log) {
+  if (log.comment || log.hint) return String(log.comment || log.hint);
+  const text = `${log.message || ''}\n${log.stack || ''}`.toLowerCase();
+  if (text.includes('permission-denied') || text.includes('missing or insufficient permissions')) {
+    return 'Firestore отклонил запрос: не хватает прав по правилам безопасности. Нужно проверить статус пользователя, путь документа и firestore.rules.';
+  }
+  if (text.includes('cloud_firestore/unavailable') || text.includes('the service is currently unavailable')) {
+    return 'Временная недоступность Firestore или сети. Если таких логов много подряд — проверить Firebase/интернет пользователя.';
+  }
+  if (
+    text.includes('res.cloudinary.com') ||
+    text.includes('media.valorant-api.com') ||
+    text.includes('valorant-api.com')
+  ) {
+    if (
+      text.includes('socketexception') ||
+      text.includes('clientexception') ||
+      text.includes('connection timed out') ||
+      text.includes('connection failed') ||
+      text.includes('network is unreachable') ||
+      text.includes('failed host lookup')
+    ) {
+      return 'Не загрузился внешний медиа-ресурс: Cloudinary или Valorant API недоступен с телефона пользователя. Обычно это сеть/CDN, не ошибка лайнапа.';
+    }
+  }
+  if (
+    text.includes('socketexception') ||
+    text.includes('clientexception') ||
+    text.includes('connection timed out') ||
+    text.includes('connection failed') ||
+    text.includes('network is unreachable') ||
+    text.includes('failed host lookup')
+  ) {
+    return 'Сетевая ошибка на устройстве пользователя: нет доступа к серверу, DNS или соединение оборвалось.';
+  }
+  if (text.includes('play() request was interrupted') || (text.includes('play') && text.includes('pause'))) {
+    return 'Видео не успело запуститься: плеер получил play, а потом сразу pause. Обычно это не критично и связано с поведением браузера/плеера.';
+  }
+  if (text.includes('null check operator used on a null value')) {
+    return 'В коде ожидалось обязательное значение, но пришёл null. Это баг в экране/данных, смотри Stack и строку файла.';
+  }
+  if (text.includes('rangeerror') || text.includes('index out of range')) {
+    return 'Код обратился к элементу списка по несуществующему индексу. Смотреть Stack: где список оказался короче ожидаемого.';
+  }
+  if (text.includes('formatexception')) {
+    return 'Ошибка формата данных: приложение пыталось разобрать строку/число/JSON, но данные пришли в неожиданном виде.';
+  }
+  if (text.includes('setstate() called after dispose')) {
+    return 'Экран уже закрылся, но асинхронная операция попыталась обновить UI. Нужно проверять mounted перед setState.';
+  }
+  return 'Неизвестная ошибка. Смотри технический текст и Stack: там должен быть файл и строка, где она произошла.';
+}
+
 async function _loadLogUsers() {
   const uids = [...new Set(_logsCache.map(_logUid).filter(Boolean))].slice(0, 80);
   _logsUsers = {};
@@ -12659,6 +12713,7 @@ function _renderLogs() {
     const uid = _logUid(log);
     const userLabel = _logUserLabel(uid);
     const quickDetails = _logQuickDetails(log);
+    const humanComment = _logHumanComment(log);
     const ctx = log.context ? JSON.stringify(log.context, null, 2).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
     const hasStack = !!log.stack || !!ctx;
     const stackBody = `${stack}${ctx ? `${stack ? '\n\n' : ''}context:\n${ctx}` : ''}`;
@@ -12668,6 +12723,7 @@ function _renderLogs() {
         <span class="log-type ${typeClass}">${typeLabel}</span>
         <div style="flex:1;min-width:0;">
           <div class="log-msg">${msg.substring(0,300)}${msg.length>300?'…':''}</div>
+          ${humanComment ? `<div class="log-hint">💬 ${esc(humanComment)}</div>` : ''}
           ${quickDetails.length ? `<div class="log-quick">${quickDetails.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
           <div class="log-meta">
             <span>🕐 ${ts}</span>
