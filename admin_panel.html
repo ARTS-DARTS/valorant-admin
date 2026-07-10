@@ -10038,34 +10038,71 @@ async function loadAdsAnalytics(days, d30, today) {
     }
   };
 
+  const aggregateByDay = {};
+  const eventByDay = {};
+  const ensureDayStats = (target, day) => {
+    if (!target[day]) {
+      target[day] = {
+        rewardedShown: 0,
+        rewardedDone: 0,
+        rewardedSkip: 0,
+        interstitialShown: 0,
+        bannerShown: 0,
+        appOpenShown: 0,
+        other: 0,
+      };
+    }
+    return target[day];
+  };
+  const bumpDayKind = (target, day, kind, count = 1) => {
+    if (!day || !kind || !count || count < 0) return;
+    const row = ensureDayStats(target, day);
+    if (row[kind] !== undefined) row[kind] += count;
+    else row.other += count;
+  };
+
   const statSnaps = await Promise.all(
     days.map(d => getDoc(doc(db, 'ad_stats_daily', d)).catch(() => null))
   );
-  const daysWithAggregate = new Set();
   statSnaps.forEach((snap, index) => {
     if (!snap || !snap.exists()) return;
     const day = days[index];
     const dat = snap.data() || {};
-    daysWithAggregate.add(day);
-    addKind('rewardedShown', Number(dat.rewarded_shown || 0), day);
-    addKind('rewardedDone', Number(dat.rewarded_completed || 0), day);
-    addKind('rewardedSkip', Number(dat.rewarded_skipped || 0), day);
-    addKind('interstitialShown', Number(dat.interstitial_shown || 0), day);
-    addKind('bannerShown', Number(dat.banner_shown || 0), day);
+    bumpDayKind(aggregateByDay, day, 'rewardedShown', Number(dat.rewarded_shown || 0));
+    bumpDayKind(aggregateByDay, day, 'rewardedDone', Number(dat.rewarded_completed || 0));
+    bumpDayKind(aggregateByDay, day, 'rewardedSkip', Number(dat.rewarded_skipped || 0));
+    bumpDayKind(aggregateByDay, day, 'interstitialShown', Number(dat.interstitial_shown || 0));
+    bumpDayKind(aggregateByDay, day, 'bannerShown', Number(dat.banner_shown || 0));
   });
 
-  // Fallback for days that do not have aggregated stats yet. New app builds write
-  // ad_stats_daily; older builds only wrote ad_events.
+  // ad_stats_daily can be partially flushed for the current day. Keep ad_events
+  // as a same-day sanity source and use the larger value per counter.
   const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts', 'desc'), limit(ADMIN_AD_EVENTS_LIMIT));
   const snap = await getDocs(q);
   snap.forEach(doc => {
     const dat = doc.data();
     if (!dat.ts?.toDate) return;
     const day = _anLocalDayKey(dat.ts.toDate());
-    if (daysWithAggregate.has(day)) return;
     const kind = _adEventKind(dat.type);
-    addKind(kind, 1, day);
+    bumpDayKind(eventByDay, day, kind, 1);
   });
+
+  days.forEach(day => {
+    const aggregate = aggregateByDay[day] || {};
+    const events = eventByDay[day] || {};
+    [
+      'rewardedShown',
+      'rewardedDone',
+      'rewardedSkip',
+      'interstitialShown',
+      'bannerShown',
+      'appOpenShown',
+      'other',
+    ].forEach(kind => {
+      addKind(kind, Math.max(Number(aggregate[kind] || 0), Number(events[kind] || 0)), day);
+    });
+  });
+
   const pct = totals.rewardedShown > 0 ? Math.round(totals.rewardedDone / totals.rewardedShown * 100) : 0;
   const avgDaily = Math.round(totals.totalShown / Math.max(days.length, 1));
   const todayShown = adByDay[today]?.totalShown || 0;
