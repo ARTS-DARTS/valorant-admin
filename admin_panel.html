@@ -2695,6 +2695,20 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
         <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
           <span>
+            <b style="display:block;color:var(--text);font-size:13px;">🎯 Лайнапы</b>
+            <small style="color:var(--text2);font-size:11px;">Главный раздел приложения</small>
+          </span>
+          <span class="toggle-switch"><input type="checkbox" id="cc-access-lineup"><span class="toggle-slider"></span></span>
+        </label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <span>
+            <b style="display:block;color:var(--text);font-size:13px;">⚡ Комбо</b>
+            <small style="color:var(--text2);font-size:11px;">Доступ в приложении</small>
+          </span>
+          <span class="toggle-switch"><input type="checkbox" id="cc-access-combo"><span class="toggle-slider"></span></span>
+        </label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <span>
             <b style="display:block;color:var(--text);font-size:13px;">💥 Прострелы</b>
             <small style="color:var(--text2);font-size:11px;">Доступ в приложении</small>
           </span>
@@ -2706,6 +2720,13 @@
             <small style="color:var(--text2);font-size:11px;">Доступ в приложении</small>
           </span>
           <span class="toggle-switch"><input type="checkbox" id="cc-access-defense"><span class="toggle-slider"></span></span>
+        </label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+          <span>
+            <b style="display:block;color:var(--text);font-size:13px;">⚔️ Дуэли</b>
+            <small style="color:var(--text2);font-size:11px;">Доступ в приложении</small>
+          </span>
+          <span class="toggle-switch"><input type="checkbox" id="cc-access-duels"><span class="toggle-slider"></span></span>
         </label>
       </div>
       <button id="cc-access-save" class="btn btn-save" style="width:100%;justify-content:center;margin-top:12px;">💾 Сохранить доступ</button>
@@ -3678,7 +3699,7 @@ document.getElementById('mc-save-btn')?.addEventListener('click', async () => {
 // Firestore:
 //   settings/weapon_whitelist { weapons: [...] }
 //   settings/defense_agents { agents: [...] }
-//   settings/category_access { wallbang_enabled: bool, defense_enabled: bool }
+//   settings/category_access { lineup_enabled, combo_enabled, wallbang_enabled, defense_enabled, duels_enabled }
 //   settings/config_versions { weapon_whitelist: number, defense_agents: number, ... }
 const CC_WEAPON_OPTIONS = [
   'Vandal', 'Phantom', 'Guardian', 'Ares', 'Odin', 'Operator', 'Marshal',
@@ -3688,7 +3709,7 @@ const CC_DEFENSE_DEFAULTS = ['Cypher', 'Killjoy', 'Deadlock', 'Sage', 'Viper', '
 let _ccLoaded = false;
 let _ccWeapons = new Set(CC_WEAPON_DEFAULTS);
 let _ccDefenseAgents = new Set(CC_DEFENSE_DEFAULTS);
-let _ccCategoryAccess = { wallbang_enabled: false, defense_enabled: false };
+let _ccCategoryAccess = { lineup_enabled: true, combo_enabled: false, wallbang_enabled: false, defense_enabled: false, duels_enabled: true };
 let _ccVersions = {};
 let _ccAgents = [];
 let _ccLoadPromise = null;
@@ -3880,15 +3901,24 @@ function _ccRender() {
       .join('');
     document.getElementById('cc-defense-count').textContent = `${_ccDefenseAgents.size} аг.`;
   }
+  const ln = document.getElementById('cc-access-lineup');
+  const cb = document.getElementById('cc-access-combo');
   const wb = document.getElementById('cc-access-wallbang');
   const df = document.getElementById('cc-access-defense');
+  const du = document.getElementById('cc-access-duels');
+  if (ln) ln.checked = _ccCategoryAccess.lineup_enabled !== false;
+  if (cb) cb.checked = _ccCategoryAccess.combo_enabled === true;
   if (wb) wb.checked = _ccCategoryAccess.wallbang_enabled === true;
   if (df) df.checked = _ccCategoryAccess.defense_enabled === true;
+  if (du) du.checked = _ccCategoryAccess.duels_enabled !== false;
   const accessStatus = document.getElementById('cc-access-status');
   if (accessStatus) {
     const closed = [];
+    if (_ccCategoryAccess.lineup_enabled === false) closed.push('лайнапы');
+    if (!_ccCategoryAccess.combo_enabled) closed.push('комбо');
     if (!_ccCategoryAccess.wallbang_enabled) closed.push('прострелы');
     if (!_ccCategoryAccess.defense_enabled) closed.push('защита');
+    if (_ccCategoryAccess.duels_enabled === false) closed.push('дуэли');
     accessStatus.textContent = closed.length ? `Закрыто: ${closed.join(', ')}` : 'Все включено';
     accessStatus.style.color = closed.length ? 'var(--orange)' : 'var(--green)';
   }
@@ -3929,10 +3959,13 @@ async function loadContentConfigTab() {
         : CC_DEFENSE_DEFAULTS);
       _ccCategoryAccess = aSnap.exists()
         ? {
+            lineup_enabled: aSnap.data().lineup_enabled !== false,
+            combo_enabled: aSnap.data().combo_enabled === true,
             wallbang_enabled: aSnap.data().wallbang_enabled === true,
             defense_enabled: aSnap.data().defense_enabled === true,
+            duels_enabled: aSnap.data().duels_enabled !== false,
           }
-        : { wallbang_enabled: false, defense_enabled: false };
+        : { lineup_enabled: true, combo_enabled: false, wallbang_enabled: false, defense_enabled: false, duels_enabled: true };
       _ccVersions = vSnap.exists() ? vSnap.data() : {};
     } catch (e) {
       console.error('loadContentConfigTab', e);
@@ -4004,22 +4037,28 @@ document.getElementById('cc-defense-save')?.addEventListener('click', async func
 
 document.getElementById('cc-access-save')?.addEventListener('click', async function() {
   const btn = this;
+  const lineup_enabled = document.getElementById('cc-access-lineup')?.checked !== false;
+  const combo_enabled = document.getElementById('cc-access-combo')?.checked === true;
   const wallbang_enabled = document.getElementById('cc-access-wallbang')?.checked === true;
   const defense_enabled = document.getElementById('cc-access-defense')?.checked === true;
+  const duels_enabled = document.getElementById('cc-access-duels')?.checked !== false;
   btn.disabled = true; const orig = btn.textContent; btn.textContent = '⏳ Сохраняю…';
   try {
     await setDoc(doc(db, 'settings', 'category_access'), {
+      lineup_enabled,
+      combo_enabled,
       wallbang_enabled,
       defense_enabled,
+      duels_enabled,
       updated_at: serverTimestamp(),
       updated_by: currentUser?.email || currentUser?.displayName || 'Admin',
     }, { merge: true });
     await bumpConfigVersions(['category_access']);
-    _ccCategoryAccess = { wallbang_enabled, defense_enabled };
+    _ccCategoryAccess = { lineup_enabled, combo_enabled, wallbang_enabled, defense_enabled, duels_enabled };
     _ccVersions.category_access = Date.now();
     _ccRender();
     toast('Доступ к категориям сохранён', 's');
-    addAuditLog('category_access_updated', { wallbang_enabled, defense_enabled });
+    addAuditLog('category_access_updated', { lineup_enabled, combo_enabled, wallbang_enabled, defense_enabled, duels_enabled });
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');
   } finally {
