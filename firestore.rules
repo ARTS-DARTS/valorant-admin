@@ -76,7 +76,8 @@ service cloud.firestore {
       }
 
       match /notifications/{notifId} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
         allow write: if isAdmin();
       }
     }
