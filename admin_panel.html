@@ -13007,6 +13007,13 @@ function _logHumanComment(log) {
     return 'Временная недоступность Firestore или сети. Если таких логов много подряд — проверить Firebase/интернет пользователя.';
   }
   if (
+    text.includes('missingpluginexception') &&
+    text.includes('destroy') &&
+    text.includes('yandex_mobileads.bannerad')
+  ) {
+    return 'Безопасная ошибка жизненного цикла баннера Яндекс РСЯ: баннер уже уничтожен или нативный канал закрыт. Не похоже на взлом.';
+  }
+  if (
     text.includes('res.cloudinary.com') ||
     text.includes('media.valorant-api.com') ||
     text.includes('valorant-api.com')
@@ -13057,7 +13064,11 @@ function _logTimeMs(log) {
 }
 
 function _logFingerprint(log) {
-  const message = String(log.message || '').trim().replace(/\s+/g, ' ');
+  const normalizeLogMessage = value => String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/yandex_mobileads\.bannerAd\.\d+/gi, 'yandex_mobileads.bannerAd.*');
+  const message = normalizeLogMessage(log.message);
   const stackLine = String(log.stack || '')
     .split('\n')
     .map(x => x.trim())
