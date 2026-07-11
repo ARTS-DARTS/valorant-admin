@@ -2973,6 +2973,7 @@ const ADMIN_ANALYTICS_EVENTS_MAX = 20000;
 const ADMIN_SESSION_EVENTS_PAGE_SIZE = 1000;
 const ADMIN_SESSION_EVENTS_MAX = 20000;
 const ADMIN_AD_EVENTS_LIMIT = 600;
+const AD_STATS_PUBLIC_CACHE_URL = './ad_stats_daily_public.json';
 
 let lineups       = [];
 let currentFilter = 'all';
@@ -10154,6 +10155,25 @@ function _adStatsFirestorePayload(row) {
   };
 }
 
+async function loadPublicAdStatsCache(days) {
+  try {
+    const res = await fetch(`${AD_STATS_PUBLIC_CACHE_URL}?v=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) return {};
+    const payload = await res.json();
+    const sourceDays = payload?.days || {};
+    const wanted = new Set(days);
+    const rows = {};
+    Object.entries(sourceDays).forEach(([day, row]) => {
+      if (!wanted.has(day) || !row || typeof row !== 'object') return;
+      rows[day] = row;
+    });
+    return rows;
+  } catch (error) {
+    console.warn('ad stats public cache unavailable', error);
+    return {};
+  }
+}
+
 async function rebuildAdStats30d() {
   if (!confirm('Досчитать рекламную статистику за последние 30 дней из ad_events? Это ручное чтение сырых событий и запись ad_stats_daily.')) return;
   const btn = document.getElementById('ad-backfill-30d-btn');
@@ -10294,26 +10314,34 @@ async function loadAdsAnalytics(days, d30, today) {
     }
     return 0;
   };
+  const applyDailyRow = (target, day, dat = {}) => {
+    bumpDayKind(target, day, 'rewardedShown', _adDailyNumber(dat, ['rewarded_shown', 'rewardedShown', 'rewarded', 'rewarded_count']));
+    bumpDayKind(target, day, 'rewardedDone', _adDailyNumber(dat, ['rewarded_completed', 'rewardedDone', 'rewarded_done', 'rewarded_completed_count']));
+    bumpDayKind(target, day, 'rewardedSkip', _adDailyNumber(dat, ['rewarded_skipped', 'rewardedSkip', 'rewarded_skipped_count']));
+    bumpDayKind(target, day, 'interstitialShown', _adDailyNumber(dat, ['interstitial_shown', 'interstitialShown', 'interstitial', 'interstitial_count']));
+    bumpDayKind(target, day, 'bannerShown', _adDailyNumber(dat, ['banner_shown', 'bannerShown', 'banner', 'banner_count']));
+    bumpDayKind(target, day, 'appOpenShown', _adDailyNumber(dat, ['app_open_shown', 'appOpenShown', 'app_open', 'appOpen']));
+    bumpDayKind(target, day, 'other', _adDailyNumber(dat, ['other', 'other_events']));
+    bumpDayKind(target, day, 'totalShown', _adDailyNumber(dat, ['total_shown', 'totalShown', 'shown', 'total', 'impressions']));
+  };
 
+  const publicCache = await loadPublicAdStatsCache(days);
+  Object.entries(publicCache).forEach(([day, dat]) => {
+    if (day !== today) applyDailyRow(aggregateByDay, day, dat);
+  });
+  const missingOrFreshDays = days.filter(day => day === today || !publicCache[day]);
   const statSnaps = await Promise.all(
-    days.map(d => getDoc(doc(db, 'ad_stats_daily', d)).catch(() => null))
+    missingOrFreshDays.map(d => getDoc(doc(db, 'ad_stats_daily', d)).catch(() => null))
   );
   statSnaps.forEach((snap, index) => {
     if (!snap || !snap.exists()) return;
-    const day = days[index];
-    const dat = snap.data() || {};
-    bumpDayKind(aggregateByDay, day, 'rewardedShown', _adDailyNumber(dat, ['rewarded_shown', 'rewardedShown', 'rewarded', 'rewarded_count']));
-    bumpDayKind(aggregateByDay, day, 'rewardedDone', _adDailyNumber(dat, ['rewarded_completed', 'rewardedDone', 'rewarded_done', 'rewarded_completed_count']));
-    bumpDayKind(aggregateByDay, day, 'rewardedSkip', _adDailyNumber(dat, ['rewarded_skipped', 'rewardedSkip', 'rewarded_skipped_count']));
-    bumpDayKind(aggregateByDay, day, 'interstitialShown', _adDailyNumber(dat, ['interstitial_shown', 'interstitialShown', 'interstitial', 'interstitial_count']));
-    bumpDayKind(aggregateByDay, day, 'bannerShown', _adDailyNumber(dat, ['banner_shown', 'bannerShown', 'banner', 'banner_count']));
-    bumpDayKind(aggregateByDay, day, 'appOpenShown', _adDailyNumber(dat, ['app_open_shown', 'appOpenShown', 'app_open', 'appOpen']));
-    bumpDayKind(aggregateByDay, day, 'totalShown', _adDailyNumber(dat, ['total_shown', 'totalShown', 'shown', 'total', 'impressions']));
+    applyDailyRow(aggregateByDay, missingOrFreshDays[index], snap.data() || {});
   });
 
-  // ad_stats_daily can be partially flushed for the current day. Keep ad_events
-  // as a same-day sanity source and use the larger value per counter.
-  const q = query(collection(db, 'ad_events'), where('ts', '>=', d30), orderBy('ts', 'desc'), limit(ADMIN_AD_EVENTS_LIMIT));
+  // Past days are served from public sanitized cache / daily aggregates.
+  // Raw ad_events are used only for today's live numbers.
+  const todayStart = new Date(`${today}T00:00:00`);
+  const q = query(collection(db, 'ad_events'), where('ts', '>=', todayStart), orderBy('ts', 'desc'), limit(ADMIN_AD_EVENTS_LIMIT));
   const snap = await getDocs(q);
   snap.forEach(doc => {
     const dat = doc.data();
