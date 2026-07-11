@@ -236,6 +236,7 @@
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 1; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
+    .map-site-label { position: absolute; width: 26px; height: 26px; transform: translate(-50%,-50%); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(15,23,42,.70); border: 2px solid rgba(255,255,255,.92); color: #fff; font-size: 14px; font-weight: 900; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,.85); box-shadow: 0 3px 12px rgba(0,0,0,.45); pointer-events: none; user-select: none; z-index: 1; }
     .map-marker { position: absolute; width: 20px; height: 20px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .map-marker img { width: 14px; height: 14px; object-fit: cover; }
     .map-marker.dot { background: var(--primary); border-color: #fff; box-shadow: 0 0 8px rgba(255,70,85,.85); }
@@ -2491,6 +2492,43 @@
       </div>
     </div>
 
+    <!-- Site labels -->
+    <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Обозначения плентов</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Косметический слой с буквами A/B/C поверх миникарты. Позиции общие для всех карт, стиль хранится по теме.</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);font-weight:700;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" id="ms-site-labels-enabled" checked style="accent-color:var(--primary);width:16px;height:16px;">
+          Показывать
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(120px,1fr));gap:14px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);">Размер буквы</label>
+            <span id="ms-site-label-size-val" style="font-size:13px;font-weight:700;color:var(--primary);">18</span>
+          </div>
+          <input type="range" id="ms-site-label-size" min="12" max="30" step="1" value="18" style="width:100%;accent-color:var(--primary);">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);">Фон</label>
+            <span id="ms-site-label-bg-val" style="font-size:13px;font-weight:700;color:var(--primary);">0.70</span>
+          </div>
+          <input type="range" id="ms-site-label-bg" min="0" max="1" step="0.05" value="0.70" style="width:100%;accent-color:var(--primary);">
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label style="font-size:13px;font-weight:600;color:var(--text);">Прозрачность</label>
+            <span id="ms-site-label-alpha-val" style="font-size:13px;font-weight:700;color:var(--primary);">0.95</span>
+          </div>
+          <input type="range" id="ms-site-label-alpha" min="0.35" max="1" step="0.05" value="0.95" style="width:100%;accent-color:var(--primary);">
+        </div>
+      </div>
+    </div>
+
     <!-- Controls 2-col -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:20px;">
       <!-- Left col: tint + intensity -->
@@ -3028,6 +3066,7 @@ function initAdminUpdateWatcher() {
   if (adminUpdateWatcherStarted) return;
   adminUpdateWatcherStarted = true;
   document.getElementById('admin-update-reload')?.addEventListener('click', () => {
+    saveAdminAddDraftNow();
     const url = new URL(window.location.href);
     url.searchParams.set('admin_refresh', Date.now().toString());
     window.location.replace(url.toString());
@@ -3349,18 +3388,32 @@ let _msThemesCache    = {};
 let _mapCalibrationCache = {};
 let _mapCalibrationPromise = null;
 
+const MS_LABEL_DEFAULTS = {
+  site_labels_enabled: true,
+  site_label_size: 18,
+  site_label_bg_alpha: 0.70,
+  site_label_alpha: 0.95,
+};
 const MS_THEME_DEFAULTS = {
-  standard:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 70,  tint_b: 85  },
-  dark:       { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 187, tint_g: 134, tint_b: 252 },
-  blue:       { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 79,  tint_g: 195, tint_b: 247 },
-  light:      { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 229, tint_g: 57,  tint_b: 53  },
-  colorblind: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 245, tint_g: 166, tint_b: 35  },
+  standard:   { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 255, tint_g: 70,  tint_b: 85,  ...MS_LABEL_DEFAULTS },
+  dark:       { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 187, tint_g: 134, tint_b: 252, ...MS_LABEL_DEFAULTS },
+  blue:       { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 79,  tint_g: 195, tint_b: 247, ...MS_LABEL_DEFAULTS },
+  light:      { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 229, tint_g: 57,  tint_b: 53,  ...MS_LABEL_DEFAULTS },
+  colorblind: { contrast: 2.0, brightness: -0.15, intensity: 1.0, tint_r: 245, tint_g: 166, tint_b: 35,  ...MS_LABEL_DEFAULTS },
 };
 
 function _msApplyThemeData(d) {
   if (d.contrast   != null) document.getElementById('ms-contrast').value   = d.contrast;
   if (d.brightness != null) document.getElementById('ms-brightness').value = d.brightness;
   if (d.intensity  != null) document.getElementById('ms-intensity').value  = d.intensity;
+  const labelsEnabled = document.getElementById('ms-site-labels-enabled');
+  const labelSize = document.getElementById('ms-site-label-size');
+  const labelBg = document.getElementById('ms-site-label-bg');
+  const labelAlpha = document.getElementById('ms-site-label-alpha');
+  if (labelsEnabled) labelsEnabled.checked = d.site_labels_enabled ?? MS_LABEL_DEFAULTS.site_labels_enabled;
+  if (labelSize) labelSize.value = d.site_label_size ?? MS_LABEL_DEFAULTS.site_label_size;
+  if (labelBg) labelBg.value = d.site_label_bg_alpha ?? MS_LABEL_DEFAULTS.site_label_bg_alpha;
+  if (labelAlpha) labelAlpha.value = d.site_label_alpha ?? MS_LABEL_DEFAULTS.site_label_alpha;
   _msSetTint(d.tint_r ?? 255, d.tint_g ?? 70, d.tint_b ?? 85);
   _msValLabels();
 }
@@ -3372,6 +3425,67 @@ function _msValLabels() {
   document.getElementById('ms-contrast-val').textContent   = c.toFixed(2);
   document.getElementById('ms-brightness-val').textContent = (b >= 0 ? '+' : '') + b.toFixed(2);
   document.getElementById('ms-intensity-val').textContent  = s.toFixed(2);
+  const labelSize = document.getElementById('ms-site-label-size');
+  const labelBg = document.getElementById('ms-site-label-bg');
+  const labelAlpha = document.getElementById('ms-site-label-alpha');
+  if (labelSize) document.getElementById('ms-site-label-size-val').textContent = String(parseInt(labelSize.value || MS_LABEL_DEFAULTS.site_label_size, 10));
+  if (labelBg) document.getElementById('ms-site-label-bg-val').textContent = Number(labelBg.value || MS_LABEL_DEFAULTS.site_label_bg_alpha).toFixed(2);
+  if (labelAlpha) document.getElementById('ms-site-label-alpha-val').textContent = Number(labelAlpha.value || MS_LABEL_DEFAULTS.site_label_alpha).toFixed(2);
+}
+
+function _msReadLabelControls() {
+  const size = parseFloat(document.getElementById('ms-site-label-size')?.value);
+  const bg = parseFloat(document.getElementById('ms-site-label-bg')?.value);
+  const alpha = parseFloat(document.getElementById('ms-site-label-alpha')?.value);
+  return {
+    site_labels_enabled: document.getElementById('ms-site-labels-enabled')?.checked ?? MS_LABEL_DEFAULTS.site_labels_enabled,
+    site_label_size: Number.isFinite(size) ? size : MS_LABEL_DEFAULTS.site_label_size,
+    site_label_bg_alpha: Number.isFinite(bg) ? bg : MS_LABEL_DEFAULTS.site_label_bg_alpha,
+    site_label_alpha: Number.isFinite(alpha) ? alpha : MS_LABEL_DEFAULTS.site_label_alpha,
+  };
+}
+
+function _msCurrentMapName() {
+  const sel = document.getElementById('ms-map-pick');
+  return sel?.selectedOptions?.[0]?.textContent?.trim() || 'Ascent';
+}
+
+function _msDrawSiteLabels(canvas, data = null) {
+  if (!canvas) return;
+  const settings = { ...MS_LABEL_DEFAULTS, ...(data || {}) };
+  if (settings.site_labels_enabled === false) return;
+  const labels = MAP_SITE_LABELS[_msCurrentMapName()] || [];
+  if (!labels.length) return;
+  const ctx = canvas.getContext('2d');
+  const rawSize = Number(settings.site_label_size);
+  const rawAlpha = Number(settings.site_label_alpha);
+  const rawBgAlpha = Number(settings.site_label_bg_alpha);
+  const size = Math.max(12, Number.isFinite(rawSize) ? rawSize : MS_LABEL_DEFAULTS.site_label_size);
+  const radius = size * 0.86;
+  const alpha = Math.max(0.2, Math.min(1, Number.isFinite(rawAlpha) ? rawAlpha : MS_LABEL_DEFAULTS.site_label_alpha));
+  const bgAlpha = Math.max(0, Math.min(1, Number.isFinite(rawBgAlpha) ? rawBgAlpha : MS_LABEL_DEFAULTS.site_label_bg_alpha));
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${size}px Inter, Arial, sans-serif`;
+  labels.forEach(site => {
+    const x = site.x * canvas.width;
+    const y = site.y * canvas.height;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(15,23,42,${bgAlpha})`;
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, size * 0.12);
+    ctx.strokeStyle = 'rgba(255,255,255,.92)';
+    ctx.stroke();
+    ctx.shadowColor = 'rgba(0,0,0,.75)';
+    ctx.shadowBlur = size * 0.22;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(site.label, x, y + size * 0.03);
+    ctx.shadowBlur = 0;
+  });
+  ctx.restore();
 }
 
 function _msScheduleRedraw() {
@@ -3405,6 +3519,7 @@ function _msApplyMatrix() {
   const canvas = document.getElementById('ms-canvas');
   canvas.getContext('2d').putImageData(
     new ImageData(out, _msOrigData.width, _msOrigData.height), 0, 0);
+  _msDrawSiteLabels(canvas, _msReadLabelControls());
 }
 
 function _msApplyMatrixBefore(d) {
@@ -3430,6 +3545,7 @@ function _msApplyMatrixBefore(d) {
   const canvas = document.getElementById('ms-canvas-before');
   canvas.getContext('2d').putImageData(
     new ImageData(out, _msOrigDataBefore.width, _msOrigDataBefore.height), 0, 0);
+  _msDrawSiteLabels(canvas, d);
 }
 
 function _msRenderBefore() {
@@ -3535,6 +3651,7 @@ function _msRenderStylesTable() {
       <th style="text-align:center;padding:8px 6px;font-weight:600;">Инт.</th>
       <th style="text-align:center;padding:8px 6px;font-weight:600;">Контраст</th>
       <th style="text-align:center;padding:8px 6px;font-weight:600;">Яркость</th>
+      <th style="text-align:center;padding:8px 6px;font-weight:600;">Пленты</th>
       <th style="padding:8px 6px;"></th>
     </tr></thead><tbody>`;
   for (const { key, label, d, saved } of rows) {
@@ -3552,6 +3669,7 @@ function _msRenderStylesTable() {
       <td style="padding:9px 6px;text-align:center;color:var(--text);">${(d.intensity ?? 1.0).toFixed(2)}</td>
       <td style="padding:9px 6px;text-align:center;color:var(--text);">${(d.contrast ?? 2.0).toFixed(2)}</td>
       <td style="padding:9px 6px;text-align:center;color:var(--text);">${(d.brightness ?? -0.15) >= 0 ? '+' : ''}${(d.brightness ?? -0.15).toFixed(2)}</td>
+      <td style="padding:9px 6px;text-align:center;color:var(--text2);">${(d.site_labels_enabled ?? true) ? `A/B · ${d.site_label_size ?? MS_LABEL_DEFAULTS.site_label_size}px` : 'выкл.'}</td>
       <td style="padding:9px 6px;text-align:center;">
         <button onclick="_msSwitchTheme('${key}')" style="padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--primary);font-size:12px;cursor:pointer;font-weight:600;">Изменить</button>
       </td>
@@ -3564,6 +3682,10 @@ function _msRenderStylesTable() {
 document.getElementById('ms-contrast').addEventListener('input',   () => { _msValLabels(); _msScheduleRedraw(); });
 document.getElementById('ms-brightness').addEventListener('input', () => { _msValLabels(); _msScheduleRedraw(); });
 document.getElementById('ms-intensity').addEventListener('input',  () => { _msValLabels(); _msScheduleRedraw(); });
+['ms-site-labels-enabled','ms-site-label-size','ms-site-label-bg','ms-site-label-alpha'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', () => { _msValLabels(); _msScheduleRedraw(); });
+  document.getElementById(id)?.addEventListener('change', () => { _msValLabels(); _msScheduleRedraw(); });
+});
 
 document.querySelectorAll('.ms-sw').forEach(btn =>
   btn.addEventListener('click', () => _msSetTint(+btn.dataset.r, +btn.dataset.g, +btn.dataset.b))
@@ -3595,7 +3717,7 @@ document.getElementById('ms-save-btn').addEventListener('click', async function(
     const brightness = parseFloat(document.getElementById('ms-brightness').value);
     const intensity  = parseFloat(document.getElementById('ms-intensity').value);
     const [tint_r, tint_g, tint_b] = _msTint;
-    const themeData = { contrast, brightness, intensity, tint_r, tint_g, tint_b };
+    const themeData = { contrast, brightness, intensity, tint_r, tint_g, tint_b, ..._msReadLabelControls() };
     _msThemesCache[_msCurrentTheme] = themeData;
     await setDoc(doc(db, 'settings', 'map_style_themes'), {
       [_msCurrentTheme]: themeData,
@@ -6816,6 +6938,89 @@ function patchStatus(id, status) {
 // ── Add lineup — multi-slot system ───────────────────────────────────────────
 const addSlotSessions = {};
 let _nextAddSlotId = 0;
+const ADD_DRAFT_KEY = 'admin_add_lineup_draft_v1';
+let _restoringAddDraft = false;
+let _addDraftTimer = null;
+
+function _addDraftHasContent(d = null) {
+  const draft = d || collectAdminAddDraft();
+  return !!(
+    draft.is_exclusive ||
+    draft.authorUid || draft.wallbang?.weapons?.length || draft.defense?.site ||
+    (draft.slots || []).some(s =>
+      s.title || s.description || s.markerX !== null || s.targetX !== null ||
+      s.videoUrl || s.screenshots?.length || s.trajectory?.length
+    )
+  );
+}
+
+function collectAdminAddDraft() {
+  const slots = [...document.querySelectorAll('#add-slots-container .slot-block')].map(el => {
+    const id = Number(el.id.replace('add-slot-', ''));
+    const s = addSlotSessions[id] || {};
+    return {
+      title: document.getElementById(`slot-${id}-title`)?.value || '',
+      description: document.getElementById(`slot-${id}-desc`)?.value || '',
+      markerX: s.markerX ?? null,
+      markerY: s.markerY ?? null,
+      targetX: s.targetX ?? null,
+      targetY: s.targetY ?? null,
+      trajectory: Array.isArray(s.trajectory) ? s.trajectory : [],
+      mapMode: s.mapMode || 'position',
+      videoUrl: s.videoState?.status === 'done' ? (s.videoState.url || '') : '',
+      screenshots: (s.screenshots || [])
+        .filter(sc => sc.status === 'done' && sc.storageUrl)
+        .map(sc => ({ uid: sc.uid, storageUrl: sc.storageUrl })),
+    };
+  });
+  return {
+    updatedAt: Date.now(),
+    map: document.getElementById('f-map')?.value || '',
+    agent: pickedAgent || '',
+    ability: pickedAbility || '',
+    category: normalizeContentCategory(document.getElementById('f-category')?.value || ''),
+    status: document.getElementById('f-status')?.value || '',
+    is_exclusive: !!document.getElementById('f-exclusive')?.checked,
+    authorName: selectedAuthor?.name || '',
+    authorUid: selectedAuthor?.uid || '',
+    wallbang: {
+      weapons: _checkedValues('add-wallbang-weapons'),
+      targetX: _numOrNull('add-wallbang-target-x'),
+      targetY: _numOrNull('add-wallbang-target-y'),
+    },
+    defense: {
+      site: document.getElementById('add-defense-site')?.value || '',
+      number: _numOrNull('add-defense-number'),
+      zoomX: _numOrNull('add-defense-zoom-x'),
+      zoomY: _numOrNull('add-defense-zoom-y'),
+      zoomW: _numOrNull('add-defense-zoom-w'),
+      zoomH: _numOrNull('add-defense-zoom-h'),
+    },
+    slots,
+  };
+}
+
+function saveAdminAddDraftNow() {
+  if (_restoringAddDraft) return;
+  try {
+    const draft = collectAdminAddDraft();
+    if (_addDraftHasContent(draft)) localStorage.setItem(ADD_DRAFT_KEY, JSON.stringify(draft));
+    else localStorage.removeItem(ADD_DRAFT_KEY);
+  } catch (e) {
+    console.warn('add draft save failed', e);
+  }
+}
+
+function queueAdminAddDraftSave() {
+  if (_restoringAddDraft) return;
+  clearTimeout(_addDraftTimer);
+  _addDraftTimer = setTimeout(saveAdminAddDraftNow, 350);
+}
+
+function clearAdminAddDraft() {
+  clearTimeout(_addDraftTimer);
+  try { localStorage.removeItem(ADD_DRAFT_KEY); } catch (_) {}
+}
 
 function _buildSlotHtml(id) {
   return `
@@ -6874,7 +7079,7 @@ function _sApply(id) {
   const s = addSlotSessions[id]; if (!s) return;
   const c = _sCanvas(id); if (!c) return;
   c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
-  c.querySelectorAll('.map-marker').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`; });
+  c.querySelectorAll('.map-marker,.map-site-label').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`; });
 }
 function _sClamp(id) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -6961,6 +7166,7 @@ function _setSlotMapMode(id, mode) {
   if (trajBtn) { trajBtn.className = mode==='trajectory' ? 'btn btn-save':'btn'; trajBtn.style.cssText = mode==='trajectory' ? 'flex:1;':'flex:1;border:1px solid var(--border);color:var(--text2);'; }
   if (trajAct) trajAct.style.display = mode==='trajectory' ? 'flex':'none';
   updateSlotCoords(id);
+  queueAdminAddDraftSave();
 }
 function updateSlotMapWrap(id, mapName) {
   const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
@@ -6970,9 +7176,10 @@ function updateSlotMapWrap(id, mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
+  renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName);
   const img = wrap.querySelector('.map-canvas img');
   if (img) {
-    const tryRender = () => { renderSlotMarker(id); renderSlotTraj(id); };
+    const tryRender = () => { _sApply(id); renderSlotMarker(id); renderSlotTraj(id); };
     img.addEventListener('load', tryRender);
     if (img.complete) requestAnimationFrame(tryRender);
   }
@@ -7013,9 +7220,11 @@ function initSlotMapWrap(id) {
         if (s.mapMode === 'target') {
           s.targetX = p.x; s.targetY = p.y;
           renderSlotMarker(id); updateSlotCoords(id);
+          queueAdminAddDraftSave();
         } else {
           s.markerX=p.x; s.markerY=p.y; renderSlotMarker(id); updateSlotCoords(id);
           _setSlotMapMode(id, 'position');
+          queueAdminAddDraftSave();
         }
       }
     };
@@ -7029,12 +7238,13 @@ function initSlotMapWrap(id) {
     if (s.trajectory.length === 0 && s.markerX !== null) s.trajectory.push({ x: s.markerX, y: s.markerY });
     s.trajectory.push({x:p.x, y:p.y}); renderSlotTraj(id);
     _setSlotMapMode(id, 'trajectory');
+    queueAdminAddDraftSave();
   });
   document.getElementById('slot-'+id+'-mode-pos')?.addEventListener('click',  () => _setSlotMapMode(id,'position'));
   document.getElementById('slot-'+id+'-mode-target')?.addEventListener('click',  () => _setSlotMapMode(id,'target'));
   document.getElementById('slot-'+id+'-mode-traj')?.addEventListener('click', () => _setSlotMapMode(id,'trajectory'));
-  document.getElementById('slot-'+id+'-traj-undo')?.addEventListener('click', () => { s.trajectory.pop(); renderSlotTraj(id); });
-  document.getElementById('slot-'+id+'-traj-clear')?.addEventListener('click',() => { s.trajectory=[]; renderSlotTraj(id); });
+  document.getElementById('slot-'+id+'-traj-undo')?.addEventListener('click', () => { s.trajectory.pop(); renderSlotTraj(id); queueAdminAddDraftSave(); });
+  document.getElementById('slot-'+id+'-traj-clear')?.addEventListener('click',() => { s.trajectory=[]; renderSlotTraj(id); queueAdminAddDraftSave(); });
 }
 
 function _renderSlotVideoPreview(id) {
@@ -7047,11 +7257,11 @@ function _renderSlotVideoPreview(id) {
   if (zone) zone.style.display='none';
   if (vs.status==='uploading') {
     wrap.innerHTML=`<div class="video-prog-wrap"><div class="video-prog-track"><div class="video-prog-fill" id="sv${id}-vpb" style="width:${Math.round(vs.progress*100)}%"></div></div><div class="video-prog-pct" id="sv${id}-vpp">${Math.round(vs.progress*100)}%</div><button class="btn btn-delete" style="padding:5px 10px;font-size:12px;" id="sv${id}-vcnl">✕ Отмена</button></div>`;
-    document.getElementById('sv'+id+'-vcnl')?.addEventListener('click',()=>{ vs.xhr?.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
+    document.getElementById('sv'+id+'-vcnl')?.addEventListener('click',()=>{ vs.xhr?.abort(); if(vs.localUrl)URL.revokeObjectURL(vs.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); queueAdminAddDraftSave(); });
   } else if (vs.status==='done') {
     wrap.innerHTML = _buildVfeHtml('sv'+id, vs.localUrl || vs.url);
     _initVfe('sv'+id,
-      () => { if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); },
+      () => { if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); queueAdminAddDraftSave(); },
       async blob => {
         const uid = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const item = { uid, localUrl: URL.createObjectURL(blob), storageUrl: null, status: 'uploading', progress: 0, xhr: null, origSize: blob.size, compSize: null };
@@ -7061,7 +7271,7 @@ function _renderSlotVideoPreview(id) {
     );
   } else {
     wrap.innerHTML=`<div style="color:var(--red);font-size:13px;padding:8px 0;">⚠ Ошибка загрузки <button class="btn btn-delete" style="margin-left:8px;padding:4px 10px;font-size:12px;" id="sv${id}-vclr">Попробовать снова</button></div>`;
-    document.getElementById('sv'+id+'-vclr')?.addEventListener('click',()=>{ s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); });
+    document.getElementById('sv'+id+'-vclr')?.addEventListener('click',()=>{ s.videoState={status:'idle',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); queueAdminAddDraftSave(); });
   }
 }
 function _handleSlotVideoFile(id, file) {
@@ -7077,8 +7287,8 @@ function _handleSlotVideoFile(id, file) {
     if(bar)bar.style.width=Math.round(pct*100)+'%'; if(lbl)lbl.textContent=Math.round(pct*100)+'%';
   });
   s.videoState.xhr=upload;
-  upload.then(url=>{ const lo=s.videoState.localUrl; s.videoState={status:'done',url,localUrl:lo,progress:1,xhr:null}; _renderSlotVideoPreview(id); })
-        .catch(err=>{ if(err.message==='canceled')return; if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); toast('Ошибка загрузки видео','e'); });
+  upload.then(url=>{ const lo=s.videoState.localUrl; s.videoState={status:'done',url,localUrl:lo,progress:1,xhr:null}; _renderSlotVideoPreview(id); queueAdminAddDraftSave(); })
+        .catch(err=>{ if(err.message==='canceled')return; if(s.videoState.localUrl)URL.revokeObjectURL(s.videoState.localUrl); s.videoState={status:'error',url:null,localUrl:null,progress:0,xhr:null}; _renderSlotVideoPreview(id); queueAdminAddDraftSave(); toast('Ошибка загрузки видео','e'); });
 }
 
 function _renderSlotPreviews(id) {
@@ -7092,7 +7302,7 @@ function _removeSlotScreenshot(id, uid) {
   const s=addSlotSessions[id]; if(!s) return;
   const idx=s.screenshots.findIndex(sc=>sc.uid===uid); if(idx===-1) return;
   const item=s.screenshots[idx]; if(item.xhr)item.xhr.abort(); URL.revokeObjectURL(item.localUrl);
-  s.screenshots.splice(idx,1); _renderSlotPreviews(id);
+  s.screenshots.splice(idx,1); _renderSlotPreviews(id); queueAdminAddDraftSave();
 }
 function handleSlotFiles(id, files) {
   const s=addSlotSessions[id]; if(!s) return;
@@ -7118,7 +7328,7 @@ function _processSlotFile(id, file, item) {
         if(bar)bar.style.width=Math.round(pct*100)+'%';
       });
       cur.xhr=upload;
-      upload.then(url=>{ const itm=s.screenshots.find(sc=>sc.uid===uid); if(itm){itm.storageUrl=url;itm.status='done';itm.xhr=null;_renderSlotPreviews(id);} resolve(); })
+      upload.then(url=>{ const itm=s.screenshots.find(sc=>sc.uid===uid); if(itm){itm.storageUrl=url;itm.status='done';itm.xhr=null;_renderSlotPreviews(id);queueAdminAddDraftSave();} resolve(); })
             .catch(err=>{ if(err.message!=='canceled'){const itm=s.screenshots.find(sc=>sc.uid===uid);if(itm){itm.status='error';itm.xhr=null;_renderSlotPreviews(id);}toast('Ошибка загрузки: '+err.message,'e');} resolve(); });
     }).catch(()=>{ const cur=s.screenshots.find(sc=>sc.uid===uid);if(cur){cur.status='error';_renderSlotPreviews(id);}toast('Ошибка сжатия','e');resolve(); });
   });
@@ -7152,18 +7362,36 @@ function _syncAddSlotBtn() {
   const btn=document.getElementById('btn-add-slot'); if(!btn) return;
   btn.style.display=Object.keys(addSlotSessions).length>=12?'none':'inline-flex';
 }
-function createAddSlot() {
+function createAddSlot(draftSlot = null) {
   if(Object.keys(addSlotSessions).length>=12){toast('Максимум 12 слотов','e');return;}
   const id=_nextAddSlotId++;
-  addSlotSessions[id]={markerX:null,markerY:null,targetX:null,targetY:null,trajectory:[],mapMode:'position',mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,videoState:{status:'idle',url:null,localUrl:null,progress:0,xhr:null},screenshots:[]};
+  addSlotSessions[id]={
+    markerX:draftSlot?.markerX ?? null,
+    markerY:draftSlot?.markerY ?? null,
+    targetX:draftSlot?.targetX ?? null,
+    targetY:draftSlot?.targetY ?? null,
+    trajectory:Array.isArray(draftSlot?.trajectory) ? draftSlot.trajectory : [],
+    mapMode:draftSlot?.mapMode || 'position',
+    mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,
+    videoState:draftSlot?.videoUrl ? {status:'done',url:draftSlot.videoUrl,localUrl:null,progress:1,xhr:null} : {status:'idle',url:null,localUrl:null,progress:0,xhr:null},
+    screenshots:(draftSlot?.screenshots || []).filter(sc=>sc.storageUrl).map(sc=>({uid:sc.uid||`${Date.now()}_${Math.random().toString(36).slice(2)}`,localUrl:sc.storageUrl,storageUrl:sc.storageUrl,status:'done',progress:1,xhr:null})),
+  };
   const container=document.getElementById('add-slots-container');
   const el=document.createElement('div'); el.id='add-slot-'+id; el.className='slot-block';
   el.innerHTML=_buildSlotHtml(id); container.appendChild(el);
+  if (draftSlot?.title) document.getElementById(`slot-${id}-title`).value = draftSlot.title;
+  if (draftSlot?.description) document.getElementById(`slot-${id}-desc`).value = draftSlot.description;
   _initSlotEvents(id);
+  const mapName = document.getElementById('f-map')?.value || '';
+  if (mapName) updateSlotMapWrap(id, mapName);
+  _renderSlotVideoPreview(id);
+  _renderSlotPreviews(id);
+  updateSlotCoords(id);
   _updateSlotNumbers();
   _updateSaveBtn();
   _syncAddSlotBtn();
   refreshAddContentExtras();
+  queueAdminAddDraftSave();
 }
 function deleteAddSlot(id) {
   const s=addSlotSessions[id]; if(!s) return;
@@ -7173,6 +7401,7 @@ function deleteAddSlot(id) {
   delete addSlotSessions[id];
   document.getElementById('add-slot-'+id)?.remove();
   _updateSlotNumbers(); _updateSaveBtn(); _syncAddSlotBtn();
+  queueAdminAddDraftSave();
 }
 function _updateSlotNumbers() {
   let n=1;
@@ -7251,6 +7480,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
         updateDoc(doc(db,'users',authorUid),{approved_lineups:increment(refs.length)}).catch(()=>{});
       }
     }
+    clearAdminAddDraft();
     renderList(); resetForm();
   } catch(e) { toast('Ошибка: '+e.message,'e'); }
   finally { btn.disabled=false; _updateSaveBtn(); }
@@ -7302,6 +7532,7 @@ function _restorePreset() {
 
 function resetForm() {
   savePreset();
+  clearAdminAddDraft();
   ['f-map','f-category','f-status'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value=fid==='f-status'?'approved':'';});
   document.getElementById('f-exclusive').checked=false;
   selectedAuthor=null; document.getElementById('f-author-input').value=''; document.getElementById('author-selected').textContent='';
@@ -7384,6 +7615,48 @@ const MAP_IMAGES = {
   'Corrode':  'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/displayicon.png',
   'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png',
 };
+const MAP_SITE_LABELS = {
+  Ascent:   [{ label:'A', x:.34, y:.30 }, { label:'B', x:.75, y:.47 }],
+  Haven:    [{ label:'A', x:.78, y:.31 }, { label:'B', x:.51, y:.48 }, { label:'C', x:.23, y:.37 }],
+  Bind:     [{ label:'A', x:.35, y:.33 }, { label:'B', x:.74, y:.38 }],
+  Split:    [{ label:'A', x:.30, y:.32 }, { label:'B', x:.72, y:.38 }],
+  Fracture: [{ label:'A', x:.43, y:.35 }, { label:'B', x:.63, y:.60 }],
+  Breeze:   [{ label:'A', x:.35, y:.40 }, { label:'B', x:.72, y:.48 }],
+  Icebox:   [{ label:'A', x:.38, y:.34 }, { label:'B', x:.72, y:.50 }],
+  Pearl:    [{ label:'A', x:.38, y:.36 }, { label:'B', x:.72, y:.47 }],
+  Lotus:    [{ label:'A', x:.30, y:.37 }, { label:'B', x:.56, y:.43 }, { label:'C', x:.75, y:.60 }],
+  Sunset:   [{ label:'A', x:.39, y:.35 }, { label:'B', x:.71, y:.46 }],
+  Abyss:    [{ label:'A', x:.34, y:.36 }, { label:'B', x:.69, y:.48 }],
+  Corrode:  [{ label:'A', x:.38, y:.35 }, { label:'B', x:.72, y:.48 }],
+  Summit:   [{ label:'A', x:.36, y:.36 }, { label:'B', x:.75, y:.45 }],
+};
+
+function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS) {
+  if (!canvasEl) return;
+  canvasEl.querySelectorAll('.map-site-label').forEach(el => el.remove());
+  const data = { ...MS_LABEL_DEFAULTS, ...(settings || {}) };
+  if (data.site_labels_enabled === false) return;
+  const labels = MAP_SITE_LABELS[mapName] || [];
+  const rawSize = Number(data.site_label_size);
+  const rawAlpha = Number(data.site_label_alpha);
+  const rawBgAlpha = Number(data.site_label_bg_alpha);
+  const size = Math.max(12, Number.isFinite(rawSize) ? rawSize : MS_LABEL_DEFAULTS.site_label_size);
+  const alpha = Math.max(0.2, Math.min(1, Number.isFinite(rawAlpha) ? rawAlpha : MS_LABEL_DEFAULTS.site_label_alpha));
+  const bgAlpha = Math.max(0, Math.min(1, Number.isFinite(rawBgAlpha) ? rawBgAlpha : MS_LABEL_DEFAULTS.site_label_bg_alpha));
+  labels.forEach(site => {
+    const el = document.createElement('span');
+    el.className = 'map-site-label';
+    el.textContent = site.label;
+    el.style.left = `${site.x * 100}%`;
+    el.style.top = `${site.y * 100}%`;
+    el.style.width = `${Math.round(size * 1.45)}px`;
+    el.style.height = `${Math.round(size * 1.45)}px`;
+    el.style.fontSize = `${size}px`;
+    el.style.opacity = String(alpha);
+    el.style.background = `rgba(15,23,42,${bgAlpha})`;
+    canvasEl.appendChild(el);
+  });
+}
 const AGENT_ICONS = {};
 const AGENT_ABILITY_ICONS = {};
 const AGENT_ABILITIES = {};
@@ -7598,6 +7871,7 @@ function initAgentGrid() {
       grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
       card.classList.add('sel');
       renderAbilityRow();
+      queueAdminAddDraftSave();
     });
   });
 }
@@ -7618,6 +7892,7 @@ function renderAbilityRow() {
       btn.classList.add('sel');
       renderMarker();
       Object.keys(addSlotSessions).forEach(sid => renderSlotMarker(Number(sid)));
+      queueAdminAddDraftSave();
     });
   });
 }
@@ -7626,7 +7901,7 @@ function _mapCanvas() { return document.querySelector('#map-picker-wrap .map-can
 function _mapApply() {
   const c = _mapCanvas(); if (!c) return;
   c.style.transform = `translate(${mapTx}px,${mapTy}px) scale(${mapScale})`;
-  c.querySelectorAll('.map-marker').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1 / mapScale})`; });
+  c.querySelectorAll('.map-marker,.map-site-label').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1 / mapScale})`; });
 }
 function _mapClamp() {
   const w = document.getElementById('map-picker-wrap');
@@ -7659,11 +7934,69 @@ function updateMapPicker(mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
+  renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName);
   const img = wrap.querySelector('.map-canvas img');
   if (img) {
-    const tryRender = () => { renderMarker(); renderTrajectory(); };
+    const tryRender = () => { _mapApply(); renderMarker(); renderTrajectory(); };
     img.addEventListener('load', tryRender);
     if (img.complete) requestAnimationFrame(tryRender);
+  }
+}
+
+function restoreAdminAddDraft() {
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(ADD_DRAFT_KEY) || 'null'); } catch (_) {}
+  if (!draft || !_addDraftHasContent(draft)) {
+    createAddSlot();
+    return;
+  }
+  _restoringAddDraft = true;
+  try {
+    if (draft.map) document.getElementById('f-map').value = draft.map;
+    if (draft.category) document.getElementById('f-category').value = normalizeContentCategory(draft.category);
+    if (draft.status) document.getElementById('f-status').value = draft.status;
+    document.getElementById('f-exclusive').checked = !!draft.is_exclusive;
+    pickedAgent = draft.agent || '';
+    pickedAbility = draft.ability || '';
+    if (pickedAgent) {
+      document.querySelectorAll('#agent-grid .agent-card').forEach(c=>c.classList.toggle('sel',c.dataset.agent===pickedAgent));
+      renderAbilityRow();
+      if (pickedAbility) setTimeout(()=>document.querySelectorAll('#ability-row .abil-btn').forEach(b=>b.classList.toggle('sel',b.dataset.ab===pickedAbility)),0);
+    }
+    if (draft.authorName && draft.authorUid) {
+      selectedAuthor = { name: draft.authorName, uid: draft.authorUid };
+      const inp = document.getElementById('f-author-input');
+      const badge = document.getElementById('author-selected');
+      if (inp) inp.value = draft.authorName;
+      if (badge) badge.textContent = `✓ Будет добавлен от имени ${draft.authorName}`;
+    }
+    refreshAddContentExtras();
+    (draft.wallbang?.weapons || []).forEach(value => {
+      const cb = document.querySelector(`#add-wallbang-weapons input[value="${CSS.escape(String(value))}"]`);
+      if (cb) cb.checked = true;
+    });
+    ['targetX','targetY'].forEach((key, idx) => {
+      const id = idx === 0 ? 'add-wallbang-target-x' : 'add-wallbang-target-y';
+      const val = draft.wallbang?.[key];
+      if (val !== null && val !== undefined && document.getElementById(id)) document.getElementById(id).value = val;
+    });
+    if (draft.defense) {
+      if (document.getElementById('add-defense-site')) document.getElementById('add-defense-site').value = draft.defense.site || '';
+      if (document.getElementById('add-defense-number')) document.getElementById('add-defense-number').value = draft.defense.number ?? '';
+      if (document.getElementById('add-defense-zoom-x')) document.getElementById('add-defense-zoom-x').value = draft.defense.zoomX ?? '';
+      if (document.getElementById('add-defense-zoom-y')) document.getElementById('add-defense-zoom-y').value = draft.defense.zoomY ?? '';
+      if (document.getElementById('add-defense-zoom-w')) document.getElementById('add-defense-zoom-w').value = draft.defense.zoomW ?? '';
+      if (document.getElementById('add-defense-zoom-h')) document.getElementById('add-defense-zoom-h').value = draft.defense.zoomH ?? '';
+    }
+    document.getElementById('add-slots-container').innerHTML = '';
+    Object.keys(addSlotSessions).forEach(id => delete addSlotSessions[id]);
+    _nextAddSlotId = 0;
+    const slots = Array.isArray(draft.slots) && draft.slots.length ? draft.slots : [{}];
+    slots.slice(0, 12).forEach(slot => createAddSlot(slot));
+    toast('Черновик добавления восстановлен', 'i');
+  } finally {
+    _restoringAddDraft = false;
+    queueAdminAddDraftSave();
   }
 }
 function renderMarker() {
@@ -7818,6 +8151,7 @@ document.getElementById('f-map').addEventListener('change', e => {
   const mapName = e.target.value;
   updateMapPicker(mapName);
   Object.keys(addSlotSessions).forEach(id => updateSlotMapWrap(Number(id), mapName));
+  queueAdminAddDraftSave();
 });
 document.getElementById('btn-reset-preset').addEventListener('click', () => {
   localStorage.removeItem('lineup_preset');
@@ -7829,8 +8163,17 @@ document.getElementById('btn-reset-preset').addEventListener('click', () => {
   updateMapPicker('');
   Object.keys(addSlotSessions).forEach(id => updateSlotMapWrap(Number(id), ''));
   toast('Пресет сброшен', 'i');
+  queueAdminAddDraftSave();
 });
-createAddSlot();
+document.getElementById('add-slots-container')?.addEventListener('input', queueAdminAddDraftSave);
+document.getElementById('add-slots-container')?.addEventListener('change', queueAdminAddDraftSave);
+['f-category','f-status','f-exclusive','f-author-input','add-wallbang-target-x','add-wallbang-target-y','add-defense-site','add-defense-number','add-defense-zoom-x','add-defense-zoom-y','add-defense-zoom-w','add-defense-zoom-h']
+  .forEach(id => {
+    document.getElementById(id)?.addEventListener('input', queueAdminAddDraftSave);
+    document.getElementById(id)?.addEventListener('change', queueAdminAddDraftSave);
+  });
+window.addEventListener('beforeunload', saveAdminAddDraftNow);
+restoreAdminAddDraft();
 
 // ── Массовая загрузка видео ───────────────────────────────────────────────────
 (function() {
@@ -8322,7 +8665,7 @@ function _eApply(id)   {
   const s = editSessions[id]; if (!s) return;
   const c = _eCanvas(id); if (!c) return;
   c.style.transform = `translate(${s.mapTx}px,${s.mapTy}px) scale(${s.mapScale})`;
-  c.querySelectorAll('.map-marker').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`; });
+  c.querySelectorAll('.map-marker,.map-site-label').forEach(m => { m.style.transform = `translate(-50%,-50%) scale(${1/s.mapScale})`; });
 }
 function _eClamp(id) {
   const s = editSessions[id]; if (!s) return;
@@ -8352,9 +8695,10 @@ function updateEditMapPicker(id, mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${esc(key)}" crossorigin="anonymous" draggable="false"></div>`;
+  renderMapSiteLabels(wrap.querySelector('.map-canvas'), key);
   const img = wrap.querySelector('.map-canvas img');
   if (!img) return;
-  const tryRender = () => { if (_eCanvas(id)) { renderEditMarker(id); renderEditTrajectory(id); } };
+  const tryRender = () => { if (_eCanvas(id)) { _eApply(id); renderEditMarker(id); renderEditTrajectory(id); } };
   img.addEventListener('load', tryRender);
   img.addEventListener('error', () => { wrap.innerHTML = `<div class="map-ph">⚠ Не удалось загрузить карту "${esc(key)}"</div>`; });
   if (img.complete) requestAnimationFrame(tryRender);
@@ -9131,6 +9475,7 @@ function apSelectUser(name, uid) {
   if (sel)   sel.textContent = `✓ Будет добавлен от имени ${name}`;
   closeAuthorPanel();
   savePreset();
+  queueAdminAddDraftSave();
 }
 
 function openAuthorPanel() {
@@ -9165,7 +9510,7 @@ document.getElementById('f-author-input')?.addEventListener('input', e => {
   if (!apOpen) openAuthorPanel();
   apRenderSuggestions(q);
   apRenderAlpha(q);
-  if (!q) { selectedAuthor = null; document.getElementById('author-selected').textContent = ''; savePreset(); }
+  if (!q) { selectedAuthor = null; document.getElementById('author-selected').textContent = ''; savePreset(); queueAdminAddDraftSave(); }
 });
 
 document.getElementById('ap-close')?.addEventListener('click', closeAuthorPanel);
@@ -12885,47 +13230,25 @@ let dtpActiveField = null;
 let dtpOpen = false;
 
 const DTP_DEFAULTS = [
-  // Общие
-  { id:'def-1',  map:'all',      text:'Стоять у стены. Прицел в правый верхний угол ящика.' },
-  { id:'def-2',  map:'all',      text:'Тихий шаг (Shift). Вплотную к стене справа.' },
-  { id:'def-3',  map:'all',      text:'Бросать на [X]-й секунде раунда.' },
-  { id:'def-4',  map:'all',      text:'Работает только без активных усилений агента.' },
-  { id:'def-5',  map:'all',      text:'Прицел: перекрестие в угол между стеной и потолком.' },
-  { id:'def-6',  map:'all',      text:'Активируй способность в момент вставания после приседания (unpeak).' },
-  // Haven
-  { id:'def-hv1',map:'Haven',    text:'Постав через гараж на A-сайт. Позиция: нижняя часть рампы.' },
-  { id:'def-hv2',map:'Haven',    text:'B-постав из верхнего коридора. Прицел в левый нижний угол крыши.' },
-  // Bind
-  { id:'def-bi1',map:'Bind',     text:'Постав через телепорт на A. Активируй после звука телепортации.' },
-  { id:'def-bi2',map:'Bind',     text:'B-постав с короткой. Прицел над левой трубой.' },
-  // Ascent
-  { id:'def-as1',map:'Ascent',   text:'Постав на A-сайт с маркета. Прицел в верхний правый угол ворот.' },
-  { id:'def-as2',map:'Ascent',   text:'B-постав с двора (мид). Стоять у правого ящика, прицел вверх.' },
-  // Split
-  { id:'def-sp1',map:'Split',    text:'Постав на A-сайт с рампы. Прицел в левый верхний угол ниши.' },
-  { id:'def-sp2',map:'Split',    text:'B-постав с мидовой лестницы. Тихий шаг обязателен.' },
-  // Breeze
-  { id:'def-br1',map:'Breeze',   text:'Постав через арку на A. Прицел в правый верхний край арки.' },
-  { id:'def-br2',map:'Breeze',   text:'B-постав с A-пика. Стоять у правой стены туннеля.' },
-  // Pearl
-  { id:'def-pe1',map:'Pearl',    text:'Постав на A-сайт через коннектор. Прицел в верхний угол стены.' },
-  { id:'def-pe2',map:'Pearl',    text:'B-постав с мида. Вплотную к левой стене лобби.' },
-  // Fracture
-  { id:'def-fr1',map:'Fracture', text:'Постав на A-аркадий. Стоять у правой стены входа.' },
-  { id:'def-fr2',map:'Fracture', text:'B-постав с башни. Прицел в правый нижний угол окна.' },
-  // Lotus
-  { id:'def-lo1',map:'Lotus',    text:'Постав на A-сайт с канала. Стоять у левой стены, прицел вверх.' },
-  { id:'def-lo2',map:'Lotus',    text:'B-постав с коннектора. Прицел в верхний правый угол прохода.' },
-  // Icebox
-  { id:'def-ic1',map:'Icebox',   text:'Постав через тубу на A. Прицел строго в центр трубы.' },
-  { id:'def-ic2',map:'Icebox',   text:'B-постав с кухни. Стоять у правого края ящика.' },
-  // Sunset
-  { id:'def-su1',map:'Sunset',   text:'Постав на A-сайт с рынка. Прицел в верхний угол левого навеса.' },
-  { id:'def-su2',map:'Sunset',   text:'B-постав с мебельного. Стоять у стены, прицел в угол ящика.' },
-  // Abyss
-  { id:'def-ab1',map:'Abyss',    text:'Постав на A-сайт с левого пика. Прицел в угол нависающей платформы.' },
-  { id:'def-ab2',map:'Abyss',    text:'B-постав с моста. Стоять у левого края, прицел в правый угол потолка.' },
+  { id:'sample-corner-wall',      map:'all', text:'Подходим в угол ящика и стены (1 фото), целимся прицелом (2 фото), нажимаем ЛКМ и получаем результат (3 фото).' },
+  { id:'sample-corner-crosshair', map:'all', text:'Подходим в угол (1 фото), наводим прицел на ориентир (2 фото), целимся способностью (3 фото), нажимаем ЛКМ и получаем результат (4 фото).' },
+  { id:'sample-wall-sign',        map:'all', text:'Подходим в упор к стене (1 фото), затем целимся на верхнюю часть таблички (2 фото), прыжок + ЛКМ (3 фото), результат прилетает на Site (4 фото).' },
+  { id:'sample-flower-bounce',    map:'all', text:'Подходим в упор к углу (1 фото), затем целимся на цветы (2 фото), ставим отскок как на скриншоте (3 фото), получаем результат (4 фото).' },
+  { id:'sample-sova-lineup',      map:'all', text:'Встаём в угол (1 фото), целимся по ориентиру (2 фото), натягиваем тетиву с нужной силой (3 фото), стрела прилетает в отмеченную зону (4 фото).' },
+  { id:'sample-viper-lineup',     map:'all', text:'Становимся в упор к стене (1 фото), совмещаем прицел с ориентиром (2 фото), бросаем молли ЛКМ (3 фото), состав падает на Spike (4 фото).' },
+  { id:'sample-killjoy-lineup',   map:'all', text:'Подходим к отмеченной позиции (1 фото), целимся в угол текстуры (2 фото), бросаем гранату (3 фото), наносварм раскрывается на пленте (4 фото).' },
+  { id:'sample-post-plant',       map:'all', text:'После установки Spike отходим в безопасную позицию (1 фото), целимся по ориентиру (2 фото), бросаем способность (3 фото), лайнап закрывает дефьюз (4 фото).' },
+  { id:'sample-retake-utility',   map:'all', text:'Занимаем позицию для ретейка (1 фото), целимся в указанный ориентир (2 фото), используем способность (3 фото), она очищает отмеченную зону (4 фото).' },
+  { id:'sample-default-impact',   map:'all', text:'Подходим в упор к дефолту (1 фото), целимся способностью по ориентиру (2 фото), нажимаем ЛКМ (3 фото), получаем стабильный результат (4 фото).' },
+  { id:'sample-tube-window',      map:'all', text:'Подходим к трубе (1 фото), ставим прицел на окно (2 фото), используем способность с приближением (3 фото), получаем попадание в нужную точку (4 фото).' },
 ];
+const DTP_OLD_DEFAULT_IDS = new Set([
+  'def-1','def-2','def-3','def-4','def-5','def-6',
+  'def-hv1','def-hv2','def-bi1','def-bi2','def-as1','def-as2',
+  'def-sp1','def-sp2','def-br1','def-br2','def-pe1','def-pe2',
+  'def-fr1','def-fr2','def-lo1','def-lo2','def-ic1','def-ic2',
+  'def-su1','def-su2','def-ab1','def-ab2',
+]);
 
 function _dtpLoad() {
   try { return JSON.parse(localStorage.getItem(DTP_KEY) || 'null'); } catch { return null; }
@@ -12934,6 +13257,14 @@ function _dtpSave(arr) { localStorage.setItem(DTP_KEY, JSON.stringify(arr)); }
 function _dtpGetAll() {
   let arr = _dtpLoad();
   if (!arr) { arr = DTP_DEFAULTS.map(t => ({ ...t })); _dtpSave(arr); }
+  const defaultIds = new Set(DTP_DEFAULTS.map(t => t.id));
+  const hasOldDefaults = arr.some(t => DTP_OLD_DEFAULT_IDS.has(t.id));
+  const hasCurrentDefaults = DTP_DEFAULTS.every(t => arr.some(x => x.id === t.id));
+  if (hasOldDefaults || !hasCurrentDefaults) {
+    const custom = arr.filter(t => !DTP_OLD_DEFAULT_IDS.has(t.id) && !defaultIds.has(t.id));
+    arr = [...DTP_DEFAULTS.map(t => ({ ...t })), ...custom];
+    _dtpSave(arr);
+  }
   return arr;
 }
 
