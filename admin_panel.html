@@ -722,6 +722,13 @@
       box-shadow: -6px 0 24px rgba(0,0,0,.35);
     }
     #desc-template-panel.open { transform: translateX(0); }
+    body.desc-panel-open #add-slots-container { padding-right: 316px; transition: padding-right .2s ease; }
+    body.desc-panel-open .editor-main { padding-right: 336px; transition: padding-right .2s ease; }
+    @media (max-width: 1180px) {
+      body.desc-panel-open #add-slots-container,
+      body.desc-panel-open .editor-main { padding-right: 0; }
+      #desc-template-panel { width: min(300px, calc(100vw - 24px)); top: 72px; bottom: 12px; right: 12px; border: 1px solid var(--border); border-radius: var(--r); box-shadow: 0 18px 48px rgba(0,0,0,.5); }
+    }
     .dtp-header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .dtp-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
     .dtp-title { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
@@ -5830,6 +5837,38 @@ function renderList() {
   }
 }
 
+function lineupSubmittedDate(l) {
+  return l?.submitted_at?.toDate?.()
+    || l?.created_at?.toDate?.()
+    || l?.createdAt?.toDate?.()
+    || null;
+}
+
+function timeAgoShort(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const diff = Date.now() - date.getTime();
+  const abs = Math.abs(diff);
+  const suffix = diff >= 0 ? 'назад' : 'вперёд';
+  const min = Math.floor(abs / 60000);
+  if (min < 1) return 'только что';
+  if (min < 60) return `${min} мин ${suffix}`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} ч ${suffix}`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} дн ${suffix}`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo} мес ${suffix}`;
+  return `${Math.floor(mo / 12)} г ${suffix}`;
+}
+
+function lineupSubmittedMeta(l) {
+  const date = lineupSubmittedDate(l);
+  if (!date) return { short: '', full: '' };
+  const when = date.toLocaleDateString('ru-RU') + ' ' + date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const ago = timeAgoShort(date);
+  return { short: ago ? `${when} · ${ago}` : when, full: when };
+}
+
 function cardHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
@@ -5840,7 +5879,7 @@ function cardHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
-  const date = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
+  const submitted = lineupSubmittedMeta(l);
   return `
 <div class="lcard lcard-compact" id="lcard-${l.id}" data-status="${l.status ?? 'pending'}" data-id="${l.id}">
   <div class="lcard-head" data-id="${l.id}">
@@ -5853,7 +5892,7 @@ function cardHtml(l) {
       <div class="lmeta">
         <span>🗺 ${esc(l.map ?? '')}</span>
         <span>🎭 ${esc(l.agent ?? '')}</span>
-        ${date ? `<span>📅 ${date}</span>` : ''}
+        ${submitted.short ? `<span title="${esc(submitted.full)}">🕒 ${esc(submitted.short)}</span>` : ''}
       </div>
     </div>
   </div>
@@ -5998,7 +6037,7 @@ function detailHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const [bc, bl] = badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()];
-  const date  = l.submitted_at?.toDate ? l.submitted_at.toDate().toLocaleDateString('ru') : '';
+  const submitted = lineupSubmittedMeta(l);
   const shots = Array.isArray(l.screenshots) ? l.screenshots : [];
   return `
 <div class="editor-action-pin">
@@ -6010,7 +6049,7 @@ function detailHtml(l) {
       <span>🎭 ${esc(l.agent ?? '')}</span>
       <span>⚡ ${esc(l.ability ?? '')}</span>
       ${l.submitted_by ? `<span style="cursor:pointer;color:var(--primary);text-decoration:underline;" data-action="open-profile" data-uid="${esc(l.user_id??'')}" data-name="${esc(l.submitted_by)}">👤 ${esc(l.submitted_by)}</span>` : ''}
-      ${date ? `<span>📅 ${date}</span>` : ''}
+      ${submitted.short ? `<span title="${esc(submitted.full)}">🕒 ${esc(submitted.short)}</span>` : ''}
       ${l.is_exclusive ? '<span style="color:#f59e0b;">👑 Эксклюзив</span>' : ''}
     </div>
   </div>
@@ -13272,7 +13311,11 @@ function openDescPanel(fieldId) {
   dtpActiveField = fieldId;
   dtpOpen = true;
   document.getElementById('desc-template-panel').classList.add('open');
-  const mapVal = document.getElementById('f-map')?.value || 'all';
+  document.body.classList.add('desc-panel-open');
+  const editMapMatch = String(fieldId || '').match(/^ce-desc-(.+)$/);
+  const mapVal = editMapMatch
+    ? (document.getElementById('ce-map-' + editMapMatch[1])?.value || 'all')
+    : (document.getElementById('f-map')?.value || 'all');
   const sel = document.getElementById('dtp-map-select');
   if (sel) {
     const opt = [...sel.options].find(o => o.value === mapVal);
@@ -13284,6 +13327,7 @@ function closeDescPanel() {
   dtpOpen = false;
   dtpActiveField = null;
   document.getElementById('desc-template-panel')?.classList.remove('open');
+  document.body.classList.remove('desc-panel-open');
 }
 
 function renderDescTemplates() {
@@ -13325,7 +13369,11 @@ function renderDescTemplates() {
       const t = _dtpGetAll().find(x => x.id === id);
       if (!t || !dtpActiveField) return;
       const ta = document.getElementById(dtpActiveField);
-      if (ta) { ta.value = (ta.value ? ta.value + '\n' : '') + t.text; ta.focus(); }
+      if (ta) {
+        ta.value = (ta.value ? ta.value + '\n' : '') + t.text;
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+        ta.focus();
+      }
     });
 
     card.querySelector('[data-edit-id]')?.addEventListener('click', e => {
@@ -13358,6 +13406,11 @@ function renderDescTemplates() {
 // Открывается при фокусе на textarea описания в слотах
 document.getElementById('add-slots-container')?.addEventListener('focusin', e => {
   if (e.target.tagName === 'TEXTAREA' && e.target.id.endsWith('-desc')) {
+    openDescPanel(e.target.id);
+  }
+});
+document.getElementById('editor-panel')?.addEventListener('focusin', e => {
+  if (e.target.tagName === 'TEXTAREA' && /^ce-desc-/.test(e.target.id)) {
     openDescPanel(e.target.id);
   }
 });
