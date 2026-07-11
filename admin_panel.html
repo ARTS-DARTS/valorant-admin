@@ -612,6 +612,7 @@
     .log-type { flex-shrink: 0; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
     .log-type-flutter { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.4); }
     .log-type-dart    { background: rgba(249,115,22,.15);  color: var(--orange); border: 1px solid var(--orange); }
+    .log-type-web     { background: rgba(14,165,233,.15);  color: #7dd3fc; border: 1px solid rgba(14,165,233,.45); }
     .log-type-manual  { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.4); }
     .log-msg  { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }
     .log-hint { margin: 6px 0 2px; padding: 7px 9px; border: 1px solid rgba(250,204,21,.28); border-radius: 7px; background: rgba(250,204,21,.08); color: #facc15; font-size: 12px; line-height: 1.45; }
@@ -2382,6 +2383,7 @@
     <button class="filter-btn active" data-log-filter="all">Все</button>
     <button class="filter-btn" data-log-filter="flutter">Flutter</button>
     <button class="filter-btn" data-log-filter="dart">Dart</button>
+    <button class="filter-btn" data-log-filter="web">Web</button>
     <button class="filter-btn" data-log-filter="manual">Другие</button>
   </div>
   <div id="logs-list"></div>
@@ -12858,7 +12860,8 @@ async function loadLogsTab() {
   list.innerHTML = '<div class="state"><div class="an-loading">Загружаем логи…</div></div>';
   try {
     const constraints = [orderBy('timestamp', 'desc'), limit(200)];
-    if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
+    if (_logsFilter === 'web') constraints.push(where('platform', '==', 'web'));
+    else if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
     const snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
     _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     await _loadLogUsers();
@@ -13034,7 +13037,9 @@ function _renderLogs() {
   const list = document.getElementById('logs-list');
   const items = _logsFilter === 'all'
     ? _logsCache
-    : _logsCache.filter(l => l.type === _logsFilter);
+    : _logsFilter === 'web'
+      ? _logsCache.filter(l => String(l.platform || '').toLowerCase() === 'web')
+      : _logsCache.filter(l => l.type === _logsFilter);
 
   if (!items.length) {
     list.innerHTML = '<div class="state">Нет логов 🎉</div>';
@@ -13051,8 +13056,8 @@ function _renderLogs() {
     const ts = log.timestamp?.toDate
       ? log.timestamp.toDate().toLocaleString('ru-RU')
       : '—';
-    const typeClass = `log-type-${log.type || 'manual'}`;
-    const typeLabel = (log.type || 'other').toUpperCase();
+    const typeClass = `log-type-${String(log.platform || '').toLowerCase() === 'web' ? 'web' : (log.type || 'manual')}`;
+    const typeLabel = String(log.platform || '').toLowerCase() === 'web' ? 'WEB' : (log.type || 'other').toUpperCase();
     const msg = (log.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const uid = _logUid(log);
