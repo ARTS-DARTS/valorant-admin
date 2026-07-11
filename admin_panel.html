@@ -1399,7 +1399,10 @@
       <div id="an-section-ads" class="an-section">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
           <div class="form-title" style="margin:0;">📺 РЕКЛАМА — последние 30 дней</div>
-          <div class="an-live">ручное обновление</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button class="btn" id="ad-backfill-30d-btn" style="border:1px solid var(--border);color:var(--text2);padding:6px 12px;font-size:12px;">Досчитать 30 дней</button>
+            <div class="an-live">ручное обновление</div>
+          </div>
         </div>
         <div class="an-cards" id="ad-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Показов сегодня</div></div>
@@ -9682,6 +9685,7 @@ document.getElementById('analytics-refresh-btn')?.addEventListener('click', asyn
     await loadNewUsersAnalytics();
   }
 });
+document.getElementById('ad-backfill-30d-btn')?.addEventListener('click', rebuildAdStats30d);
 
 let _nuLoaded    = false;
 let _nuAllRecent = [];  // все за последние 24ч
@@ -10118,7 +10122,100 @@ function _adEventKind(type) {
   if (t.includes('interstitial') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'interstitialShown';
   if (t.includes('banner') && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'bannerShown';
   if ((t.includes('app_open') || t.includes('appopen') || t.includes('open_ad')) && (t.includes('shown') || t.includes('show') || t.includes('impression'))) return 'appOpenShown';
+  if (t.includes('ad') && (t.includes('shown') || t.includes('show') || t.includes('impression') || t.includes('view'))) return 'totalShownOnly';
   return 'other';
+}
+
+function _emptyAdDailyStats() {
+  return {
+    rewardedShown: 0,
+    rewardedDone: 0,
+    rewardedSkip: 0,
+    interstitialShown: 0,
+    bannerShown: 0,
+    appOpenShown: 0,
+    other: 0,
+    totalShown: 0,
+  };
+}
+
+function _adStatsFirestorePayload(row) {
+  return {
+    rewarded_shown: row.rewardedShown || 0,
+    rewarded_completed: row.rewardedDone || 0,
+    rewarded_skipped: row.rewardedSkip || 0,
+    interstitial_shown: row.interstitialShown || 0,
+    banner_shown: row.bannerShown || 0,
+    app_open_shown: row.appOpenShown || 0,
+    other: row.other || 0,
+    total_shown: row.totalShown || 0,
+    updated_at: serverTimestamp(),
+    source: 'admin_backfill_ad_events',
+  };
+}
+
+async function rebuildAdStats30d() {
+  if (!confirm('Досчитать рекламную статистику за последние 30 дней из ad_events? Это ручное чтение сырых событий и запись ad_stats_daily.')) return;
+  const btn = document.getElementById('ad-backfill-30d-btn');
+  const oldText = btn?.textContent || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Считаю…'; }
+  try {
+    const now = Date.now();
+    const d30 = new Date(now - 30 * 864e5);
+    const days = _anLastLocalDayKeys(30, now);
+    const daySet = new Set(days);
+    const byDay = {};
+    days.forEach(day => { byDay[day] = _emptyAdDailyStats(); });
+
+    const result = await loadPagedDocs(
+      collection(db, 'ad_events'),
+      [
+        where('ts', '>=', d30),
+        orderBy('ts', 'desc'),
+      ],
+      {
+        pageSize: 1000,
+        maxDocs: 60000,
+      }
+    );
+
+    for (const docSnap of result.docs) {
+      const dat = docSnap.data();
+      if (!dat.ts?.toDate) continue;
+      const day = _anLocalDayKey(dat.ts.toDate());
+      if (!daySet.has(day)) continue;
+      const row = byDay[day] || (byDay[day] = _emptyAdDailyStats());
+      const kind = _adEventKind(dat.type);
+      if (kind === 'rewardedShown') { row.rewardedShown++; row.totalShown++; }
+      else if (kind === 'interstitialShown') { row.interstitialShown++; row.totalShown++; }
+      else if (kind === 'bannerShown') { row.bannerShown++; row.totalShown++; }
+      else if (kind === 'appOpenShown') { row.appOpenShown++; row.totalShown++; }
+      else if (kind === 'totalShownOnly') row.totalShown++;
+      else if (kind === 'rewardedDone') row.rewardedDone++;
+      else if (kind === 'rewardedSkip') row.rewardedSkip++;
+      else row.other++;
+    }
+
+    const batch = writeBatch(db);
+    days.forEach(day => {
+      batch.set(doc(db, 'ad_stats_daily', day), _adStatsFirestorePayload(byDay[day]), { merge: true });
+    });
+    await batch.commit();
+
+    analyticsLoaded = false;
+    await loadAnalytics(true);
+    toast(`Реклама досчитана: ${result.docs.length}${result.truncated ? '+' : ''} событий, ${days.length} дней`, result.truncated ? 'w' : 's');
+    addAuditLog('Досчитана рекламная статистика за 30 дней', {
+      events: result.docs.length,
+      truncated: result.truncated,
+      days: days.length,
+    });
+  } catch (e) {
+    console.error('rebuildAdStats30d', e);
+    toast('Ошибка досчёта рекламы: ' + e.message, 'e');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = oldText || 'Досчитать 30 дней'; }
+  }
 }
 
 async function loadAdsAnalytics(days, d30, today) {
@@ -10183,6 +10280,10 @@ async function loadAdsAnalytics(days, d30, today) {
   const bumpDayKind = (target, day, kind, count = 1) => {
     if (!day || !kind || !count || count < 0) return;
     const row = ensureDayStats(target, day);
+    if (kind === 'totalShownOnly') {
+      row.totalShown += count;
+      return;
+    }
     if (row[kind] !== undefined) row[kind] += count;
     else row.other += count;
   };
