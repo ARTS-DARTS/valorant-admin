@@ -229,6 +229,10 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    match /ad_stats_daily/{day} {
+      allow read, write: if isAdmin();
+    }
+
     match /user_sessions/{id} {
       allow create: if isAuth();
       allow read: if isAdmin();
