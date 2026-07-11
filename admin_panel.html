@@ -2340,9 +2340,9 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;">
             <button class="btn btn-save" id="bn-active-load">🔎 Загрузить активные</button>
-            <button class="btn btn-archive" id="bn-active-clear-old" disabled>🧯 Погасить старые 24ч+</button>
+            <button class="btn btn-archive" id="bn-active-clear-old">🧯 Погасить старые 24ч+</button>
             <button class="btn btn-archive" id="bn-active-clear-stale" disabled>🧹 Погасить битые</button>
-            <button class="btn btn-delete" id="bn-active-clear-all" disabled>🚨 Погасить все активные</button>
+            <button class="btn btn-delete" id="bn-active-clear-all">🚨 Погасить все активные</button>
           </div>
           <div class="nc-status" id="bn-active-status"></div>
           <div id="bn-active-list" style="margin-top:12px;display:grid;gap:8px;"></div>
@@ -10146,6 +10146,11 @@ async function loadAdsAnalytics(days, d30, today) {
 
   const addKind = (kind, count, day) => {
     if (!count || count < 0) return;
+    if (kind === 'totalShownOnly') {
+      totals.totalShown += count;
+      if (adByDay[day]) adByDay[day].totalShown += count;
+      return;
+    }
     if (totals[kind] !== undefined) totals[kind] += count; else totals.other += count;
     if (kind.endsWith('Shown')) {
       totals.totalShown += count;
@@ -10170,6 +10175,7 @@ async function loadAdsAnalytics(days, d30, today) {
         bannerShown: 0,
         appOpenShown: 0,
         other: 0,
+        totalShown: 0,
       };
     }
     return target[day];
@@ -10180,6 +10186,13 @@ async function loadAdsAnalytics(days, d30, today) {
     if (row[kind] !== undefined) row[kind] += count;
     else row.other += count;
   };
+  const _adDailyNumber = (data, keys) => {
+    for (const key of keys) {
+      const value = Number(data?.[key]);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+    return 0;
+  };
 
   const statSnaps = await Promise.all(
     days.map(d => getDoc(doc(db, 'ad_stats_daily', d)).catch(() => null))
@@ -10188,11 +10201,13 @@ async function loadAdsAnalytics(days, d30, today) {
     if (!snap || !snap.exists()) return;
     const day = days[index];
     const dat = snap.data() || {};
-    bumpDayKind(aggregateByDay, day, 'rewardedShown', Number(dat.rewarded_shown || 0));
-    bumpDayKind(aggregateByDay, day, 'rewardedDone', Number(dat.rewarded_completed || 0));
-    bumpDayKind(aggregateByDay, day, 'rewardedSkip', Number(dat.rewarded_skipped || 0));
-    bumpDayKind(aggregateByDay, day, 'interstitialShown', Number(dat.interstitial_shown || 0));
-    bumpDayKind(aggregateByDay, day, 'bannerShown', Number(dat.banner_shown || 0));
+    bumpDayKind(aggregateByDay, day, 'rewardedShown', _adDailyNumber(dat, ['rewarded_shown', 'rewardedShown', 'rewarded', 'rewarded_count']));
+    bumpDayKind(aggregateByDay, day, 'rewardedDone', _adDailyNumber(dat, ['rewarded_completed', 'rewardedDone', 'rewarded_done', 'rewarded_completed_count']));
+    bumpDayKind(aggregateByDay, day, 'rewardedSkip', _adDailyNumber(dat, ['rewarded_skipped', 'rewardedSkip', 'rewarded_skipped_count']));
+    bumpDayKind(aggregateByDay, day, 'interstitialShown', _adDailyNumber(dat, ['interstitial_shown', 'interstitialShown', 'interstitial', 'interstitial_count']));
+    bumpDayKind(aggregateByDay, day, 'bannerShown', _adDailyNumber(dat, ['banner_shown', 'bannerShown', 'banner', 'banner_count']));
+    bumpDayKind(aggregateByDay, day, 'appOpenShown', _adDailyNumber(dat, ['app_open_shown', 'appOpenShown', 'app_open', 'appOpen']));
+    bumpDayKind(aggregateByDay, day, 'totalShown', _adDailyNumber(dat, ['total_shown', 'totalShown', 'shown', 'total', 'impressions']));
   });
 
   // ad_stats_daily can be partially flushed for the current day. Keep ad_events
@@ -10210,17 +10225,21 @@ async function loadAdsAnalytics(days, d30, today) {
   days.forEach(day => {
     const aggregate = aggregateByDay[day] || {};
     const events = eventByDay[day] || {};
-    [
+    const resolvedShown = [
       'rewardedShown',
-      'rewardedDone',
-      'rewardedSkip',
       'interstitialShown',
       'bannerShown',
       'appOpenShown',
-      'other',
-    ].forEach(kind => {
+    ].reduce((sum, kind) => {
+      const value = Math.max(Number(aggregate[kind] || 0), Number(events[kind] || 0));
+      addKind(kind, value, day);
+      return sum + value;
+    }, 0);
+    ['rewardedDone', 'rewardedSkip', 'other'].forEach(kind => {
       addKind(kind, Math.max(Number(aggregate[kind] || 0), Number(events[kind] || 0)), day);
     });
+    const dailyTotal = Math.max(Number(aggregate.totalShown || 0), Number(events.totalShown || 0), resolvedShown);
+    addKind('totalShownOnly', dailyTotal - resolvedShown, day);
   });
 
   const pct = totals.rewardedShown > 0 ? Math.round(totals.rewardedDone / totals.rewardedShown * 100) : 0;
@@ -11805,8 +11824,8 @@ function bnActiveRender() {
   const staleCount = bnActiveRows.filter(r => r.state === 'stale').length;
   const oldCount = bnActiveRows.filter(r => r.isOld).length;
   if (clearBtn) clearBtn.disabled = staleCount === 0;
-  if (clearOldBtn) clearOldBtn.disabled = oldCount === 0;
-  if (clearAllBtn) clearAllBtn.disabled = bnActiveRows.length === 0;
+  if (clearOldBtn) clearOldBtn.disabled = false;
+  if (clearAllBtn) clearAllBtn.disabled = false;
   if (!bnActiveRows.length) {
     list.innerHTML = '<div class="state" style="padding:18px;color:var(--text2);">Активных банеров новых лайнапов нет</div>';
     return;
@@ -11847,48 +11866,54 @@ function bnActiveRender() {
 async function bnActiveLoad() {
   const btn = document.getElementById('bn-active-load');
   if (btn) btn.disabled = true;
-  bnActiveSetStatus('Загружаю пользователей и уведомления…');
+  bnActiveSetStatus('Быстро загружаю активные уведомления через collectionGroup…');
   try {
-    const usersSnap = await getDocs(query(collection(db, 'users'), limit(1000)));
-    const users = usersSnap.docs.map(d => ({ id: d.id, data: d.data() || {} }));
+    const notifSnap = await getDocs(query(
+      collectionGroup(db, 'notifications'),
+      where('type', '==', 'new_lineups_batch'),
+      where('read', '==', false),
+      limit(200)
+    ));
     const rows = [];
-    let scanned = 0;
-    for (const u of users) {
-      const snap = await getDocs(collection(db, 'users', u.id, 'notifications')).catch(() => null);
-      if (!snap) continue;
-      scanned += snap.size;
-      for (const nd of snap.docs) {
-        const data = nd.data() || {};
-        if (data.type !== 'new_lineups_batch' || data.read !== false) continue;
-        const lineupIds = bnActiveParseLineupIds(data);
-        let hasApproved = await bnActiveHasApprovedLineup(lineupIds);
-        if (hasApproved == null) hasApproved = await bnActiveFallbackHasApproved(data);
-        const createdMs = bnActiveCreatedMs(data);
-        const ageMs = createdMs == null ? null : Date.now() - createdMs;
-        rows.push({
-          uid: u.id,
-          userName: u.data.name || u.data.username || u.data.displayName || u.data.email || '',
-          id: nd.id,
-          ref: nd.ref,
-          path: `users/${u.id}/notifications/${nd.id}`,
-          data,
-          items: bnActiveItems(data),
-          lineupIds,
-          ageMs,
-          isOld: ageMs == null ? false : ageMs >= 24 * 60 * 60 * 1000,
-          state: hasApproved === true ? 'ok' : hasApproved === false ? 'stale' : 'unknown',
-        });
+    const userCache = new Map();
+    for (const nd of notifSnap.docs) {
+      const data = nd.data() || {};
+      const userDocRef = nd.ref.parent?.parent;
+      const uid = userDocRef?.id || '';
+      let userData = {};
+      if (uid && !userCache.has(uid)) {
+        const us = await getDoc(userDocRef).catch(() => null);
+        userCache.set(uid, us?.exists() ? (us.data() || {}) : {});
       }
+      userData = userCache.get(uid) || {};
+      const lineupIds = bnActiveParseLineupIds(data);
+      let hasApproved = await bnActiveHasApprovedLineup(lineupIds);
+      if (hasApproved == null) hasApproved = await bnActiveFallbackHasApproved(data);
+      const createdMs = bnActiveCreatedMs(data);
+      const ageMs = createdMs == null ? null : Date.now() - createdMs;
+      rows.push({
+        uid,
+        userName: userData.name || userData.username || userData.displayName || userData.email || '',
+        id: nd.id,
+        ref: nd.ref,
+        path: nd.ref.path,
+        data,
+        items: bnActiveItems(data),
+        lineupIds,
+        ageMs,
+        isOld: ageMs == null ? true : ageMs >= 24 * 60 * 60 * 1000,
+        state: hasApproved === true ? 'ok' : hasApproved === false ? 'stale' : 'unknown',
+      });
     }
     bnActiveRows = rows.sort((a, b) => {
       const rank = { stale: 0, unknown: 1, ok: 2 };
       return (rank[a.state] ?? 9) - (rank[b.state] ?? 9);
     });
     const stale = bnActiveRows.filter(r => r.state === 'stale').length;
-    bnActiveSetStatus(`Готово: users ${users.length}, уведомлений просмотрено ${scanned}, активных ${bnActiveRows.length}, битых ${stale}`);
+    bnActiveSetStatus(`Готово: показано ${bnActiveRows.length} активных из быстрой выборки, битых ${stale}. Старые/все можно гасить без загрузки списка.`);
     bnActiveRender();
   } catch (e) {
-    bnActiveSetStatus('Ошибка: ' + e.message, false);
+    bnActiveSetStatus('Ошибка быстрой загрузки: ' + e.message, false);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -11940,28 +11965,80 @@ async function bnActiveMarkRowsRead(rows, reason, label, buttonId) {
     bnActiveSetStatus(`${label}: ${rows.length}`);
     bnActiveRender();
   } catch (e) {
-    bnActiveSetStatus('РћС€РёР±РєР°: ' + e.message, false);
+    bnActiveSetStatus('Ошибка: ' + e.message, false);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function bnActiveMarkQueryRead({ olderThanMs = 0, reason, label, buttonId }) {
+  const oldText = olderThanMs ? ' старше 24 часов и уведомления без даты' : ' все активные';
+  if (!confirm(`${label}: пометить прочитанными${oldText}?`)) return;
+  const btn = document.getElementById(buttonId);
+  if (btn) btn.disabled = true;
+  try {
+    const cutoff = olderThanMs ? Date.now() - olderThanMs : 0;
+    let total = 0;
+    const touched = new Set();
+    for (let round = 0; round < 30; round += 1) {
+      bnActiveSetStatus(`${label}: ищу пачку ${round + 1}…`);
+      const snap = await getDocs(query(
+        collectionGroup(db, 'notifications'),
+        where('type', '==', 'new_lineups_batch'),
+        where('read', '==', false),
+        limit(450)
+      ));
+      if (snap.empty) break;
+      const rows = [];
+      snap.forEach(nd => {
+        const data = nd.data() || {};
+        const createdMs = bnActiveCreatedMs(data);
+        if (olderThanMs && createdMs != null && createdMs > cutoff) return;
+        rows.push(nd);
+      });
+      if (!rows.length) {
+        bnActiveSetStatus(`${label}: в первой пачке нет подходящих старых уведомлений. Для свежих используй "Погасить все активные".`);
+        break;
+      }
+      const batch = writeBatch(db);
+      rows.forEach(nd => {
+        touched.add(nd.ref.path);
+        batch.update(nd.ref, {
+          read: true,
+          read_at: serverTimestamp(),
+          admin_cleanup_reason: reason,
+        });
+      });
+      await batch.commit();
+      total += rows.length;
+      bnActiveSetStatus(`${label}: погашено ${total}`);
+      if (snap.size < 450) break;
+    }
+    if (touched.size) bnActiveRows = bnActiveRows.filter(r => !touched.has(r.path));
+    bnActiveSetStatus(`${label}: готово, погашено ${total}`);
+    bnActiveRender();
+  } catch (e) {
+    bnActiveSetStatus('Ошибка массового погашения: ' + e.message, false);
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
 document.getElementById('bn-active-clear-old')?.addEventListener('click', () => {
-  bnActiveMarkRowsRead(
-    bnActiveRows.filter(r => r.isOld),
-    'manual_old_new_lineup_notification_cleanup',
-    'Погашено старых уведомлений',
-    'bn-active-clear-old'
-  );
+  bnActiveMarkQueryRead({
+    olderThanMs: 24 * 60 * 60 * 1000,
+    reason: 'manual_old_new_lineup_notification_cleanup',
+    label: 'Погасить старые уведомления 24ч+',
+    buttonId: 'bn-active-clear-old'
+  });
 });
 
 document.getElementById('bn-active-clear-all')?.addEventListener('click', () => {
-  bnActiveMarkRowsRead(
-    [...bnActiveRows],
-    'manual_all_new_lineup_notification_cleanup',
-    'Погашено всех активных уведомлений',
-    'bn-active-clear-all'
-  );
+  bnActiveMarkQueryRead({
+    reason: 'manual_all_new_lineup_notification_cleanup',
+    label: 'Погасить все активные уведомления',
+    buttonId: 'bn-active-clear-all'
+  });
 });
 
 document.getElementById('bn-active-clear-stale')?.addEventListener('click', async () => {
