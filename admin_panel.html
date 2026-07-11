@@ -618,6 +618,9 @@
     .log-quick { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
     .log-quick span { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 7px; border: 1px solid rgba(77,195,255,.22); border-radius: 999px; background: rgba(77,195,255,.08); color: var(--text2); font-size: 11px; }
     .log-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text2); margin-top: 4px; }
+    .log-group-badge { display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(255,70,85,.35);background:rgba(255,70,85,.12);color:#ff8b95;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:800; }
+    .log-users { display:flex;gap:5px;flex-wrap:wrap;margin-top:7px; }
+    .log-users span { max-width: 240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:2px 7px; border-radius:999px; background:rgba(139,92,246,.12); border:1px solid rgba(139,92,246,.3); color:#c4b5fd; font-size:11px; }
     .log-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .log-del { background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; transition: color .13s; }
     .log-del:hover { color: var(--red); }
@@ -12724,6 +12727,7 @@ document.getElementById('dtp-save-btn')?.addEventListener('click', () => {
 let _logsFilter = 'all';
 let _logsCache  = [];
 let _logsUsers  = {};
+let _logsRenderedGroups = {};
 
 async function loadCronLogs() {
   const list = document.getElementById('cron-logs-list');
@@ -12892,6 +12896,53 @@ function _logHumanComment(log) {
   return 'Неизвестная ошибка. Смотри технический текст и Stack: там должен быть файл и строка, где она произошла.';
 }
 
+function _logTimeMs(log) {
+  if (log.timestamp?.toDate) return log.timestamp.toDate().getTime();
+  if (log.timestamp instanceof Date) return log.timestamp.getTime();
+  return 0;
+}
+
+function _logFingerprint(log) {
+  const message = String(log.message || '').trim().replace(/\s+/g, ' ');
+  const stackLine = String(log.stack || '')
+    .split('\n')
+    .map(x => x.trim())
+    .find(x => x && !x.startsWith('#0')) || '';
+  const contextKey = log.context?.screen || log.context?.route || log.context?.action || '';
+  return [
+    String(log.type || 'manual').toLowerCase(),
+    message.toLowerCase(),
+    stackLine.toLowerCase(),
+    String(contextKey).toLowerCase(),
+  ].join('|');
+}
+
+function _groupLogs(items) {
+  const map = new Map();
+  for (const log of items) {
+    const key = _logFingerprint(log);
+    if (!map.has(key)) {
+      map.set(key, {
+        id: key,
+        latest: log,
+        logs: [],
+        lastMs: _logTimeMs(log),
+        users: new Set(),
+      });
+    }
+    const group = map.get(key);
+    group.logs.push(log);
+    const ms = _logTimeMs(log);
+    if (ms >= group.lastMs) {
+      group.lastMs = ms;
+      group.latest = log;
+    }
+    const uid = _logUid(log);
+    if (uid) group.users.add(uid);
+  }
+  return [...map.values()].sort((a, b) => b.lastMs - a.lastMs);
+}
+
 async function _loadLogUsers() {
   const uids = [...new Set(_logsCache.map(_logUid).filter(Boolean))].slice(0, 80);
   _logsUsers = {};
@@ -12916,7 +12967,13 @@ function _renderLogs() {
     return;
   }
 
-  list.innerHTML = items.map(log => {
+  const groups = _groupLogs(items);
+  _logsRenderedGroups = {};
+
+  list.innerHTML = groups.map((group, groupIndex) => {
+    const groupDomId = `group-${groupIndex}`;
+    _logsRenderedGroups[groupDomId] = group;
+    const log = group.latest;
     const ts = log.timestamp?.toDate
       ? log.timestamp.toDate().toLocaleString('ru-RU')
       : '—';
@@ -12926,21 +12983,39 @@ function _renderLogs() {
     const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const uid = _logUid(log);
     const userLabel = _logUserLabel(uid);
+    const users = [...group.users];
+    const visibleUsers = users.slice(0, 8).map(u => `<span title="${esc(u)}">👤 ${esc(_logUserLabel(u))}</span>`).join('');
+    const moreUsers = users.length > 8 ? `<span>+${users.length - 8} ещё</span>` : '';
     const quickDetails = _logQuickDetails(log);
     const humanComment = _logHumanComment(log);
     const ctx = log.context ? JSON.stringify(log.context, null, 2).replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
     const hasStack = !!log.stack || !!ctx;
-    const stackBody = `${stack}${ctx ? `${stack ? '\n\n' : ''}context:\n${ctx}` : ''}`;
+    const events = group.logs
+      .slice()
+      .sort((a, b) => _logTimeMs(b) - _logTimeMs(a))
+      .slice(0, 20)
+      .map(item => {
+        const itemTs = item.timestamp?.toDate ? item.timestamp.toDate().toLocaleString('ru-RU') : '—';
+        const itemUid = _logUid(item);
+        const who = itemUid ? _logUserLabel(itemUid) : 'без uid';
+        const version = item.appVersion ? ` · v${item.appVersion}` : '';
+        return `${itemTs} · ${who}${version} · ${item.id}`;
+      })
+      .join('\n');
+    const stackBody = `${stack}${ctx ? `${stack ? '\n\n' : ''}context:\n${ctx}` : ''}${events ? `${stack || ctx ? '\n\n' : ''}events (${group.logs.length}):\n${esc(events)}` : ''}`;
 
-    return `<div class="log-card" data-log-id="${log.id}">
+    return `<div class="log-card" data-log-group="${groupDomId}">
       <div class="log-head" onclick="this.closest('.log-card').querySelector('.log-stack')?.classList.toggle('open')">
         <span class="log-type ${typeClass}">${typeLabel}</span>
         <div style="flex:1;min-width:0;">
-          <div class="log-msg">${msg.substring(0,300)}${msg.length>300?'…':''}</div>
+          <div class="log-msg"><span class="log-group-badge">×${group.logs.length}</span> ${msg.substring(0,300)}${msg.length>300?'…':''}</div>
           ${humanComment ? `<div class="log-hint">💬 ${esc(humanComment)}</div>` : ''}
           ${quickDetails.length ? `<div class="log-quick">${quickDetails.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
+          ${users.length ? `<div class="log-users">${visibleUsers}${moreUsers}</div>` : ''}
           <div class="log-meta">
-            <span>🕐 ${ts}</span>
+            <span>🕐 последнее: ${ts}</span>
+            <span>событий: ${group.logs.length}</span>
+            <span>пользователей: ${users.length || '—'}</span>
             ${log.platform ? `<span>📱 ${log.platform}</span>` : ''}
             ${log.appVersion ? `<span>v${log.appVersion}</span>` : ''}
             ${uid ? `<span title="${esc(uid)}">👤 ${esc(userLabel)}</span>` : ''}
@@ -12948,7 +13023,7 @@ function _renderLogs() {
         </div>
         <div class="log-actions" onclick="event.stopPropagation()">
           ${hasStack ? `<button class="log-stack-toggle" onclick="this.closest('.log-card').querySelector('.log-stack').classList.toggle('open')">Stack</button>` : ''}
-          <button class="log-del" title="Удалить" onclick="_deleteLog('${log.id}',this)">✕</button>
+          <button class="log-del" title="Удалить группу" onclick="_deleteLogGroup('${groupDomId}',this)">✕</button>
         </div>
       </div>
       ${hasStack ? `<div class="log-stack"><pre>${stackBody}</pre></div>` : ''}
@@ -12968,6 +13043,23 @@ async function _deleteLog(id, btn) {
     }
   } catch (e) {
     toast('Ошибка удаления: ' + e.message, 'e');
+    btn.disabled = false;
+  }
+}
+
+async function _deleteLogGroup(groupDomId, btn) {
+  const group = _logsRenderedGroups[groupDomId];
+  if (!group?.logs?.length) return;
+  btn.disabled = true;
+  try {
+    await Promise.all(group.logs.map(log =>
+      auditDeleteDoc('app_errors', log.id, { reason: 'app_error_delete_group_button', snapshot: log })
+    ));
+    const ids = new Set(group.logs.map(log => log.id));
+    _logsCache = _logsCache.filter(log => !ids.has(log.id));
+    _renderLogs();
+  } catch (e) {
+    toast('Ошибка удаления группы: ' + e.message, 'e');
     btn.disabled = false;
   }
 }
