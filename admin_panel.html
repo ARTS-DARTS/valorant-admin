@@ -4298,6 +4298,20 @@ function _msgThread(m) {
   return out;
 }
 
+function _msgThreadTs(msg) {
+  const raw = msg?.ts ?? msg?.created_at ?? msg?.createdAt ?? 0;
+  if (typeof raw === 'number') return raw;
+  if (raw?.toMillis) return raw.toMillis();
+  if (raw?.toDate) return raw.toDate().getTime();
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function _msgLastThreadMessage(m) {
+  const thread = _msgThread(m);
+  return thread.reduce((latest, msg) => _msgThreadTs(msg) >= _msgThreadTs(latest) ? msg : latest, thread[0] || {});
+}
+
 function startMessagesRealtime() {
   const list = document.getElementById('msg-list');
   if (_msgUnsub) return;
@@ -4433,7 +4447,7 @@ function _msgRenderList() {
     const isNew  = _msgIsNew(m) && !closed;
     const name  = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
     const borderCol = closed ? 'var(--border)' : (isNew ? 'var(--primary)' : 'var(--border)');
-    const lastMsg = _msgThread(m).slice(-1)[0];
+    const lastMsg = _msgLastThreadMessage(m);
     const status = closed
       ? '<span style="font-size:10px;color:#f44;font-weight:700;">🔒 ЗАКРЫТ</span>'
       : isNew
@@ -4541,7 +4555,7 @@ window._msgOpenReply = function(id) {
     `}
   `;
   const threadScroll = document.getElementById('msg-thread-scroll');
-  if (threadScroll) threadScroll.scrollTop = 0;
+  if (threadScroll) threadScroll.scrollTop = threadScroll.scrollHeight;
   _msgRenderList();
   _msgUpdateBadge();
   document.getElementById('msg-reply-modal').style.display = 'flex';
@@ -4554,15 +4568,20 @@ window._msgSendReply = async function(id) {
   const sendPush = document.getElementById('msg-reply-push')?.checked;
   const btn = document.getElementById('msg-reply-send');
   btn.disabled = true; btn.textContent = '⏳ Отправка…';
+  const sentAt = Date.now();
+  const adminMsg = { from: 'admin', text: reply, ts: sentAt };
+  const previousThread = m ? _msgThread(m) : [];
   try {
     await updateDoc(doc(db, 'feedback', id), {
-      thread: arrayUnion({ from: 'admin', text: reply, ts: Date.now() }),
+      thread: arrayUnion(adminMsg),
       reply, reply_read: false, user_unread: true, is_read: true,
       last_from: 'admin', admin_unread: false, replied_at: serverTimestamp(),
     });
     if (m) {
       m.reply = reply; m.is_read = true; m.admin_unread = false;
-      m.thread = [..._msgThread(m), { from: 'admin', text: reply, ts: Date.now() }];
+      m.last_from = 'admin';
+      m.replied_at = { toDate: () => new Date(sentAt), toMillis: () => sentAt };
+      m.thread = [...previousThread, adminMsg];
     }
     if (sendPush && m?.user_id) {
       _ncTargetUid = m.user_id;
@@ -4578,9 +4597,9 @@ window._msgSendReply = async function(id) {
       _ncTargetUid = null;
     }
     toast('Ответ отправлен', 's');
-    document.getElementById('msg-reply-modal').style.display = 'none';
     _msgRenderList();
     _msgUpdateBadge();
+    _msgOpenReply(id);
     if (typeof addAuditLog === 'function') addAuditLog('feedback_replied', { id, reply });
   } catch (e) {
     console.error('msg reply', e); toast('Ошибка: ' + e.message, 'e');
@@ -12385,6 +12404,41 @@ function bnActiveFormatAge(ms) {
   return `${totalMinutes}m`;
 }
 
+function bnActiveIsIndexError(e) {
+  return /requires an index|create_composite|index/i.test(String(e?.message || e || ''));
+}
+
+async function bnActiveUserDocs(limitCount = 2000) {
+  if (Array.isArray(_allUsers) && _allUsers.length) {
+    return _allUsers.map(u => ({ id: u.id, data: () => u, ref: doc(db, 'users', u.id) }));
+  }
+  const snap = await getDocs(query(collection(db, 'users'), limit(limitCount)));
+  return snap.docs;
+}
+
+async function bnActiveRowFromNotification(nd, userDocRef, userData = {}) {
+  const uid = userDocRef?.id || '';
+  const data = nd.data() || {};
+  const lineupIds = bnActiveParseLineupIds(data);
+  let hasApproved = await bnActiveHasApprovedLineup(lineupIds);
+  if (hasApproved == null) hasApproved = await bnActiveFallbackHasApproved(data);
+  const createdMs = bnActiveCreatedMs(data);
+  const ageMs = createdMs == null ? null : Date.now() - createdMs;
+  return {
+    uid,
+    userName: userData.name || userData.username || userData.displayName || userData.email || '',
+    id: nd.id,
+    ref: nd.ref,
+    path: nd.ref.path,
+    data,
+    items: bnActiveItems(data),
+    lineupIds,
+    ageMs,
+    isOld: ageMs == null ? true : ageMs >= 24 * 60 * 60 * 1000,
+    state: hasApproved === true ? 'ok' : hasApproved === false ? 'stale' : 'unknown',
+  };
+}
+
 function bnActiveRender() {
   const list = document.getElementById('bn-active-list');
   const clearBtn = document.getElementById('bn-active-clear-stale');
@@ -12447,7 +12501,6 @@ async function bnActiveLoad() {
     const rows = [];
     const userCache = new Map();
     for (const nd of notifSnap.docs) {
-      const data = nd.data() || {};
       const userDocRef = nd.ref.parent?.parent;
       const uid = userDocRef?.id || '';
       let userData = {};
@@ -12456,24 +12509,7 @@ async function bnActiveLoad() {
         userCache.set(uid, us?.exists() ? (us.data() || {}) : {});
       }
       userData = userCache.get(uid) || {};
-      const lineupIds = bnActiveParseLineupIds(data);
-      let hasApproved = await bnActiveHasApprovedLineup(lineupIds);
-      if (hasApproved == null) hasApproved = await bnActiveFallbackHasApproved(data);
-      const createdMs = bnActiveCreatedMs(data);
-      const ageMs = createdMs == null ? null : Date.now() - createdMs;
-      rows.push({
-        uid,
-        userName: userData.name || userData.username || userData.displayName || userData.email || '',
-        id: nd.id,
-        ref: nd.ref,
-        path: nd.ref.path,
-        data,
-        items: bnActiveItems(data),
-        lineupIds,
-        ageMs,
-        isOld: ageMs == null ? true : ageMs >= 24 * 60 * 60 * 1000,
-        state: hasApproved === true ? 'ok' : hasApproved === false ? 'stale' : 'unknown',
-      });
+      rows.push(await bnActiveRowFromNotification(nd, userDocRef, userData));
     }
     bnActiveRows = rows.sort((a, b) => {
       const rank = { stale: 0, unknown: 1, ok: 2 };
@@ -12483,7 +12519,42 @@ async function bnActiveLoad() {
     bnActiveSetStatus(`Готово: показано ${bnActiveRows.length} активных из быстрой выборки, битых ${stale}. Старые/все можно гасить без загрузки списка.`);
     bnActiveRender();
   } catch (e) {
-    bnActiveSetStatus('Ошибка быстрой загрузки: ' + e.message, false);
+    if (!bnActiveIsIndexError(e)) {
+      bnActiveSetStatus('Ошибка быстрой загрузки: ' + e.message, false);
+      return;
+    }
+    try {
+      bnActiveSetStatus('Нет индекса для быстрого поиска. Перехожу на медленную загрузку по пользователям…');
+      const userDocs = await bnActiveUserDocs();
+      const rows = [];
+      for (let i = 0; i < userDocs.length; i += 1) {
+        if (i % 25 === 0) bnActiveSetStatus(`Медленно загружаю уведомления: ${i}/${userDocs.length}`);
+        const userDoc = userDocs[i];
+        const userData = userDoc.data() || {};
+        const snap = await getDocs(query(
+          collection(db, 'users', userDoc.id, 'notifications'),
+          where('read', '==', false),
+          limit(200)
+        )).catch(() => null);
+        if (!snap) continue;
+        for (const nd of snap.docs) {
+          const data = nd.data() || {};
+          if (data.type !== 'new_lineups_batch') continue;
+          rows.push(await bnActiveRowFromNotification(nd, userDoc.ref, userData));
+          if (rows.length >= 200) break;
+        }
+        if (rows.length >= 200) break;
+      }
+      bnActiveRows = rows.sort((a, b) => {
+        const rank = { stale: 0, unknown: 1, ok: 2 };
+        return (rank[a.state] ?? 9) - (rank[b.state] ?? 9);
+      });
+      const stale = bnActiveRows.filter(r => r.state === 'stale').length;
+      bnActiveSetStatus(`Готово через fallback: показано ${bnActiveRows.length}, битых ${stale}.`);
+      bnActiveRender();
+    } catch (fallbackErr) {
+      bnActiveSetStatus('Ошибка fallback-загрузки: ' + fallbackErr.message, false);
+    }
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -12588,7 +12659,57 @@ async function bnActiveMarkQueryRead({ olderThanMs = 0, reason, label, buttonId 
     bnActiveSetStatus(`${label}: готово, погашено ${total}`);
     bnActiveRender();
   } catch (e) {
-    bnActiveSetStatus('Ошибка массового погашения: ' + e.message, false);
+    if (!bnActiveIsIndexError(e)) {
+      bnActiveSetStatus('Ошибка массового погашения: ' + e.message, false);
+      return;
+    }
+    try {
+      bnActiveSetStatus(`${label}: нет индекса, запускаю fallback по пользователям…`);
+      const cutoff = olderThanMs ? Date.now() - olderThanMs : 0;
+      const userDocs = await bnActiveUserDocs();
+      let total = 0;
+      const touched = new Set();
+      let batch = writeBatch(db);
+      let batchCount = 0;
+      const commitBatch = async () => {
+        if (!batchCount) return;
+        await batch.commit();
+        total += batchCount;
+        bnActiveSetStatus(`${label}: fallback погасил ${total}`);
+        batch = writeBatch(db);
+        batchCount = 0;
+      };
+      for (let i = 0; i < userDocs.length; i += 1) {
+        if (i % 25 === 0) bnActiveSetStatus(`${label}: проверяю пользователей ${i}/${userDocs.length}, погашено ${total}`);
+        const userDoc = userDocs[i];
+        const snap = await getDocs(query(
+          collection(db, 'users', userDoc.id, 'notifications'),
+          where('read', '==', false),
+          limit(200)
+        )).catch(() => null);
+        if (!snap) continue;
+        for (const nd of snap.docs) {
+          const data = nd.data() || {};
+          if (data.type !== 'new_lineups_batch') continue;
+          const createdMs = bnActiveCreatedMs(data);
+          if (olderThanMs && createdMs != null && createdMs > cutoff) continue;
+          touched.add(nd.ref.path);
+          batch.update(nd.ref, {
+            read: true,
+            read_at: serverTimestamp(),
+            admin_cleanup_reason: reason + '_fallback',
+          });
+          batchCount += 1;
+          if (batchCount >= 430) await commitBatch();
+        }
+      }
+      await commitBatch();
+      if (touched.size) bnActiveRows = bnActiveRows.filter(r => !touched.has(r.path));
+      bnActiveSetStatus(`${label}: fallback готов, погашено ${total}`);
+      bnActiveRender();
+    } catch (fallbackErr) {
+      bnActiveSetStatus('Ошибка fallback-погашения: ' + fallbackErr.message, false);
+    }
   } finally {
     if (btn) btn.disabled = false;
   }
