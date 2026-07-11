@@ -2339,7 +2339,9 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;">
             <button class="btn btn-save" id="bn-active-load">🔎 Загрузить активные</button>
+            <button class="btn btn-archive" id="bn-active-clear-old" disabled>🧯 Погасить старые 24ч+</button>
             <button class="btn btn-archive" id="bn-active-clear-stale" disabled>🧹 Погасить битые</button>
+            <button class="btn btn-delete" id="bn-active-clear-all" disabled>🚨 Погасить все активные</button>
           </div>
           <div class="nc-status" id="bn-active-status"></div>
           <div id="bn-active-list" style="margin-top:12px;display:grid;gap:8px;"></div>
@@ -11774,12 +11776,35 @@ async function bnActiveFallbackHasApproved(data) {
   }
 }
 
+function bnActiveCreatedMs(data) {
+  const raw = data?.created_at || data?.createdAt || data?.sent_at || data?.updated_at;
+  if (!raw) return null;
+  if (typeof raw.toMillis === 'function') return raw.toMillis();
+  if (typeof raw.seconds === 'number') return raw.seconds * 1000;
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function bnActiveFormatAge(ms) {
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h`;
+  return `${totalMinutes}m`;
+}
+
 function bnActiveRender() {
   const list = document.getElementById('bn-active-list');
   const clearBtn = document.getElementById('bn-active-clear-stale');
+  const clearOldBtn = document.getElementById('bn-active-clear-old');
+  const clearAllBtn = document.getElementById('bn-active-clear-all');
   if (!list) return;
   const staleCount = bnActiveRows.filter(r => r.state === 'stale').length;
+  const oldCount = bnActiveRows.filter(r => r.isOld).length;
   if (clearBtn) clearBtn.disabled = staleCount === 0;
+  if (clearOldBtn) clearOldBtn.disabled = oldCount === 0;
+  if (clearAllBtn) clearAllBtn.disabled = bnActiveRows.length === 0;
   if (!bnActiveRows.length) {
     list.innerHTML = '<div class="state" style="padding:18px;color:var(--text2);">Активных банеров новых лайнапов нет</div>';
     return;
@@ -11836,6 +11861,8 @@ async function bnActiveLoad() {
         const lineupIds = bnActiveParseLineupIds(data);
         let hasApproved = await bnActiveHasApprovedLineup(lineupIds);
         if (hasApproved == null) hasApproved = await bnActiveFallbackHasApproved(data);
+        const createdMs = bnActiveCreatedMs(data);
+        const ageMs = createdMs == null ? null : Date.now() - createdMs;
         rows.push({
           uid: u.id,
           userName: u.data.name || u.data.username || u.data.displayName || u.data.email || '',
@@ -11845,6 +11872,8 @@ async function bnActiveLoad() {
           data,
           items: bnActiveItems(data),
           lineupIds,
+          ageMs,
+          isOld: ageMs == null ? false : ageMs >= 24 * 60 * 60 * 1000,
           state: hasApproved === true ? 'ok' : hasApproved === false ? 'stale' : 'unknown',
         });
       }
@@ -11888,6 +11917,51 @@ async function bnActiveDelete(index) {
 }
 
 document.getElementById('bn-active-load')?.addEventListener('click', bnActiveLoad);
+
+async function bnActiveMarkRowsRead(rows, reason, label, buttonId) {
+  if (!rows.length) return;
+  if (!confirm(`${label}: ${rows.length}?`)) return;
+  const btn = document.getElementById(buttonId);
+  if (btn) btn.disabled = true;
+  try {
+    for (let i = 0; i < rows.length; i += 450) {
+      const batch = writeBatch(db);
+      rows.slice(i, i + 450).forEach(row => batch.update(row.ref, {
+        read: true,
+        read_at: serverTimestamp(),
+        admin_cleanup_reason: reason,
+      }));
+      await batch.commit();
+    }
+    const paths = new Set(rows.map(r => r.path));
+    bnActiveRows = bnActiveRows.filter(r => !paths.has(r.path));
+    bnActiveSetStatus(`${label}: ${rows.length}`);
+    bnActiveRender();
+  } catch (e) {
+    bnActiveSetStatus('РћС€РёР±РєР°: ' + e.message, false);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+document.getElementById('bn-active-clear-old')?.addEventListener('click', () => {
+  bnActiveMarkRowsRead(
+    bnActiveRows.filter(r => r.isOld),
+    'manual_old_new_lineup_notification_cleanup',
+    'Погашено старых уведомлений',
+    'bn-active-clear-old'
+  );
+});
+
+document.getElementById('bn-active-clear-all')?.addEventListener('click', () => {
+  bnActiveMarkRowsRead(
+    [...bnActiveRows],
+    'manual_all_new_lineup_notification_cleanup',
+    'Погашено всех активных уведомлений',
+    'bn-active-clear-all'
+  );
+});
+
 document.getElementById('bn-active-clear-stale')?.addEventListener('click', async () => {
   const staleRows = bnActiveRows.filter(r => r.state === 'stale');
   if (!staleRows.length) return;
