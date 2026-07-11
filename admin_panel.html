@@ -9213,7 +9213,11 @@ async function openUserProfile(uid, name) {
         <div class="pm-stat"><div class="pm-stat-lbl">Лайнапов одобрено</div><div class="pm-stat-val">${esc(String(approved))}</div></div>
         <div class="pm-stat"><div class="pm-stat-lbl">Лайков</div><div class="pm-stat-val">${esc(String(likes))}</div></div>
         ${date ? `<div class="pm-stat"><div class="pm-stat-lbl">Регистрация</div><div class="pm-stat-val" style="font-size:12px;">${esc(date)}</div></div>` : ''}
-      </div>`;
+      </div>
+      ${uid ? `<button type="button" onclick="closeProfileModal(); _nuOpenFullUserProfile('${esc(uid)}');"
+        style="width:100%;margin-top:14px;padding:10px 12px;background:var(--primary);color:#fff;border:0;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;">
+        Перейти в полный профиль
+      </button>` : ''}`;
     document.getElementById('pm-cb')?.addEventListener('click', closeProfileModal);
     modal.addEventListener('click', e => { if (e.target === modal) closeProfileModal(); }, { once: true });
   } catch (e) {
