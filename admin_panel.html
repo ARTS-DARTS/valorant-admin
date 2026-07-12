@@ -230,9 +230,28 @@
     .cat-dot[data-cat="wallbang"].has-abilities { background:#7a9bb5; }
     .cat-dot[data-cat="defense"].has-abilities { background:#22c55e; }
     .ability-row { display: flex; flex-wrap: wrap; gap: 6px; }
-    .abil-btn   { padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 12px; font-weight: 600; transition: .13s; }
+    .abil-btn   { min-width: 66px; min-height: 66px; padding: 6px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 10px; font-weight: 700; transition: .13s; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
     .abil-btn:hover { border-color: var(--primary); color: var(--primary); }
     .abil-btn.sel   { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .abil-btn:disabled, .abil-btn.added { opacity:.45; cursor:not-allowed; }
+    .abil-btn img { width: 32px; height: 32px; object-fit: contain; pointer-events:none; }
+    .abil-btn span { max-width: 54px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .extra-ability-panel { display:none; grid-column:1/-1; background:rgba(15,23,42,.55); border:1px solid var(--border); border-radius:var(--r); padding:12px; }
+    .extra-ability-panel.show { display:block; }
+    .extra-ability-picker { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .extra-ability-pick.added { opacity:.45; cursor:not-allowed; }
+    .extra-ability-list { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
+    .extra-ability-chip { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--border); background:var(--surface2); color:var(--text); border-radius:999px; padding:5px 7px; font-size:12px; font-weight:800; cursor:pointer; }
+    .extra-ability-chip.sel { border-color:var(--primary); box-shadow:0 0 0 3px rgba(255,70,85,.14); }
+    .extra-ability-chip img { width:22px; height:22px; object-fit:contain; }
+    .extra-ability-chip button { border:0; background:rgba(148,163,184,.12); color:var(--text2); border-radius:50%; width:18px; height:18px; cursor:pointer; font-weight:900; line-height:1; }
+    .slot-map-workbench { display:grid; grid-template-columns: 168px minmax(0, 1fr); gap:10px; align-items:start; }
+    .slot-extra-tools { border:1px solid var(--border); background:rgba(15,23,42,.55); border-radius:var(--r); padding:10px; display:grid; gap:9px; }
+    .slot-extra-tools[hidden] { display:none !important; }
+    .slot-extra-tools .ability-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+    .slot-extra-tools .abil-btn { width:100%; min-width:0; padding:5px; }
+    .slot-extra-tools .extra-ability-list { margin-top:0; }
+    @media(max-width:900px){ .slot-map-workbench { grid-template-columns:1fr; } }
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 1; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
@@ -897,7 +916,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">local</span>
+      <span class="admin-version" id="admin-build-version">extra-traj-ui | 2026-07-12 21:19</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1091,6 +1110,13 @@
           <div class="fg full" id="ability-wrap" style="display:none;">
             <label class="flabel">Способность</label>
             <div class="ability-row" id="ability-row"></div>
+          </div>
+
+          <div class="fg full extra-ability-panel" id="admin-extra-ability-panel">
+            <label class="flabel">Дополнительные траектории</label>
+            <div style="font-size:12px;color:var(--text2);line-height:1.45;">Выбирай иконками. Активная доп. абилка рисуется на карте слота отдельной траекторией.</div>
+            <div class="extra-ability-picker" id="admin-extra-ability-picker"></div>
+            <div class="extra-ability-list" id="admin-extra-ability-list"></div>
           </div>
 
           <div class="fg">
@@ -4065,6 +4091,7 @@ function refreshAddContentExtras() {
     _setSlotMapMode(Number(id), addSlotSessions[id]?.mapMode || 'position');
     updateSlotCoords(Number(id));
     renderSlotMarker(Number(id));
+    renderSlotExtraTools(Number(id));
   });
 }
 
@@ -6277,6 +6304,36 @@ async function getConfiguredRangeRadius(map, agent, ability) {
   return 0;
 }
 
+function abilityEffectShape(agentName, abilityName) {
+  const key = `${agentName || ''} ${abilityName || ''}`.toLowerCase();
+  if (/viper/.test(key) && /toxic screen|токсичн.*завес|завес/.test(key)) return { effect_shape: 'line', effect_width: 0.018 };
+  if (/sova/.test(key) && /hunter|гнев охот/.test(key)) return { effect_shape: 'none', effect_width: 0 };
+  return { effect_shape: 'circle', effect_width: 0 };
+}
+
+async function buildAdminExtraAbilitiesPayload(map, agent, slotSession) {
+  const items = Array.isArray(slotSession?.extraAbilities) ? slotSession.extraAbilities : [];
+  const out = [];
+  for (let i = 0; i < Math.min(2, items.length); i += 1) {
+    const item = items[i];
+    const ability = item?.ability || '';
+    const trajectory = _trajectoryFromPosition(item?.trajectory || [], slotSession.markerX, slotSession.markerY);
+    if (!ability || trajectory.length < 2) continue;
+    const effect = abilityEffectShape(agent, ability);
+    out.push({
+      order: i + 1,
+      ability,
+      icon: item.icon || _abilityIcon(agent, ability),
+      trajectory,
+      range_radius: effect.effect_shape === 'none' ? 0 : await getConfiguredRangeRadius(map, agent, ability),
+      effect_shape: effect.effect_shape,
+      effect_width: effect.effect_width,
+      note: '',
+    });
+  }
+  return out;
+}
+
 function groupLineupsForBanner(lineups) {
   const grouped = new Map();
   lineups.forEach(lineup => {
@@ -7080,7 +7137,7 @@ function _addDraftHasContent(d = null) {
     draft.authorUid || draft.wallbang?.weapons?.length || draft.defense?.site ||
     (draft.slots || []).some(s =>
       s.title || s.description || s.markerX !== null || s.targetX !== null ||
-      s.videoUrl || s.screenshots?.length || s.trajectory?.length
+      s.videoUrl || s.screenshots?.length || s.trajectory?.length || s.extraAbilities?.length
     )
   );
 }
@@ -7097,6 +7154,8 @@ function collectAdminAddDraft() {
       targetX: s.targetX ?? null,
       targetY: s.targetY ?? null,
       trajectory: Array.isArray(s.trajectory) ? s.trajectory : [],
+      extraAbilities: Array.isArray(s.extraAbilities) ? s.extraAbilities : [],
+      selectedExtraIndex: Number.isInteger(s.selectedExtraIndex) ? s.selectedExtraIndex : null,
       mapMode: s.mapMode || 'position',
       videoUrl: s.videoState?.status === 'done' ? (s.videoState.url || '') : '',
       screenshots: (s.screenshots || [])
@@ -7182,15 +7241,25 @@ function _buildSlotHtml(id) {
       </div>
       <div class="fg full">
         <label class="flabel">Точка на карте — <b>ЛКМ</b> ставит выбранную метку · <b>ПКМ</b> добавляет точку траектории</label>
-        <div id="slot-${id}-map-wrap" class="map-picker-wrap"><div class="map-ph">Сначала выбери карту ↑</div></div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button id="slot-${id}-mode-pos"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
-          <button id="slot-${id}-mode-target" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);display:none;">🎯 Точка прострела</button>
-          <button id="slot-${id}-mode-traj" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
-        </div>
-        <div id="slot-${id}-traj-actions" style="display:none;gap:8px;margin-top:6px;">
-          <button id="slot-${id}-traj-undo"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
-          <button id="slot-${id}-traj-clear" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
+        <div class="slot-map-workbench">
+          <aside class="slot-extra-tools" id="slot-${id}-extra-tools" hidden>
+            <div class="flabel">Доп. траектории</div>
+            <div style="font-size:11px;color:var(--text2);line-height:1.35;">Выбранная иконка принимает точки траектории.</div>
+            <div class="ability-row" id="slot-${id}-extra-picker"></div>
+            <div class="extra-ability-list" id="slot-${id}-extra-list"></div>
+          </aside>
+          <div>
+            <div id="slot-${id}-map-wrap" class="map-picker-wrap"><div class="map-ph">Сначала выбери карту ↑</div></div>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button id="slot-${id}-mode-pos"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+              <button id="slot-${id}-mode-target" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);display:none;">🎯 Точка прострела</button>
+              <button id="slot-${id}-mode-traj" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
+            </div>
+            <div id="slot-${id}-traj-actions" style="display:none;gap:8px;margin-top:6px;">
+              <button id="slot-${id}-traj-undo"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
+              <button id="slot-${id}-traj-clear" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
+            </div>
+          </div>
         </div>
         <div class="coords-row">
           X: <span class="coord-pill" id="slot-${id}-coord-x">—</span>
@@ -7274,13 +7343,119 @@ function updateSlotCoords(id) {
     ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
     : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
 }
+
+function _slotExtraEnabled() {
+  const cat = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
+  return (cat === 'lineup' || cat === 'combo') && !!pickedAgent && !!pickedAbility;
+}
+
+function _abilityIcon(agent, ability) {
+  return (AGENT_ABILITY_ICONS[agent] ?? {})[ability] ?? '';
+}
+
+function _activeSlotTrajectory(s) {
+  if (Number.isInteger(s.selectedExtraIndex) && s.extraAbilities?.[s.selectedExtraIndex]) {
+    return s.extraAbilities[s.selectedExtraIndex].trajectory;
+  }
+  return s.trajectory;
+}
+
+function _setActiveSlotTrajectory(s, points) {
+  if (Number.isInteger(s.selectedExtraIndex) && s.extraAbilities?.[s.selectedExtraIndex]) {
+    s.extraAbilities[s.selectedExtraIndex].trajectory = points;
+  } else {
+    s.trajectory = points;
+  }
+}
+
+function renderSlotExtraTools(id) {
+  const s = addSlotSessions[id]; if (!s) return;
+  const box = document.getElementById(`slot-${id}-extra-tools`);
+  const picker = document.getElementById(`slot-${id}-extra-picker`);
+  const list = document.getElementById(`slot-${id}-extra-list`);
+  if (!box || !picker || !list) return;
+  const enabled = _slotExtraEnabled();
+  box.hidden = !enabled;
+  if (!enabled) {
+    picker.innerHTML = '';
+    list.innerHTML = '';
+    return;
+  }
+  s.extraAbilities = Array.isArray(s.extraAbilities) ? s.extraAbilities : [];
+  const used = new Set(s.extraAbilities.map(item => item.ability));
+  const abilities = (AGENT_ABILITIES[pickedAgent] || []).filter(ab => ab !== pickedAbility);
+  picker.innerHTML = abilities.map(ab => {
+    const added = used.has(ab);
+    const icon = _abilityIcon(pickedAgent, ab);
+    return `<button class="abil-btn${added ? ' added' : ''}" data-slot-extra-add="${esc(ab)}" title="${esc(ab)}" ${added || s.extraAbilities.length >= 2 ? 'disabled' : ''}>
+      ${icon ? `<img src="${esc(icon)}" alt="">` : ''}
+      <span>${esc(ab.split(' ')[0])}</span>
+    </button>`;
+  }).join('');
+  picker.querySelectorAll('[data-slot-extra-add]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ability = btn.dataset.slotExtraAdd || '';
+      if (!ability || s.extraAbilities.length >= 2 || s.extraAbilities.some(item => item.ability === ability)) return;
+      s.extraAbilities.push({
+        order: s.extraAbilities.length + 1,
+        ability,
+        icon: _abilityIcon(pickedAgent, ability),
+        trajectory: [],
+      });
+      s.selectedExtraIndex = s.extraAbilities.length - 1;
+      _setSlotMapMode(id, 'trajectory');
+      renderSlotExtraTools(id);
+      renderSlotTraj(id);
+      queueAdminAddDraftSave();
+    });
+  });
+  list.innerHTML = s.extraAbilities.length ? s.extraAbilities.map((item, idx) => `
+    <span class="extra-ability-chip${s.selectedExtraIndex === idx ? ' sel' : ''}" data-slot-extra-select="${idx}" title="${esc(item.ability)}">
+      <b>${idx + 1}</b>
+      ${item.icon ? `<img src="${esc(item.icon)}" alt="">` : ''}
+      <span>${(item.trajectory || []).length} т.</span>
+      <button type="button" data-slot-extra-remove="${idx}">×</button>
+    </span>
+  `).join('') : '<span style="font-size:11px;color:var(--text2);">Допов пока нет</span>';
+  list.querySelectorAll('[data-slot-extra-select]').forEach(chip => {
+    chip.addEventListener('click', event => {
+      if (event.target.closest('[data-slot-extra-remove]')) return;
+      s.selectedExtraIndex = Number(chip.dataset.slotExtraSelect);
+      _setSlotMapMode(id, 'trajectory');
+      renderSlotExtraTools(id);
+      renderSlotTraj(id);
+      queueAdminAddDraftSave();
+    });
+  });
+  list.querySelectorAll('[data-slot-extra-remove]').forEach(btn => {
+    btn.addEventListener('click', event => {
+      event.stopPropagation();
+      const idx = Number(btn.dataset.slotExtraRemove);
+      s.extraAbilities.splice(idx, 1);
+      s.extraAbilities.forEach((item, orderIdx) => { item.order = orderIdx + 1; });
+      if (s.selectedExtraIndex === idx) s.selectedExtraIndex = null;
+      else if (s.selectedExtraIndex > idx) s.selectedExtraIndex -= 1;
+      renderSlotExtraTools(id);
+      renderSlotTraj(id);
+      queueAdminAddDraftSave();
+    });
+  });
+}
+
 function renderSlotTraj(id) {
   const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
-  c.querySelector('.traj-svg')?.remove();
-  const s = addSlotSessions[id]; if (!s || s.trajectory.length === 0) return;
-  const path = _trajectoryFromPosition(s.trajectory, s.markerX, s.markerY);
-  c.appendChild(_buildTrajSvg(_pointsToWrap(path, _sImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id));
+  c.querySelectorAll('.traj-svg').forEach(el => el.remove());
+  const s = addSlotSessions[id]; if (!s) return;
+  if (s.trajectory?.length) {
+    const path = _trajectoryFromPosition(s.trajectory, s.markerX, s.markerY);
+    c.appendChild(_buildTrajSvg(_pointsToWrap(path, _sImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-slot-'+id, '#FF4655', s.selectedExtraIndex !== null ? 0.42 : 0.85));
+  }
+  (s.extraAbilities || []).forEach((item, idx) => {
+    if (!item.trajectory?.length) return;
+    const path = _trajectoryFromPosition(item.trajectory, s.markerX, s.markerY);
+    c.appendChild(_buildTrajSvg(_pointsToWrap(path, _sImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, `traj-slot-${id}-extra-${idx}`, s.selectedExtraIndex === idx ? '#50d6ff' : '#9b7bff', s.selectedExtraIndex === idx ? 0.95 : 0.5, `+${idx + 1}`));
+  });
 }
 function _setSlotMapMode(id, mode) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -7353,7 +7528,10 @@ function initSlotMapWrap(id) {
           renderSlotMarker(id); updateSlotCoords(id);
           queueAdminAddDraftSave();
         } else {
-          s.markerX=p.x; s.markerY=p.y; renderSlotMarker(id); updateSlotCoords(id);
+          s.markerX=p.x; s.markerY=p.y;
+          if (s.trajectory?.length) s.trajectory[0] = { x:p.x, y:p.y };
+          (s.extraAbilities || []).forEach(item => { if (item.trajectory?.length) item.trajectory[0] = { x:p.x, y:p.y }; });
+          renderSlotMarker(id); renderSlotTraj(id); updateSlotCoords(id);
           _setSlotMapMode(id, 'position');
           queueAdminAddDraftSave();
         }
@@ -7366,16 +7544,19 @@ function initSlotMapWrap(id) {
     if (!_sCanvas(id)) return; e.preventDefault();
     const ir = _sImgRect(id);
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
-    if (s.trajectory.length === 0 && s.markerX !== null) s.trajectory.push({ x: s.markerX, y: s.markerY });
-    s.trajectory.push({x:p.x, y:p.y}); renderSlotTraj(id);
+    const points = _activeSlotTrajectory(s);
+    if (points.length === 0 && s.markerX !== null) points.push({ x: s.markerX, y: s.markerY });
+    points.push({x:p.x, y:p.y});
+    _setActiveSlotTrajectory(s, points);
+    renderSlotTraj(id); renderSlotExtraTools(id);
     _setSlotMapMode(id, 'trajectory');
     queueAdminAddDraftSave();
   });
   document.getElementById('slot-'+id+'-mode-pos')?.addEventListener('click',  () => _setSlotMapMode(id,'position'));
   document.getElementById('slot-'+id+'-mode-target')?.addEventListener('click',  () => _setSlotMapMode(id,'target'));
   document.getElementById('slot-'+id+'-mode-traj')?.addEventListener('click', () => _setSlotMapMode(id,'trajectory'));
-  document.getElementById('slot-'+id+'-traj-undo')?.addEventListener('click', () => { s.trajectory.pop(); renderSlotTraj(id); queueAdminAddDraftSave(); });
-  document.getElementById('slot-'+id+'-traj-clear')?.addEventListener('click',() => { s.trajectory=[]; renderSlotTraj(id); queueAdminAddDraftSave(); });
+  document.getElementById('slot-'+id+'-traj-undo')?.addEventListener('click', () => { const points = _activeSlotTrajectory(s); points.pop(); _setActiveSlotTrajectory(s, points); renderSlotTraj(id); renderSlotExtraTools(id); queueAdminAddDraftSave(); });
+  document.getElementById('slot-'+id+'-traj-clear')?.addEventListener('click',() => { _setActiveSlotTrajectory(s, []); renderSlotTraj(id); renderSlotExtraTools(id); queueAdminAddDraftSave(); });
 }
 
 function _renderSlotVideoPreview(id) {
@@ -7502,6 +7683,8 @@ function createAddSlot(draftSlot = null) {
     targetX:draftSlot?.targetX ?? null,
     targetY:draftSlot?.targetY ?? null,
     trajectory:Array.isArray(draftSlot?.trajectory) ? draftSlot.trajectory : [],
+    extraAbilities:Array.isArray(draftSlot?.extraAbilities) ? draftSlot.extraAbilities : (Array.isArray(draftSlot?.extra_abilities) ? draftSlot.extra_abilities : []),
+    selectedExtraIndex:Number.isInteger(draftSlot?.selectedExtraIndex) ? draftSlot.selectedExtraIndex : null,
     mapMode:draftSlot?.mapMode || 'position',
     mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,
     videoState:draftSlot?.videoUrl ? {status:'done',url:draftSlot.videoUrl,localUrl:null,progress:1,xhr:null} : {status:'idle',url:null,localUrl:null,progress:0,xhr:null},
@@ -7515,6 +7698,7 @@ function createAddSlot(draftSlot = null) {
   _initSlotEvents(id);
   const mapName = document.getElementById('f-map')?.value || '';
   if (mapName) updateSlotMapWrap(id, mapName);
+  renderSlotExtraTools(id);
   _renderSlotVideoPreview(id);
   _renderSlotPreviews(id);
   updateSlotCoords(id);
@@ -7585,16 +7769,18 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   btn.disabled=true; btn.textContent='Сохранение…';
   try {
     const rangeRadius = category === 'wallbang' ? 0 : await getConfiguredRangeRadius(map, agent, ability);
-    const saves=slotIds.map(id=>{
+    const saves=slotIds.map(async id=>{
       const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
       const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
       const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
       const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
       const extras = _contentExtrasForSave(category, category === 'wallbang' ? 'add-wallbang' : 'add-defense', s);
+      const extraAbilities = needsAbility ? await buildAdminExtraAbilitiesPayload(map, agent, s) : [];
       return addDoc(collection(db,'lineups'),{
-        map,agent:needsAgent ? agent : '',ability:needsAbility ? ability : '',category,content_type:category,schema_version:1,title,description:desc,video_url:videoUrl,screenshots,
+        map,agent:needsAgent ? agent : '',ability:needsAbility ? ability : '',category,content_type:category,schema_version:2,title,description:desc,video_url:videoUrl,screenshots,
         position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
+        extra_abilities: extraAbilities,
         range_radius: rangeRadius,
         ...extras,
         status,is_exclusive:excl,submitted_at:serverTimestamp(),
@@ -7949,6 +8135,8 @@ async function loadMapImages() {
 
 let pickedAgent   = '';
 let pickedAbility = '';
+let adminExtraAbilities = [];
+let selectedAdminExtraIndex = null;
 let markerX = null, markerY = null;
 let mapMode = 'position';
 let trajectoryPoints = [];
@@ -8027,18 +8215,24 @@ function renderAbilityRow() {
   if (!pickedAgent || !abilList?.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   row.innerHTML = abilList.map(ab =>
-    `<button class="abil-btn${ab === pickedAbility ? ' sel' : ''}" data-ab="${ab}">${ab}</button>`
+    `<button class="abil-btn${ab === pickedAbility ? ' sel' : ''}" data-ab="${esc(ab)}" title="${esc(ab)}">
+      ${AGENT_ABILITY_ICONS[pickedAgent]?.[ab] ? `<img src="${esc(AGENT_ABILITY_ICONS[pickedAgent][ab])}" alt="">` : ''}
+      <span>${esc(ab.split(' ')[0])}</span>
+    </button>`
   ).join('');
   row.querySelectorAll('.abil-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       pickedAbility = btn.dataset.ab;
+      Object.values(addSlotSessions).forEach(s => { s.selectedExtraIndex = null; });
       row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
       btn.classList.add('sel');
       renderMarker();
       Object.keys(addSlotSessions).forEach(sid => renderSlotMarker(Number(sid)));
+      Object.keys(addSlotSessions).forEach(sid => renderSlotExtraTools(Number(sid)));
       queueAdminAddDraftSave();
     });
   });
+  Object.keys(addSlotSessions).forEach(sid => renderSlotExtraTools(Number(sid)));
 }
 
 function _mapCanvas() { return document.querySelector('#map-picker-wrap .map-canvas'); }
@@ -8170,7 +8364,7 @@ function updateCoordDisplay() {
   if (eh) eh.textContent = markerX !== null ? '✓ Метка установлена' : 'Кликни на карту';
 }
 
-function _buildTrajSvg(points, w, h, markerId) {
+function _buildTrajSvg(points, w, h, markerId, color = '#FF4655', opacity = 0.85, label = '') {
   const ns  = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
   svg.setAttribute('class', 'traj-svg');
@@ -8184,7 +8378,7 @@ function _buildTrajSvg(points, w, h, markerId) {
   mkr.setAttribute('refX', '10');       mkr.setAttribute('refY', '4');
   mkr.setAttribute('orient', 'auto');   mkr.setAttribute('markerUnits', 'userSpaceOnUse');
   const tri = document.createElementNS(ns, 'polygon');
-  tri.setAttribute('points', '0 0, 10 4, 0 8'); tri.setAttribute('fill', '#FF4655');
+  tri.setAttribute('points', '0 0, 10 4, 0 8'); tri.setAttribute('fill', color);
   mkr.appendChild(tri); defs.appendChild(mkr); svg.appendChild(defs);
 
   // Single polyline — no stitch artifacts, clean joins
@@ -8193,8 +8387,8 @@ function _buildTrajSvg(points, w, h, markerId) {
     const poly = document.createElementNS(ns, 'polyline');
     poly.setAttribute('points', coords);
     poly.setAttribute('fill', 'none');
-    poly.setAttribute('stroke', '#FF4655');
-    poly.setAttribute('stroke-opacity', '0.85');
+    poly.setAttribute('stroke', color);
+    poly.setAttribute('stroke-opacity', String(opacity));
     poly.setAttribute('stroke-width', '1.75');
     poly.setAttribute('stroke-linejoin', 'round');
     poly.setAttribute('stroke-linecap', 'round');
@@ -8208,10 +8402,25 @@ function _buildTrajSvg(points, w, h, markerId) {
     dot.setAttribute('cx', (points[0].x * w).toFixed(1));
     dot.setAttribute('cy', (points[0].y * h).toFixed(1));
     dot.setAttribute('r', '5');
-    dot.setAttribute('fill', '#FF4655');
+    dot.setAttribute('fill', color);
+    dot.setAttribute('fill-opacity', String(opacity));
     dot.setAttribute('stroke', 'rgba(255,255,255,0.45)');
     dot.setAttribute('stroke-width', '0.5');
     svg.appendChild(dot);
+  }
+  if (label && points.length >= 2) {
+    const end = points[points.length - 1];
+    const txt = document.createElementNS(ns, 'text');
+    txt.setAttribute('x', String(end.x * w + 7));
+    txt.setAttribute('y', String(end.y * h - 7));
+    txt.setAttribute('fill', color);
+    txt.setAttribute('font-size', '11');
+    txt.setAttribute('font-weight', '900');
+    txt.setAttribute('paint-order', 'stroke');
+    txt.setAttribute('stroke', 'rgba(2,6,23,.85)');
+    txt.setAttribute('stroke-width', '3');
+    txt.textContent = label;
+    svg.appendChild(txt);
   }
 
   return svg;
