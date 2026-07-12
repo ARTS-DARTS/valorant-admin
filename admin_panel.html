@@ -5940,6 +5940,7 @@ function lineupActionButtonsHtml(l, compact = false) {
 
 function contentExtraDetailHtml(l) {
   const category = contentCategoryOf(l);
+  const extras = Array.isArray(l.extra_abilities) ? l.extra_abilities : [];
   if (category === 'wallbang') {
     const weapons = Array.isArray(l.weapons) && l.weapons.length ? l.weapons.join(', ') : '—';
     return `
@@ -5952,11 +5953,45 @@ function contentExtraDetailHtml(l) {
     const zoom = l.zoom_area && typeof l.zoom_area === 'object'
       ? `${fmtNum(l.zoom_area.x)}, ${fmtNum(l.zoom_area.y)} · ${fmtNum(l.zoom_area.width)}×${fmtNum(l.zoom_area.height)}`
       : '—';
+    const abilities = Array.isArray(l.abilities) ? l.abilities : [];
+    const abilityRows = abilities.length
+      ? `<div class="dfield" style="grid-column:1/-1;"><div class="dlabel">Способности сетапа</div><div class="dval" style="display:flex;flex-direction:column;gap:7px;">${abilities
+          .slice()
+          .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+          .map((ab, index) => {
+            const shape = ab.shape_kind || ab.shape?.kind || 'point';
+            const points = Array.isArray(ab.points) ? ab.points : [];
+            const coords = shape === 'line_segment' && points.length >= 2
+              ? `линия: ${fmtNum(points[0]?.x)}, ${fmtNum(points[0]?.y)} → ${fmtNum(points[1]?.x)}, ${fmtNum(points[1]?.y)}`
+              : `точка: ${fmtNum(ab.x)}, ${fmtNum(ab.y)}`;
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.03);">
+              ${ab.icon ? `<img src="${esc(ab.icon)}" alt="" style="width:22px;height:22px;object-fit:contain;">` : `<span style="width:22px;text-align:center;color:var(--primary);font-weight:900;">${index + 1}</span>`}
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:800;color:var(--text);font-size:12px;">${index + 1}. ${esc(ab.ability || '—')}</div>
+                <div style="font-size:11px;color:var(--text2);font-family:monospace;">${esc(coords)}</div>
+              </div>
+            </div>`;
+          }).join('')}</div></div>`
+      : '<div class="dfield" style="grid-column:1/-1;"><div class="dlabel">Способности сетапа</div><div class="dval">—</div></div>';
     return `
       <div class="dfield"><div class="dlabel">Зона</div><div class="dval">${esc(l.site || '—')}</div></div>
       <div class="dfield"><div class="dlabel">Номер</div><div class="dval">${esc(l.number ?? '—')}</div></div>
       <div class="dfield"><div class="dlabel">Область зума</div><div class="dval">${esc(zoom)}</div></div>
+      ${abilityRows}
     `;
+  }
+  if (extras.length) {
+    return `<div class="dfield" style="grid-column:1/-1;"><div class="dlabel">Дополнительные абилки</div><div class="dval" style="display:flex;flex-direction:column;gap:7px;">${extras
+      .slice()
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .map((ab, idx) => {
+        const trajectory = Array.isArray(ab.trajectory) ? ab.trajectory.length : 0;
+        const shape = ab.effect_shape || 'circle';
+        return `<div style="padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.03);">
+          <div style="font-weight:800;color:var(--text);font-size:12px;">${idx + 1}. ${esc(ab.ability || '—')}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:monospace;">точек: ${trajectory} · эффект: ${esc(shape)} · radius: ${fmtNum(ab.range_radius)}</div>
+        </div>`;
+      }).join('')}</div></div>`;
   }
   return '';
 }
@@ -12529,38 +12564,7 @@ async function bnActiveLoad() {
       bnActiveSetStatus('Ошибка быстрой загрузки: ' + e.message, false);
       return;
     }
-    try {
-      bnActiveSetStatus('Нет индекса для быстрого поиска. Перехожу на медленную загрузку по пользователям…');
-      const userDocs = await bnActiveUserDocs();
-      const rows = [];
-      for (let i = 0; i < userDocs.length; i += 1) {
-        if (i % 25 === 0) bnActiveSetStatus(`Медленно загружаю уведомления: ${i}/${userDocs.length}`);
-        const userDoc = userDocs[i];
-        const userData = userDoc.data() || {};
-        const snap = await getDocs(query(
-          collection(db, 'users', userDoc.id, 'notifications'),
-          where('read', '==', false),
-          limit(200)
-        )).catch(() => null);
-        if (!snap) continue;
-        for (const nd of snap.docs) {
-          const data = nd.data() || {};
-          if (data.type !== 'new_lineups_batch') continue;
-          rows.push(await bnActiveRowFromNotification(nd, userDoc.ref, userData));
-          if (rows.length >= 200) break;
-        }
-        if (rows.length >= 200) break;
-      }
-      bnActiveRows = rows.sort((a, b) => {
-        const rank = { stale: 0, unknown: 1, ok: 2 };
-        return (rank[a.state] ?? 9) - (rank[b.state] ?? 9);
-      });
-      const stale = bnActiveRows.filter(r => r.state === 'stale').length;
-      bnActiveSetStatus(`Готово через fallback: показано ${bnActiveRows.length}, битых ${stale}.`);
-      bnActiveRender();
-    } catch (fallbackErr) {
-      bnActiveSetStatus('Ошибка fallback-загрузки: ' + fallbackErr.message, false);
-    }
+    bnActiveSetStatus('Нужен Firestore index для notifications(type, read). Медленный fallback отключён, чтобы не сжигать квоту.', false);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -12669,53 +12673,7 @@ async function bnActiveMarkQueryRead({ olderThanMs = 0, reason, label, buttonId 
       bnActiveSetStatus('Ошибка массового погашения: ' + e.message, false);
       return;
     }
-    try {
-      bnActiveSetStatus(`${label}: нет индекса, запускаю fallback по пользователям…`);
-      const cutoff = olderThanMs ? Date.now() - olderThanMs : 0;
-      const userDocs = await bnActiveUserDocs();
-      let total = 0;
-      const touched = new Set();
-      let batch = writeBatch(db);
-      let batchCount = 0;
-      const commitBatch = async () => {
-        if (!batchCount) return;
-        await batch.commit();
-        total += batchCount;
-        bnActiveSetStatus(`${label}: fallback погасил ${total}`);
-        batch = writeBatch(db);
-        batchCount = 0;
-      };
-      for (let i = 0; i < userDocs.length; i += 1) {
-        if (i % 25 === 0) bnActiveSetStatus(`${label}: проверяю пользователей ${i}/${userDocs.length}, погашено ${total}`);
-        const userDoc = userDocs[i];
-        const snap = await getDocs(query(
-          collection(db, 'users', userDoc.id, 'notifications'),
-          where('read', '==', false),
-          limit(200)
-        )).catch(() => null);
-        if (!snap) continue;
-        for (const nd of snap.docs) {
-          const data = nd.data() || {};
-          if (data.type !== 'new_lineups_batch') continue;
-          const createdMs = bnActiveCreatedMs(data);
-          if (olderThanMs && createdMs != null && createdMs > cutoff) continue;
-          touched.add(nd.ref.path);
-          batch.update(nd.ref, {
-            read: true,
-            read_at: serverTimestamp(),
-            admin_cleanup_reason: reason + '_fallback',
-          });
-          batchCount += 1;
-          if (batchCount >= 430) await commitBatch();
-        }
-      }
-      await commitBatch();
-      if (touched.size) bnActiveRows = bnActiveRows.filter(r => !touched.has(r.path));
-      bnActiveSetStatus(`${label}: fallback готов, погашено ${total}`);
-      bnActiveRender();
-    } catch (fallbackErr) {
-      bnActiveSetStatus('Ошибка fallback-погашения: ' + fallbackErr.message, false);
-    }
+    bnActiveSetStatus(`${label}: нужен Firestore index для notifications(type, read). Fallback по пользователям отключён ради экономии квоты.`, false);
   } finally {
     if (btn) btn.disabled = false;
   }
@@ -15412,9 +15370,14 @@ window.rngApplyEntry = async function(map, agent, ability, idx, cfgId) {
     await setDoc(doc(db, 'range_config', cfgId), {
       map, agent, ability, range_radius: val, updatedAt: serverTimestamp()
     });
-    const snap = await getDocs(query(collection(db, 'lineups'), where('map', '==', map)));
+    const snap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('map', '==', map),
+      where('agent', '==', agent),
+      where('ability', '==', ability)
+    ));
     const refs = [];
-    snap.forEach(d => { const dt = d.data(); if (dt.agent === agent && dt.ability === ability) refs.push(d.ref); });
+    snap.forEach(d => refs.push(d.ref));
     if (refs.length) {
       const batch = writeBatch(db);
       refs.forEach(ref => batch.update(ref, { range_radius: val }));
