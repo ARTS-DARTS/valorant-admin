@@ -1482,8 +1482,8 @@
           <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">Новые 7д</div></div>
           <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">Новые 30д</div></div>
           <div class="an-card" title="Количество документов в коллекции users"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего профилей</div></div>
-          <div class="an-card" title="Уникальные активные профили за 30 дней — считаем как подтверждённых реальных людей"><div class="an-val an-loading" id="nu-confirmed-profiles">…</div><div class="an-lbl">Подтверждённые профили</div></div>
-          <div class="an-card" title="Всего профилей минус активные за 30 дней"><div class="an-val an-loading" id="nu-account-gap">…</div><div class="an-lbl">Акки / неактив</div></div>
+          <div class="an-card" title="Профили, получившие подтверждение: ручная отметка или 5+ просмотренных лайнапов"><div class="an-val an-loading" id="nu-confirmed-profiles">…</div><div class="an-lbl">Подтверждённые профили</div></div>
+          <div class="an-card" title="Всего профилей минус подтверждённые"><div class="an-val an-loading" id="nu-account-gap">…</div><div class="an-lbl">Акки / неактив</div></div>
           <div class="an-card" title="Уникальные uid в user_sessions за 24 часа"><div class="an-val an-loading" id="nu-active-24h">…</div><div class="an-lbl">Актив 24ч</div></div>
           <div class="an-card" title="Уникальные uid в user_sessions за 7 дней"><div class="an-val an-loading" id="nu-active-7d">…</div><div class="an-lbl">Актив 7д</div></div>
           <div class="an-card" title="Уникальные uid в user_sessions за 30 дней"><div class="an-val an-loading" id="nu-active-30d">…</div><div class="an-lbl">Актив 30д</div></div>
@@ -10471,13 +10471,21 @@ async function loadNewUsersAnalytics() {
         maxDocs: ADMIN_SESSION_EVENTS_MAX,
       }
     );
+    const allUsersSnap = await getDocs(query(collection(db, 'users'), limit(ADMIN_USERS_ANALYTICS_MAX)));
     const realTotal = totalSnap.data().count || 0;
     const sampledTotal = usersResult.docs.length;
     let nuToday = 0, nuWeek = 0, nuMonth = 0, nuWithDate = 0, nuPassword = 0, nuGoogle = 0, nuYandex = 0;
+    let confirmedProfiles = 0;
     const active24h = new Set(), active7d = new Set(), active30d = new Set();
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
     _nuAllRecent = [];
+
+    for (const docSnap of allUsersSnap.docs) {
+      const dat = docSnap.data();
+      const viewed = Number(dat.lineups_viewed || 0);
+      if (dat.verified_not_fake || viewed >= USER_REQUIRED_VIEWS) confirmedProfiles++;
+    }
 
     for (const docSnap of usersResult.docs) {
       const dat   = docSnap.data();
@@ -10508,11 +10516,10 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-today').textContent       = nuToday;
     document.getElementById('nu-week').textContent        = nuWeek;
     document.getElementById('nu-month').textContent       = usersResult.truncated ? `${nuMonth}+` : nuMonth;
-    const confirmedProfiles = active30d.size;
     const inactiveAccounts = Math.max(0, Number(realTotal || 0) - confirmedProfiles);
     document.getElementById('nu-total').textContent       = realTotal;
-    document.getElementById('nu-confirmed-profiles').textContent = sessionsResult.truncated ? `${confirmedProfiles}+` : confirmedProfiles;
-    document.getElementById('nu-account-gap').textContent = sessionsResult.truncated ? `≤${inactiveAccounts}` : inactiveAccounts;
+    document.getElementById('nu-confirmed-profiles').textContent = allUsersSnap.size >= ADMIN_USERS_ANALYTICS_MAX ? `${confirmedProfiles}+` : confirmedProfiles;
+    document.getElementById('nu-account-gap').textContent = allUsersSnap.size >= ADMIN_USERS_ANALYTICS_MAX ? `≤${inactiveAccounts}` : inactiveAccounts;
     document.getElementById('nu-active-24h').textContent  = active24h.size;
     document.getElementById('nu-active-7d').textContent   = active7d.size;
     document.getElementById('nu-active-30d').textContent  = sessionsResult.truncated ? `${active30d.size}+` : active30d.size;
@@ -10528,7 +10535,7 @@ async function loadNewUsersAnalytics() {
     document.querySelectorAll('[data-nu-filter]').forEach(b => b.classList.toggle('active', b.dataset.nuFilter === 'all'));
     _nuRenderList();
 
-    if (usersResult.truncated || sessionsResult.truncated) {
+    if (usersResult.truncated || sessionsResult.truncated || allUsersSnap.size >= ADMIN_USERS_ANALYTICS_MAX) {
       toast('Статистика пользователей ограничена 20000 документами. Нужны агрегаты.', 'i');
     }
 
