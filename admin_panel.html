@@ -285,9 +285,11 @@
     .defense-net-grid-line { fill:none; stroke:rgba(174,232,255,.88); stroke-width:.65; }
     .defense-shape-area.viper { fill:rgba(34,197,94,.20); stroke:#6ee7b7; }
     .defense-previewing .defense-site-marker, .defense-previewing .defense-setup-marker, .defense-previewing .defense-zoom-box { display:none; }
+    .defense-previewing .map-canvas, .defense-preview-returning .map-canvas { transition:transform .36s cubic-bezier(.2,.8,.2,1); }
     .defense-preview-back { width:100%; justify-content:center; border:1px solid #50d6ff !important; color:#50d6ff !important; }
     #add-slots-container:has(.defense-editor-tools:not([hidden])) { grid-template-columns:1fr !important; }
     @media(max-width:900px){ .slot-map-workbench { grid-template-columns:1fr; } }
+    @media(prefers-reduced-motion:reduce){ .defense-previewing .map-canvas, .defense-preview-returning .map-canvas { transition:none; } }
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 1; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
@@ -7499,8 +7501,10 @@ function _defBack(id, edit) {
   s.mapScale = view.scale; s.mapTx = view.tx; s.mapTy = view.ty; s._defView = null;
   s.defensePreview = false; s.defenseMode = 'setup';
   ctx.wrap.classList.remove('defense-previewing');
+  ctx.wrap.classList.add('defense-preview-returning');
   (edit ? _eClamp : _sClamp)(id); (edit ? _eApply : _sApply)(id);
   _defRender(id, edit); _defRenderTools(id, edit);
+  setTimeout(() => ctx.wrap.classList.remove('defense-preview-returning'), 380);
 }
 
 function _defPlaceAbility(ctx, point) {
