@@ -7125,6 +7125,37 @@ function patchStatus(id, status) {
 
 // ── Add lineup — multi-slot system ───────────────────────────────────────────
 const addSlotSessions = {};
+let _lastActiveAddMapSlotId = null;
+
+function _undoActiveAddMapTrajectory() {
+  const focusedSlot = document.activeElement?.closest?.('#add-slots-container .slot-block');
+  const focusedId = focusedSlot ? Number(focusedSlot.id.replace('add-slot-', '')) : null;
+  const id = Number.isInteger(focusedId) ? focusedId : _lastActiveAddMapSlotId;
+  const s = Number.isInteger(id) ? addSlotSessions[id] : null;
+  if (!s || s.mapMode !== 'trajectory') return false;
+  const points = _activeSlotTrajectory(s);
+  if (!points.length) return false;
+  points.pop();
+  _setActiveSlotTrajectory(s, points);
+  renderSlotTraj(id);
+  renderSlotExtraTools(id);
+  queueAdminAddDraftSave();
+  return true;
+}
+
+document.getElementById('add-slots-container')?.addEventListener('pointerdown', e => {
+  const slot = e.target.closest?.('.slot-block');
+  if (slot) _lastActiveAddMapSlotId = Number(slot.id.replace('add-slot-', ''));
+});
+
+document.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.code !== 'KeyZ') return;
+  const target = e.target;
+  if (target?.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+  if (activeTab !== 'add' || !_undoActiveAddMapTrajectory()) return;
+  e.preventDefault();
+  e.stopPropagation();
+});
 let _nextAddSlotId = 0;
 const ADD_DRAFT_KEY = 'admin_add_lineup_draft_v1';
 let _restoringAddDraft = false;
