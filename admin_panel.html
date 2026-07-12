@@ -251,6 +251,42 @@
     .slot-extra-tools .ability-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
     .slot-extra-tools .abil-btn { width:100%; min-width:0; padding:5px; }
     .slot-extra-tools .extra-ability-list { margin-top:0; }
+    .defense-editor-tools { display:grid; gap:9px; }
+    .defense-editor-tools[hidden] { display:none !important; }
+    .defense-mode-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+    .defense-mode-grid .btn { min-width:0; justify-content:center; padding:7px 8px; font-size:11px; }
+    .defense-mode-grid .btn.active { border-color:#50d6ff; color:#50d6ff; background:rgba(80,214,255,.10); }
+    .defense-ability-picker { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+    .defense-ability-picker .abil-btn { width:100%; min-width:0; }
+    .defense-placed-list { display:grid; gap:5px; }
+    .defense-placed-chip { display:grid; grid-template-columns:auto 24px minmax(0,1fr) auto; align-items:center; gap:6px; min-width:0; padding:5px 6px; border:1px solid var(--border); border-radius:7px; background:var(--surface2); color:var(--text); font-size:11px; cursor:pointer; }
+    .defense-placed-chip.sel { border-color:#50d6ff; box-shadow:0 0 0 3px rgba(80,214,255,.10); }
+    .defense-placed-chip img { width:22px; height:22px; object-fit:contain; }
+    .defense-placed-chip span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .defense-placed-chip button { width:20px; height:20px; padding:0; border:0; border-radius:50%; background:rgba(148,163,184,.12); color:var(--text2); cursor:pointer; }
+    .defense-radius-controls { display:flex; align-items:center; gap:5px; }
+    .defense-radius-controls input { width:72px; padding:5px 7px; font-size:11px; }
+    .defense-map-layer { position:absolute; inset:0; z-index:4; pointer-events:none; overflow:visible; }
+    .defense-map-layer svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+    .defense-site-marker, .defense-setup-marker, .defense-ability-point, .defense-line-anchor { position:absolute; transform:translate(-50%,-50%); pointer-events:auto; user-select:none; }
+    .defense-site-marker { min-width:34px; height:34px; padding:0 8px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,.78); border:2px solid #fff; color:#fff; font-size:16px; font-weight:900; box-shadow:0 4px 16px rgba(0,0,0,.55); }
+    .defense-setup-marker { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#50d6ff; border:2px solid #e8faff; color:#07111d; font-size:12px; font-weight:900; box-shadow:0 0 10px rgba(80,214,255,.8); }
+    .defense-zoom-box { position:absolute; border:2px dashed #22c55e; background:rgba(34,197,94,.12); box-shadow:0 0 14px rgba(34,197,94,.24); pointer-events:none; }
+    .defense-ability-point { width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:rgba(9,18,32,.90); border:1px solid #dff8ff; box-shadow:0 0 7px rgba(80,214,255,.75); cursor:pointer; overflow:hidden; }
+    .defense-ability-point img { width:12px; height:12px; object-fit:contain; }
+    .defense-ability-point.sel, .defense-line-anchor.sel { box-shadow:0 0 0 4px rgba(80,214,255,.22),0 0 11px rgba(80,214,255,.9); }
+    .defense-line-anchor { width:8px; height:8px; border-radius:50%; background:#50d6ff; border:1px solid #fff; }
+    .defense-shape-line-bg { stroke:rgba(5,10,20,.8); stroke-width:3.5; stroke-linecap:round; }
+    .defense-shape-line { stroke:#50d6ff; stroke-width:1.35; stroke-linecap:round; filter:drop-shadow(0 0 2px rgba(80,214,255,.7)); }
+    .defense-shape-mesh { stroke:#50d6ff; stroke-width:1.35; }
+    .defense-shape-node { fill:#e8faff; stroke:#50d6ff; stroke-width:.55; }
+    .defense-shape-area { fill:rgba(80,214,255,.18); stroke:#8ce8ff; stroke-width:1; vector-effect:non-scaling-stroke; }
+    .defense-shape-area.net { stroke:none; }
+    .defense-net-grid-line { fill:none; stroke:rgba(174,232,255,.88); stroke-width:.65; }
+    .defense-shape-area.viper { fill:rgba(34,197,94,.20); stroke:#6ee7b7; }
+    .defense-previewing .defense-site-marker, .defense-previewing .defense-setup-marker, .defense-previewing .defense-zoom-box { display:none; }
+    .defense-preview-back { width:100%; justify-content:center; border:1px solid #50d6ff !important; color:#50d6ff !important; }
+    #add-slots-container:has(.defense-editor-tools:not([hidden])) { grid-template-columns:1fr !important; }
     @media(max-width:900px){ .slot-map-workbench { grid-template-columns:1fr; } }
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 1; width: min(100%, 320px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
@@ -1162,10 +1198,8 @@
             <div class="fgrid">
               <div class="fg"><label class="flabel">Зона / плент</label><input class="finput" id="add-defense-site" placeholder="A, B, C, Mid"></div>
               <div class="fg"><label class="flabel">Номер сетапа</label><input class="finput" id="add-defense-number" type="number" min="1" step="1" placeholder="1"></div>
-              <div class="fg"><label class="flabel">Zoom X</label><input class="finput" id="add-defense-zoom-x" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
-              <div class="fg"><label class="flabel">Zoom Y</label><input class="finput" id="add-defense-zoom-y" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
-              <div class="fg"><label class="flabel">Zoom ширина</label><input class="finput" id="add-defense-zoom-w" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
-              <div class="fg"><label class="flabel">Zoom высота</label><input class="finput" id="add-defense-zoom-h" type="number" step="0.0001" min="0" max="1" placeholder="позже"></div>
+              <input id="add-defense-zoom-x" type="hidden"><input id="add-defense-zoom-y" type="hidden"><input id="add-defense-zoom-w" type="hidden"><input id="add-defense-zoom-h" type="hidden">
+              <div class="fg full" style="font-size:11px;color:var(--text2);line-height:1.5;">Координаты зоны, метки, зума и абилок задаются прямо на карте каждого слота.</div>
             </div>
           </div>
 
@@ -4018,6 +4052,24 @@ function _zoomAreaFrom(prefix) {
   return { x, y, width, height };
 }
 
+function _defensePayload(session, site, number, fallbackZoom = null) {
+  const abilities = (session?.defenseAbilities || []).map((item, index) => ({
+    ability:String(item.ability || ''), slot:String(item.slot || ''), icon:String(item.icon || ''),
+    x:_defClamp(item.x), y:_defClamp(item.y), label:String(item.label || ''), note:String(item.note || ''), order:index + 1,
+    shape_kind:item.shape_kind || 'point', shape_radius:Number(item.shape_radius || 0),
+    points:item.shape_kind === 'line_segment' ? (item.points || []).slice(0,2).map(p=>({x:_defClamp(p.x),y:_defClamp(p.y)})) : [],
+  }));
+  const zoom = session?.zoomArea || fallbackZoom;
+  return {
+    site, number:number ?? 1,
+    site_marker_x:Number.isFinite(session?.siteMarkerX) ? session.siteMarkerX : 0,
+    site_marker_y:Number.isFinite(session?.siteMarkerY) ? session.siteMarkerY : 0,
+    marker_x:Number.isFinite(session?.markerX) ? session.markerX : 0,
+    marker_y:Number.isFinite(session?.markerY) ? session.markerY : 0,
+    ...(zoom ? { zoom_area:zoom } : {}), abilities,
+  };
+}
+
 function _contentExtrasForSave(category, prefix, sess = null) {
   if (category === 'wallbang') {
     const targetX = sess?.targetX ?? _numOrNull(`${prefix}-target-x`);
@@ -4033,9 +4085,7 @@ function _contentExtrasForSave(category, prefix, sess = null) {
     const site = (document.getElementById(`${prefix}-site`)?.value ?? '').trim();
     const number = _numOrNull(`${prefix}-number`);
     const zoom = _zoomAreaFrom(prefix);
-    const extra = { site, number: number ?? 1 };
-    if (zoom) extra.zoom_area = zoom;
-    return extra;
+    return _defensePayload(sess, site, number, zoom);
   }
   return {};
 }
@@ -4058,9 +4108,8 @@ function _contentEditExtrasForSave(category, id, sess = null) {
     const y = _numOrNull(`ce-defense-zoom-y-${id}`);
     const width = _numOrNull(`ce-defense-zoom-w-${id}`);
     const height = _numOrNull(`ce-defense-zoom-h-${id}`);
-    const extra = { site, number: number ?? 1 };
-    if ([x, y, width, height].every(v => v !== null)) extra.zoom_area = { x, y, width, height };
-    return extra;
+    const zoom = [x, y, width, height].every(v => v !== null) ? { x, y, width, height } : null;
+    return _defensePayload(sess, site, number, zoom);
   }
   return {};
 }
@@ -4073,6 +4122,8 @@ function refreshEditContentExtras(id) {
   if (sess) {
     _setEditMapMode(id, sess.mapMode || 'position');
     renderEditMarker(id);
+    _defRenderTools(id, true);
+    _defRender(id, true);
     updateEditCoords(id);
   }
 }
@@ -4092,6 +4143,8 @@ function refreshAddContentExtras() {
     updateSlotCoords(Number(id));
     renderSlotMarker(Number(id));
     renderSlotExtraTools(Number(id));
+    _defRenderTools(Number(id), false);
+    _defRender(Number(id), false);
   });
 }
 
@@ -5463,7 +5516,7 @@ async function finalizeDuel(duelId, forcedWinnerId = '') {
     if (!forcedWinnerId && votes1 === votes2) throw new Error('Ничья — продли голосование или выбери победителя вручную');
     const winnerId = forcedWinnerId || (votes1 > votes2 ? duel.lineup1Id : duel.lineup2Id);
     if (![duel.lineup1Id, duel.lineup2Id].includes(winnerId)) throw new Error('Некорректный победитель');
-    const loserId = votes1 > votes2 ? duel.lineup2Id : duel.lineup1Id;
+    const loserId = winnerId === duel.lineup1Id ? duel.lineup2Id : duel.lineup1Id;
     const winnerVotes = winnerId === duel.lineup1Id ? votes1 : votes2;
     const likesAwarded = Math.min(100, Math.max(0, winnerVotes));
     const winnerRef = doc(db, 'lineups', winnerId), loserRef = doc(db, 'lineups', loserId);
@@ -5487,6 +5540,11 @@ async function finalizeDuel(duelId, forcedWinnerId = '') {
       status: 'finished', finalized: true, winnerLineupId: winnerId, loserLineupId: loserId,
       winnerAuthorUid: authorUid || '', likesAwarded, pointsAwarded: authorUid ? 5 : 0,
       finalizedAt: serverTimestamp(), visible: true,
+    });
+    tx.set(doc(db, 'duel_announcements', duelId), {
+      duel_id: duelId, lineup_id: winnerId,
+      title: `Победил лайнап «${winner.title || winnerId}»!`,
+      created_at: serverTimestamp(), visible: true,
     });
     result = { winnerId, loserId, authorUid, likesAwarded, title: winner.title || winnerId };
   });
@@ -5630,14 +5688,15 @@ async function loadDuelsTab() {
   stopDuelsRealtime();
   loadFinishedDuels();
   try {
-    const q = window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')]);
-    _duelsUnsub = onSnapshot(q, snap => {
-      renderActiveDuelsSnapshot(snap).catch(e => {
-        wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
-      });
-    }, e => {
-      wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+    const [activeSnap, tiedSnap] = await Promise.all([
+      getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')])),
+      getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'tied'), orderBy('createdAt', 'desc')])),
+    ]);
+    const docs = [...activeSnap.docs, ...tiedSnap.docs].sort((a, b) => {
+      const av = a.data().createdAt?.seconds || 0, bv = b.data().createdAt?.seconds || 0;
+      return bv - av;
     });
+    await renderActiveDuelsSnapshot({ empty: docs.length === 0, docs });
   } catch (e) {
     wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
   }
@@ -5673,7 +5732,9 @@ async function renderActiveDuelsSnapshot(snap) {
       const total = v1 + v2;
       const p1 = total ? Math.round(v1 / total * 100) : 50;
       const p2 = total ? Math.round(v2 / total * 100) : 50;
-      const remaining = data.endsAt ? _timeLeft(data.endsAt) : '—';
+      const remaining = data.status === 'tied'
+        ? 'Ничья — выбери действие'
+        : (data.endsAt ? _timeLeft(data.endsAt) : '—');
 
       const tr = document.createElement('tr');
       tr.style.borderBottom = '1px solid var(--border)';
@@ -5702,7 +5763,7 @@ async function renderActiveDuelsSnapshot(snap) {
       tr.querySelector('[data-duel-extend]').addEventListener('click', async btn => {
         if (!confirm('Продлить дуэль на 24 часа?')) return;
         await updateDoc(doc(db, 'duels', btn.currentTarget.dataset.duelExtend), {
-          endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), extendedAt: serverTimestamp(),
+          status: 'active', endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), extendedAt: serverTimestamp(),
         });
         toast('Дуэль продлена на 24 часа', 's');
       });
@@ -7244,7 +7305,8 @@ function _addDraftHasContent(d = null) {
     draft.authorUid || draft.wallbang?.weapons?.length || draft.defense?.site ||
     (draft.slots || []).some(s =>
       s.title || s.description || s.markerX !== null || s.targetX !== null ||
-      s.videoUrl || s.screenshots?.length || s.trajectory?.length || s.extraAbilities?.length
+      s.videoUrl || s.screenshots?.length || s.trajectory?.length || s.extraAbilities?.length ||
+      s.siteMarkerX !== null || s.zoomArea || s.defenseAbilities?.length
     )
   );
 }
@@ -7262,6 +7324,11 @@ function collectAdminAddDraft() {
       targetY: s.targetY ?? null,
       trajectory: Array.isArray(s.trajectory) ? s.trajectory : [],
       extraAbilities: Array.isArray(s.extraAbilities) ? s.extraAbilities : [],
+      siteMarkerX: s.siteMarkerX ?? null,
+      siteMarkerY: s.siteMarkerY ?? null,
+      zoomArea: s.zoomArea || null,
+      defenseAbilities: Array.isArray(s.defenseAbilities) ? s.defenseAbilities : [],
+      defenseMode: s.defenseMode || 'setup',
       selectedExtraIndex: Number.isInteger(s.selectedExtraIndex) ? s.selectedExtraIndex : null,
       mapMode: s.mapMode || 'position',
       videoUrl: s.videoState?.status === 'done' ? (s.videoState.url || '') : '',
@@ -7319,6 +7386,280 @@ function clearAdminAddDraft() {
   try { localStorage.removeItem(ADD_DRAFT_KEY); } catch (_) {}
 }
 
+function _defClamp(value) { return Math.max(0, Math.min(1, Number(value) || 0)); }
+
+function _defShape(agent, ability) {
+  const key = `${agent || ''} ${ability || ''}`.toLowerCase();
+  if (/deadlock/.test(key) && /barrier mesh|barrier|барьер|сетка/.test(key)) return { kind:'mesh_burst', radius:.097 };
+  if (/deadlock/.test(key) && /gravnet|grav.*net|грав/.test(key)) return { kind:'net_area', radius:.04335 };
+  if (/deadlock/.test(key) && /sonic|sensor|сенсор|датчик|звуков/.test(key)) return { kind:'point', radius:0 };
+  if (/cypher/.test(key) && /trapwire|растяж/.test(key)) return { kind:'line_segment', radius:0 };
+  if (/cypher/.test(key) && /cyber cage|cage|клет/.test(key)) return { kind:'circle_area', radius:.026, theme:'cage' };
+  if (/viper/.test(key) && /toxic screen|screen|завес/.test(key)) return { kind:'line_segment', radius:0 };
+  if (/viper/.test(key) && /poison cloud|cloud|облак/.test(key)) return { kind:'circle_area', radius:.015275, theme:'viper' };
+  if (/viper/.test(key) && /snake bite|укус/.test(key)) return { kind:'circle_area', radius:.0165, theme:'viper' };
+  if (/viper/.test(key) && /viper.*pit|pit|гнезд/.test(key)) return { kind:'circle_area', radius:.0475, theme:'viper' };
+  if (/sage/.test(key) && /barrier|стен/.test(key)) return { kind:'line_segment', radius:0 };
+  return { kind:'point', radius:0 };
+}
+
+function _defLimit(agent, ability) {
+  const key = `${agent || ''} ${ability || ''}`.toLowerCase();
+  if (/cypher/.test(key) && /(trapwire|cage|растяж|клет)/.test(key)) return 2;
+  if (/killjoy/.test(key) && /(nanoswarm|нанос)/.test(key)) return 2;
+  if (/deadlock/.test(key) && /(sonic|sensor|сенсор|датчик|звуков)/.test(key)) return 2;
+  if (/sage/.test(key) && /(slow|замед)/.test(key)) return 2;
+  return 1;
+}
+
+function _defNormalizeAbility(item, index, agent) {
+  const ability = String(item?.ability || '').trim();
+  const canonical = _defShape(agent, ability);
+  const storedKind = item?.shape_kind || item?.shape?.kind;
+  const kind = storedKind || canonical.kind;
+  const points = (Array.isArray(item?.points) ? item.points : [])
+    .map(p => ({ x:_defClamp(p?.x), y:_defClamp(p?.y) })).slice(0, 2);
+  let x = Number(item?.x), y = Number(item?.y);
+  if ((!Number.isFinite(x) || !Number.isFinite(y)) && points.length) {
+    x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+    y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
+  }
+  return {
+    ability, slot:String(item?.slot || ''), icon:String(item?.icon || _abilityIcon(agent, ability) || ''),
+    x:_defClamp(Number.isFinite(x) ? x : .5), y:_defClamp(Number.isFinite(y) ? y : .5),
+    label:String(item?.label || ''), note:String(item?.note || ''), order:Number(item?.order || index + 1),
+    shape_kind:kind, shape_radius:Number(item?.shape_radius ?? item?.shape?.radius ?? canonical.radius ?? 0),
+    points:kind === 'line_segment' ? (points.length === 2 ? points : [{x:.46,y:.5},{x:.54,y:.5}]) : [],
+  };
+}
+
+function _defContext(id, edit = false) {
+  const session = edit ? editSessions[id] : addSlotSessions[id];
+  const wrap = document.getElementById(edit ? `ce-map-wrap-${id}` : `slot-${id}-map-wrap`);
+  const canvas = edit ? _eCanvas(id) : _sCanvas(id);
+  const imgRect = edit ? _eImgRect(id) : _sImgRect(id);
+  return session && wrap ? { id, edit, session, wrap, canvas, imgRect } : null;
+}
+
+function _defCategory(ctx) {
+  const value = document.getElementById(ctx.edit ? `ce-cat-${ctx.id}` : 'f-category')?.value || '';
+  return normalizeContentCategory(value);
+}
+
+function _defAgent(ctx) { return ctx.edit ? ctx.session.agent : pickedAgent; }
+
+function _defPointToWrap(ctx, point) {
+  return _coordToWrap(_defClamp(point.x), _defClamp(point.y), ctx.imgRect, ctx.wrap);
+}
+
+function _defAbilitiesFor(ctx) {
+  const agent = _defAgent(ctx);
+  return (AGENT_ABILITIES[agent] || AGENTS[agent] || []).map(ability => ({
+    ability, icon:_abilityIcon(agent, ability), shape:_defShape(agent, ability), limit:_defLimit(agent, ability),
+  }));
+}
+
+function _defModeLabel(mode) {
+  return ({site:'Поставь крупную метку зоны', setup:'Поставь кружок с номером сетапа', zoom:'Зажми ЛКМ и выдели область приближения', ability:'Выбери способность и поставь её на карту', preview:'Предпросмотр сетапа'}[mode] || 'Выбери режим');
+}
+
+function _defSetMode(id, edit, mode) {
+  const ctx = _defContext(id, edit); if (!ctx) return;
+  const s = ctx.session;
+  if (mode === 'preview') return _defPreview(id, edit);
+  s.defenseMode = mode;
+  s.defensePreview = false;
+  if (mode !== 'ability') s.defenseLineStart = null;
+  ctx.wrap.classList.remove('defense-previewing');
+  (edit ? _eApply : _sApply)(id);
+  _defRender(id, edit);
+  _defRenderTools(id, edit);
+  const hint = document.getElementById(`${edit ? 'ce' : 'slot'}-${id}-defense-hint`);
+  if (hint) hint.textContent = _defModeLabel(mode);
+}
+
+function _defPreview(id, edit) {
+  const ctx = _defContext(id, edit); if (!ctx) return;
+  const s = ctx.session, area = s.zoomArea;
+  if (!area || !(area.width > 0) || !(area.height > 0)) { toast('Сначала выдели область зума', 'e'); return; }
+  if (!s._defView) s._defView = { scale:s.mapScale, tx:s.mapTx, ty:s.mapTy };
+  const scale = Math.max(1, Math.min(8, .88 / Math.max(area.width, area.height)));
+  s.mapScale = scale;
+  s.mapTx = ctx.wrap.clientWidth * (.5 - (area.x + area.width / 2) * scale);
+  s.mapTy = ctx.wrap.clientHeight * (.5 - (area.y + area.height / 2) * scale);
+  s.defensePreview = true; s.defenseMode = 'preview';
+  ctx.wrap.classList.add('defense-previewing');
+  (edit ? _eClamp : _sClamp)(id); (edit ? _eApply : _sApply)(id);
+  _defRender(id, edit); _defRenderTools(id, edit);
+}
+
+function _defBack(id, edit) {
+  const ctx = _defContext(id, edit); if (!ctx) return;
+  const s = ctx.session, view = s._defView || {scale:1,tx:0,ty:0};
+  s.mapScale = view.scale; s.mapTx = view.tx; s.mapTy = view.ty; s._defView = null;
+  s.defensePreview = false; s.defenseMode = 'setup';
+  ctx.wrap.classList.remove('defense-previewing');
+  (edit ? _eClamp : _sClamp)(id); (edit ? _eApply : _sApply)(id);
+  _defRender(id, edit); _defRenderTools(id, edit);
+}
+
+function _defPlaceAbility(ctx, point) {
+  const s = ctx.session, selected = s.selectedDefenseAbility;
+  if (!selected) { toast('Сначала выбери способность', 'i'); return; }
+  const used = (s.defenseAbilities || []).filter(a => a.ability === selected.ability).length;
+  if (used >= selected.limit) { toast('Лимит этой способности достигнут', 'e'); return; }
+  if (selected.shape.kind === 'line_segment' && !s.defenseLineStart) {
+    s.defenseLineStart = point; _defRender(ctx.id, ctx.edit); _defRenderTools(ctx.id, ctx.edit); return;
+  }
+  const points = selected.shape.kind === 'line_segment' ? [s.defenseLineStart, point] : [];
+  const center = points.length ? {x:(points[0].x + points[1].x) / 2, y:(points[0].y + points[1].y) / 2} : point;
+  s.defenseAbilities.push(_defNormalizeAbility({
+    ability:selected.ability, icon:selected.icon, x:center.x, y:center.y,
+    shape_kind:selected.shape.kind, shape_radius:selected.shape.radius, points,
+  }, s.defenseAbilities.length, _defAgent(ctx)));
+  s.selectedDefenseIndex = s.defenseAbilities.length - 1;
+  s.defenseLineStart = null;
+  _defRender(ctx.id, ctx.edit); _defRenderTools(ctx.id, ctx.edit); queueAdminAddDraftSave();
+}
+
+function _defMoveAbility(item, point) {
+  if (item.shape_kind === 'line_segment' && item.points?.length === 2) {
+    const dx = point.x - item.x, dy = point.y - item.y;
+    item.points = item.points.map(p => ({x:_defClamp(p.x + dx), y:_defClamp(p.y + dy)}));
+  }
+  item.x = point.x; item.y = point.y;
+}
+
+function _defHandlePoint(id, edit, point) {
+  const ctx = _defContext(id, edit); if (!ctx || _defCategory(ctx) !== 'defense') return false;
+  const s = ctx.session;
+  if (s.defenseMode === 'site') { s.siteMarkerX=point.x; s.siteMarkerY=point.y; }
+  else if (s.defenseMode === 'setup') { s.markerX=point.x; s.markerY=point.y; }
+  else if (s.defenseMode === 'ability') _defPlaceAbility(ctx, point);
+  else if (s.defenseMode === 'moveAbility' && Number.isInteger(s.selectedDefenseIndex)) {
+    _defMoveAbility(s.defenseAbilities[s.selectedDefenseIndex], point); s.defenseMode='ability';
+  } else return false;
+  _defRender(id, edit); _defRenderTools(id, edit); updateSlotCoords?.(id); queueAdminAddDraftSave();
+  return true;
+}
+
+function _defArea(start, end) {
+  return { x:Math.min(start.x,end.x), y:Math.min(start.y,end.y), width:Math.abs(end.x-start.x), height:Math.abs(end.y-start.y) };
+}
+
+function _defSyncZoomInputs(id, edit = false) {
+  const ctx=_defContext(id,edit); if(!ctx)return;
+  const prefix=edit?`ce-defense-zoom`:'add-defense-zoom';
+  const values=ctx.session.zoomArea || {};
+  [['x','x'],['y','y'],['w','width'],['h','height']].forEach(([suffix,key])=>{const el=document.getElementById(`${prefix}-${suffix}${edit?`-${id}`:''}`);if(el)el.value=Number.isFinite(values[key])?values[key].toFixed(4):'';});
+}
+
+function _defRender(id, edit = false) {
+  const ctx = _defContext(id, edit); if (!ctx?.canvas) return;
+  ctx.canvas.querySelector('.defense-map-layer')?.remove();
+  if (_defCategory(ctx) !== 'defense') return;
+  const s = ctx.session, agent = _defAgent(ctx);
+  const netPatternId = `def-net-${edit ? 'e' : 'a'}-${String(id).replace(/[^a-zA-Z0-9_-]/g,'')}`;
+  const layer = document.createElement('div'); layer.className = 'defense-map-layer';
+  const pct = p => { const q = _defPointToWrap(ctx,p); return {x:q.x*100,y:q.y*100}; };
+  const shapeSvg = (s.defenseAbilities || []).map((item, index) => {
+    const center = pct(item), shape = _defShape(agent, item.ability);
+    if (item.shape_kind === 'line_segment' && item.points?.length === 2) {
+      const a=pct(item.points[0]), b=pct(item.points[1]);
+      return `<line class="defense-shape-line-bg" x1="${a.x}%" y1="${a.y}%" x2="${b.x}%" y2="${b.y}%"></line><line class="defense-shape-line" x1="${a.x}%" y1="${a.y}%" x2="${b.x}%" y2="${b.y}%"></line>`;
+    }
+    const radius = Math.max(0, Number(item.shape_radius || shape.radius || 0)) * ctx.imgRect.width / ctx.wrap.clientWidth * 100;
+    if (item.shape_kind === 'mesh_burst') {
+      const d=radius/Math.sqrt(2); return [[-d,-d],[d,-d],[-d,d],[d,d]].map(([dx,dy]) => `<line class="defense-shape-line-bg" x1="${center.x}%" y1="${center.y}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><line class="defense-shape-mesh" x1="${center.x}%" y1="${center.y}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><circle class="defense-shape-node" cx="${center.x+dx}%" cy="${center.y+dy}%" r=".6%"></circle>`).join('');
+    }
+    if (item.shape_kind === 'net_area') {
+      return `<circle class="defense-shape-area net" cx="${center.x}%" cy="${center.y}%" r="${radius}%" style="fill:url(#${netPatternId})"></circle>`;
+    }
+    if (item.shape_kind === 'circle_area') {
+      const cls = shape.theme === 'viper' ? ' viper' : '';
+      return `<circle class="defense-shape-area${cls}" cx="${center.x}%" cy="${center.y}%" r="${radius}%"></circle>`;
+    }
+    return '';
+  }).join('');
+  const draft = s.defenseLineStart ? (() => { const p=pct(s.defenseLineStart); return `<circle class="defense-shape-node" cx="${p.x}%" cy="${p.y}%" r=".8%"></circle>`; })() : '';
+  let html = `<svg aria-hidden="true"><defs><pattern id="${netPatternId}" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M 0 0 L 0 7 M 3.5 0 L 3.5 7" class="defense-net-grid-line"></path></pattern></defs>${shapeSvg}${draft}</svg>`;
+  if (Number.isFinite(s.siteMarkerX)) { const p=pct({x:s.siteMarkerX,y:s.siteMarkerY}); const site=(document.getElementById(edit?`ce-defense-site-${id}`:'add-defense-site')?.value||'A').trim(); html += `<div class="defense-site-marker" data-defense-role="site" style="left:${p.x}%;top:${p.y}%">${esc(site||'A')}</div>`; }
+  if (Number.isFinite(s.markerX)) { const p=pct({x:s.markerX,y:s.markerY}); const num=document.getElementById(edit?`ce-defense-number-${id}`:'add-defense-number')?.value||'1'; html += `<div class="defense-setup-marker" data-defense-role="setup" style="left:${p.x}%;top:${p.y}%">${esc(num)}</div>`; }
+  if (s.zoomArea?.width > 0 && s.zoomArea?.height > 0) { const a=pct(s.zoomArea), b=pct({x:s.zoomArea.x+s.zoomArea.width,y:s.zoomArea.y+s.zoomArea.height}); html += `<div class="defense-zoom-box" style="left:${a.x}%;top:${a.y}%;width:${b.x-a.x}%;height:${b.y-a.y}%"></div>`; }
+  (s.defenseAbilities || []).forEach((item,index) => {
+    const p=pct(item), sel=s.selectedDefenseIndex===index?' sel':'';
+    if (item.shape_kind === 'line_segment' && item.points?.length===2) item.points.forEach((pt,pi)=>{ const a=pct(pt); html += `<div class="defense-line-anchor${sel}" data-defense-index="${index}" data-defense-point="${pi}" style="left:${a.x}%;top:${a.y}%"></div>`; });
+    if (item.shape_kind !== 'net_area') html += `<div class="defense-ability-point${sel}" data-defense-index="${index}" style="left:${p.x}%;top:${p.y}%">${item.icon?`<img src="${esc(item.icon)}" alt="">`:''}</div>`;
+  });
+  layer.innerHTML = html; ctx.canvas.appendChild(layer); _defWireLayer(ctx, layer);
+}
+
+function _defWireLayer(ctx, layer) {
+  layer.querySelectorAll('[data-defense-index],[data-defense-role]').forEach(node => node.addEventListener('mousedown', event => {
+    if (event.button !== 0) return; event.preventDefault(); event.stopPropagation();
+    const index = Number(node.dataset.defenseIndex), pointIndex = node.dataset.defensePoint === undefined ? null : Number(node.dataset.defensePoint);
+    const role = node.dataset.defenseRole || '';
+    if (Number.isInteger(index)) ctx.session.selectedDefenseIndex = index;
+    const move = ev => {
+      const p=_eventToMapNorm(ev.clientX,ev.clientY,ctx.wrap,ctx.imgRect,ctx.session.mapTx,ctx.session.mapTy,ctx.session.mapScale);
+      if (role==='site') { ctx.session.siteMarkerX=p.x; ctx.session.siteMarkerY=p.y; }
+      else if (role==='setup') { ctx.session.markerX=p.x; ctx.session.markerY=p.y; }
+      else if (Number.isInteger(index) && pointIndex !== null) {
+        const item=ctx.session.defenseAbilities[index]; item.points[pointIndex]=p;
+        item.x=(item.points[0].x+item.points[1].x)/2; item.y=(item.points[0].y+item.points[1].y)/2;
+      } else if (Number.isInteger(index)) _defMoveAbility(ctx.session.defenseAbilities[index],p);
+      _defRender(ctx.id,ctx.edit);
+    };
+    const up = () => { document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); _defRenderTools(ctx.id,ctx.edit); queueAdminAddDraftSave(); };
+    document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+  }));
+}
+
+function _defRenderTools(id, edit = false) {
+  const ctx=_defContext(id,edit); if (!ctx) return;
+  const root=document.getElementById(`${edit?'ce':'slot'}-${id}-defense-tools`); if (!root) return;
+  const enabled=_defCategory(ctx)==='defense'; root.hidden=!enabled; if (!enabled) return;
+  root.querySelectorAll('[data-defense-mode]').forEach(btn=>btn.classList.toggle('active',ctx.session.defenseMode===btn.dataset.defenseMode));
+  const picker=root.querySelector('[data-defense-picker]'), list=root.querySelector('[data-defense-list]');
+  const abilities=_defAbilitiesFor(ctx);
+  if (picker) picker.innerHTML=abilities.length?abilities.map(ab=>{const count=(ctx.session.defenseAbilities||[]).filter(x=>x.ability===ab.ability).length;return `<button type="button" class="abil-btn${ctx.session.selectedDefenseAbility?.ability===ab.ability?' sel':''}" data-defense-add="${esc(ab.ability)}" ${count>=ab.limit?'disabled':''}>${ab.icon?`<img src="${esc(ab.icon)}" alt="">`:''}<span>${esc(ab.ability)}</span><small>${count}/${ab.limit}</small></button>`;}).join(''):'<span style="font-size:11px;color:var(--text2)">Выбери агента защиты</span>';
+  picker?.querySelectorAll('[data-defense-add]').forEach(btn=>btn.addEventListener('click',()=>{const ab=abilities.find(x=>x.ability===btn.dataset.defenseAdd);if(!ab)return;ctx.session.selectedDefenseAbility=ab;ctx.session.selectedDefenseIndex=null;_defSetMode(id,edit,'ability');}));
+  if (list) list.innerHTML=(ctx.session.defenseAbilities||[]).length?(ctx.session.defenseAbilities||[]).map((item,index)=>`<div class="defense-placed-chip${ctx.session.selectedDefenseIndex===index?' sel':''}" data-defense-select="${index}"><b>${index+1}</b>${item.icon?`<img src="${esc(item.icon)}" alt="">`:'<span></span>'}<span title="${esc(item.ability)}">${esc(item.ability)}</span><button type="button" data-defense-remove="${index}" title="Удалить">×</button></div>`).join(''):'<span style="font-size:11px;color:var(--text2)">Абилки ещё не расставлены</span>';
+  list?.querySelectorAll('[data-defense-select]').forEach(chip=>chip.addEventListener('click',e=>{if(e.target.closest('[data-defense-remove]'))return;ctx.session.selectedDefenseIndex=Number(chip.dataset.defenseSelect);ctx.session.selectedDefenseAbility=null;ctx.session.defenseMode='moveAbility';_defRender(id,edit);_defRenderTools(id,edit);}));
+  list?.querySelectorAll('[data-defense-remove]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const i=Number(btn.dataset.defenseRemove);ctx.session.defenseAbilities.splice(i,1);ctx.session.defenseAbilities.forEach((x,j)=>x.order=j+1);ctx.session.selectedDefenseIndex=null;_defRender(id,edit);_defRenderTools(id,edit);queueAdminAddDraftSave();}));
+  const selected=ctx.session.defenseAbilities?.[ctx.session.selectedDefenseIndex];
+  const radius=root.querySelector('[data-defense-radius]');
+  if(radius){radius.disabled=!selected||!['mesh_burst','circle_area','net_area'].includes(selected.shape_kind);radius.value=selected?Number(selected.shape_radius||0).toFixed(4):'';}
+  const back=root.querySelector('[data-defense-back]'); if(back) back.hidden=!ctx.session.defensePreview;
+}
+
+function _defInitTools(id, edit = false) {
+  const root=document.getElementById(`${edit?'ce':'slot'}-${id}-defense-tools`); if(!root)return;
+  root.querySelectorAll('[data-defense-mode]').forEach(btn=>btn.addEventListener('click',()=>_defSetMode(id,edit,btn.dataset.defenseMode)));
+  root.querySelector('[data-defense-back]')?.addEventListener('click',()=>_defBack(id,edit));
+  root.querySelector('[data-defense-radius]')?.addEventListener('change',e=>{const ctx=_defContext(id,edit),item=ctx?.session.defenseAbilities?.[ctx.session.selectedDefenseIndex];if(!item)return;item.shape_radius=Math.max(0,Math.min(.3,Number(e.target.value)||0));_defRender(id,edit);_defRenderTools(id,edit);queueAdminAddDraftSave();});
+  _defRenderTools(id,edit);
+}
+
+function _defToolsHtml(id, edit = false) {
+  const prefix=edit?'ce':'slot';
+  return `<aside class="slot-extra-tools defense-editor-tools" id="${prefix}-${id}-defense-tools" hidden>
+    <div class="flabel">Редактор защиты</div>
+    <div class="defense-mode-grid">
+      <button type="button" class="btn" data-defense-mode="site">A Зона</button>
+      <button type="button" class="btn" data-defense-mode="setup">① Метка</button>
+      <button type="button" class="btn" data-defense-mode="zoom">⌗ Область зума</button>
+      <button type="button" class="btn" data-defense-mode="ability">✦ Абилки</button>
+      <button type="button" class="btn" data-defense-mode="preview">▶ Предпросмотр</button>
+    </div>
+    <button type="button" class="btn defense-preview-back" data-defense-back hidden>← Вернуться к разметке</button>
+    <div id="${prefix}-${id}-defense-hint" style="font-size:11px;color:var(--text2);line-height:1.4;">Выбери режим разметки</div>
+    <div class="defense-ability-picker" data-defense-picker></div>
+    <div class="defense-placed-list" data-defense-list></div>
+    <label class="defense-radius-controls"><span style="font-size:11px;color:var(--text2)">Радиус</span><input class="finput" type="number" min="0" max=".3" step=".001" data-defense-radius disabled></label>
+  </aside>`;
+}
+
 function _buildSlotHtml(id) {
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -7349,6 +7690,7 @@ function _buildSlotHtml(id) {
       <div class="fg full">
         <label class="flabel">Точка на карте — <b>ЛКМ</b> ставит выбранную метку · <b>ПКМ</b> добавляет точку траектории</label>
         <div class="slot-map-workbench">
+          ${_defToolsHtml(id)}
           <aside class="slot-extra-tools" id="slot-${id}-extra-tools" hidden>
             <div class="flabel">Доп. траектории</div>
             <div style="font-size:11px;color:var(--text2);line-height:1.35;">Выбранная иконка принимает точки траектории.</div>
@@ -7409,7 +7751,8 @@ function renderSlotMarker(id) {
   const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
   const ir = _sImgRect(id);
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
-  if (s.markerX !== null) {
+  const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
+  if (category !== 'defense' && s.markerX !== null) {
     const p = _coordToWrap(s.markerX, s.markerY, ir, wrap);
     const dot = document.createElement('div');
     const iconUrl = _currentAbilityIcon();
@@ -7427,6 +7770,7 @@ function renderSlotMarker(id) {
     c.appendChild(target);
   }
   _sApply(id);
+  _defRender(id, false);
 }
 function updateSlotCoords(id) {
   const s = addSlotSessions[id]; if (!s) return;
@@ -7581,6 +7925,18 @@ function _setSlotMapMode(id, mode) {
   const trajBtn = document.getElementById('slot-'+id+'-mode-traj');
   const trajAct = document.getElementById('slot-'+id+'-traj-actions');
   const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
+  if (category === 'defense') {
+    if (posBtn) posBtn.style.display = 'none';
+    if (targetBtn) targetBtn.style.display = 'none';
+    if (trajBtn) trajBtn.style.display = 'none';
+    if (trajAct) trajAct.style.display = 'none';
+    s.mapMode = 'defense';
+    _defRenderTools(id, false); _defRender(id, false); updateSlotCoords(id);
+    return;
+  }
+  if (mode === 'defense') { s.mapMode = 'position'; mode = 'position'; }
+  if (posBtn) posBtn.style.display = '';
+  if (trajBtn) trajBtn.style.display = '';
   if (targetBtn) targetBtn.style.display = category === 'wallbang' ? '' : 'none';
   if (category !== 'wallbang' && mode === 'target') { s.mapMode = 'position'; mode = 'position'; }
   if (posBtn)  { posBtn.className  = mode==='position'   ? 'btn btn-save':'btn'; posBtn.style.cssText  = mode==='position'   ? 'flex:1;':'flex:1;border:1px solid var(--border);color:var(--text2);'; }
@@ -7601,7 +7957,7 @@ function updateSlotMapWrap(id, mapName) {
   renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName);
   const img = wrap.querySelector('.map-canvas img');
   if (img) {
-    const tryRender = () => { _sApply(id); renderSlotMarker(id); renderSlotTraj(id); };
+    const tryRender = () => { _sApply(id); renderSlotMarker(id); renderSlotTraj(id); _defRender(id, false); };
     img.addEventListener('load', tryRender);
     if (img.complete) requestAnimationFrame(tryRender);
   }
@@ -7624,6 +7980,19 @@ function initSlotMapWrap(id) {
   // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
   wrap.addEventListener('mousedown', e => {
     if (e.button!==0 || !_sCanvas(id)) return; e.preventDefault();
+    const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
+    if (category === 'defense' && !e.shiftKey) {
+      if (s.defensePreview) return;
+      const ir = _sImgRect(id);
+      const start = _eventToMapNorm(e.clientX,e.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);
+      if (s.defenseMode === 'zoom') {
+        s.zoomArea={x:start.x,y:start.y,width:.001,height:.001};
+        const onMove = mv => { const end=_eventToMapNorm(mv.clientX,mv.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);s.zoomArea=_defArea(start,end);_defRender(id,false); };
+        const onUp = up => { document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);const end=_eventToMapNorm(up.clientX,up.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);const area=_defArea(start,end);s.zoomArea=area.width>=.01&&area.height>=.01?area:null;_defSyncZoomInputs(id,false);_defRender(id,false);_defRenderTools(id,false);queueAdminAddDraftSave(); };
+        document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);return;
+      }
+      _defHandlePoint(id,false,start); return;
+    }
     s._mapDragging = false;
     const sx = e.clientX, sy = e.clientY, tx0 = s.mapTx, ty0 = s.mapTy;
     wrap.style.cursor = 'grabbing';
@@ -7658,6 +8027,7 @@ function initSlotMapWrap(id) {
   });
   wrap.addEventListener('contextmenu', e => {
     if (!_sCanvas(id)) return; e.preventDefault();
+    if (normalizeContentCategory(document.getElementById('f-category')?.value ?? '') === 'defense') return;
     const ir = _sImgRect(id);
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
     const points = _activeSlotTrajectory(s);
@@ -7800,6 +8170,11 @@ function createAddSlot(draftSlot = null) {
     targetY:draftSlot?.targetY ?? null,
     trajectory:Array.isArray(draftSlot?.trajectory) ? draftSlot.trajectory : [],
     extraAbilities:Array.isArray(draftSlot?.extraAbilities) ? draftSlot.extraAbilities : (Array.isArray(draftSlot?.extra_abilities) ? draftSlot.extra_abilities : []),
+    siteMarkerX:draftSlot?.siteMarkerX ?? draftSlot?.site_marker_x ?? null,
+    siteMarkerY:draftSlot?.siteMarkerY ?? draftSlot?.site_marker_y ?? null,
+    zoomArea:draftSlot?.zoomArea || draftSlot?.zoom_area || null,
+    defenseAbilities:(draftSlot?.defenseAbilities || draftSlot?.abilities || []).map((item,index)=>_defNormalizeAbility(item,index,pickedAgent || draftSlot?.agent || '')),
+    defenseMode:draftSlot?.defenseMode || 'setup', selectedDefenseAbility:null, selectedDefenseIndex:null, defenseLineStart:null, defensePreview:false,
     selectedExtraIndex:Number.isInteger(draftSlot?.selectedExtraIndex) ? draftSlot.selectedExtraIndex : null,
     mapMode:draftSlot?.mapMode || 'position',
     mapScale:1,mapTx:0,mapTy:0,_mapDragging:false,
@@ -7812,6 +8187,7 @@ function createAddSlot(draftSlot = null) {
   if (draftSlot?.title) document.getElementById(`slot-${id}-title`).value = draftSlot.title;
   if (draftSlot?.description) document.getElementById(`slot-${id}-desc`).value = draftSlot.description;
   _initSlotEvents(id);
+  _defInitTools(id, false);
   const mapName = document.getElementById('f-map')?.value || '';
   if (mapName) updateSlotMapWrap(id, mapName);
   renderSlotExtraTools(id);
@@ -7867,16 +8243,17 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   if (category === 'wallbang' && !_checkedValues('add-wallbang-weapons').length) { toast('Выбери оружие для прострела','e'); return; }
   const defenseSite = (document.getElementById('add-defense-site')?.value ?? '').trim();
   const defenseNumber = _numOrNull('add-defense-number');
-  const defenseZoom = _zoomAreaFrom('add-defense');
   if (category === 'defense' && !defenseSite) { toast('Укажи зону защиты','e'); return; }
   if (category === 'defense' && (!defenseNumber || defenseNumber < 1)) { toast('Укажи номер сетапа защиты','e'); return; }
-  if (category === 'defense' && !defenseZoom) { toast('Укажи zoom-область защиты','e'); return; }
   const slotIds = Object.keys(addSlotSessions);
   for (const id of slotIds) {
     const s = addSlotSessions[id];
     const n = slotIds.indexOf(id)+1;
     if (!document.getElementById('slot-'+id+'-title')?.value.trim()) { toast(`Слот #${n}: заполни название`,'e'); return; }
-    if (s.markerX===null) { toast(`Слот #${n}: поставь точку на карте`,'e'); return; }
+    if (s.markerX===null) { toast(`Слот #${n}: поставь ${category === 'defense' ? 'метку сетапа' : 'точку на карте'}`,'e'); return; }
+    if (category === 'defense' && !Number.isFinite(s.siteMarkerX)) { toast(`Слот #${n}: поставь метку зоны`,'e'); return; }
+    if (category === 'defense' && !(s.zoomArea?.width >= .01 && s.zoomArea?.height >= .01)) { toast(`Слот #${n}: выдели область зума`,'e'); return; }
+    if (category === 'defense' && !s.defenseAbilities?.length) { toast(`Слот #${n}: расставь хотя бы одну абилку`,'e'); return; }
     if (category === 'wallbang' && (s.targetX === null || s.targetX === undefined)) { toast(`Слот #${n}: поставь точку прострела`,'e'); return; }
     if (s.videoState.status==='uploading') { toast('Подожди — видео ещё загружается…','i'); return; }
     if (s.screenshots.some(sc=>sc.status==='uploading')) { toast('Подожди — фото ещё загружаются…','i'); return; }
@@ -7884,7 +8261,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const btn=document.getElementById('btn-add-lineup');
   btn.disabled=true; btn.textContent='Сохранение…';
   try {
-    const rangeRadius = category === 'wallbang' ? 0 : await getConfiguredRangeRadius(map, agent, ability);
+    const rangeRadius = (category === 'wallbang' || category === 'defense') ? 0 : await getConfiguredRangeRadius(map, agent, ability);
     const saves=slotIds.map(async id=>{
       const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
@@ -8319,6 +8696,7 @@ function initAgentGrid() {
       grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
       card.classList.add('sel');
       renderAbilityRow();
+      Object.keys(addSlotSessions).forEach(id=>{const s=addSlotSessions[id];s.selectedDefenseAbility=null;_defRenderTools(Number(id),false);_defRender(Number(id),false);});
       queueAdminAddDraftSave();
     });
   });
@@ -8638,7 +9016,7 @@ document.getElementById('add-slots-container')?.addEventListener('input', queueA
 document.getElementById('add-slots-container')?.addEventListener('change', queueAdminAddDraftSave);
 ['f-category','f-status','f-exclusive','f-author-input','add-wallbang-target-x','add-wallbang-target-y','add-defense-site','add-defense-number','add-defense-zoom-x','add-defense-zoom-y','add-defense-zoom-w','add-defense-zoom-h']
   .forEach(id => {
-    document.getElementById(id)?.addEventListener('input', queueAdminAddDraftSave);
+    document.getElementById(id)?.addEventListener('input', () => { queueAdminAddDraftSave(); if(id==='add-defense-site'||id==='add-defense-number')Object.keys(addSlotSessions).forEach(sid=>_defRender(Number(sid),false)); });
     document.getElementById(id)?.addEventListener('change', queueAdminAddDraftSave);
   });
 window.addEventListener('beforeunload', saveAdminAddDraftNow);
@@ -8965,17 +9343,23 @@ const editSessions = {};
 
 function _getEditSession(id, l) {
   if (!editSessions[id]) {
+    const isDefense = contentCategoryOf(l) === 'defense';
     editSessions[id] = {
       agent: l.agent ?? '', ability: l.ability ?? '',
-      markerX: typeof l.position_x === 'number' ? l.position_x : null,
-      markerY: typeof l.position_y === 'number' ? l.position_y : null,
+      markerX: typeof (isDefense ? l.marker_x : l.position_x) === 'number' ? (isDefense ? l.marker_x : l.position_x) : null,
+      markerY: typeof (isDefense ? l.marker_y : l.position_y) === 'number' ? (isDefense ? l.marker_y : l.position_y) : null,
+      siteMarkerX:typeof l.site_marker_x === 'number' ? l.site_marker_x : null,
+      siteMarkerY:typeof l.site_marker_y === 'number' ? l.site_marker_y : null,
+      zoomArea:l.zoom_area && typeof l.zoom_area === 'object' ? {...l.zoom_area} : null,
+      defenseAbilities:(Array.isArray(l.abilities) ? l.abilities : []).map((item,index)=>_defNormalizeAbility(item,index,l.agent || '')),
+      defenseMode:isDefense ? 'setup' : 'position', selectedDefenseAbility:null, selectedDefenseIndex:null, defenseLineStart:null, defensePreview:false,
       mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
       screenshots: (Array.isArray(l.screenshots) ? l.screenshots : []).map(url => ({ type: 'existing', url })),
       videoUrl: l.video_url ?? null, videoXhr: null,
       trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
       targetX: typeof l.target_x === 'number' ? l.target_x : null,
       targetY: typeof l.target_y === 'number' ? l.target_y : null,
-      mapMode: 'position',
+      mapMode: isDefense ? 'defense' : 'position',
     };
   }
   return editSessions[id];
@@ -9041,22 +9425,25 @@ function buildEditForm(id, l) {
     <div class="fgrid">
       <div class="fg"><label class="flabel">Зона / плент</label><input class="finput" id="ce-defense-site-${id}" value="${esc(l.site ?? '')}" placeholder="A, B, C, Mid"></div>
       <div class="fg"><label class="flabel">Номер сетапа</label><input class="finput" id="ce-defense-number-${id}" type="number" min="1" step="1" value="${l.number ?? ''}"></div>
-      <div class="fg"><label class="flabel">Zoom X</label><input class="finput" id="ce-defense-zoom-x-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.x ?? ''}"></div>
-      <div class="fg"><label class="flabel">Zoom Y</label><input class="finput" id="ce-defense-zoom-y-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.y ?? ''}"></div>
-      <div class="fg"><label class="flabel">Zoom ширина</label><input class="finput" id="ce-defense-zoom-w-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.width ?? ''}"></div>
-      <div class="fg"><label class="flabel">Zoom высота</label><input class="finput" id="ce-defense-zoom-h-${id}" type="number" step="0.0001" min="0" max="1" value="${l.zoom_area?.height ?? ''}"></div>
+      <input id="ce-defense-zoom-x-${id}" type="hidden" value="${l.zoom_area?.x ?? ''}"><input id="ce-defense-zoom-y-${id}" type="hidden" value="${l.zoom_area?.y ?? ''}"><input id="ce-defense-zoom-w-${id}" type="hidden" value="${l.zoom_area?.width ?? ''}"><input id="ce-defense-zoom-h-${id}" type="hidden" value="${l.zoom_area?.height ?? ''}">
+      <div class="fg full" style="font-size:11px;color:var(--text2);line-height:1.5;">Редактируй зону, метку, область зума и геометрию абилок на карте ниже.</div>
     </div>
   </div>
   <div class="fg full"><label class="flabel">Точка на карте</label>
-    <div id="ce-map-wrap-${id}" class="map-picker-wrap"><div class="map-ph">Выбери карту выше</div></div>
-    <div style="display:flex;gap:8px;margin-top:8px;">
-      <button id="ce-mode-pos-${id}"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
-      <button id="ce-mode-target-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);${selectedCategory === 'wallbang' ? '' : 'display:none;'}">🎯 Точка прострела</button>
-      <button id="ce-mode-traj-${id}" class="btn"          style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
-    </div>
-    <div id="ce-traj-actions-${id}" style="display:none;gap:8px;margin-top:6px;">
-      <button id="ce-traj-undo-${id}"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
-      <button id="ce-traj-clear-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
+    <div class="slot-map-workbench">
+      ${_defToolsHtml(id, true)}
+      <div>
+        <div id="ce-map-wrap-${id}" class="map-picker-wrap"><div class="map-ph">Выбери карту выше</div></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button id="ce-mode-pos-${id}"  class="btn btn-save" style="flex:1;">📍 Позиция игрока</button>
+          <button id="ce-mode-target-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);${selectedCategory === 'wallbang' ? '' : 'display:none;'}">🎯 Точка прострела</button>
+          <button id="ce-mode-traj-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);">✏️ Траектория</button>
+        </div>
+        <div id="ce-traj-actions-${id}" style="display:none;gap:8px;margin-top:6px;">
+          <button id="ce-traj-undo-${id}"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
+          <button id="ce-traj-clear-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
+        </div>
+      </div>
     </div>
     <div class="coords-row">
       X: <span class="coord-pill" id="ce-coord-x-${id}">—</span>
@@ -9103,8 +9490,9 @@ function initEditAgentGrid(id) {
   grid.querySelectorAll('.agent-card').forEach(card => {
     card.addEventListener('click', () => {
       sess.agent = card.dataset.agent; sess.ability = '';
+      sess.selectedDefenseAbility = null;
       grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
-      card.classList.add('sel'); renderEditAbilityRow(id);
+      card.classList.add('sel'); renderEditAbilityRow(id); _defRenderTools(id,true); _defRender(id,true);
     });
   });
 }
@@ -9167,7 +9555,7 @@ function updateEditMapPicker(id, mapName) {
   renderMapSiteLabels(wrap.querySelector('.map-canvas'), key);
   const img = wrap.querySelector('.map-canvas img');
   if (!img) return;
-  const tryRender = () => { if (_eCanvas(id)) { _eApply(id); renderEditMarker(id); renderEditTrajectory(id); } };
+  const tryRender = () => { if (_eCanvas(id)) { _eApply(id); renderEditMarker(id); renderEditTrajectory(id); _defRender(id, true); } };
   img.addEventListener('load', tryRender);
   img.addEventListener('error', () => { wrap.innerHTML = `<div class="map-ph">⚠ Не удалось загрузить карту "${esc(key)}"</div>`; });
   if (img.complete) requestAnimationFrame(tryRender);
@@ -9179,7 +9567,8 @@ function renderEditMarker(id) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
   const ir = _eImgRect(id);
   c.querySelectorAll('.map-marker').forEach(m => m.remove());
-  if (s.markerX !== null) {
+  const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
+  if (category !== 'defense' && s.markerX !== null) {
     const p = _coordToWrap(s.markerX, s.markerY, ir, wrap);
     const dot = document.createElement('div');
     const iconUrl = _eAbilIcon(id);
@@ -9197,6 +9586,7 @@ function renderEditMarker(id) {
     c.appendChild(target);
   }
   _eApply(id);
+  _defRender(id, true);
 }
 
 function updateEditCoords(id) {
@@ -9208,6 +9598,16 @@ function updateEditCoords(id) {
   const tw = document.getElementById('ce-target-coords-' + id);
   const he = document.getElementById('ce-coord-hint-' + id);
   const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
+  if (category === 'defense') {
+    if (posBtn) posBtn.style.display='none';
+    if (targetBtn) targetBtn.style.display='none';
+    if (trajBtn) trajBtn.style.display='none';
+    if (trajAct) trajAct.style.display='none';
+    sess.mapMode='defense'; _defRenderTools(id,true); _defRender(id,true); updateEditCoords(id); return;
+  }
+  if (mode==='defense') { sess.mapMode='position'; mode='position'; }
+  if (posBtn) posBtn.style.display='';
+  if (trajBtn) trajBtn.style.display='';
   if (xe) xe.textContent = s.markerX !== null ? s.markerX.toFixed(4) : '—';
   if (ye) ye.textContent = s.markerY !== null ? s.markerY.toFixed(4) : '—';
   if (tw) tw.style.display = category === 'wallbang' ? 'inline-flex' : 'none';
@@ -9271,6 +9671,18 @@ function initEditMapInteraction(id, initialMap) {
   // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
   wrap.addEventListener('mousedown', e => {
     if (e.button !== 0 || !_eCanvas(id)) return; e.preventDefault();
+    const category=normalizeContentCategory(document.getElementById('ce-cat-'+id)?.value ?? '');
+    if(category==='defense'&&!e.shiftKey){
+      if(s.defensePreview)return;
+      const ir=_eImgRect(id),start=_eventToMapNorm(e.clientX,e.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);
+      if(s.defenseMode==='zoom'){
+        s.zoomArea={x:start.x,y:start.y,width:.001,height:.001};
+        const onMove=mv=>{const end=_eventToMapNorm(mv.clientX,mv.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);s.zoomArea=_defArea(start,end);_defRender(id,true);};
+        const onUp=up=>{document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onUp);const end=_eventToMapNorm(up.clientX,up.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale),area=_defArea(start,end);s.zoomArea=area.width>=.01&&area.height>=.01?area:null;_defSyncZoomInputs(id,true);_defRender(id,true);_defRenderTools(id,true);};
+        document.addEventListener('mousemove',onMove);document.addEventListener('mouseup',onUp);return;
+      }
+      _defHandlePoint(id,true,start);return;
+    }
     s.mapDragging = false;
     const sx = e.clientX, sy = e.clientY, tx0 = s.mapTx, ty0 = s.mapTy;
     wrap.style.cursor = 'grabbing';
@@ -9298,6 +9710,7 @@ function initEditMapInteraction(id, initialMap) {
   });
   wrap.addEventListener('contextmenu', e => {
     if (!_eCanvas(id)) return; e.preventDefault();
+    if(normalizeContentCategory(document.getElementById('ce-cat-'+id)?.value ?? '')==='defense')return;
     const ir = _eImgRect(id);
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
     if (s.trajectory.length === 0 && s.markerX !== null) s.trajectory.push({ x: s.markerX, y: s.markerY });
@@ -9306,6 +9719,7 @@ function initEditMapInteraction(id, initialMap) {
   });
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
     s.mapScale = 1; s.mapTx = 0; s.mapTy = 0; s.markerX = null; s.markerY = null; s.targetX = null; s.targetY = null; s.trajectory = [];
+    s.siteMarkerX=null;s.siteMarkerY=null;s.zoomArea=null;s.defenseAbilities=[];s.selectedDefenseIndex=null;s.selectedDefenseAbility=null;
     updateEditMapPicker(id, e.target.value); updateEditCoords(id); _setEditMapMode(id, 'position');
   });
   document.getElementById('ce-cat-' + id)?.addEventListener('change', () => refreshEditContentExtras(id));
@@ -9314,6 +9728,8 @@ function initEditMapInteraction(id, initialMap) {
   document.getElementById('ce-mode-traj-' + id)?.addEventListener('click', () => _setEditMapMode(id, 'trajectory'));
   document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory.pop(); renderEditTrajectory(id); });
   document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory = []; renderEditTrajectory(id); });
+  ['site','number'].forEach(field=>document.getElementById(`ce-defense-${field}-${id}`)?.addEventListener('input',()=>_defRender(id,true)));
+  _defInitTools(id,true);
   renderEditTrajectory(id);
 }
 
@@ -9491,10 +9907,13 @@ async function saveEditedLineup(id) {
   const defenseZoomY = _numOrNull(`ce-defense-zoom-y-${id}`);
   const defenseZoomW = _numOrNull(`ce-defense-zoom-w-${id}`);
   const defenseZoomH = _numOrNull(`ce-defense-zoom-h-${id}`);
-  const defenseZoom = [defenseZoomX, defenseZoomY, defenseZoomW, defenseZoomH].every(v => v !== null);
+  const defenseZoom = sess.zoomArea || ([defenseZoomX, defenseZoomY, defenseZoomW, defenseZoomH].every(v => v !== null) ? {x:defenseZoomX,y:defenseZoomY,width:defenseZoomW,height:defenseZoomH} : null);
   if (category === 'defense' && !defenseSite) { toast('Укажи зону защиты', 'e'); return; }
   if (category === 'defense' && (!defenseNumber || defenseNumber < 1)) { toast('Укажи номер сетапа защиты', 'e'); return; }
-  if (category === 'defense' && !defenseZoom) { toast('Укажи zoom-область защиты', 'e'); return; }
+  if (category === 'defense' && !Number.isFinite(sess.siteMarkerX)) { toast('Поставь метку зоны защиты', 'e'); return; }
+  if (category === 'defense' && !Number.isFinite(sess.markerX)) { toast('Поставь метку сетапа', 'e'); return; }
+  if (category === 'defense' && !(defenseZoom?.width >= .01 && defenseZoom?.height >= .01)) { toast('Выдели zoom-область защиты', 'e'); return; }
+  if (category === 'defense' && !sess.defenseAbilities?.length) { toast('Расставь хотя бы одну абилку защиты', 'e'); return; }
   if (sess.videoXhr) { toast('Подожди — видео ещё загружается…', 'i'); return; }
   if (sess.screenshots.some(s => s.type === 'new' && s.status === 'uploading'))
     { toast('Подожди — фото ещё загружаются…', 'i'); return; }
@@ -12521,11 +12940,20 @@ async function sendPushNotification({ title, body, type, targetUid, data, allowA
 
 async function writeUserNotification(uid, payload) {
   if (!uid) return;
-  await setDoc(doc(collection(db, 'users', uid, 'notifications')), {
+  const batch = writeBatch(db);
+  const userRef = doc(collection(db, 'users', uid, 'notifications'));
+  const inboxRef = doc(collection(db, 'notifications', uid, 'items'));
+  batch.set(userRef, {
     ...payload,
     created_at: serverTimestamp(),
     read: false,
   });
+  batch.set(inboxRef, {
+    ...payload,
+    created_at: serverTimestamp(),
+    is_read: false,
+  });
+  await batch.commit();
 }
 
 // ── Target picker logic ───────────────────────────────────────────────────────
