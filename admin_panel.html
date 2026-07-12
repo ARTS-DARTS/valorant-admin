@@ -5451,7 +5451,7 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
   }
 });
 
-async function finalizeDuel(duelId) {
+async function finalizeDuel(duelId, forcedWinnerId = '') {
   const duelRef = doc(db, 'duels', duelId);
   let result = null;
   await runTransaction(db, async tx => {
@@ -5460,10 +5460,11 @@ async function finalizeDuel(duelId) {
     const duel = duelSnap.data();
     if (duel.finalized === true) { result = { alreadyFinalized: true, ...duel }; return; }
     const votes1 = Number(duel.votes1 || 0), votes2 = Number(duel.votes2 || 0);
-    if (votes1 === votes2) throw new Error('Ничья — продли голосование или выбери победителя вручную');
-    const winnerId = votes1 > votes2 ? duel.lineup1Id : duel.lineup2Id;
+    if (!forcedWinnerId && votes1 === votes2) throw new Error('Ничья — продли голосование или выбери победителя вручную');
+    const winnerId = forcedWinnerId || (votes1 > votes2 ? duel.lineup1Id : duel.lineup2Id);
+    if (![duel.lineup1Id, duel.lineup2Id].includes(winnerId)) throw new Error('Некорректный победитель');
     const loserId = votes1 > votes2 ? duel.lineup2Id : duel.lineup1Id;
-    const winnerVotes = Math.max(votes1, votes2);
+    const winnerVotes = winnerId === duel.lineup1Id ? votes1 : votes2;
     const likesAwarded = Math.min(100, Math.max(0, winnerVotes));
     const winnerRef = doc(db, 'lineups', winnerId), loserRef = doc(db, 'lineups', loserId);
     const winnerSnap = await tx.get(winnerRef), loserSnap = await tx.get(loserRef);
@@ -5662,11 +5663,6 @@ async function renderActiveDuelsSnapshot(snap) {
 
     for (const d of snap.docs) {
       const data = d.data();
-      const endMs = data.endsAt?.toDate ? data.endsAt.toDate().getTime() : Number(data.endsAt?.seconds || 0) * 1000;
-      if (endMs && endMs <= Date.now()) {
-        finalizeDuel(d.id).then(() => loadDuelsTab()).catch(e => console.warn('auto finalize duel:', d.id, e.message));
-        continue;
-      }
       const [l1snap, l2snap] = await Promise.all([
         getDoc(doc(db, 'lineups', data.lineup1Id)),
         getDoc(doc(db, 'lineups', data.lineup2Id)),
@@ -5687,17 +5683,41 @@ async function renderActiveDuelsSnapshot(snap) {
         <td style="padding:8px 6px;text-align:center;">${duelPressureBarHtml(v1, v2)}</td>
         <td style="padding:8px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(t2)}">${esc(t2)}</td>
         <td style="padding:8px 6px;text-align:right;color:var(--text2);">${esc(remaining)}</td>
-        <td style="padding:8px 6px;">
-          <button class="btn" data-duel-id="${d.id}" style="border:1px solid var(--border);color:var(--text2);font-size:11px;padding:4px 10px;">Завершить</button>
+        <td style="padding:8px 6px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
+          <button class="btn" data-duel-finish="${d.id}" style="border:1px solid var(--border);font-size:11px;padding:4px 8px;">Завершить</button>
+          <button class="btn" data-duel-extend="${d.id}" style="border:1px solid var(--border);font-size:11px;padding:4px 8px;">+24ч</button>
+          <button class="btn" data-duel-winner="${esc(data.lineup1Id)}" data-duel-for="${d.id}" style="border:1px solid var(--primary);font-size:11px;padding:4px 8px;">№1</button>
+          <button class="btn" data-duel-winner="${esc(data.lineup2Id)}" data-duel-for="${d.id}" style="border:1px solid var(--green);font-size:11px;padding:4px 8px;">№2</button>
+          <button class="btn" data-duel-cancel="${d.id}" style="border:1px solid #64748b;font-size:11px;padding:4px 8px;">Отмена</button>
         </td>`;
       tbody.appendChild(tr);
 
-      tr.querySelector('[data-duel-id]').addEventListener('click', async btn => {
-        const id = btn.currentTarget.dataset.duelId;
+      tr.querySelector('[data-duel-finish]').addEventListener('click', async btn => {
+        const id = btn.currentTarget.dataset.duelFinish;
         if (!confirm('Завершить дуэль досрочно?')) return;
         await finalizeDuel(id);
         toast('Дуэль завершена, награды начислены', 's');
         loadDuelsTab();
+      });
+      tr.querySelector('[data-duel-extend]').addEventListener('click', async btn => {
+        if (!confirm('Продлить дуэль на 24 часа?')) return;
+        await updateDoc(doc(db, 'duels', btn.currentTarget.dataset.duelExtend), {
+          endsAt: new Date(Date.now() + 24 * 60 * 60 * 1000), extendedAt: serverTimestamp(),
+        });
+        toast('Дуэль продлена на 24 часа', 's');
+      });
+      tr.querySelectorAll('[data-duel-winner]').forEach(btn => btn.addEventListener('click', async () => {
+        if (!confirm(`Назначить победителем лайнап ${btn.textContent.trim()} и начислить награды?`)) return;
+        await finalizeDuel(btn.dataset.duelFor, btn.dataset.duelWinner);
+        toast('Победитель назначен, награды начислены', 's');
+        loadDuelsTab();
+      }));
+      tr.querySelector('[data-duel-cancel]').addEventListener('click', async btn => {
+        if (!confirm('Отменить дуэль без победителя и без наград?')) return;
+        await updateDoc(doc(db, 'duels', btn.currentTarget.dataset.duelCancel), {
+          status: 'cancelled', finalized: true, cancelledAt: serverTimestamp(), pointsAwarded: 0, likesAwarded: 0,
+        });
+        toast('Дуэль отменена без наград', 'i');
       });
     }
 }
