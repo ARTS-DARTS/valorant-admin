@@ -3024,10 +3024,6 @@ const ADMIN_USERS_ANALYTICS_MAX = 20000;
 const ADMIN_USERS_RECENT_LIST_LIMIT = 200;
 const ADMIN_USERS_LIST_LIMIT = 300;
 const ADMIN_LINEUPS_LIST_LIMIT = 500;
-const ADMIN_ANALYTICS_EVENTS_PAGE_SIZE = 1000;
-const ADMIN_ANALYTICS_EVENTS_MAX = 20000;
-const ADMIN_SESSION_EVENTS_PAGE_SIZE = 1000;
-const ADMIN_SESSION_EVENTS_MAX = 20000;
 const ADMIN_AD_EVENTS_LIMIT = 600;
 const AD_STATS_PUBLIC_CACHE_URL = './ad_stats_daily_public.json';
 const ADMIN_UPDATE_POLL_MS = 60 * 1000;
@@ -4371,7 +4367,7 @@ async function loadMessagesTab() {
 async function loadMessagesTabOnce() {
   const list = document.getElementById('msg-list');
   try {
-    const snap = await getDocs(query(collection(db, 'feedback'), orderBy('created_at', 'desc')));
+    const snap = await getDocs(query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(300)));
     _msgAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     _msgLoaded = true;
     await _msgCleanupClosed();   // удалить закрытые старше недели
@@ -4399,7 +4395,7 @@ async function _msgCleanupClosed() {
 
 async function loadIdeas() {
   try {
-    const snap = await getDocs(query(collection(db, 'valuable_ideas'), orderBy('created_at', 'desc')));
+    const snap = await getDocs(query(collection(db, 'valuable_ideas'), orderBy('created_at', 'desc'), limit(200)));
     _ideasAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) { console.error('loadIdeas', e); _ideasAll = []; }
 }
@@ -4666,7 +4662,7 @@ let _maLoaded = false;
 async function loadModAppsTab() {
   const list = document.getElementById('ma-list');
   try {
-    const snap = await getDocs(query(collection(db, 'moderator_applications'), orderBy('created_at', 'desc')));
+    const snap = await getDocs(query(collection(db, 'moderator_applications'), orderBy('created_at', 'desc'), limit(200)));
     _maAll = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
     _maLoaded = true;
     _maRenderList();
@@ -6203,23 +6199,9 @@ async function findAgentSubscriberUids(agent) {
       if (uid) uids.add(uid);
     });
   } catch (e) {
-    console.warn('subscription collectionGroup unavailable, using users scan:', e.message);
+    console.warn('subscription collectionGroup unavailable:', e.message);
+    throw e;
   }
-
-  if (uids.size > 0) return [...uids];
-
-  const subId = agentSubDocId(agent);
-  const usersSnap = await getDocs(collection(db, 'users'));
-  await Promise.all(usersSnap.docs.map(async userDoc => {
-    try {
-      const subSnap = await getDoc(doc(db, 'users', userDoc.id, 'subscriptions', subId));
-      if (!subSnap.exists()) return;
-      const d = subSnap.data() || {};
-      if (d.type === 'agent' && String(d.agent || '').toLowerCase() === String(agent).toLowerCase()) {
-        uids.add(userDoc.id);
-      }
-    } catch (_) {}
-  }));
   return [...uids];
 }
 
@@ -9516,7 +9498,7 @@ let apOpen    = false;
 
 async function loadAuthorPanelUsers() {
   try {
-    const snap = await getDocs(query(collection(db, 'users'), orderBy('name')));
+    const snap = await getDocs(query(collection(db, 'users'), orderBy('name'), limit(800)));
     apUsers = snap.docs
       .map(d => ({ uid: d.id, ...d.data() }))
       .map(u => ({ ...u, _dn: (u.name ?? u.username ?? u.displayName ?? '').trim() }))
@@ -10360,12 +10342,8 @@ async function loadAgentSubscriptionAnalytics() {
         addSub(uid, subDoc.data() || {});
       });
     } catch (e) {
-      console.warn('subscription collectionGroup unavailable, using users scan:', e.message);
-      const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('name_lower', 'asc'), limit(ADMIN_USERS_LIST_LIMIT)));
-      for (const userDoc of usersSnap.docs) {
-        const snap = await getDocs(collection(db, 'users', userDoc.id, 'subscriptions'));
-        snap.forEach(subDoc => addSub(userDoc.id, subDoc.data() || {}));
-      }
+      console.warn('subscription collectionGroup unavailable:', e.message);
+      throw new Error('Для статистики подписок нужен collectionGroup index. Fallback через users отключён, чтобы не жечь чтения.');
     }
 
     document.getElementById('subs-users').textContent = userIds.size;
@@ -10578,72 +10556,38 @@ async function loadAnalytics(force = false) {
     await loadAdsAnalytics(days, d30, today);
     await loadActivityAnalytics(days, d30, today);
 
-    // ── Content views ──
-    const viewsResult = await loadPagedDocs(
-      collection(db, 'analytics_events'),
-      [
-        where('type', '==', 'lineup_viewed'),
-        where('ts', '>=', d30),
-        orderBy('ts', 'desc'),
-      ],
-      {
-        pageSize: ADMIN_ANALYTICS_EVENTS_PAGE_SIZE,
-        maxDocs: ADMIN_ANALYTICS_EVENTS_MAX,
-      }
-    );
-
-    let totalViews = 0;
     const viewsByDay = {};
-    const viewsByLineup = {};
-    const lineupTitles = {};
     days.forEach(d => { viewsByDay[d] = 0; });
+    const viewCounts = await Promise.all(days.map(day => {
+      const from = new Date(`${day}T00:00:00`);
+      const to = new Date(from);
+      to.setDate(to.getDate() + 1);
+      return countDocsSafe(collection(db, 'analytics_events'), [
+        where('type', '==', 'lineup_viewed'),
+        where('ts', '>=', from),
+        where('ts', '<', to),
+      ], 0);
+    }));
+    days.forEach((day, index) => { viewsByDay[day] = viewCounts[index] || 0; });
 
-    for (const d of viewsResult.docs) {
-      const dat = d.data();
-      const day = _anLocalDayKey(dat.ts.toDate());
-      totalViews++;
-      if (viewsByDay[day] !== undefined) viewsByDay[day]++;
-      const lid = dat.lineup_id || '';
-      if (lid) {
-        viewsByLineup[lid] = (viewsByLineup[lid] || 0) + 1;
-        if (!lineupTitles[lid] && dat.title) lineupTitles[lid] = dat.title;
-      }
-    }
-
-    const uniqueLineups = Object.keys(viewsByLineup).length;
+    const totalViews = viewCounts.reduce((sum, value) => sum + Number(value || 0), 0);
     const todayViews = viewsByDay[today] || 0;
     const viewsArr = days.map(d => viewsByDay[d]);
 
     document.getElementById('content-stat-cards').innerHTML = [
-      [viewsResult.truncated ? `${totalViews}+` : totalViews, 'Просмотров всего'],
-      [uniqueLineups, 'Уникальных лайнапов'],
+      [totalViews, 'Просмотров всего'],
+      ['—', 'Уникальных лайнапов'],
       [todayViews,    'Сегодня'],
     ].map(([v, l]) =>
       `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
     ).join('');
 
-    if (viewsResult.truncated) {
-      toast(`Контент-аналитика ограничена ${ADMIN_ANALYTICS_EVENTS_MAX} событиями. Нужна агрегированная статистика.`, 'i');
-    }
-
     drawInteractiveChart('views-chart', 'views-tip', [
       { name: 'Просмотров', data: viewsArr, color: 'var(--orange)' },
     ], days);
 
-    // Top-10 lineups by views
-    const topLineups = Object.entries(viewsByLineup)
-      .sort((a, b) => b[1] - a[1]).slice(0, 10);
     const topEl = document.getElementById('top-lineups-list');
-    topEl.innerHTML = topLineups.length === 0
-      ? '<span style="color:var(--text2);font-size:13px;">Нет данных за 30 дней</span>'
-      : topLineups.map(([lid, cnt], idx) => {
-          const title = lineupTitles[lid] || lid.slice(0, 12) + '…';
-          return `<div onclick="openLineupDetail('${lid}')" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);cursor:pointer;transition:.15s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
-            <span style="width:20px;text-align:center;font-weight:700;color:var(--text2);font-size:12px;">${idx+1}</span>
-            <span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</span>
-            <span style="font-weight:700;color:var(--orange);font-size:14px;">${cnt}</span>
-          </div>`;
-        }).join('');
+    topEl.innerHTML = '<span style="color:var(--text2);font-size:13px;">Топ лайнапов отключён от сырых событий. Нужен дневной агрегат top_lineups_daily.</span>';
 
   } catch (e) {
     console.error('Analytics error:', e);
@@ -10941,56 +10885,39 @@ async function loadAdsAnalytics(days, d30, today) {
 async function loadActivityAnalytics(days, d30, today) {
   const now = Date.now();
   const d7 = new Date(now - 7 * 864e5);
-  const sessionsResult = await loadPagedDocs(
-    collection(db, 'user_sessions'),
-    [
-      where('ts', '>=', d30),
-      orderBy('ts', 'desc'),
-    ],
-    {
-      pageSize: ADMIN_SESSION_EVENTS_PAGE_SIZE,
-      maxDocs: ADMIN_SESSION_EVENTS_MAX,
-    }
-  );
-  const dauByDay = {};
-  days.forEach(d => { dauByDay[d] = new Set(); });
-  const dauUids = new Set(), wauUids = new Set(), mauUids = new Set();
+  const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+  const usersRef = collection(db, 'users');
+  const [dau, wau, mau, sessionCount, ...dailyLastSeen] = await Promise.all([
+    countDocsSafe(usersRef, [where('last_seen', '>=', todayStart)]),
+    countDocsSafe(usersRef, [where('last_seen', '>=', d7)]),
+    countDocsSafe(usersRef, [where('last_seen', '>=', d30)]),
+    countDocsSafe(collection(db, 'user_sessions'), [where('ts', '>=', d30)]),
+    ...days.map(day => {
+      const from = new Date(`${day}T00:00:00`);
+      const to = new Date(from);
+      to.setDate(to.getDate() + 1);
+      return countDocsSafe(usersRef, [where('last_seen', '>=', from), where('last_seen', '<', to)], 0);
+    }),
+  ]);
 
-  sessionsResult.docs.forEach(docSnap => {
-    const dat = docSnap.data();
-    if (!dat.ts?.toDate) return;
-    const uid = dat.uid || dat.user_id;
-    if (!uid) return;
-    const day = _anLocalDayKey(dat.ts.toDate());
-    if (dauByDay[day]) dauByDay[day].add(uid);
-    mauUids.add(uid);
-    if (dat.ts.toDate() >= d7) wauUids.add(uid);
-    if (day === today)         dauUids.add(uid);
-  });
-
-  const dauArr  = days.map(d => dauByDay[d].size);
+  const dauArr  = dailyLastSeen.map(value => Number(value || 0));
   const peakDau = Math.max(0, ...dauArr);
   const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
-  const total   = sessionsResult.docs.length;
 
   document.getElementById('ses-stat-cards').innerHTML = [
-    [dauUids.size, 'DAU (сегодня)'],
-    [wauUids.size, 'WAU (7 дней)'],
-    [mauUids.size, 'MAU (30 дней)'],
-    [sessionsResult.truncated ? `${total}+` : total, 'Сессий (30 дней)'],
-    [peakDau,      'Пик DAU (30 дн)'],
-    [avgDau,       'Среднее DAU'],
+    [dau, 'DAU last_seen'],
+    [wau, 'WAU last_seen'],
+    [mau, 'MAU last_seen'],
+    [sessionCount, 'Сессий count(30д)'],
+    [peakDau,      'Пик last_seen'],
+    [avgDau,       'Среднее last_seen'],
   ].map(([v, l]) =>
     `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
   ).join('');
 
   drawInteractiveChart('dau-chart', 'dau-tip', [
-    { name: 'DAU', data: dauArr, color: '#4FC3F7' },
+    { name: 'last_seen', data: dauArr, color: '#4FC3F7' },
   ], days);
-
-  if (sessionsResult.truncated) {
-    toast('Активность ограничена 20000 сессиями. Нужны агрегаты.', 'i');
-  }
 }
 
 function stopAnalyticsRealtime() {
@@ -12487,7 +12414,7 @@ function bnActiveIsIndexError(e) {
   return /requires an index|create_composite|index/i.test(String(e?.message || e || ''));
 }
 
-async function bnActiveUserDocs(limitCount = 2000) {
+async function bnActiveUserDocs(limitCount = 500) {
   if (Array.isArray(_allUsers) && _allUsers.length) {
     return _allUsers.map(u => ({ id: u.id, data: () => u, ref: doc(db, 'users', u.id) }));
   }
@@ -13088,7 +13015,7 @@ async function _loFindTestUsers() {
   _ncSetStatus('level-test', true, 'Ищу пользователя…');
   try {
     const exact = await getDoc(doc(db, 'users', raw)).catch(() => null);
-    const snap = await getDocs(query(collection(db, 'users'), limit(1000)));
+    const snap = await getDocs(query(collection(db, 'users'), limit(200)));
     const q = raw.toLowerCase();
     const map = new Map();
     if (exact?.exists()) map.set(exact.id, { id: exact.id, ...(exact.data() || {}) });
@@ -13257,7 +13184,7 @@ async function _doFindTestUsers() {
   _ncSetStatus('duel-overlay', true, 'Ищу пользователя…');
   try {
     const exact = await getDoc(doc(db, 'users', raw)).catch(() => null);
-    const snap = await getDocs(query(collection(db, 'users'), limit(1000)));
+    const snap = await getDocs(query(collection(db, 'users'), limit(200)));
     const q = raw.toLowerCase();
     const map = new Map();
     if (exact?.exists()) map.set(exact.id, { id: exact.id, ...(exact.data() || {}) });
@@ -14622,15 +14549,13 @@ async function loadUserActivity(uid, fallback = {}) {
   if (!el) return;
   try {
     const d30 = new Date(Date.now() - 30 * 864e5);
-    const [sessSnap, adSnap, viewsSnap] = await Promise.all([
-      getDocs(query(collection(db, 'user_sessions'), where('uid', '==', uid), where('ts', '>=', d30), orderBy('ts', 'desc'))),
-      getDocs(query(collection(db, 'ad_events'), where('uid', '==', uid), where('type', '==', 'rewarded_completed'))),
-      getDocs(query(collection(db, 'analytics_events'), where('uid', '==', uid), where('type', '==', 'lineup_viewed'), where('ts', '>=', d30))),
+    const [sessCount, adCount, viewsCountRaw] = await Promise.all([
+      countDocsSafe(collection(db, 'user_sessions'), [where('uid', '==', uid), where('ts', '>=', d30)]),
+      countDocsSafe(collection(db, 'ad_events'), [where('uid', '==', uid), where('type', '==', 'rewarded_completed')]),
+      countDocsSafe(collection(db, 'analytics_events'), [where('uid', '==', uid), where('type', '==', 'lineup_viewed'), where('ts', '>=', d30)]),
     ]);
-    const sessCount  = sessSnap.size;
-    const adCount    = adSnap.size;
     const fallbackViews = Number(fallback.totalViewed || 0);
-    const viewsCount = Math.max(viewsSnap.size, fallbackViews);
+    const viewsCount = Math.max(Number(viewsCountRaw || 0), fallbackViews);
     el.innerHTML = `
       <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--primary);">${sessCount}</div><div class="usr-stat-lbl">Сессий (30д)</div></div>
       <div class="usr-stat-card"><div class="usr-stat-val" style="color:var(--orange);">${viewsCount}</div><div class="usr-stat-lbl">Просмотров (30д)</div></div>
@@ -14963,25 +14888,16 @@ window.openUserProfilePanel = openUserProfilePanel;
 // ── Storage stats ─────────────────────────────────────────────────────────────
 async function loadStorageStats() {
   try {
-    const snap = await getDocs(collection(db, 'lineups'));
-
-    // Selectel CDN — считаем лайнапы с видео
-    const withVideo = snap.docs.filter(d => d.data().video_url).length;
+    const withVideo = await countDocsSafe(collection(db, 'lineups'), [where('video_url', '!=', null)], 0);
     document.getElementById('selectel-storage-val').textContent = `${withVideo} видео`;
     document.getElementById('selectel-storage-val').classList.remove('an-loading');
-    document.getElementById('selectel-storage-sub').textContent = `${withVideo} лайнапов с видео`;
+    document.getElementById('selectel-storage-sub').textContent = `count-запрос, без чтения лайнапов`;
 
-    // Cloudinary — считаем скрины из Firestore
-    let totalShots = 0, withShots = 0;
-    snap.docs.forEach(d => {
-      const shots = d.data().screenshots;
-      if (Array.isArray(shots) && shots.length > 0) { withShots++; totalShots += shots.length; }
-    });
-    document.querySelector('#cloudinary-storage-card .an-val').textContent = `${totalShots} скринов`;
+    document.querySelector('#cloudinary-storage-card .an-val').textContent = '—';
     document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
-    document.getElementById('cloudinary-storage-sub').textContent = `в ${withShots} лайнапах`;
+    document.getElementById('cloudinary-storage-sub').textContent = 'Нужен агрегат screenshot_stats';
 
-    const estMb = totalShots * 0.15;
+    const estMb = 0;
     const limitMb = 25 * 1024;
     const pctStore = Math.min((estMb / limitMb) * 100, 100).toFixed(1);
     document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
@@ -15271,9 +15187,14 @@ async function rngApplyToLineups() {
     await setDoc(doc(db, 'range_config', cfgKey), {
       map, agent: _rngAgent, ability: _rngAbility, range_radius: val, updatedAt: serverTimestamp()
     });
-    const snap = await getDocs(query(collection(db, 'lineups'), where('map', '==', map)));
+    const snap = await getDocs(query(
+      collection(db, 'lineups'),
+      where('map', '==', map),
+      where('agent', '==', _rngAgent),
+      where('ability', '==', _rngAbility)
+    ));
     const matched = [];
-    snap.forEach(d => { const dt = d.data(); if (dt.agent === _rngAgent && dt.ability === _rngAbility) matched.push(d.ref); });
+    snap.forEach(d => matched.push(d.ref));
     if (matched.length) {
       const batch = writeBatch(db);
       matched.forEach(ref => batch.update(ref, { range_radius: val }));
@@ -15317,11 +15238,14 @@ async function rngBackfillMissingLineupRadii() {
   try {
     const rangesSnap = await getDocs(collection(db, 'range_config'));
     const ranges = new Map();
+    const rangeConfigs = new Map();
     rangesSnap.forEach(d => {
       const data = d.data();
       const radius = Number(data.range_radius || 0);
       if (Number.isFinite(radius) && radius > 0) {
-        ranges.set(rangeConfigId(data.map, data.agent, data.ability), radius);
+        const key = rangeConfigId(data.map, data.agent, data.ability);
+        ranges.set(key, radius);
+        rangeConfigs.set(key, data);
       }
     });
     if (!ranges.size) {
@@ -15330,18 +15254,24 @@ async function rngBackfillMissingLineupRadii() {
       return;
     }
 
-    const lineupsSnap = await getDocs(collection(db, 'lineups'));
     const updates = [];
-    lineupsSnap.forEach(d => {
-      const data = d.data();
-      const key = rangeConfigId(data.map, data.agent, data.ability);
-      const expected = ranges.get(key);
-      if (!expected) return;
-      const current = Number(data.range_radius || 0);
-      if (!Number.isFinite(current) || Math.abs(current - expected) > 0.0005) {
-        updates.push({ ref: d.ref, expected });
-      }
-    });
+    for (const [key, expected] of ranges.entries()) {
+      const cfg = rangeConfigs.get(key);
+      if (!cfg) continue;
+      const lineupsSnap = await getDocs(query(
+        collection(db, 'lineups'),
+        where('map', '==', cfg.map),
+        where('agent', '==', cfg.agent),
+        where('ability', '==', cfg.ability)
+      ));
+      lineupsSnap.forEach(d => {
+        const data = d.data();
+        const current = Number(data.range_radius || 0);
+        if (!Number.isFinite(current) || Math.abs(current - expected) > 0.0005) {
+          updates.push({ ref: d.ref, expected });
+        }
+      });
+    }
 
     if (!updates.length) {
       status.textContent = 'Все лайнапы уже совпадают';
