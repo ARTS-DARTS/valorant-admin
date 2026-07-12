@@ -1482,6 +1482,8 @@
           <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">Новые 7д</div></div>
           <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">Новые 30д</div></div>
           <div class="an-card" title="Количество документов в коллекции users"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего профилей</div></div>
+          <div class="an-card" title="Уникальные активные профили за 30 дней — считаем как подтверждённых реальных людей"><div class="an-val an-loading" id="nu-confirmed-profiles">…</div><div class="an-lbl">Подтверждённые профили</div></div>
+          <div class="an-card" title="Всего профилей минус активные за 30 дней"><div class="an-val an-loading" id="nu-account-gap">…</div><div class="an-lbl">Акки / неактив</div></div>
           <div class="an-card" title="Уникальные uid в user_sessions за 24 часа"><div class="an-val an-loading" id="nu-active-24h">…</div><div class="an-lbl">Актив 24ч</div></div>
           <div class="an-card" title="Уникальные uid в user_sessions за 7 дней"><div class="an-val an-loading" id="nu-active-7d">…</div><div class="an-lbl">Актив 7д</div></div>
           <div class="an-card" title="Уникальные uid в user_sessions за 30 дней"><div class="an-val an-loading" id="nu-active-30d">…</div><div class="an-lbl">Актив 30д</div></div>
@@ -6556,20 +6558,26 @@ async function approveLineup(id, userId) {
 async function publishLineup(id, userId) {
   if (!confirm('Финально опубликовать лайнап? Он сразу станет виден пользователям.')) return;
   try {
+    const ref = doc(db, 'lineups', id);
+    const beforeSnap = await getDoc(ref);
+    const before = beforeSnap.exists() ? { id, ...beforeSnap.data() } : (lineups.find(x => x.id === id) || { id });
+    const wasApproved = before.status === 'approved';
     const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
-    await updateDoc(doc(db, 'lineups', id), updateData);
-    const lineupSnap = await getDoc(doc(db, 'lineups', id));
+    await updateDoc(ref, updateData);
+    const lineupSnap = await getDoc(ref);
     if (lineupSnap.exists()) {
       const d = lineupSnap.data();
       const authorUid = lineupAuthorUid({ id, ...d }, userId);
-      if (authorUid) await updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(1) });
-      const authorResult = await notifyLineupAuthorApproved(authorUid, { id, ...d }).catch(e => ({ ok: false, error: e.message }));
-      const subResult = await notifySubscribers({ id, ...d });
-      console.info('publish notifications:', { authorResult, subResult });
-      updateLineupCountStats(d.map, d.category, 1).catch(() => {});
+      if (!wasApproved) {
+        if (authorUid) await updateAuthorApprovedLineups(authorUid, 1, { reason: 'lineup_published', lineupId: id });
+        const authorResult = await notifyLineupAuthorApproved(authorUid, { id, ...d }).catch(e => ({ ok: false, error: e.message }));
+        const subResult = await notifySubscribers({ id, ...d });
+        console.info('publish notifications:', { authorResult, subResult });
+        updateLineupCountStats(d.map, d.category, 1).catch(() => {});
+      }
     }
-    await writeAudit(id, 'approved');
+    await writeAudit(id, 'approved', { status: { from: before.status || 'unknown', to: 'approved' } });
     patchStatus(id, 'approved');
     toast('Лайнап опубликован ✅', 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
@@ -6580,14 +6588,23 @@ async function publishAllHot() {
   if (!hotList.length) { toast('Нет лайнапов в горячих пирожках', 'i'); return; }
   if (!confirm(`Финально опубликовать все ${hotList.length} лайнапов из «Горячих пирожков»?\nОни сразу станут видны пользователям.`)) return;
   try {
+    const publishable = [];
+    for (const l of hotList) {
+      const snap = await getDoc(doc(db, 'lineups', l.id)).catch(() => null);
+      if (!snap?.exists()) continue;
+      const data = { id: l.id, ...snap.data() };
+      if (data.status === 'approved') continue;
+      publishable.push(data);
+    }
+    if (!publishable.length) { toast('Все выбранные лайнапы уже опубликованы', 'i'); return; }
     const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     const b = writeBatch(db);
-    hotList.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
+    publishable.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
     await b.commit();
     const authorGroups = new Map();
     const publishedLineups = [];
-    for (const l of hotList) {
+    for (const l of publishable) {
       try {
         const snap = await getDoc(doc(db, 'lineups', l.id));
         if (snap.exists()) {
@@ -6600,19 +6617,19 @@ async function publishAllHot() {
           }
         }
       } catch (_) {}
-      writeAudit(l.id, 'approved').catch(() => {});
+      writeAudit(l.id, 'approved', { status: { from: l.status || 'unknown', to: 'approved' } }).catch(() => {});
       patchStatus(l.id, 'approved');
     }
     const subResult = await notifySubscribersBatch(publishedLineups);
     console.info('publishAll subscriber notifications:', subResult);
     for (const [authorUid, approvedLineups] of authorGroups.entries()) {
-      updateDoc(doc(db, 'users', authorUid), { approved_lineups: increment(approvedLineups.length) }).catch(() => {});
+      updateAuthorApprovedLineups(authorUid, approvedLineups.length, { reason: 'lineups_published_batch' }).catch(() => {});
       const authorResult = await notifyLineupAuthorApprovedBatch(authorUid, approvedLineups).catch(e => ({ ok: false, error: e.message }));
       console.info('publishAll author notification:', { authorUid, count: approvedLineups.length, authorResult });
     }
     // Батч-обновление счётчиков: считаем дельты, пишем одним вызовом
     const statsDelta = {};
-    hotList.forEach(l => {
+    publishable.forEach(l => {
       if (!l.map || !l.category) return;
       if (!statsDelta[l.category]) statsDelta[l.category] = {};
       statsDelta[l.category][l.map] = (statsDelta[l.category][l.map] || 0) + 1;
@@ -6631,7 +6648,7 @@ async function publishAllHot() {
         }
       });
     }
-    toast(`Опубликовано ${hotList.length} лайнапов 🚀`, 's');
+    toast(`Опубликовано ${publishable.length} лайнапов 🚀`, 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
@@ -6666,6 +6683,8 @@ async function rejectLineup(id) {
   if (!reason) return;
   try {
     const ref = doc(db, 'lineups', id);
+    const beforeSnap = await getDoc(ref);
+    const before = beforeSnap.exists() ? { id, ...beforeSnap.data() } : localLineup;
     await updateDoc(ref, {
       status: 'rejected',
       rejection_reason: reason,
@@ -6676,9 +6695,10 @@ async function rejectLineup(id) {
     const snap = await getDoc(ref);
     const lineup = snap.exists() ? { id, ...snap.data() } : localLineup;
     const authorUid = lineupAuthorUid(lineup, localLineup.user_id);
+    await applyApprovedStatusDelta(before, 'rejected', { reason: 'lineup_rejected' });
     const notifyResult = await notifyLineupAuthorRejected(authorUid, lineup, reason)
       .catch(e => ({ ok: false, error: e.message }));
-    await writeAudit(id, 'rejected', { reason, notified: !!notifyResult.ok });
+    await writeAudit(id, 'rejected', { reason, notified: !!notifyResult.ok, status: { from: before.status || 'unknown', to: 'rejected' } });
     patchStatus(id, 'rejected');
     toast(notifyResult.ok ? 'Лайнап отклонён, причина отправлена пользователю' : 'Лайнап отклонён, но уведомление не ушло: ' + notifyResult.error, notifyResult.ok ? 'i' : 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
@@ -6687,6 +6707,9 @@ async function deleteLineup(id) {
   if (!confirm('Удалить лайнап? Это необратимо.')) return;
   try {
     const l = lineups.find(x => x.id === id);
+    const snap = await getDoc(doc(db, 'lineups', id));
+    const before = snap.exists() ? { id, ...snap.data() } : l;
+    await applyApprovedStatusDelta(before, 'deleted', { reason: 'lineup_deleted' });
     await writeAudit(id, 'deleted');
     await auditDeleteDoc('lineups', id, { reason: 'lineup_delete_button', snapshot: l });
     if (_selectedId === id) {
@@ -6698,26 +6721,29 @@ async function deleteLineup(id) {
     lineups = lineups.filter(x => x.id !== id);
     renderList();
     initMapPanel();
-    if (l?.status === 'approved') updateLineupCountStats(l.map, l.category, -1).catch(() => {});
     toast('Лайнап удалён', 'e');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 async function archiveLineup(id) {
   if (!confirm('Перенести лайнап в архив? Он больше не будет виден пользователям.')) return;
   try {
-    const l = lineups.find(x => x.id === id);
+    const snap = await getDoc(doc(db, 'lineups', id));
+    const l = snap.exists() ? { id, ...snap.data() } : (lineups.find(x => x.id === id) || { id });
     await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
-    await writeAudit(id, 'archived');
+    await applyApprovedStatusDelta(l, 'archived', { reason: 'lineup_archived' });
+    await writeAudit(id, 'archived', { status: { from: l.status || 'unknown', to: 'archived' } });
     patchStatus(id, 'archived');
-    if (l?.status === 'approved') updateLineupCountStats(l.map, l.category, -1).catch(() => {});
     toast('Лайнап перемещён в архив 📦', 'i');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 async function restoreLineup(id) {
   if (!confirm('Восстановить лайнап? Статус вернётся к «На проверке».')) return;
   try {
+    const snap = await getDoc(doc(db, 'lineups', id));
+    const l = snap.exists() ? { id, ...snap.data() } : (lineups.find(x => x.id === id) || { id });
     await updateDoc(doc(db, 'lineups', id), { status: 'pending' });
-    await writeAudit(id, 'restored');
+    await applyApprovedStatusDelta(l, 'pending', { reason: 'lineup_restored_to_pending' });
+    await writeAudit(id, 'restored', { status: { from: l.status || 'unknown', to: 'pending' } });
     patchStatus(id, 'pending');
     toast('Лайнап восстановлен ✅', 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
@@ -6793,6 +6819,35 @@ async function updateLineupCountStats(map, category, delta) {
       await setDoc(ref, { [category]: { [map]: Math.max(0, delta) } });
     }
   });
+}
+
+async function updateAuthorApprovedLineups(uid, delta, meta = {}) {
+  if (!uid || !delta) return;
+  await updateDoc(doc(db, 'users', uid), {
+    approved_lineups: increment(delta),
+    approved_lineups_updated_at: serverTimestamp(),
+    approved_lineups_update_reason: meta.reason || (delta > 0 ? 'lineup_approved' : 'lineup_unapproved'),
+    approved_lineups_last_lineup_id: meta.lineupId || null,
+  }).catch(e => {
+    console.warn('updateAuthorApprovedLineups:', e.message);
+  });
+}
+
+async function applyApprovedStatusDelta(lineup, nextStatus, meta = {}) {
+  if (!lineup?.id) return 0;
+  const wasApproved = lineup.status === 'approved';
+  const willBeApproved = nextStatus === 'approved';
+  const delta = (willBeApproved ? 1 : 0) - (wasApproved ? 1 : 0);
+  if (!delta) return 0;
+  const authorUid = lineupAuthorUid(lineup, lineup.user_id);
+  if (authorUid) {
+    await updateAuthorApprovedLineups(authorUid, delta, {
+      reason: meta.reason || `lineup_status_${lineup.status || 'unknown'}_to_${nextStatus}`,
+      lineupId: lineup.id,
+    });
+  }
+  updateLineupCountStats(lineup.map, lineup.category, delta).catch(() => {});
+  return delta;
 }
 
 async function rebuildLineupCountStats() {
@@ -10453,7 +10508,11 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-today').textContent       = nuToday;
     document.getElementById('nu-week').textContent        = nuWeek;
     document.getElementById('nu-month').textContent       = usersResult.truncated ? `${nuMonth}+` : nuMonth;
+    const confirmedProfiles = active30d.size;
+    const inactiveAccounts = Math.max(0, Number(realTotal || 0) - confirmedProfiles);
     document.getElementById('nu-total').textContent       = realTotal;
+    document.getElementById('nu-confirmed-profiles').textContent = sessionsResult.truncated ? `${confirmedProfiles}+` : confirmedProfiles;
+    document.getElementById('nu-account-gap').textContent = sessionsResult.truncated ? `≤${inactiveAccounts}` : inactiveAccounts;
     document.getElementById('nu-active-24h').textContent  = active24h.size;
     document.getElementById('nu-active-7d').textContent   = active7d.size;
     document.getElementById('nu-active-30d').textContent  = sessionsResult.truncated ? `${active30d.size}+` : active30d.size;
