@@ -7382,12 +7382,10 @@ function renderSlotExtraTools(id) {
     return;
   }
   s.extraAbilities = Array.isArray(s.extraAbilities) ? s.extraAbilities : [];
-  const used = new Set(s.extraAbilities.map(item => item.ability));
   const abilities = (AGENT_ABILITIES[pickedAgent] || []).filter(ab => ab !== pickedAbility);
   picker.innerHTML = abilities.map(ab => {
-    const added = used.has(ab);
     const icon = _abilityIcon(pickedAgent, ab);
-    return `<button class="abil-btn${added ? ' added' : ''}" data-slot-extra-add="${esc(ab)}" title="${esc(ab)}" ${added || s.extraAbilities.length >= 2 ? 'disabled' : ''}>
+    return `<button class="abil-btn" data-slot-extra-add="${esc(ab)}" title="Добавить: ${esc(ab)}" ${s.extraAbilities.length >= 2 ? 'disabled' : ''}>
       ${icon ? `<img src="${esc(icon)}" alt="">` : ''}
       <span>${esc(ab.split(' ')[0])}</span>
     </button>`;
@@ -7395,7 +7393,7 @@ function renderSlotExtraTools(id) {
   picker.querySelectorAll('[data-slot-extra-add]').forEach(btn => {
     btn.addEventListener('click', () => {
       const ability = btn.dataset.slotExtraAdd || '';
-      if (!ability || s.extraAbilities.length >= 2 || s.extraAbilities.some(item => item.ability === ability)) return;
+      if (!ability || s.extraAbilities.length >= 2) return;
       s.extraAbilities.push({
         order: s.extraAbilities.length + 1,
         ability,
@@ -7409,14 +7407,25 @@ function renderSlotExtraTools(id) {
       queueAdminAddDraftSave();
     });
   });
-  list.innerHTML = s.extraAbilities.length ? s.extraAbilities.map((item, idx) => `
+  const mainIcon = _abilityIcon(pickedAgent, pickedAbility);
+  const mainRow = `<span class="extra-ability-chip${s.selectedExtraIndex === null ? ' sel' : ''}" data-slot-extra-main title="Основная траектория: ${esc(pickedAbility)}">
+    <b>★</b>${mainIcon ? `<img src="${esc(mainIcon)}" alt="">` : ''}<span>Основная · ${(s.trajectory || []).length} т.</span>
+  </span>`;
+  list.innerHTML = mainRow + (s.extraAbilities.length ? s.extraAbilities.map((item, idx) => `
     <span class="extra-ability-chip${s.selectedExtraIndex === idx ? ' sel' : ''}" data-slot-extra-select="${idx}" title="${esc(item.ability)}">
       <b>${idx + 1}</b>
       ${item.icon ? `<img src="${esc(item.icon)}" alt="">` : ''}
       <span>${(item.trajectory || []).length} т.</span>
       <button type="button" data-slot-extra-remove="${idx}">×</button>
     </span>
-  `).join('') : '<span style="font-size:11px;color:var(--text2);">Допов пока нет</span>';
+  `).join('') : '<span style="font-size:11px;color:var(--text2);">Допов пока нет</span>');
+  list.querySelector('[data-slot-extra-main]')?.addEventListener('click', () => {
+    s.selectedExtraIndex = null;
+    _setSlotMapMode(id, 'trajectory');
+    renderSlotExtraTools(id);
+    renderSlotTraj(id);
+    queueAdminAddDraftSave();
+  });
   list.querySelectorAll('[data-slot-extra-select]').forEach(chip => {
     chip.addEventListener('click', event => {
       if (event.target.closest('[data-slot-extra-remove]')) return;
