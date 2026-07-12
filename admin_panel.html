@@ -3023,7 +3023,7 @@ import {
 import {
   getFirestore, collection, collectionGroup, getDocs, getDoc, doc, setDoc,
   updateDoc, deleteDoc, addDoc, query, orderBy, where, or, limit, startAfter,
-  serverTimestamp, increment, getCountFromServer, onSnapshot, writeBatch, arrayUnion
+  serverTimestamp, increment, getCountFromServer, onSnapshot, writeBatch, arrayUnion, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const cfg = {
@@ -5451,6 +5451,57 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
   }
 });
 
+async function finalizeDuel(duelId) {
+  const duelRef = doc(db, 'duels', duelId);
+  let result = null;
+  await runTransaction(db, async tx => {
+    const duelSnap = await tx.get(duelRef);
+    if (!duelSnap.exists()) throw new Error('Дуэль не найдена');
+    const duel = duelSnap.data();
+    if (duel.finalized === true) { result = { alreadyFinalized: true, ...duel }; return; }
+    const votes1 = Number(duel.votes1 || 0), votes2 = Number(duel.votes2 || 0);
+    if (votes1 === votes2) throw new Error('Ничья — продли голосование или выбери победителя вручную');
+    const winnerId = votes1 > votes2 ? duel.lineup1Id : duel.lineup2Id;
+    const loserId = votes1 > votes2 ? duel.lineup2Id : duel.lineup1Id;
+    const winnerVotes = Math.max(votes1, votes2);
+    const likesAwarded = Math.min(100, Math.max(0, winnerVotes));
+    const winnerRef = doc(db, 'lineups', winnerId), loserRef = doc(db, 'lineups', loserId);
+    const winnerSnap = await tx.get(winnerRef), loserSnap = await tx.get(loserRef);
+    if (!winnerSnap.exists() || !loserSnap.exists()) throw new Error('Лайнап дуэли не найден');
+    const winner = winnerSnap.data();
+    const authorUid = lineupAuthorUid(winner);
+    tx.update(winnerRef, {
+      status: 'approved', likes_count: increment(likesAwarded), votes_actual: increment(5),
+      duel_wins: increment(1), last_duel_id: duelId, updated_at: serverTimestamp(),
+    });
+    tx.update(loserRef, {
+      status: 'archived', archived_reason: 'duel_loss', lost_duel_id: duelId,
+      updated_at: serverTimestamp(),
+    });
+    if (authorUid) tx.set(doc(db, 'users', authorUid), {
+      bonus_lineups: increment(5), total_likes: increment(likesAwarded), duel_wins: increment(1),
+      last_duel_reward: 5, last_duel_reward_at: serverTimestamp(), last_duel_id: duelId,
+    }, { merge: true });
+    tx.update(duelRef, {
+      status: 'finished', finalized: true, winnerLineupId: winnerId, loserLineupId: loserId,
+      winnerAuthorUid: authorUid || '', likesAwarded, pointsAwarded: authorUid ? 5 : 0,
+      finalizedAt: serverTimestamp(), visible: true,
+    });
+    result = { winnerId, loserId, authorUid, likesAwarded, title: winner.title || winnerId };
+  });
+  if (result?.authorUid && !result.alreadyFinalized) {
+    const title = '⚔️ Победа в дуэли!';
+    const body = `Твой лайнап «${result.title}» победил. Начислено +5 очков.`;
+    await writeUserNotification(result.authorUid, {
+      type: 'duel_win', title, body, lineup_id: result.winnerId, duel_id: duelId,
+      points: 5, likes: result.likesAwarded,
+    });
+    await sendPushNotification({ title, body, type: 'duel_win', targetUid: result.authorUid,
+      data: { duel_id: duelId, lineup_id: result.winnerId, points: '5' } }).catch(e => console.warn('duel push:', e.message));
+  }
+  return result;
+}
+
 function _timeLeft(endsAt) {
   const endMs = endsAt?.toDate ? endsAt.toDate().getTime() : (endsAt?.seconds ? endsAt.seconds * 1000 : Date.now());
   const sec = Math.floor((endMs - Date.now()) / 1000);
@@ -5611,6 +5662,11 @@ async function renderActiveDuelsSnapshot(snap) {
 
     for (const d of snap.docs) {
       const data = d.data();
+      const endMs = data.endsAt?.toDate ? data.endsAt.toDate().getTime() : Number(data.endsAt?.seconds || 0) * 1000;
+      if (endMs && endMs <= Date.now()) {
+        finalizeDuel(d.id).then(() => loadDuelsTab()).catch(e => console.warn('auto finalize duel:', d.id, e.message));
+        continue;
+      }
       const [l1snap, l2snap] = await Promise.all([
         getDoc(doc(db, 'lineups', data.lineup1Id)),
         getDoc(doc(db, 'lineups', data.lineup2Id)),
@@ -5639,8 +5695,8 @@ async function renderActiveDuelsSnapshot(snap) {
       tr.querySelector('[data-duel-id]').addEventListener('click', async btn => {
         const id = btn.currentTarget.dataset.duelId;
         if (!confirm('Завершить дуэль досрочно?')) return;
-        await updateDoc(doc(db, 'duels', id), { status: 'finished' });
-        toast('Дуэль завершена', 's');
+        await finalizeDuel(id);
+        toast('Дуэль завершена, награды начислены', 's');
         loadDuelsTab();
       });
     }
