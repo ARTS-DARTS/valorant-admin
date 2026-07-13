@@ -2563,6 +2563,41 @@
       </div>
     </div>
 
+    <!-- Per-map site label positions -->
+    <div style="margin-bottom:24px;padding:16px;border:1px solid var(--primary);border-radius:8px;background:var(--surface);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Точки букв A / B / C для выбранной карты</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Выбери букву и перетащи её на правой карте. Для трёхплентовой карты нажми «+ C».</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="btn ms-site-label-add" data-label="A" style="font-size:12px;">+ A</button>
+          <button type="button" class="btn ms-site-label-add" data-label="B" style="font-size:12px;">+ B</button>
+          <button type="button" class="btn ms-site-label-add" data-label="C" style="font-size:12px;">+ C</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text2);">Редактировать:</span>
+        <div id="ms-site-label-picks" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+        <button id="ms-site-label-remove" type="button" class="btn btn-delete" style="font-size:12px;">Удалить выбранную</button>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(100px,1fr) auto;gap:8px;align-items:end;">
+        <div><label class="flabel">X (0–1)</label><input class="finput" id="ms-site-label-x" type="number" min="0" max="1" step="0.001" style="background:var(--bg);"></div>
+        <div><label class="flabel">Y (0–1)</label><input class="finput" id="ms-site-label-y" type="number" min="0" max="1" step="0.001" style="background:var(--bg);"></div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button type="button" class="btn ms-site-nudge" data-dx="-0.005" data-dy="0" title="Влево">←</button>
+          <button type="button" class="btn ms-site-nudge" data-dx="0" data-dy="-0.005" title="Вверх">↑</button>
+          <button type="button" class="btn ms-site-nudge" data-dx="0" data-dy="0.005" title="Вниз">↓</button>
+          <button type="button" class="btn ms-site-nudge" data-dx="0.005" data-dy="0" title="Вправо">→</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button id="ms-site-label-reset" type="button" class="btn btn-delete" style="font-size:12px;">Вернуть точки по умолчанию</button>
+        <button id="ms-site-label-save" type="button" class="btn btn-save" style="font-size:12px;">💾 Сохранить точки A/B/C</button>
+        <span id="ms-site-label-status" style="font-size:11px;color:var(--text2);"></span>
+      </div>
+    </div>
+
     <!-- Site labels -->
     <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
@@ -3951,6 +3986,36 @@ _msLabelCanvas?.addEventListener('pointercancel', _msEndSiteLabelDrag);
 _msLabelCanvas?.addEventListener('lostpointercapture', event => {
   if (_msSiteLabelDrag?.pointerId === event.pointerId) _msEndSiteLabelDrag(event);
 });
+document.querySelectorAll('.ms-site-label-add').forEach(button => {
+  button.addEventListener('click', () => {
+    const label = String(button.dataset.label || '').toUpperCase();
+    if (!['A', 'B', 'C'].includes(label)) return;
+    const labels = _msDraftSiteLabels();
+    const existingIndex = labels.findIndex(item => item.label === label);
+    if (existingIndex >= 0) {
+      _msSelectedSiteLabel = existingIndex;
+    } else {
+      const start = label === 'A'
+        ? { x: 0.35, y: 0.35 }
+        : label === 'B'
+          ? { x: 0.65, y: 0.50 }
+          : { x: 0.50, y: 0.65 };
+      labels.push({ label, ...start });
+      _msSelectedSiteLabel = labels.length - 1;
+    }
+    _msRenderSiteLabelEditor();
+    _msScheduleRedraw();
+  });
+});
+document.getElementById('ms-site-label-remove')?.addEventListener('click', () => {
+  const labels = _msDraftSiteLabels();
+  const selected = labels[_msSelectedSiteLabel];
+  if (!selected) return;
+  labels.splice(_msSelectedSiteLabel, 1);
+  _msSelectedSiteLabel = Math.max(0, Math.min(_msSelectedSiteLabel, labels.length - 1));
+  _msRenderSiteLabelEditor();
+  _msScheduleRedraw();
+});
 document.getElementById('ms-site-label-reset')?.addEventListener('click', () => {
   const mapName = _msCurrentMapName();
   _mapSiteLabelsDraft[mapName] = _msCloneSiteLabels(MAP_SITE_LABELS[mapName] || []);
@@ -3974,7 +4039,7 @@ document.getElementById('ms-site-label-save')?.addEventListener('click', async f
     _mapSiteLabelsDraft[mapName] = _msCloneSiteLabels(labels);
     _msRenderBefore();
     _msRenderSiteLabelEditor();
-    toast(`Позиции букв для ${mapName} сохранены`, 's');
+    toast(`Точки ${labels.map(item => item.label).join('/') || '—'} для ${mapName} сохранены`, 's');
     if (typeof addAuditLog === 'function') {
       addAuditLog('map_site_labels_updated', { map: mapName, labels });
     }
@@ -9712,30 +9777,6 @@ function buildEditForm(id, l) {
         <div id="ce-traj-actions-${id}" style="display:none;gap:8px;margin-top:6px;">
           <button id="ce-traj-undo-${id}"  class="btn" style="flex:1;border:1px solid var(--border);color:var(--text2);font-size:12px;">↩ Отменить последнюю</button>
           <button id="ce-traj-clear-${id}" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
-        </div>
-      </div>
-      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-          <div>
-            <div style="font-size:12px;font-weight:800;color:var(--text);">Позиции букв на выбранной карте</div>
-            <div style="font-size:11px;color:var(--text2);margin-top:2px;">Перетаскивай букву прямо на правом предпросмотре или двигай её стрелками.</div>
-          </div>
-          <div id="ms-site-label-picks" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:minmax(100px,1fr) minmax(100px,1fr) auto;gap:8px;align-items:end;">
-          <div><label class="flabel">X</label><input class="finput" id="ms-site-label-x" type="number" min="0" max="1" step="0.001" style="background:var(--bg);"></div>
-          <div><label class="flabel">Y</label><input class="finput" id="ms-site-label-y" type="number" min="0" max="1" step="0.001" style="background:var(--bg);"></div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;">
-            <button class="btn ms-site-nudge" data-dx="-0.005" data-dy="0" title="Влево">←</button>
-            <button class="btn ms-site-nudge" data-dx="0" data-dy="-0.005" title="Вверх">↑</button>
-            <button class="btn ms-site-nudge" data-dx="0" data-dy="0.005" title="Вниз">↓</button>
-            <button class="btn ms-site-nudge" data-dx="0.005" data-dy="0" title="Вправо">→</button>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
-          <button id="ms-site-label-reset" class="btn btn-delete" style="font-size:12px;">Вернуть позиции по умолчанию</button>
-          <button id="ms-site-label-save" class="btn btn-save" style="font-size:12px;">💾 Сохранить позиции карты</button>
-          <span id="ms-site-label-status" style="font-size:11px;color:var(--text2);"></span>
         </div>
       </div>
     </div>
