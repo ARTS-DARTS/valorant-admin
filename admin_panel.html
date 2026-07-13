@@ -1176,6 +1176,14 @@
             </select>
           </div>
 
+          <div class="fg">
+            <label class="flabel">Сторона раунда</label>
+            <select class="fselect" id="f-round-side">
+              <option value="attack">Атака</option>
+              <option value="defense">Защита</option>
+            </select>
+          </div>
+
           <div class="fg" style="align-self:end;">
             <label class="fcheck-row">
               <input type="checkbox" id="f-exclusive">
@@ -6556,6 +6564,7 @@ function detailHtml(l) {
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
   <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(contentMeta(contentCategoryOf(l)).title)}</div></div>
+  <div class="dfield"><div class="dlabel">Сторона раунда</div> <div class="dval">${l.round_side === 'defense' ? 'Защита' : l.round_side === 'attack' ? 'Атака' : 'Не указана (legacy)'}</div></div>
   <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
   <div class="dfield"><div class="dlabel">Позиция Y</div> <div class="dval">${fmtNum(l.position_y)}</div></div>
   <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
@@ -8541,6 +8550,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const ability  = pickedAbility;
   const category = normalizeContentCategory(document.getElementById('f-category').value);
   const status   = document.getElementById('f-status').value;
+  const roundSide = document.getElementById('f-round-side').value;
   const excl     = document.getElementById('f-exclusive').checked;
   const needsAgent = category !== 'wallbang';
   const needsAbility = category === 'lineup' || category === 'combo';
@@ -8580,7 +8590,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       const extras = _contentExtrasForSave(category, category === 'wallbang' ? 'add-wallbang' : 'add-defense', s);
       const extraAbilities = needsAbility ? await buildAdminExtraAbilitiesPayload(map, agent, s) : [];
       return addDoc(collection(db,'lineups'),{
-        map,agent:needsAgent ? agent : '',ability:needsAbility ? ability : '',category,content_type:category,schema_version:2,title,description:desc,video_url:videoUrl,screenshots,
+        map,agent:needsAgent ? agent : '',ability:needsAbility ? ability : '',category,content_type:category,schema_version:2,round_side:roundSide,title,description:desc,video_url:videoUrl,screenshots,
         position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
         extra_abilities: extraAbilities,
         range_radius: rangeRadius,
@@ -9706,6 +9716,12 @@ function buildEditForm(id, l) {
   <div class="fg"><label class="flabel">Категория</label>
     <select class="fselect" id="ce-cat-${id}"><option value="">— Выбери категорию —</option>${catOpts}</select>
   </div>
+  <div class="fg"><label class="flabel">Сторона раунда</label>
+    <select class="fselect" id="ce-round-side-${id}">
+      <option value="attack"${l.round_side !== 'defense' ? ' selected' : ''}>Атака</option>
+      <option value="defense"${l.round_side === 'defense' ? ' selected' : ''}>Защита</option>
+    </select>
+  </div>
   <div class="fg full"><label class="flabel">Агент</label>
     <div class="agent-grid" id="ce-agent-grid-${id}"></div>
   </div>
@@ -10203,6 +10219,7 @@ async function saveEditedLineup(id) {
   const desc     = (document.getElementById('ce-desc-'  + id)?.value ?? '').trim();
   const map      = document.getElementById('ce-map-'    + id)?.value ?? '';
   const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
+  const roundSide = document.getElementById('ce-round-side-' + id)?.value ?? 'attack';
   const excl     = document.getElementById('ce-excl-'   + id)?.checked ?? false;
   const needsAgent = category !== 'wallbang';
   const needsAbility = category === 'lineup' || category === 'combo';
@@ -10241,7 +10258,7 @@ async function saveEditedLineup(id) {
     const extras = _contentEditExtrasForSave(category, id, sess);
     const updates = {
       title, description: desc, map, agent: needsAgent ? sess.agent : '', ability: needsAbility ? sess.ability : '',
-      category, content_type: category, schema_version: l.schema_version ?? 1, is_exclusive: excl, screenshots,
+      category, content_type: category, schema_version: l.schema_version ?? 1, round_side: roundSide, is_exclusive: excl, screenshots,
       range_radius: parseFloat(document.getElementById('ce-range-' + id)?.value || '0') || 0,
       video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
       position_x: sess.markerX ?? l.position_x ?? 0,
@@ -10254,6 +10271,7 @@ async function saveEditedLineup(id) {
     if ((l.description ?? '') !== desc) changes.description = { from: (l.description ?? '').slice(0, 80), to: desc.slice(0, 80) };
     if ((l.category ?? '') !== category) changes.category = { from: l.category ?? '', to: category };
     if (contentCategoryOf(l) !== category) changes.content_type = { from: contentCategoryOf(l), to: category };
+    if ((l.round_side ?? '') !== roundSide) changes.round_side = { from: l.round_side ?? '', to: roundSide };
     if ((l.map ?? '') !== map) changes.map = { from: l.map ?? '', to: map };
     if ((l.agent ?? '') !== updates.agent) changes.agent = { from: l.agent ?? '', to: updates.agent };
     if ((l.ability ?? '') !== updates.ability) changes.ability = { from: l.ability ?? '', to: updates.ability };
