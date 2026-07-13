@@ -3215,7 +3215,7 @@ onAuthStateChanged(auth, async user => {
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     const role = snap.exists() ? (snap.data().role ?? 'user') : 'user';
-    if (!['admin', 'moderator'].includes(role)) { show('denied'); return; }
+    if (role !== 'admin') { show('denied'); return; }
     currentUserRole = role;
   } catch (e) {
     console.error('[auth] role check failed:', e);
