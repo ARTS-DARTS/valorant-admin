@@ -3266,8 +3266,14 @@ async function _epLogin() {
   let email = raw;
   if (!raw.includes('@')) {
     try {
+      const normalized = raw.toLowerCase().trim();
+      const claim = await getDoc(doc(db, 'usernames', normalized));
+      const claimEmail = String(claim.data()?.login_email || '').trim();
+      if (claimEmail) {
+        email = claimEmail;
+      } else {
       const snap = await getDocs(
-        query(collection(db, 'users'), where('name_lower', '==', raw.toLowerCase().trim()), limit(1))
+        query(collection(db, 'users'), where('name_lower', '==', normalized), limit(1))
       );
       const found = snap.docs.find(d => d.data().user_email);
       if (!found) {
@@ -3278,6 +3284,7 @@ async function _epLogin() {
         return;
       }
       email = found.data().user_email;
+      }
     } catch (e) {
       loginErr('Ошибка поиска: ' + e.message);
       btn.disabled = false; btn.textContent = 'Войти';
@@ -5535,8 +5542,17 @@ async function finalizeDuel(duelId, forcedWinnerId = '') {
       updated_at: serverTimestamp(),
     });
     if (authorUid) tx.set(doc(db, 'users', authorUid), {
-      bonus_lineups: increment(5), total_likes: increment(likesAwarded), duel_wins: increment(1),
+      bonus_lineups: increment(5), progress_points: increment(5),
+      total_likes: increment(likesAwarded), total_likes_received: increment(likesAwarded), duel_wins: increment(1),
       last_duel_reward: 5, last_duel_reward_at: serverTimestamp(), last_duel_id: duelId,
+    }, { merge: true });
+    if (authorUid) tx.set(doc(db, 'user_stats', authorUid), {
+      uid: authorUid,
+      bonus_lineups: increment(5), bonus_points: increment(5), progress_points: increment(5),
+      total_likes: increment(likesAwarded), total_likes_received: increment(likesAwarded),
+      duel_wins: increment(1), last_duel_reward: 5, last_duel_reward_points: 5,
+      last_duel_reward_at: serverTimestamp(), last_duel_id: duelId,
+      updated_at: serverTimestamp(), schema_version: 2,
     }, { merge: true });
     tx.update(duelRef, {
       status: 'finished', finalized: true, winnerLineupId: winnerId, loserLineupId: loserId,
@@ -7037,11 +7053,35 @@ async function updateLineupCountStats(map, category, delta) {
 
 async function updateAuthorApprovedLineups(uid, delta, meta = {}) {
   if (!uid || !delta) return;
-  await updateDoc(doc(db, 'users', uid), {
-    approved_lineups: increment(delta),
-    approved_lineups_updated_at: serverTimestamp(),
-    approved_lineups_update_reason: meta.reason || (delta > 0 ? 'lineup_approved' : 'lineup_unapproved'),
-    approved_lineups_last_lineup_id: meta.lineupId || null,
+  await runTransaction(db, async tx => {
+    const userRef = doc(db, 'users', uid);
+    const statsRef = doc(db, 'user_stats', uid);
+    const [userSnap, statsSnap] = await Promise.all([tx.get(userRef), tx.get(statsRef)]);
+    if (!userSnap.exists()) return;
+    const user = userSnap.data() || {};
+    const stats = statsSnap.data() || {};
+    const approvedBefore = Number(user.approved_lineups || 0);
+    const publicCountBefore = Number(user.approved_lineups_count ?? approvedBefore);
+    const publicProgressBefore = Number(user.progress_points ?? approvedBefore + Number(user.bonus_lineups || 0));
+    const statsApprovedBefore = Number(stats.approved_lineups ?? approvedBefore);
+    const statsCountBefore = Number(stats.approved_lineups_count ?? statsApprovedBefore);
+    const statsProgressBefore = Number(stats.progress_points ?? statsApprovedBefore + Number(stats.bonus_lineups || user.bonus_lineups || 0));
+    tx.update(userRef, {
+      approved_lineups: approvedBefore + delta,
+      approved_lineups_count: publicCountBefore + delta,
+      progress_points: publicProgressBefore + delta,
+      approved_lineups_updated_at: serverTimestamp(),
+      approved_lineups_update_reason: meta.reason || (delta > 0 ? 'lineup_approved' : 'lineup_unapproved'),
+      approved_lineups_last_lineup_id: meta.lineupId || null,
+    });
+    tx.set(statsRef, {
+      uid,
+      approved_lineups: statsApprovedBefore + delta,
+      approved_lineups_count: statsCountBefore + delta,
+      progress_points: statsProgressBefore + delta,
+      updated_at: serverTimestamp(),
+      schema_version: 2,
+    }, { merge: true });
   }).catch(e => {
     console.warn('updateAuthorApprovedLineups:', e.message);
   });
@@ -7104,12 +7144,19 @@ async function rebuildAuthorLeaderboardStats() {
     for (const [uid, row] of entries) {
       batch.set(doc(db, 'users', uid), {
         approved_lineups: row.lineups,
+        approved_lineups_count: row.lineups,
         total_likes: row.likes,
+        total_likes_received: row.likes,
         leaderboard_stats_updated_at: serverTimestamp(),
       }, { merge: true });
-      pending += 1;
+      batch.set(doc(db, 'user_stats', uid), {
+        uid, approved_lineups: row.lineups, approved_lineups_count: row.lineups,
+        total_likes: row.likes, total_likes_received: row.likes,
+        leaderboard_stats_updated_at: serverTimestamp(), updated_at: serverTimestamp(), schema_version: 2,
+      }, { merge: true });
+      pending += 2;
       written += 1;
-      if (pending >= 450) {
+      if (pending >= 400) {
         await batch.commit();
         batch = writeBatch(db);
         pending = 0;
@@ -8291,7 +8338,16 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
     if (status === 'approved') {
       const authorUid = selectedAuthor?.uid ?? currentUser?.uid ?? '';
       if (authorUid) {
-        updateDoc(doc(db,'users',authorUid),{approved_lineups:increment(refs.length)}).catch(()=>{});
+        const counterBatch = writeBatch(db);
+        counterBatch.set(doc(db,'users',authorUid),{
+          approved_lineups:increment(refs.length), approved_lineups_count:increment(refs.length),
+          progress_points:increment(refs.length),
+        },{merge:true});
+        counterBatch.set(doc(db,'user_stats',authorUid),{
+          uid:authorUid, approved_lineups:increment(refs.length), approved_lineups_count:increment(refs.length),
+          progress_points:increment(refs.length), updated_at:serverTimestamp(), schema_version:2,
+        },{merge:true});
+        counterBatch.commit().catch(()=>{});
       }
     }
     clearAdminAddDraft();
@@ -14942,17 +14998,30 @@ document.getElementById('user-verify-before-btn')?.addEventListener('click', asy
   if (status) status.textContent = `0/${candidates.length}`;
   try {
     let done = 0;
-    for (let i = 0; i < candidates.length; i += 450) {
+    for (let i = 0; i < candidates.length; i += 220) {
       const batch = writeBatch(db);
-      candidates.slice(i, i + 450).forEach(u => {
+      candidates.slice(i, i + 220).forEach(u => {
         batch.update(doc(db, 'users', u.id), {
           verified_not_fake: true,
           verified_at: serverTimestamp(),
           verification_reason: 'pre_tracking_manual_batch',
         });
+        batch.set(doc(db, 'user_private', u.id), {
+          uid: u.id,
+          verified_not_fake: true,
+          verified_at: serverTimestamp(),
+          verification_reason: 'pre_tracking_manual_batch',
+          trust: {
+            verified_not_fake: true,
+            verified_at: serverTimestamp(),
+            verification_reason: 'pre_tracking_manual_batch',
+          },
+          updated_at: serverTimestamp(),
+          schema_version: 2,
+        }, { merge: true });
       });
       await batch.commit();
-      done += Math.min(450, candidates.length - i);
+      done += Math.min(220, candidates.length - i);
       if (status) status.textContent = `${done}/${candidates.length}`;
     }
     _allUsers = _allUsers.map(u => candidates.some(c => c.id === u.id)
@@ -14977,9 +15046,27 @@ async function openUserProfilePanel(uid) {
 
 async function _renderUserProfileInto(uid, panel) {
   try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
+    const [userDoc, privateDoc, statsDoc, authDoc] = await Promise.all([
+      getDoc(doc(db, 'users', uid)),
+      getDoc(doc(db, 'user_private', uid)),
+      getDoc(doc(db, 'user_stats', uid)),
+      getDoc(doc(db, 'user_auth_links', uid)),
+    ]);
     if (!userDoc.exists()) { panel.innerHTML = '<div style="color:var(--red);">Пользователь не найден</div>'; return; }
-    const u = userDoc.data();
+    const publicUser = userDoc.data() || {};
+    const privateUser = privateDoc.data() || {};
+    const statsUser = statsDoc.data() || {};
+    const authUser = authDoc.data() || {};
+    const u = { ...publicUser, ...statsUser, ...privateUser, ...authUser };
+    u.name = publicUser.display_name || publicUser.name || statsUser.display_name || '';
+    u.approved_lineups = Math.max(
+      Number(publicUser.approved_lineups || publicUser.approved_lineups_count || 0),
+      Number(statsUser.approved_lineups || statsUser.approved_lineups_count || 0),
+    );
+    u.bonus_lineups = Math.max(
+      Number(publicUser.bonus_lineups || 0),
+      Number(statsUser.bonus_lineups || statsUser.bonus_points || 0),
+    );
 
     const lineupsSnap = await getDocs(query(
       collection(db, 'lineups'),
@@ -15005,7 +15092,9 @@ async function _renderUserProfileInto(uid, panel) {
       feedbacks = fbSnap.docs.map(d => d.data());
     } catch(_) {}
 
-    const hasPassword = u.user_email && !u.user_email.includes('google');
+    const hasPassword = u.password_linked === true
+      || Array.isArray(u.firebase_providers) && u.firebase_providers.includes('password')
+      || !!u.user_email && !u.user_email.includes('google');
     const createdAt   = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
     const isBanned    = !!u.is_banned;
     const lastSeenTs  = u.last_seen?.toDate?.() ?? null;
@@ -15291,10 +15380,20 @@ async function loadUserActivity(uid, fallback = {}) {
 async function verifyUserAccount(uid, name, panelId) {
   if (!confirm(`Подтвердить аккаунт «${name}» как реального пользователя?`)) return;
   try {
-    await updateDoc(doc(db, 'users', uid), {
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'users', uid), {
       verified_not_fake: true,
       verified_at: serverTimestamp(),
     });
+    batch.set(doc(db, 'user_private', uid), {
+      uid,
+      verified_not_fake: true,
+      verified_at: serverTimestamp(),
+      trust: { verified_not_fake: true, verified_at: serverTimestamp() },
+      updated_at: serverTimestamp(),
+      schema_version: 2,
+    }, { merge: true });
+    await batch.commit();
     toast(`✅ Аккаунт «${name}» подтверждён`, 's');
     const panel = document.getElementById(panelId);
     if (panel) await _renderUserProfileInto(uid, panel);
@@ -15370,7 +15469,8 @@ window.revokeBadge = revokeBadge;
 async function saveUserName(uid) {
   const name = document.getElementById('up-name-' + uid)?.value?.trim();
   if (!name) return;
-  await updateDoc(doc(db, 'users', uid), {
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', uid), {
     name,
     username: name,
     displayName: name,
@@ -15379,6 +15479,11 @@ async function saveUserName(uid) {
     nickname_set_at: serverTimestamp(),
     updated_at: serverTimestamp(),
   });
+  batch.set(doc(db, 'user_stats', uid), {
+    uid, display_name: name, name_lower: name.toLowerCase(),
+    updated_at: serverTimestamp(), schema_version: 2,
+  }, { merge: true });
+  await batch.commit();
   toast('Никнейм обновлён ✅', 's');
   addAuditLog(`Сменён никнейм пользователя → ${name}`);
   const local = _allUsers.find(u => u.id === uid);
@@ -15439,12 +15544,21 @@ async function setUserApprovedLineups(uid, value, panelId, reason = 'manual') {
   const factual = await _factualApprovedLineups(uid);
   const level = _loLevelFor(Math.max(approved, factual) + bonus).level;
   _setUserCounterStatus(uid, 'Сохраняю...');
-  await updateDoc(doc(db, 'users', uid), {
+  const statsBatch = writeBatch(db);
+  statsBatch.update(doc(db, 'users', uid), {
     approved_lineups: approved,
+    approved_lineups_count: approved,
+    progress_points: approved + bonus,
     level,
     approved_lineups_updated_at: serverTimestamp(),
     approved_lineups_update_reason: reason,
   });
+  statsBatch.set(doc(db, 'user_stats', uid), {
+    uid, approved_lineups: approved, approved_lineups_count: approved,
+    progress_points: approved + bonus, level,
+    updated_at: serverTimestamp(), schema_version: 2,
+  }, { merge: true });
+  await statsBatch.commit();
   const local = _allUsers.find(u => u.id === uid);
   if (local) {
     local.approved_lineups = approved;
@@ -15465,12 +15579,20 @@ async function setUserBonusLineups(uid, value, panelId, reason = 'manual_bonus')
   const factual = await _factualApprovedLineups(uid);
   const level = _loLevelFor(Math.max(approved, factual) + bonus).level;
   _setUserCounterStatus(uid, 'Сохраняю бонус...');
-  await updateDoc(doc(db, 'users', uid), {
+  const statsBatch = writeBatch(db);
+  statsBatch.update(doc(db, 'users', uid), {
     bonus_lineups: bonus,
+    progress_points: Math.max(approved, factual) + bonus,
     level,
     bonus_lineups_updated_at: serverTimestamp(),
     bonus_lineups_update_reason: reason,
   });
+  statsBatch.set(doc(db, 'user_stats', uid), {
+    uid, bonus_lineups: bonus, bonus_points: bonus,
+    progress_points: Math.max(approved, factual) + bonus, level,
+    updated_at: serverTimestamp(), schema_version: 2,
+  }, { merge: true });
+  await statsBatch.commit();
   const local = _allUsers.find(u => u.id === uid);
   if (local) {
     local.bonus_lineups = bonus;
@@ -15558,14 +15680,32 @@ async function resetUserCooldown(uid, name, panelId) {
 
 async function banUserAccount(uid, name) {
   if (!confirm(`Заблокировать пользователя ${name}?`)) return;
-  await updateDoc(doc(db, 'users', uid), { is_banned: true });
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', uid), { is_banned: true, account_state: 'banned' });
+  batch.set(doc(db, 'user_private', uid), {
+    uid,
+    is_banned: true,
+    moderation: { is_banned: true, banned_at: serverTimestamp() },
+    updated_at: serverTimestamp(),
+    schema_version: 2,
+  }, { merge: true });
+  await batch.commit();
   toast(`${name} заблокирован 🚫`, 'w');
   addAuditLog(`Заблокирован пользователь: ${name}`);
   openUserProfilePanel(uid);
 }
 
 async function unbanUserAccount(uid, name) {
-  await updateDoc(doc(db, 'users', uid), { is_banned: false });
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'users', uid), { is_banned: false, account_state: 'active' });
+  batch.set(doc(db, 'user_private', uid), {
+    uid,
+    is_banned: false,
+    moderation: { is_banned: false, unbanned_at: serverTimestamp() },
+    updated_at: serverTimestamp(),
+    schema_version: 2,
+  }, { merge: true });
+  await batch.commit();
   toast(`${name} разблокирован ✅`, 's');
   addAuditLog(`Разблокирован пользователь: ${name}`);
   openUserProfilePanel(uid);
