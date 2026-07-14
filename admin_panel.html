@@ -11433,6 +11433,11 @@ async function loadAgentSubscriptionAnalytics() {
   if (btn) { btn.disabled = true; btn.textContent = 'Считаю…'; }
   list.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка подписок…</div>';
   try {
+    // Аналитика может открываться раньше формы добавления, которая обычно
+    // загружает общий справочник портретов. Дожидаемся его явно, иначе список
+    // подписок навсегда отрисуется с пустыми квадратами.
+    await _ensureIconsLoaded();
+
     const agentCounts = new Map();
     const userIds = new Set();
     let total = 0;
