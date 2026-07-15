@@ -245,7 +245,8 @@
     .extra-ability-chip.sel { border-color:var(--primary); box-shadow:0 0 0 3px rgba(255,70,85,.14); }
     .extra-ability-chip img { width:22px; height:22px; object-fit:contain; }
     .extra-ability-chip button { border:0; background:rgba(148,163,184,.12); color:var(--text2); border-radius:50%; width:18px; height:18px; cursor:pointer; font-weight:900; line-height:1; }
-    .slot-map-workbench { display:grid; grid-template-columns: 168px minmax(0, 1fr); gap:10px; align-items:start; }
+    .slot-map-workbench { display:grid; grid-template-columns:1fr; gap:10px; align-items:start; }
+    .slot-map-workbench:has(.slot-extra-tools:not([hidden])) { grid-template-columns:168px minmax(0, 1fr); }
     .slot-extra-tools { border:1px solid var(--border); background:rgba(15,23,42,.55); border-radius:var(--r); padding:10px; display:grid; gap:9px; }
     .slot-extra-tools[hidden] { display:none !important; }
     .slot-extra-tools .ability-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
@@ -291,6 +292,8 @@
     @media(max-width:900px){ .slot-map-workbench { grid-template-columns:1fr; } }
     @media(prefers-reduced-motion:reduce){ .defense-previewing .map-canvas, .defense-preview-returning .map-canvas { transition:none; } }
     .map-picker-wrap { position: relative; border-radius: var(--r); overflow: hidden; background: var(--surface2); border: 1px solid var(--border); cursor: crosshair; user-select: none; aspect-ratio: 1; width: min(100%, 320px); }
+    #editor-panel .agent-grid { grid-template-columns:repeat(auto-fill, minmax(58px, 64px)); }
+    #editor-panel .map-picker-wrap { width:min(100%, 420px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
     .map-site-label { position: absolute; transform: translate(-50%,-50%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,.9); pointer-events: none; user-select: none; z-index: 1; }
@@ -780,10 +783,8 @@
     }
     #desc-template-panel.open { transform: translateX(0); }
     body.desc-panel-open #add-slots-container { padding-right: 316px; transition: padding-right .2s ease; }
-    body.desc-panel-open .editor-main { padding-right: 336px; transition: padding-right .2s ease; }
     @media (max-width: 1180px) {
-      body.desc-panel-open #add-slots-container,
-      body.desc-panel-open .editor-main { padding-right: 0; }
+      body.desc-panel-open #add-slots-container { padding-right: 0; }
       #desc-template-panel { width: min(300px, calc(100vw - 24px)); top: 72px; bottom: 12px; right: 12px; border: 1px solid var(--border); border-radius: var(--r); box-shadow: 0 18px 48px rgba(0,0,0,.5); }
     }
     .dtp-header { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -9666,6 +9667,17 @@ function initSlotDragReorder(id) {
 // ── Inline edit in card ───────────────────────────────────────────────────────
 const editSessions = {};
 
+function _lineupScreenshotUrls(lineup) {
+  const raw = Array.isArray(lineup?.screenshots)
+    ? lineup.screenshots
+    : (Array.isArray(lineup?.screenshot_urls) ? lineup.screenshot_urls : []);
+  return raw.map(item => {
+    if (typeof item === 'string') return item.trim();
+    if (!item || typeof item !== 'object') return '';
+    return String(item.url || item.cloudUrl || item.storageUrl || item.download_url || '').trim();
+  }).filter(Boolean);
+}
+
 function _getEditSession(id, l) {
   if (!editSessions[id]) {
     const isDefense = contentCategoryOf(l) === 'defense';
@@ -9679,7 +9691,7 @@ function _getEditSession(id, l) {
       defenseAbilities:(Array.isArray(l.abilities) ? l.abilities : []).map((item,index)=>_defNormalizeAbility(item,index,l.agent || '')),
       defenseMode:isDefense ? 'setup' : 'position', selectedDefenseAbility:null, selectedDefenseIndex:null, defenseLineStart:null, defensePreview:false,
       mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
-      screenshots: (Array.isArray(l.screenshots) ? l.screenshots : []).map(url => ({ type: 'existing', url })),
+      screenshots: _lineupScreenshotUrls(l).map(url => ({ type: 'existing', url })),
       videoUrl: l.video_url ?? null, videoXhr: null,
       trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
       targetX: typeof l.target_x === 'number' ? l.target_x : null,
@@ -10197,6 +10209,9 @@ async function openEditForm(id) {
     if (saveRow) saveRow.style.display = 'none';
     return;
   }
+  // Быстрый ввод предназначен для массового добавления. В одиночном редакторе
+  // он не нужен и не должен менять ширину/раскладку карточки лайнапа.
+  closeDescPanel();
   const l = lineups.find(l => l.id === id); if (!l) return;
   if (contentCategoryOf(l) === 'wallbang') await ensureContentConfigLoaded();
   delete editSessions[id]; _getEditSession(id, l);
@@ -10398,7 +10413,7 @@ function uploadVideoToSelectel(file, onProgress) {
 // ── Video frame editor helpers ────────────────────────────────────────────────
 function _buildVfeHtml(prefix, videoSrc) {
   return `<div class="vfe-wrap">
-    <video id="${prefix}-vid" src="${esc(videoSrc)}" preload="metadata" crossorigin="anonymous"></video>
+    <video id="${prefix}-vid" crossorigin="anonymous" src="${esc(videoSrc)}" preload="auto"></video>
     <div class="vfe-controls">
       <button class="vfe-play" id="${prefix}-vplay">▶</button>
       <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
@@ -10430,7 +10445,7 @@ function _initVfe(prefix, onRemove, onCapture) {
   play?.addEventListener('click', () => vid.paused ? vid.play() : vid.pause());
   rem?.addEventListener('click', onRemove);
   cap?.addEventListener('click', async () => {
-    if (!vid.videoWidth) { toast('Видео ещё не готово', 'i'); return; }
+    if (!vid.videoWidth || vid.readyState < 2) { toast('Дождись загрузки кадра видео', 'i'); return; }
     cap.disabled = true; cap.textContent = '⏳';
     try {
       vid.pause();
@@ -10439,6 +10454,7 @@ function _initVfe(prefix, onRemove, onCapture) {
       canvas.width = vid.videoWidth; canvas.height = vid.videoHeight;
       canvas.getContext('2d').drawImage(vid, 0, 0);
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+      if (!blob) throw new Error('Не удалось создать изображение из кадра');
       await onCapture(blob);
       toast('Кадр добавлен ✅', 's');
     } catch (e) {
@@ -14585,12 +14601,6 @@ document.getElementById('add-slots-container')?.addEventListener('focusin', e =>
     openDescPanel(e.target.id);
   }
 });
-document.getElementById('editor-panel')?.addEventListener('focusin', e => {
-  if (e.target.tagName === 'TEXTAREA' && /^ce-desc-/.test(e.target.id)) {
-    openDescPanel(e.target.id);
-  }
-});
-
 // Закрывается при клике вне формы и вне панели
 document.addEventListener('click', e => {
   if (!dtpOpen) return;
