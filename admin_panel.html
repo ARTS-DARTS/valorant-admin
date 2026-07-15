@@ -8028,6 +8028,10 @@ function _buildSlotHtml(id) {
               <button id="slot-${id}-traj-clear" class="btn" style="flex:1;border:1px solid var(--border);color:var(--red);font-size:12px;">🗑 Очистить траекторию</button>
             </div>
           </div>
+          <label class="fcheck-row" style="width:max-content;margin-left:auto;align-self:center;white-space:nowrap;">
+            <input type="checkbox" id="bulk-moderator-only">
+            <span>Только для модераторов</span>
+          </label>
         </div>
         <div class="coords-row">
           X: <span class="coord-pill" id="slot-${id}-coord-x">—</span>
@@ -8596,7 +8600,9 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
         extra_abilities: extraAbilities,
         range_radius: rangeRadius,
         ...extras,
-        status,is_exclusive:excl,submitted_at:serverTimestamp(),
+        status:document.getElementById('bulk-moderator-only')?.checked ? 'moderator_draft' : status,
+        moderator_only:document.getElementById('bulk-moderator-only')?.checked === true,
+        is_exclusive:excl,submitted_at:serverTimestamp(),
         user_id:selectedAuthor?.uid??currentUser?.uid??'',
         submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin',
       });
