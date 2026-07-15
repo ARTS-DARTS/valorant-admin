@@ -4530,12 +4530,12 @@ function _ccRender() {
 
 async function _ccLoadAgents() {
   try {
-    let agents = _apiCacheGet('_api_agents');
+    let agents = _apiCacheGet('_api_agents_v2');
     if (!agents) {
       const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
       const json = await res.json();
       agents = json.data || [];
-      _apiCacheSet('_api_agents', agents);
+      _apiCacheSet('_api_agents_v2', agents);
     }
     _ccAgents = agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
   } catch (e) {
@@ -5407,6 +5407,9 @@ const AC_AGENTS = [
   { name: 'Chamber',   hex: '#FFD54F' },
   { name: 'Reyna',     hex: '#AD1457' },
   { name: 'Jett',      hex: '#80DEEA' },
+  { name: 'Waylay',    hex: '#FFB74D' },
+  { name: 'Miks',      hex: '#26C6DA' },
+  { name: 'Veto',      hex: '#8D6E63' },
 ];
 
 let _acColors  = {};  // { agentName: '#RRGGBB' } — current session state
@@ -5501,12 +5504,12 @@ async function loadAgentsForConfig() {
   document.getElementById('agents-card-grid').innerHTML =
     '<div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>';
   try {
-    let agents = _apiCacheGet('_api_agents');
+    let agents = _apiCacheGet('_api_agents_v2');
     if (!agents) {
       const res = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
       const json = await res.json();
       agents = json.data || [];
-      _apiCacheSet('_api_agents', agents);
+      _apiCacheSet('_api_agents_v2', agents);
     }
     _agentsData = agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
     await _loadDisabledAgents();
@@ -8889,6 +8892,9 @@ const AGENTS = {
   'Clove':     ['Pick-me-up', 'Meddle', 'Ruse', 'Not Dead Yet'],
   'Vyse':      ['Razorvine', 'Shear', 'Arc Rose', 'Steel Garden'],
   'Tejo':      ['Stealth Drone', 'Special Delivery', 'Guided Salvo', 'Armageddon'],
+  'Waylay':    ['Refract', 'Saturate', 'Lightspeed', 'Convergent Paths'],
+  'Miks':      ['M-pulse', 'Waveform', 'Harmonize', 'Bassquake'],
+  'Veto':      ['Interceptor', 'Crosscut', 'Evolution', 'Chokehold'],
 };
 const MAP_IMAGES = {
   'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
@@ -9115,12 +9121,12 @@ let _mapDragging = false;
 
 async function loadAgentIcons() {
   try {
-    let agents = _apiCacheGet('_api_agents');
+    let agents = _apiCacheGet('_api_agents_v2');
     if (!agents) {
       const res  = await fetch('https://valorant-api.com/v1/agents?isPlayableCharacter=true&language=ru-RU');
       const json = await res.json();
       agents = json.data ?? [];
-      _apiCacheSet('_api_agents', agents);
+      _apiCacheSet('_api_agents_v2', agents);
     }
     for (const ag of agents) {
       if (!ag.displayName) continue;
@@ -9138,7 +9144,7 @@ async function loadAgentIcons() {
       }
     }
   } catch (_) {
-    const stale = _apiCacheGetStale('_api_agents') ?? [];
+    const stale = _apiCacheGetStale('_api_agents_v2') ?? [];
     for (const ag of stale) {
       if (!ag.displayName) continue;
       AGENT_ICONS[ag.displayName] = ag.displayIconSmall || ag.displayIcon || '';
