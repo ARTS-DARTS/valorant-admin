@@ -2977,7 +2977,7 @@
     <aside class="msg-dialogs-pane">
       <div class="msg-dialogs-head">
         <h3>Мессенджер</h3>
-        <input id="msg-search" type="search" placeholder="Поиск диалогов…" oninput="_msgRenderList()">
+        <input id="msg-search" type="search" autocomplete="off" placeholder="Поиск диалогов…" oninput="_msgSearch(this.value)">
       </div>
       <div class="msg-filter-row">
         <button class="an-tab-btn active" data-msg-filter="all"      onclick="_msgSetFilter('all')">Все</button>
@@ -4676,6 +4676,7 @@ document.getElementById('cc-access-save')?.addEventListener('click', async funct
 // Закрытые удаляются через неделю (очистка при открытии вкладки).
 let _msgAll    = [];
 let _msgFilter = 'all';
+let _msgSearchTerm = '';
 let _msgLoaded = false;
 let _ideasAll  = [];
 let _msgUnsub = null;
@@ -4884,6 +4885,10 @@ function _msgSetFilter(f) {
   _msgRenderList();
 }
 window._msgSetFilter = _msgSetFilter;
+window._msgSearch = function(value) {
+  _msgSearchTerm = String(value || '').toLocaleLowerCase('ru-RU').trim();
+  _msgRenderList();
+};
 
 function _msgRenderList() {
   const list = document.getElementById('msg-list');
@@ -4893,8 +4898,13 @@ function _msgRenderList() {
   if (_msgFilter === 'new')         items = conversations.filter(m => m.status !== 'closed' && _msgIsNew(m));
   else if (_msgFilter === 'answered') items = conversations.filter(m => _msgThread(m).some(x => x.from === 'admin') && m.status !== 'closed');
   else if (_msgFilter === 'closed') items = conversations.filter(m => m.status === 'closed');
-  const search = (document.getElementById('msg-search')?.value || '').trim().toLowerCase();
-  if (search) items = items.filter(m => [m.username, m.user_id, m.category, _msgLastThreadMessage(m).text].some(value => String(value || '').toLowerCase().includes(search)));
+  const search = _msgSearchTerm || String(document.getElementById('msg-search')?.value || '').toLocaleLowerCase('ru-RU').trim();
+  if (search) items = items.filter(m => {
+    const threadText = _msgThread(m).map(message => message.text || '').join(' ');
+    const haystack = [m.username, m.user_id, m.category, m.source, threadText]
+      .map(value => String(value || '').toLocaleLowerCase('ru-RU')).join(' ');
+    return haystack.includes(search);
+  });
   if (!items.length) {
     list.innerHTML = `<div class="state" style="padding:20px;color:var(--text2);">Нет сообщений</div>`;
     return;
