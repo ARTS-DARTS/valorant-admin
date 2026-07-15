@@ -843,10 +843,10 @@
     .msg-dialog-preview { color:var(--text2); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .msg-dialog-side { align-self:start; display:flex; flex-direction:column; align-items:flex-end; gap:7px; color:var(--text2); font-size:9px; white-space:nowrap; }
     .msg-unread-dot { min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; }
-    .msg-chat-pane { min-width:0; min-height:0; display:block !important; background:var(--bg); }
-    .msg-chat-content { height:100%; display:flex; flex-direction:column; padding:0 16px 14px; box-sizing:border-box; }
+    .msg-chat-pane { min-width:0; min-height:0; height:100%; display:block !important; overflow:hidden; background:var(--bg); }
+    .msg-chat-content { height:100%; min-height:0; display:grid; grid-template-rows:auto minmax(0,1fr) auto auto; overflow:hidden; padding:0 16px 14px; box-sizing:border-box; }
     .msg-chat-header { flex-shrink:0; margin:0 -16px 0 !important; padding:14px 18px !important; border-bottom:1px solid var(--border); background:var(--surface); }
-    .msg-chat-content #msg-thread-scroll { flex:1; min-height:0; max-height:none !important; margin:0 -2px 12px !important; padding:18px 4px 8px !important; border-top:0 !important; }
+    .msg-chat-content #msg-thread-scroll { min-height:0; height:auto !important; max-height:none !important; overflow-y:auto !important; margin:0 -2px 12px !important; padding:18px 4px 8px !important; border-top:0 !important; }
     .msg-chat-placeholder { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:var(--text2); }
     .msg-chat-placeholder span { font-size:42px; opacity:.35; }
     .msg-chat-placeholder b { color:var(--text); font-size:15px; }
@@ -4733,6 +4733,24 @@ function _msgLastThreadMessage(m) {
   return thread.reduce((latest, msg) => _msgThreadTs(msg) >= _msgThreadTs(latest) ? msg : latest, thread[0] || {});
 }
 
+function _msgConversations(source = _msgAll) {
+  const consumed = new Set(), result = [];
+  for (const item of source) {
+    if (consumed.has(item.id)) continue;
+    const app = item.user_id && (item.source === 'moderator_application' || item.category === 'заявка модератора');
+    if (!app) { result.push(item); consumed.add(item.id); continue; }
+    const parts = source.filter(other => other.user_id === item.user_id && other.status !== 'closed');
+    parts.forEach(part => consumed.add(part.id));
+    const seen = new Set();
+    const thread = parts.flatMap(_msgThread).filter(msg => {
+      const key = `${msg.from}|${String(msg.text || '').trim()}|${_msgThreadTs(msg)}`;
+      if (seen.has(key)) return false; seen.add(key); return true;
+    }).sort((a,b) => _msgThreadTs(a) - _msgThreadTs(b));
+    result.push({...item, thread, _mergedIds: parts.map(part => part.id), admin_unread: parts.some(_msgIsNew)});
+  }
+  return result;
+}
+
 function startMessagesRealtime() {
   const list = document.getElementById('msg-list');
   if (_msgUnsub) return;
@@ -4741,7 +4759,8 @@ function startMessagesRealtime() {
   const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
   _msgUnsub = onSnapshot(q, async snap => {
     if (_msgLoaded && snap.docChanges().length === 0) return;
-    const activeChanged = _msgActiveId && snap.docChanges().some(change => change.doc.id === _msgActiveId);
+    const activeBefore = _msgConversations().find(item => item.id === _msgActiveId);
+    const activeChanged = _msgActiveId && snap.docChanges().some(change => change.doc.id === _msgActiveId || activeBefore?._mergedIds?.includes(change.doc.id));
     _msgAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     _msgLoaded = true;
     if (!_msgHousekeepingDone && !snap.metadata.hasPendingWrites) {
@@ -4861,10 +4880,11 @@ window._msgSetFilter = _msgSetFilter;
 function _msgRenderList() {
   const list = document.getElementById('msg-list');
   if (_msgFilter === 'ideas') { _ideasRender(); return; }
-  let items = _msgAll;
-  if (_msgFilter === 'new')         items = _msgAll.filter(m => m.status !== 'closed' && _msgIsNew(m));
-  else if (_msgFilter === 'answered') items = _msgAll.filter(m => !!m.reply && m.status !== 'closed');
-  else if (_msgFilter === 'closed') items = _msgAll.filter(m => m.status === 'closed');
+  const conversations = _msgConversations();
+  let items = conversations;
+  if (_msgFilter === 'new')         items = conversations.filter(m => m.status !== 'closed' && _msgIsNew(m));
+  else if (_msgFilter === 'answered') items = conversations.filter(m => _msgThread(m).some(x => x.from === 'admin') && m.status !== 'closed');
+  else if (_msgFilter === 'closed') items = conversations.filter(m => m.status === 'closed');
   const search = (document.getElementById('msg-search')?.value || '').trim().toLowerCase();
   if (search) items = items.filter(m => [m.username, m.user_id, m.category, _msgLastThreadMessage(m).text].some(value => String(value || '').toLowerCase().includes(search)));
   if (!items.length) {
@@ -4924,7 +4944,7 @@ window._ideaDelete = async function(id) {
 };
 
 window._msgOpenReply = function(id) {
-  const m = _msgAll.find(x => x.id === id);
+  const m = _msgConversations().find(x => x.id === id);
   if (!m) return;
   _msgActiveId = id;
   const cat  = m.category || 'другое';
