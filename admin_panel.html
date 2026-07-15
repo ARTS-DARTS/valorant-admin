@@ -9942,15 +9942,11 @@ function updateEditCoords(id) {
   const he = document.getElementById('ce-coord-hint-' + id);
   const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value ?? '');
   if (category === 'defense') {
-    if (posBtn) posBtn.style.display='none';
-    if (targetBtn) targetBtn.style.display='none';
-    if (trajBtn) trajBtn.style.display='none';
-    if (trajAct) trajAct.style.display='none';
-    sess.mapMode='defense'; _defRenderTools(id,true); _defRender(id,true); updateEditCoords(id); return;
+    s.mapMode = 'defense';
+    _defRenderTools(id, true);
+    _defRender(id, true);
+    return;
   }
-  if (mode==='defense') { sess.mapMode='position'; mode='position'; }
-  if (posBtn) posBtn.style.display='';
-  if (trajBtn) trajBtn.style.display='';
   if (xe) xe.textContent = s.markerX !== null ? s.markerX.toFixed(4) : '—';
   if (ye) ye.textContent = s.markerY !== null ? s.markerY.toFixed(4) : '—';
   if (tw) tw.style.display = category === 'wallbang' ? 'inline-flex' : 'none';
