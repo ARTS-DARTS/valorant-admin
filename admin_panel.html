@@ -5074,6 +5074,7 @@ function _maRenderList() {
       ${a.status === 'pending' ? `<div style="display:flex;gap:8px;">
         <button onclick="_maDecide('${a.uid}','approve')" style="flex:1;padding:9px;background:var(--green);color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">✓ Одобрить</button>
         <button onclick="_maDecide('${a.uid}','reject')" style="flex:1;padding:9px;background:transparent;color:var(--red);border:1px solid var(--red);border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">✕ Отклонить</button>
+        <button onclick="_maOpenChat('${a.uid}')" style="padding:9px 16px;background:rgba(79,195,247,.12);color:var(--primary);border:1px solid var(--primary);border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">💬 Написать</button>
       </div>` : ''}
     </div>`;
   }).join('');
@@ -5849,6 +5850,40 @@ async function finalizeDuel(duelId, forcedWinnerId = '') {
   }
   return result;
 }
+
+window._maOpenChat = async function(uid) {
+  const a = _maAll.find(x => x.uid === uid);
+  if (!a) return;
+  const chatId = `moderator_application_${uid}`;
+  const ref = doc(db, 'feedback', chatId);
+  try {
+    const snap = await getDoc(ref);
+    let chat;
+    if (snap.exists()) {
+      chat = { id: chatId, ...snap.data() };
+    } else {
+      const initialText = a.reason || 'Обсуждение заявки на модератора';
+      const data = {
+        text: initialText,
+        category: 'заявка модератора',
+        username: a.username || a.user_email || uid.slice(0, 8),
+        user_id: uid,
+        source: 'moderator_application',
+        application_id: uid,
+        thread: [{ from:'user', text:initialText, ts:a.created_at?.toMillis?.() || Date.now() }],
+        status: 'open', admin_unread:false, user_unread:false, last_from:'user', created_at:serverTimestamp(),
+      };
+      await setDoc(ref, data);
+      chat = { id:chatId, ...data, created_at:a.created_at };
+    }
+    const existing = _msgAll.findIndex(item => item.id === chatId);
+    if (existing >= 0) _msgAll[existing] = chat; else _msgAll.unshift(chat);
+    switchTab('messages');
+    _msgOpenReply(chatId);
+  } catch (e) {
+    toast('Не удалось открыть чат: ' + e.message, 'e');
+  }
+};
 
 function _timeLeft(endsAt) {
   const endMs = endsAt?.toDate ? endsAt.toDate().getTime() : (endsAt?.seconds ? endsAt.seconds * 1000 : Date.now());
