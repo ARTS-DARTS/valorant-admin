@@ -4630,6 +4630,17 @@ let _ideasAll  = [];
 let _msgUnsub = null;
 let _msgBadgeUnsub = null;
 let _msgHousekeepingDone = false;
+let _msgSoundReady = false;
+let _msgLastUnreadCount = 0;
+const _msgSound = new Audio('https://vlineups.ru/assets/audio/chat-message.mp3');
+_msgSound.preload = 'auto';
+_msgSound.volume = .55;
+document.addEventListener('pointerdown', () => {
+  _msgSound.volume = 0;
+  _msgSound.play().then(() => {
+    _msgSound.pause(); _msgSound.currentTime = 0; _msgSound.volume = .55;
+  }).catch(() => { _msgSound.volume = .55; });
+}, { once:true });
 
 function _msgCatColor(cat) {
   if (cat === 'баг')         return '#f44';
@@ -4706,6 +4717,13 @@ function startMessagesBadgeRealtime() {
   const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
   _msgBadgeUnsub = onSnapshot(q, snap => {
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const unreadCount = items.filter(_msgIsNew).length;
+    if (_msgSoundReady && unreadCount > _msgLastUnreadCount) {
+      _msgSound.currentTime = 0;
+      _msgSound.play().catch(() => {});
+    }
+    _msgLastUnreadCount = unreadCount;
+    _msgSoundReady = true;
     _msgUpdateBadge(items);
   }, e => {
     console.warn('messages badge realtime', e);
