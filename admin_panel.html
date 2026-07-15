@@ -4985,7 +4985,7 @@ window._msgOpenReply = function(id) {
     return `<div style="display:flex;justify-content:${isAdmin ? 'flex-end' : 'flex-start'};margin-bottom:10px;">
       <div style="max-width:78%;">
         <div style="font-size:10px;font-weight:700;color:${isAdmin ? 'var(--green)' : 'var(--primary)'};margin-bottom:3px;${isAdmin ? 'text-align:right;' : ''}">${isAdmin ? 'Вы (админ)' : esc(name)}</div>
-        <div style="background:${isAdmin ? 'rgba(79,195,247,.13)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(79,195,247,.38)' : 'var(--border)'};border-radius:${isAdmin?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:9px 12px 6px;font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap;">${esc(msg.text || '')}<div style="margin-top:4px;font-size:9px;color:var(--text2);text-align:right;">${msgTime}${isAdmin ? (m.user_unread ? ' ✓' : ' ✓✓') : ''}</div></div>
+        <div style="background:${isAdmin ? 'rgba(79,195,247,.13)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(79,195,247,.38)' : 'var(--border)'};border-radius:${isAdmin?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:9px 12px 6px;font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap;">${esc(msg.text || '')}<div style="display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:7px;font-size:10px;color:var(--text2);">${msgTime}${isAdmin ? `<span style="font-weight:700;color:${m.user_unread === false ? 'var(--green)' : 'var(--text2)'};">${m.user_unread === false ? '✓✓ Прочитано' : '◷ Отправлено'}</span>` : ''}</div></div>
       </div>
     </div>`;
   }).join('');
