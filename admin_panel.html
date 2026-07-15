@@ -6306,6 +6306,7 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
       e.stopPropagation();
       const { action, id, uid, name } = actionBtn.dataset;
       if (action === 'approve')      approveLineup(id, uid);
+      if (action === 'moderate')     sendLineupToModeration(id);
       if (action === 'publish')      publishLineup(id, uid);
       if (action === 'reject')       rejectLineup(id);
       if (action === 'archive')      archiveLineup(id);
@@ -6522,6 +6523,7 @@ function lineupActionButtonsHtml(l, compact = false) {
   const btnStyle = compact ? ' style="font-size:12px;"' : '';
   return `
     ${l.status === 'pending' || l.status === 'rejected' ? `<button class="btn btn-approve" data-action="approve" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">🔥 В пирожки</button>` : ''}
+    ${l.status !== 'moderator_draft' && l.status !== 'approved' ? `<button class="btn" data-action="moderate" data-id="${l.id}" style="border-color:#38bdf8;color:#38bdf8;">🛡 На модерку</button>` : ''}
     ${l.status === 'hot' ? `<button class="btn btn-publish" data-action="publish" data-id="${l.id}" data-uid="${esc(l.user_id ?? '')}">✅ Опубликовать</button>` : ''}
     ${l.status !== 'rejected' ? `<button class="btn btn-reject" data-action="reject" data-id="${l.id}">✕ Отклонить</button>` : ''}
     ${l.status !== 'archived'
@@ -7505,6 +7507,23 @@ async function updateAuthorApprovedLineups(uid, delta, meta = {}) {
   }).catch(e => {
     console.warn('updateAuthorApprovedLineups:', e.message);
   });
+}
+
+async function sendLineupToModeration(id) {
+  if (!confirm('Отправить этот лайнап модераторам на доработку?')) return;
+  try {
+    const ref = doc(db, 'lineups', id);
+    const snap = await getDoc(ref);
+    const before = snap.exists() ? snap.data() : {};
+    await updateDoc(ref, {
+      status: 'moderator_draft',
+      moderator_only: true,
+      submitted_at: serverTimestamp(),
+    });
+    await writeAudit(id, 'sent_to_moderation', { status: { from: before.status || 'unknown', to: 'moderator_draft' } });
+    patchStatus(id, 'moderator_draft');
+    toast('Лайнап отправлен модераторам 🛡', 's');
+  } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
 async function applyApprovedStatusDelta(lineup, nextStatus, meta = {}) {
