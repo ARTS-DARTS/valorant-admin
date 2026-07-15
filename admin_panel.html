@@ -821,6 +821,39 @@
     .dtp-add-section { border-top: 1px solid var(--border); padding: 10px; flex-shrink: 0; display: flex; flex-direction: column; gap: 7px; }
     .dtp-add-label { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
 
+    /* ── Messenger ───────────────────────────────────────────── */
+    .msg-messenger { height:calc(100vh - 116px); min-height:580px; max-width:1280px; margin:0 auto; display:grid; grid-template-columns:370px minmax(0,1fr); border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface); }
+    .msg-dialogs-pane { min-width:0; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); }
+    .msg-dialogs-head { padding:15px 14px 10px; }
+    .msg-dialogs-head h3 { margin:0 0 11px; color:var(--text); font-size:16px; }
+    .msg-dialogs-head input { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--text); outline:none; }
+    .msg-dialogs-head input:focus { border-color:var(--primary); }
+    .msg-filter-row { display:flex; gap:5px; overflow-x:auto; padding:0 12px 10px; border-bottom:1px solid var(--border); scrollbar-width:none; }
+    .msg-filter-row .an-tab-btn { padding:6px 10px; font-size:11px; flex-shrink:0; }
+    .msg-dialog-list { flex:1; min-height:0; overflow-y:auto; }
+    .msg-dialog-item { display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:10px; align-items:center; padding:11px 12px; border-bottom:1px solid rgba(148,163,184,.10); cursor:pointer; transition:background .12s; }
+    .msg-dialog-item:hover { background:rgba(255,255,255,.035); }
+    .msg-dialog-item.active { background:rgba(79,195,247,.10); box-shadow:inset 3px 0 var(--primary); }
+    .msg-dialog-item.unread { background:rgba(255,70,85,.055); }
+    .msg-dialog-avatar { width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:linear-gradient(145deg,#263551,#182238); color:#dcecff; font-weight:900; font-size:14px; }
+    .msg-dialog-main { min-width:0; }
+    .msg-dialog-name-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+    .msg-dialog-name { color:var(--text); font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .msg-dialog-category { color:var(--text2); font-size:9px; text-transform:uppercase; }
+    .msg-dialog-preview { color:var(--text2); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .msg-dialog-side { align-self:start; display:flex; flex-direction:column; align-items:flex-end; gap:7px; color:var(--text2); font-size:9px; white-space:nowrap; }
+    .msg-unread-dot { min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:900; }
+    .msg-chat-pane { min-width:0; min-height:0; display:block !important; background:var(--bg); }
+    .msg-chat-content { height:100%; display:flex; flex-direction:column; padding:0 16px 14px; box-sizing:border-box; }
+    .msg-chat-header { flex-shrink:0; margin:0 -16px 0 !important; padding:14px 18px !important; border-bottom:1px solid var(--border); background:var(--surface); }
+    .msg-chat-content #msg-thread-scroll { flex:1; min-height:0; max-height:none !important; margin:0 -2px 12px !important; padding:18px 4px 8px !important; border-top:0 !important; }
+    .msg-chat-placeholder { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; color:var(--text2); }
+    .msg-chat-placeholder span { font-size:42px; opacity:.35; }
+    .msg-chat-placeholder b { color:var(--text); font-size:15px; }
+    .msg-chat-placeholder small { font-size:12px; }
+    @media(max-width:900px){ .msg-messenger{grid-template-columns:310px minmax(0,1fr);} }
+    @media(max-width:700px){ .msg-messenger{height:auto;min-height:0;grid-template-columns:1fr;overflow:visible}.msg-dialogs-pane{height:420px;border-right:0;border-bottom:1px solid var(--border)}.msg-chat-pane{height:620px}.msg-chat-content{height:620px} }
+
     /* ── Two-column list layout ── */
     #tab-list { min-height: 0; display: block; overflow: visible; }
     #tab-list .lineups-sticky-top { position: static; flex-shrink: 0; }
@@ -2938,35 +2971,31 @@
 </div>
 
 <!-- ── Messages Tab ─────────────────────────────────────────────────────────── -->
-<div id="tab-messages" style="display:none;padding:20px;">
-  <div style="max-width:980px;margin:0 auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
-      <h3 style="margin:0;color:var(--text);">💬 Сообщения пользователей</h3>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+<div id="tab-messages" style="display:none;padding:14px 20px 20px;">
+  <div class="msg-messenger">
+    <aside class="msg-dialogs-pane">
+      <div class="msg-dialogs-head">
+        <h3>Мессенджер</h3>
+        <input id="msg-search" type="search" placeholder="Поиск диалогов…" oninput="_msgRenderList()">
+      </div>
+      <div class="msg-filter-row">
         <button class="an-tab-btn active" data-msg-filter="all"      onclick="_msgSetFilter('all')">Все</button>
         <button class="an-tab-btn"        data-msg-filter="new"      onclick="_msgSetFilter('new')">Новые</button>
         <button class="an-tab-btn"        data-msg-filter="answered" onclick="_msgSetFilter('answered')">Отвеченные</button>
         <button class="an-tab-btn"        data-msg-filter="closed"   onclick="_msgSetFilter('closed')">Закрытые</button>
         <button class="an-tab-btn"        data-msg-filter="ideas"    onclick="_msgSetFilter('ideas')" style="border-color:rgba(255,200,0,.4);color:#ffcc00;">💡 Идеи</button>
       </div>
-    </div>
-    <p style="color:var(--text2);font-size:13px;margin-bottom:18px;">
-      Обращения из приложения (обратная связь). Ответ придёт пользователю в раздел "Мои сообщения" и пушем.
-    </p>
-    <div id="msg-list" style="display:flex;flex-direction:column;gap:10px;">
+      <div id="msg-list" class="msg-dialog-list">
       <div class="state" style="padding:20px;">Загрузка…</div>
+      </div>
+    </aside>
+    <section id="msg-reply-modal" class="msg-chat-pane">
+      <div id="msg-reply-content" class="msg-chat-content">
+        <div class="msg-chat-placeholder"><span>💬</span><b>Выбери диалог</b><small>Переписка откроется здесь</small></div>
+      </div>
+    </section>
+  </div>
     </div>
-  </div>
-</div>
-
-<!-- Reply modal -->
-<div id="msg-reply-modal" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.7);align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;width:min(560px,92vw);max-height:88vh;overflow-y:auto;padding:22px;position:relative;">
-    <button onclick="document.getElementById('msg-reply-modal').style.display='none'"
-            style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;">✕</button>
-    <div id="msg-reply-content"></div>
-  </div>
-</div>
 
 <!-- ── Moderator Applications Tab ───────────────────────────────────────────── -->
 <div id="tab-modapps" style="display:none;padding:20px;">
@@ -4651,6 +4680,7 @@ let _ideasAll  = [];
 let _msgUnsub = null;
 let _msgBadgeUnsub = null;
 let _msgHousekeepingDone = false;
+let _msgActiveId = null;
 let _msgSoundReady = false;
 let _msgLastUnreadCount = 0;
 const _msgSound = new Audio('https://vlineups.ru/assets/audio/chat-message.mp3');
@@ -4711,6 +4741,7 @@ function startMessagesRealtime() {
   const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
   _msgUnsub = onSnapshot(q, async snap => {
     if (_msgLoaded && snap.docChanges().length === 0) return;
+    const activeChanged = _msgActiveId && snap.docChanges().some(change => change.doc.id === _msgActiveId);
     _msgAll = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     _msgLoaded = true;
     if (!_msgHousekeepingDone && !snap.metadata.hasPendingWrites) {
@@ -4720,6 +4751,7 @@ function startMessagesRealtime() {
     }
     _msgRenderList();
     _msgUpdateBadge();
+    if (activeChanged) _msgOpenReply(_msgActiveId);
   }, e => {
     console.error('messages realtime', e);
     list.innerHTML = `<div class="state" style="color:var(--red);padding:20px;">Ошибка: ${esc(e.message)}</div>`;
@@ -4833,36 +4865,29 @@ function _msgRenderList() {
   if (_msgFilter === 'new')         items = _msgAll.filter(m => m.status !== 'closed' && _msgIsNew(m));
   else if (_msgFilter === 'answered') items = _msgAll.filter(m => !!m.reply && m.status !== 'closed');
   else if (_msgFilter === 'closed') items = _msgAll.filter(m => m.status === 'closed');
+  const search = (document.getElementById('msg-search')?.value || '').trim().toLowerCase();
+  if (search) items = items.filter(m => [m.username, m.user_id, m.category, _msgLastThreadMessage(m).text].some(value => String(value || '').toLowerCase().includes(search)));
   if (!items.length) {
     list.innerHTML = `<div class="state" style="padding:20px;color:var(--text2);">Нет сообщений</div>`;
     return;
   }
   list.innerHTML = items.map(m => {
     const cat   = m.category || 'другое';
-    const col   = _msgCatColor(cat);
-    const date  = m.created_at?.toDate ? m.created_at.toDate().toLocaleString('ru-RU') : '—';
     const closed = m.status === 'closed';
     const isNew  = _msgIsNew(m) && !closed;
-    const name  = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
-    const borderCol = closed ? 'var(--border)' : (isNew ? 'var(--primary)' : 'var(--border)');
+    const rawName = m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним');
+    const name  = esc(rawName);
     const lastMsg = _msgLastThreadMessage(m);
-    const status = closed
-      ? '<span style="font-size:10px;color:#f44;font-weight:700;">🔒 ЗАКРЫТ</span>'
-      : isNew
-        ? '<span style="font-size:10px;color:var(--primary);font-weight:700;">● НОВОЕ</span>'
-        : '<span style="font-size:10px;color:var(--green);font-weight:700;">✓ ОТВЕЧЕНО</span>';
-    return `<div onclick="_msgOpenReply('${m.id}')"
-      style="background:var(--surface);border:1px solid ${borderCol};border-radius:10px;padding:13px 15px;cursor:pointer;transition:.15s;${closed?'opacity:.7;':''}"
-      onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='${borderCol}'">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;">
-        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;border:1px solid ${col};color:${col};text-transform:uppercase;">${esc(cat)}</span>
-        <span style="font-size:13px;font-weight:600;color:var(--text);">${name}</span>
-        <span style="font-size:11px;color:var(--text2);margin-left:auto;">${date}</span>
-        ${status}
+    const ts = _msgThreadTs(lastMsg);
+    const date = ts ? new Date(ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
+    const initials = rawName.split(/\s+/).slice(0,2).map(part => part[0]).join('').toUpperCase().slice(0,2) || '?';
+    return `<div class="msg-dialog-item${isNew?' unread':''}${_msgActiveId===m.id?' active':''}" onclick="_msgOpenReply('${m.id}')">
+      <div class="msg-dialog-avatar">${esc(initials)}</div>
+      <div class="msg-dialog-main">
+        <div class="msg-dialog-name-row"><span class="msg-dialog-name">${name}</span><span class="msg-dialog-category">${esc(cat)}</span></div>
+        <div class="msg-dialog-preview">${lastMsg.from === 'admin' ? '<span style="color:var(--primary);">Вы: </span>' : ''}${esc(lastMsg.text || '')}</div>
       </div>
-      <div style="font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        ${lastMsg.from === 'admin' ? '<span style="color:var(--green);">Вы: </span>' : ''}${esc(lastMsg.text || '')}
-      </div>
+      <div class="msg-dialog-side"><span>${date}</span>${isNew?'<span class="msg-unread-dot">1</span>':closed?'<span>🔒</span>':''}</div>
     </div>`;
   }).join('');
 }
@@ -4901,6 +4926,7 @@ window._ideaDelete = async function(id) {
 window._msgOpenReply = function(id) {
   const m = _msgAll.find(x => x.id === id);
   if (!m) return;
+  _msgActiveId = id;
   const cat  = m.category || 'другое';
   const date = m.created_at?.toDate ? m.created_at.toDate().toLocaleString('ru-RU') : '—';
   const name = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
@@ -4915,16 +4941,18 @@ window._msgOpenReply = function(id) {
 
   const bubbles = thread.map(msg => {
     const isAdmin = msg.from === 'admin';
+    const msgTs = _msgThreadTs(msg);
+    const msgTime = msgTs ? new Date(msgTs).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
     return `<div style="display:flex;justify-content:${isAdmin ? 'flex-end' : 'flex-start'};margin-bottom:10px;">
       <div style="max-width:78%;">
         <div style="font-size:10px;font-weight:700;color:${isAdmin ? 'var(--green)' : 'var(--primary)'};margin-bottom:3px;${isAdmin ? 'text-align:right;' : ''}">${isAdmin ? 'Вы (админ)' : esc(name)}</div>
-        <div style="background:${isAdmin ? 'rgba(34,197,94,.10)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(34,197,94,.35)' : 'var(--border)'};border-radius:12px;padding:10px 13px;font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap;">${esc(msg.text || '')}</div>
+        <div style="background:${isAdmin ? 'rgba(79,195,247,.13)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(79,195,247,.38)' : 'var(--border)'};border-radius:${isAdmin?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:9px 12px 6px;font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap;">${esc(msg.text || '')}<div style="margin-top:4px;font-size:9px;color:var(--text2);text-align:right;">${msgTime}${isAdmin?' ✓':''}</div></div>
       </div>
     </div>`;
   }).join('');
 
   document.getElementById('msg-reply-content').innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-right:30px;">
+    <div class="msg-chat-header" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-right:30px;">
       <span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px;border:1px solid ${_msgCatColor(cat)};color:${_msgCatColor(cat)};text-transform:uppercase;">${esc(cat)}</span>
       <div>
         <div style="font-size:15px;font-weight:700;color:var(--text);">${name}</div>
@@ -4938,22 +4966,26 @@ window._msgOpenReply = function(id) {
     ${closed ? `
       <div style="text-align:center;padding:12px;background:rgba(255,70,85,.1);border:1px solid rgba(255,70,85,.4);border-radius:10px;color:#f44;font-weight:700;font-size:14px;">🔒 Диалог закрыт</div>
     ` : `
-      <textarea id="msg-reply-text" rows="3" placeholder="Написать ответ…"
-        style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
-      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;cursor:pointer;font-size:13px;color:var(--text);">
-        <input type="checkbox" id="msg-reply-push" ${m.user_id ? 'checked' : 'disabled'} style="width:16px;height:16px;accent-color:var(--primary);">
-        🔔 Отправить пуш пользователю${m.user_id ? '' : ' (нет uid)'}
-      </label>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <textarea id="msg-reply-text" rows="2" placeholder="Сообщение"
+          style="flex:1;min-height:46px;max-height:130px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:10px;padding:11px 12px;font-size:14px;resize:none;box-sizing:border-box;"></textarea>
         <button id="msg-reply-send" onclick="_msgSendReply('${id}')"
-          style="flex:1;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">Отправить ответ</button>
+          style="width:46px;height:46px;padding:0;background:var(--primary);color:#fff;border:none;border-radius:50%;font-size:19px;font-weight:700;cursor:pointer;">➤</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--text2);">
+          <input type="checkbox" id="msg-reply-push" ${m.user_id ? 'checked' : 'disabled'} style="accent-color:var(--primary);"> 🔔 Push
+        </label>
         <button onclick="_msgCloseDialog('${id}')" title="Закрыть диалог"
-          style="padding:12px 16px;background:transparent;color:#f44;border:1px solid #f44;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;">🔒 Закрыть</button>
+          style="margin-left:auto;padding:5px 9px;background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:7px;font-size:11px;cursor:pointer;">🔒 Закрыть диалог</button>
       </div>
     `}
   `;
   const threadScroll = document.getElementById('msg-thread-scroll');
   if (threadScroll) threadScroll.scrollTop = threadScroll.scrollHeight;
+  document.getElementById('msg-reply-text')?.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); _msgSendReply(id); }
+  });
   _msgRenderList();
   _msgUpdateBadge();
   document.getElementById('msg-reply-modal').style.display = 'flex';
