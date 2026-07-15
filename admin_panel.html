@@ -822,15 +822,16 @@
     .dtp-add-label { font-size: 10px; font-weight: 700; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; }
 
     /* ── Messenger ───────────────────────────────────────────── */
-    .msg-messenger { height:calc(100vh - 116px); min-height:580px; max-width:1280px; margin:0 auto; display:grid; grid-template-columns:370px minmax(0,1fr); border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface); }
-    .msg-dialogs-pane { min-width:0; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); }
+    #tab-messages { height:calc(100vh - 90px); min-height:620px; box-sizing:border-box; overflow:hidden; }
+    .msg-messenger { height:100%; min-height:0; max-width:1280px; margin:0 auto; display:grid; grid-template-columns:370px minmax(0,1fr); border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface); }
+    .msg-dialogs-pane { min-width:0; min-height:0; display:flex; flex-direction:column; border-right:1px solid var(--border); background:var(--surface); overflow:hidden; }
     .msg-dialogs-head { padding:15px 14px 10px; }
     .msg-dialogs-head h3 { margin:0 0 11px; color:var(--text); font-size:16px; }
     .msg-dialogs-head input { width:100%; padding:9px 11px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--text); outline:none; }
     .msg-dialogs-head input:focus { border-color:var(--primary); }
     .msg-filter-row { display:flex; gap:5px; overflow-x:auto; padding:0 12px 10px; border-bottom:1px solid var(--border); scrollbar-width:none; }
     .msg-filter-row .an-tab-btn { padding:6px 10px; font-size:11px; flex-shrink:0; }
-    .msg-dialog-list { flex:1; min-height:0; overflow-y:auto; }
+    .msg-dialog-list { flex:1 1 auto; min-height:0; height:0; overflow-y:scroll; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--border2) transparent; }
     .msg-dialog-item { display:grid; grid-template-columns:42px minmax(0,1fr) auto; gap:10px; align-items:center; padding:11px 12px; border-bottom:1px solid rgba(148,163,184,.10); cursor:pointer; transition:background .12s; }
     .msg-dialog-item:hover { background:rgba(255,255,255,.035); }
     .msg-dialog-item.active { background:rgba(79,195,247,.10); box-shadow:inset 3px 0 var(--primary); }
