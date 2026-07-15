@@ -4735,18 +4735,25 @@ function _msgLastThreadMessage(m) {
 
 function _msgConversations(source = _msgAll) {
   const consumed = new Set(), result = [];
+  const applicationByUser = new Map();
+  source.forEach(item => {
+    if (item.user_id && (item.source === 'moderator_application' || item.category === 'заявка модератора')) {
+      applicationByUser.set(item.user_id, item);
+    }
+  });
   for (const item of source) {
     if (consumed.has(item.id)) continue;
-    const app = item.user_id && (item.source === 'moderator_application' || item.category === 'заявка модератора');
-    if (!app) { result.push(item); consumed.add(item.id); continue; }
-    const parts = source.filter(other => other.user_id === item.user_id && other.status !== 'closed');
+    const canonical = item.user_id && applicationByUser.get(item.user_id);
+    if (canonical && canonical.id !== item.id) { consumed.add(item.id); continue; }
+    if (!canonical) { result.push(item); consumed.add(item.id); continue; }
+    const parts = source.filter(other => other.user_id === canonical.user_id && other.status !== 'closed');
     parts.forEach(part => consumed.add(part.id));
     const seen = new Set();
     const thread = parts.flatMap(_msgThread).filter(msg => {
       const key = `${msg.from}|${String(msg.text || '').trim()}|${_msgThreadTs(msg)}`;
       if (seen.has(key)) return false; seen.add(key); return true;
     }).sort((a,b) => _msgThreadTs(a) - _msgThreadTs(b));
-    result.push({...item, thread, _mergedIds: parts.map(part => part.id), admin_unread: parts.some(_msgIsNew)});
+    result.push({...canonical, thread, _mergedIds: parts.map(part => part.id), admin_unread: parts.some(_msgIsNew)});
   }
   return result;
 }
@@ -4954,8 +4961,9 @@ window._msgOpenReply = function(id) {
   const thread = _msgThread(m);
 
   // Отметить прочитанным админом
-  if (m.admin_unread) {
-    updateDoc(doc(db, 'feedback', id), { admin_unread: false }).catch(() => {});
+  if (m.admin_unread || m._mergedIds?.length) {
+    const ids = m._mergedIds?.length ? m._mergedIds : [id];
+    Promise.all(ids.map(itemId => updateDoc(doc(db, 'feedback', itemId), { admin_unread: false }))).catch(() => {});
     m.admin_unread = false;
   }
 
