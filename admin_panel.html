@@ -1121,6 +1121,12 @@
               <i class="bi bi-search"></i>
               <input class="list-search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
             </div>
+            <div id="bulk-selection-bar" style="display:none;gap:5px;align-items:center;margin-top:8px;flex-wrap:wrap;">
+              <span id="bulk-selection-count" style="font-size:11px;color:var(--primary);font-weight:700;margin-right:auto;"></span>
+              <button class="btn" data-bulk-action="moderate" style="font-size:10px;padding:5px 7px;border-color:#38bdf8;color:#38bdf8;">🛡 На модерку</button>
+              <button class="btn btn-approve" data-bulk-action="approve" style="font-size:10px;padding:5px 7px;">🔥 Пирожки</button>
+              <button class="btn btn-archive" data-bulk-action="archive" style="font-size:10px;padding:5px 7px;">📦 Архив</button>
+            </div>
           </div>
           <div class="list-panel-scroll">
             <div id="lineup-list" class="lineup-list"><div class="state">Загрузка…</div></div>
@@ -4755,7 +4761,8 @@ function _msgConversations(source = _msgAll) {
       const key = `${msg.from}|${String(msg.text || '').trim()}|${_msgThreadTs(msg)}`;
       if (seen.has(key)) return false; seen.add(key); return true;
     }).sort((a,b) => _msgThreadTs(a) - _msgThreadTs(b));
-    result.push({...canonical, thread, _mergedIds: parts.map(part => part.id), admin_unread: parts.some(_msgIsNew)});
+    const readSource = parts.find(part => part.user_read_at) || canonical;
+    result.push({...canonical, thread, _mergedIds: parts.map(part => part.id), admin_unread: parts.some(_msgIsNew), user_unread: parts.some(part => part.user_unread === true), user_read_at: readSource.user_read_at || null});
   }
   return result;
 }
@@ -4982,10 +4989,12 @@ window._msgOpenReply = function(id) {
     const isAdmin = msg.from === 'admin';
     const msgTs = _msgThreadTs(msg);
     const msgTime = msgTs ? new Date(msgTs).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
+    const readTs = _msgThreadTs({ ts: m.user_read_at });
+    const readTime = readTs ? new Date(readTs).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}) : '';
     return `<div style="display:flex;justify-content:${isAdmin ? 'flex-end' : 'flex-start'};margin-bottom:10px;">
       <div style="max-width:78%;">
         <div style="font-size:10px;font-weight:700;color:${isAdmin ? 'var(--green)' : 'var(--primary)'};margin-bottom:3px;${isAdmin ? 'text-align:right;' : ''}">${isAdmin ? 'Вы (админ)' : esc(name)}</div>
-        <div style="background:${isAdmin ? 'rgba(79,195,247,.13)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(79,195,247,.38)' : 'var(--border)'};border-radius:${isAdmin?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:9px 12px 6px;font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap;">${esc(msg.text || '')}<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px;font-size:10px;color:var(--text2);">${msgTime}${isAdmin ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:5px;background:${m.user_unread === false ? 'rgba(34,197,94,.16)' : 'rgba(148,163,184,.16)'};color:${m.user_unread === false ? 'var(--green)' : 'var(--text2)'};font-size:11px;font-weight:800;letter-spacing:.25px;">${m.user_unread === false ? '✓✓ ПРОЧИТАНО' : '◷ ОТПРАВЛЕНО'}</span>` : ''}</div></div>
+        <div style="background:${isAdmin ? 'rgba(79,195,247,.13)' : 'var(--surface2)'};border:1px solid ${isAdmin ? 'rgba(79,195,247,.38)' : 'var(--border)'};border-radius:${isAdmin?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 13px 8px;font-size:14px;color:var(--text);line-height:1.45;white-space:pre-wrap;">${esc(msg.text || '')}<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:9px;font-size:10px;color:var(--text2);">${isAdmin ? `<span>Отправлено ${msgTime || '—'}</span><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:5px;background:${m.user_unread === false ? 'rgba(34,197,94,.16)' : 'rgba(148,163,184,.16)'};color:${m.user_unread === false ? 'var(--green)' : 'var(--text2)'};font-size:11px;font-weight:800;letter-spacing:.25px;">${m.user_unread === false ? `✓✓ Прочитано${readTime ? ` в ${readTime}` : ''}` : '◷ Отправлено'}</span>` : (msgTime ? `Отправлено ${msgTime}` : '')}</div></div>
       </div>
     </div>`;
   }).join('');
@@ -6293,7 +6302,7 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
   const list = document.getElementById('lineup-list');
   list.addEventListener('click', e => {
     const head = e.target.closest('.lcard-head');
-    if (head) { selectLineup(head.dataset.id); return; }
+    if (head) { selectLineup(head.dataset.id, e.shiftKey); return; }
   });
 })();
 
@@ -6324,6 +6333,35 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
     if (lb) openLb(lb.dataset.lightbox);
   });
 })();
+document.getElementById('bulk-selection-bar')?.addEventListener('click', async event => {
+  const button = event.target.closest('[data-bulk-action]');
+  if (!button || !_selectedIds.size) return;
+  const action = button.dataset.bulkAction;
+  const ids = [..._selectedIds];
+  const label = action === 'moderate' ? 'на модерку' : action === 'approve' ? 'в «Пирожки»' : 'в архив';
+  if (!confirm(`Отправить ${ids.length} лайнапов ${label}?`)) return;
+  button.disabled = true;
+  try {
+    for (const id of ids) {
+      if (action === 'moderate') {
+        await updateDoc(doc(db, 'lineups', id), { status: 'moderator_draft', moderator_only: true, submitted_at: serverTimestamp() });
+        await writeAudit(id, 'sent_to_moderation');
+        patchStatus(id, 'moderator_draft');
+      } else if (action === 'approve') {
+        await updateDoc(doc(db, 'lineups', id), { status: 'hot' });
+        await writeAudit(id, 'hot');
+        patchStatus(id, 'hot');
+      } else {
+        await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
+        await writeAudit(id, 'archived');
+        patchStatus(id, 'archived');
+      }
+    }
+    _selectedIds.clear(); _lastSelectedIndex = -1; renderList();
+    toast(`${ids.length} лайнапов обработано`, 's');
+  } catch (e) { toast('Ошибка массового действия: ' + e.message, 'e'); }
+  finally { button.disabled = false; }
+});
 document.getElementById('btn-map-panel').addEventListener('click', () => {
   const panel = document.getElementById('map-panel');
   const btn   = document.getElementById('btn-map-panel');
@@ -6402,6 +6440,10 @@ function updateStatsBar() {
     `<div class="stat-pill sp-archived"><div><div class="sp-val">${counts.archived}</div><div class="sp-lbl">Архив</div></div></div>`;
 }
 
+const _selectedIds = new Set();
+let _lastSelectedIndex = -1;
+let _visibleLineups = [];
+
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderList() {
   updateStatsBar();
@@ -6439,6 +6481,7 @@ function renderList() {
     return true;
   });
   const listEl = document.getElementById('lineup-list');
+  _visibleLineups = fl;
   const cntEl  = document.getElementById('list-panel-count');
   if (!fl.length) {
     listEl.innerHTML = `<div class="state">${contentMeta().empty}</div>`;
@@ -6742,7 +6785,18 @@ ${shots.length ? `<div class="section"><div class="dlabel">Скриншоты ($
 
 let _selectedId = null;
 
-function selectLineup(id) {
+function selectLineup(id, rangeSelect = false) {
+  const index = _visibleLineups.findIndex(item => item.id === id);
+  if (rangeSelect && _lastSelectedIndex >= 0 && index >= 0) {
+    const start = Math.min(_lastSelectedIndex, index);
+    const end = Math.max(_lastSelectedIndex, index);
+    _visibleLineups.slice(start, end + 1).forEach(item => _selectedIds.add(item.id));
+  } else if (_selectedIds.has(id)) {
+    _selectedIds.delete(id);
+  } else {
+    _selectedIds.add(id);
+  }
+  _lastSelectedIndex = index;
   if (_selectedId) {
     const prev = document.getElementById('lcard-' + _selectedId);
     if (prev) prev.classList.remove('selected');
@@ -8307,6 +8361,11 @@ function _setActiveSlotTrajectory(s, points) {
   } else {
     s.trajectory = points;
   }
+  listEl.querySelectorAll('.lcard').forEach(card => card.classList.toggle('selected', _selectedIds.has(card.dataset.id)));
+  const bulkBar = document.getElementById('bulk-selection-bar');
+  if (bulkBar) bulkBar.style.display = _selectedIds.size ? 'flex' : 'none';
+  const bulkCount = document.getElementById('bulk-selection-count');
+  if (bulkCount) bulkCount.textContent = _selectedIds.size ? `Выбрано: ${_selectedIds.size}` : '';
 }
 
 function renderSlotExtraTools(id) {
