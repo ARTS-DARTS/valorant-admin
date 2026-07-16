@@ -2721,7 +2721,7 @@
           <div><label class="flabel">Ширина</label><input class="finput ms-spawn-value" id="ms-spawn-w" type="number" min="0.01" max="1" step="0.001"></div>
           <div><label class="flabel">Высота</label><input class="finput ms-spawn-value" id="ms-spawn-h" type="number" min="0.01" max="1" step="0.001"></div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;"><button id="ms-spawn-draw" class="btn" type="button">▭ Нарисовать зону на карте</button><button id="ms-spawn-clear" class="btn btn-delete" type="button">Очистить зону</button><button id="ms-spawn-save" class="btn btn-save" type="button">💾 Сохранить зоны</button><span id="ms-spawn-status" style="font-size:11px;color:var(--text2);"></span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;"><button id="ms-spawn-draw" class="btn" type="button">▭ Нарисовать зону на карте</button><button id="ms-spawn-clear" class="btn btn-delete" type="button">Очистить зону</button><button id="ms-spawn-save" class="btn btn-save" type="button">💾 Сохранить области всех карт</button><span id="ms-spawn-status" style="font-size:11px;color:var(--text2);"></span></div>
       </div>
     </div>
 
@@ -4402,10 +4402,21 @@ document.getElementById('ms-spawn-draw')?.addEventListener('click', function() {
 });
 document.getElementById('ms-spawn-clear')?.addEventListener('click', () => { _msDraftSpawnZones()[_msSelectedSpawnSide] = null; _msRenderSpawnEditor(); _msScheduleRedraw(); });
 document.getElementById('ms-spawn-save')?.addEventListener('click', async function() {
-  const mapName = _msCurrentMapName(); this.disabled = true;
-  try { await setDoc(doc(db, 'settings', 'map_spawn_zones'), { [mapName]: _msCloneSpawnZones(_msDraftSpawnZones()), updatedAt: serverTimestamp() }, { merge: true }); toast(`Зоны спавна ${mapName} сохранены`, 's'); }
+  const payload = {};
+  MP_ALL_MAPS.forEach(map => {
+    payload[map.name] = _msCloneSpawnZones(_msDraftSpawnZones(map.name));
+  });
+  this.disabled = true;
+  const original = this.textContent;
+  this.textContent = '⏳ Сохраняю все карты…';
+  try {
+    await setDoc(doc(db, 'settings', 'map_spawn_zones'), { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+    await bumpConfigVersions(['map_annotations']);
+    const configured = Object.values(payload).filter(zones => zones.attack || zones.defense).length;
+    toast(`Области спавна сохранены: ${configured} карт`, 's');
+  }
   catch (e) { toast('Ошибка сохранения зон: ' + e.message, 'e'); }
-  finally { this.disabled = false; }
+  finally { this.disabled = false; this.textContent = original; }
 });
 document.querySelectorAll('.ms-site-nudge').forEach(button => {
   button.addEventListener('click', () => {
