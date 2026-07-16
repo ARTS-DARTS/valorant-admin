@@ -3944,7 +3944,7 @@ function _msBeginSiteLabelDrag(event) {
   if (canvas.isConnected) {
     try { canvas.setPointerCapture?.(event.pointerId); } catch (_) {}
   }
-  _msUpdateSelectedSiteLabel(point.x, point.y);
+  _msRenderSiteLabelEditor();
 }
 
 function _msMoveSiteLabel(event) {
