@@ -2614,7 +2614,7 @@
       <div>
         <div style="text-align:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Редактируется (предпросмотр)</div>
         <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--primary);background:var(--surface2);min-height:70px;">
-          <canvas id="ms-canvas" style="width:100%;display:block;touch-action:none;cursor:grab;"></canvas>
+          <canvas id="ms-canvas" style="width:100%;display:block;touch-action:none;cursor:default;"></canvas>
           <div id="ms-canvas-msg" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--surface2);color:var(--text2);font-size:12px;">Загрузка…</div>
         </div>
       </div>
@@ -3915,6 +3915,7 @@ function _msBeginSiteLabelDrag(event) {
   if (_msSpawnDraw?.armed) {
     event.preventDefault();
     _msSpawnDraw = { armed: true, pointerId: event.pointerId, start: point };
+    event.currentTarget.style.cursor = 'grabbing';
     try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) {}
     return;
   }
@@ -3922,16 +3923,23 @@ function _msBeginSiteLabelDrag(event) {
   if (activeZone && point.x >= activeZone.x && point.x <= activeZone.x + activeZone.width && point.y >= activeZone.y && point.y <= activeZone.y + activeZone.height) {
     event.preventDefault();
     _msSpawnDrag = { pointerId: event.pointerId, offsetX: point.x - activeZone.x, offsetY: point.y - activeZone.y };
+    event.currentTarget.style.cursor = 'grabbing';
     try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) {}
     return;
   }
   const labels = _msDraftSiteLabels();
+  let nearest = -1;
+  let nearestDistance = Infinity;
+  labels.forEach((item, index) => {
+    const distance = Math.hypot(item.x - point.x, item.y - point.y);
+    if (distance < nearestDistance) { nearestDistance = distance; nearest = index; }
+  });
   const canvas = event.currentTarget;
-  const selectedIndex = Math.max(0, Math.min(_msSelectedSiteLabel, labels.length - 1));
-  if (!labels[selectedIndex]) return;
+  const hitRadius = Math.max(0.045, (Number(document.getElementById('ms-site-label-size')?.value) || 18) / Math.max(1, canvas.clientWidth) * 1.8);
+  if (nearest < 0 || nearestDistance > hitRadius) return;
   event.preventDefault();
-  _msSelectedSiteLabel = selectedIndex;
-  _msSiteLabelDrag = { pointerId: event.pointerId, index: selectedIndex };
+  _msSelectedSiteLabel = nearest;
+  _msSiteLabelDrag = { pointerId: event.pointerId, index: nearest };
   canvas.style.cursor = 'grabbing';
   if (canvas.isConnected) {
     try { canvas.setPointerCapture?.(event.pointerId); } catch (_) {}
@@ -3968,12 +3976,14 @@ function _msEndSiteLabelDrag(event) {
   if (_msSpawnDraw?.pointerId === event.pointerId) {
     _msSpawnDraw = null;
     document.getElementById('ms-spawn-draw')?.classList.remove('btn-save');
+    const drawCanvas = document.getElementById('ms-canvas');
+    if (drawCanvas) drawCanvas.style.cursor = 'default';
     _msRenderSpawnEditor(); _msScheduleRedraw(); return;
   }
   if (!_msSiteLabelDrag || _msSiteLabelDrag.pointerId !== event.pointerId) return;
   _msSiteLabelDrag = null;
   const canvas = document.getElementById('ms-canvas');
-  if (canvas) canvas.style.cursor = 'grab';
+  if (canvas) canvas.style.cursor = 'default';
 }
 
 function _msScheduleRedraw() {
@@ -8891,6 +8901,8 @@ function renderSlotExtraTools(id) {
   }
   if (_msSpawnDrag?.pointerId === event.pointerId) {
     _msSpawnDrag = null;
+    const canvas = document.getElementById('ms-canvas');
+    if (canvas) canvas.style.cursor = 'default';
     return;
   }
   s.extraAbilities = Array.isArray(s.extraAbilities) ? s.extraAbilities : [];
@@ -8962,6 +8974,17 @@ function renderSlotExtraTools(id) {
     });
   });
 }
+
+window.addEventListener('pointerup', event => {
+  if (_msSiteLabelDrag?.pointerId === event.pointerId || _msSpawnDrag?.pointerId === event.pointerId || _msSpawnDraw?.pointerId === event.pointerId) {
+    _msEndSiteLabelDrag(event);
+  }
+});
+window.addEventListener('pointercancel', event => {
+  if (_msSiteLabelDrag?.pointerId === event.pointerId || _msSpawnDrag?.pointerId === event.pointerId || _msSpawnDraw?.pointerId === event.pointerId) {
+    _msEndSiteLabelDrag(event);
+  }
+});
 
 function renderSlotTraj(id) {
   const wrap = document.getElementById('slot-'+id+'-map-wrap'); if (!wrap) return;
