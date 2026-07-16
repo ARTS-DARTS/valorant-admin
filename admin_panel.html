@@ -300,7 +300,20 @@
     #editor-panel .map-picker-wrap { width:min(100%, 420px); }
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
-    .map-site-label { position: absolute; transform: translate(-50%,-50%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,.9); pointer-events: none; user-select: none; z-index: 1; }
+    .map-site-label { position: absolute; transform: translate(-50%,-50%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,.9); pointer-events: none; user-select: none; z-index: 2; white-space:nowrap; }
+    .map-spawn-zone { position:absolute;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;pointer-events:none;z-index:1;border:2px solid;border-radius:5px;box-sizing:border-box; }
+    .ms-category-nav { position:sticky;top:56px;z-index:30;display:flex;gap:7px;flex-wrap:wrap;padding:10px;margin:14px 0;background:rgba(10,16,28,.98);border:1px solid var(--border);border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 18px rgba(0,0,0,.2); }
+    .ms-category-nav button { border:1px solid var(--border2);background:var(--surface2);color:var(--text2);border-radius:8px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;transition:.15s; }
+    .ms-category-nav button:hover,.ms-category-nav button.active { color:#fff;border-color:var(--primary);background:rgba(255,70,85,.16); }
+    .ms-system-section { margin-bottom:24px;padding:16px;border:1px solid rgba(79,195,247,.4);border-radius:10px;background:var(--surface);scroll-margin-top:76px; }
+    .ms-system-section-head { display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px; }
+    .ms-system-section-head b { display:block;color:var(--text);font-size:14px; }
+    .ms-system-section-head span { display:block;color:var(--text2);font-size:11px;margin-top:4px; }
+    .ms-annotation-mode { border:1px solid var(--border2);background:var(--surface2);color:var(--text2);border-radius:7px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer; }
+    .ms-annotation-mode.active { color:#fff;background:rgba(79,195,247,.18);border-color:#4fc3f7; }
+    .ms-orientation-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px; }
+    .ms-preview-grid { position:sticky;top:124px;z-index:12;padding:10px;border:1px solid rgba(79,195,247,.28);border-radius:10px;background:rgba(10,16,28,.97);backdrop-filter:blur(10px);box-shadow:0 14px 35px rgba(0,0,0,.28); }
+    @media (max-width:720px) { .ms-preview-grid { position:relative;top:auto; } }
     .map-marker { position: absolute; width: 20px; height: 20px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .map-marker img { width: 14px; height: 14px; object-fit: cover; }
     .map-marker.dot { background: var(--primary); border-color: #fff; box-shadow: 0 0 8px rgba(255,70,85,.85); }
@@ -2557,8 +2570,16 @@
       </select>
     </div>
 
+    <nav class="ms-category-nav" aria-label="Категории настроек карты">
+      <button type="button" data-ms-section="ms-section-appearance">🎨 Внешний вид</button>
+      <button type="button" data-ms-section="ms-section-orientation">🧭 Поворот</button>
+      <button type="button" data-ms-section="ms-section-calibration">📐 Калибровка</button>
+      <button type="button" data-ms-section="ms-section-labels">🔤 Зоны A/B/C</button>
+      <button type="button" data-ms-section="ms-section-library">🗂 Темы</button>
+    </nav>
+
     <!-- Theme buttons -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;">
+    <div id="ms-section-appearance" style="display:flex;gap:8px;flex-wrap:wrap;margin:16px 0;scroll-margin-top:76px;">
       <button class="ms-theme-btn active" data-theme="standard"   style="background:#FF4655;color:#fff;">🔴 Стандартная</button>
       <button class="ms-theme-btn"        data-theme="dark"       style="background:#BB86FC;color:#000;">🌑 Тёмная</button>
       <button class="ms-theme-btn"        data-theme="blue"       style="background:#4FC3F7;color:#000;">🔵 Синяя</button>
@@ -2567,7 +2588,7 @@
     </div>
 
     <!-- Before / After preview -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;">
+    <div class="ms-preview-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;">
       <div>
         <div style="text-align:center;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Сохранено в Firestore</div>
         <div style="position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);min-height:70px;">
@@ -2584,8 +2605,16 @@
       </div>
     </div>
 
+    <section id="ms-section-orientation" class="ms-system-section">
+      <div class="ms-system-section-head">
+        <div><b>🧭 Ориентация карт</b><span>Настрой поворот защиты. Атака в приложении добавляет ещё 180°.</span></div>
+        <button id="mo-save-btn" class="btn btn-save">💾 Сохранить повороты</button>
+      </div>
+      <div id="mo-grid" class="ms-orientation-grid"></div>
+    </section>
+
     <!-- Map calibration -->
-    <div style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
+    <div id="ms-section-calibration" style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);scroll-margin-top:76px;">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px;">
         <div>
           <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Калибровка бокса карты</div>
@@ -2622,17 +2651,30 @@
     </div>
 
     <!-- Per-map site label positions -->
-    <div style="margin-bottom:24px;padding:16px;border:1px solid var(--primary);border-radius:8px;background:var(--surface);">
+    <div id="ms-section-labels" style="margin-bottom:24px;padding:16px;border:1px solid var(--primary);border-radius:8px;background:var(--surface);scroll-margin-top:76px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+        <div><b style="color:var(--text);font-size:13px;">Режим разметки карты</b><div style="color:var(--text2);font-size:11px;margin-top:3px;">Определяет, какие подписи и зоны будут показываться в приложении и редакторах.</div></div>
+        <div id="ms-annotation-modes" style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="ms-annotation-mode" data-annotation-mode="full">Полная</button>
+          <button type="button" class="ms-annotation-mode" data-annotation-mode="main">Основные</button>
+          <button type="button" class="ms-annotation-mode" data-annotation-mode="clean">Чистая</button>
+        </div>
+      </div>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
         <div>
-          <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Точки букв A / B / C для выбранной карты</div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Выбери букву и перетащи её на правой карте. Для трёхплентовой карты нажми «+ C».</div>
+          <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Позиции и обозначения выбранной карты</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Добавляй английские названия, выбирай уровень показа и перетаскивай подпись прямо на правой карте.</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn ms-site-label-add" data-label="A" style="font-size:12px;">+ A</button>
           <button type="button" class="btn ms-site-label-add" data-label="B" style="font-size:12px;">+ B</button>
           <button type="button" class="btn ms-site-label-add" data-label="C" style="font-size:12px;">+ C</button>
         </div>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(160px,2fr) minmax(130px,1fr) auto;gap:8px;align-items:end;margin-bottom:10px;">
+        <div><label class="flabel">Название позиции</label><input class="finput" id="ms-position-name" maxlength="36" placeholder="A Main, Mid, Garage…" style="background:var(--bg);"></div>
+        <div><label class="flabel">Режим показа</label><select class="finput" id="ms-position-level" style="background:var(--bg);"><option value="site">Основная (A/B/C)</option><option value="main">Основная позиция</option><option value="full">Подробная позиция</option></select></div>
+        <button id="ms-position-add" type="button" class="btn btn-save" style="font-size:12px;">+ Добавить позицию</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
         <span style="font-size:12px;font-weight:700;color:var(--text2);">Редактировать:</span>
@@ -2651,8 +2693,20 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
         <button id="ms-site-label-reset" type="button" class="btn btn-delete" style="font-size:12px;">Вернуть точки по умолчанию</button>
-        <button id="ms-site-label-save" type="button" class="btn btn-save" style="font-size:12px;">💾 Сохранить точки A/B/C</button>
+        <button id="ms-site-label-save" type="button" class="btn btn-save" style="font-size:12px;">💾 Сохранить позиции</button>
         <span id="ms-site-label-status" style="font-size:11px;color:var(--text2);"></span>
+      </div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:800;color:var(--text);">Зоны спавна</div>
+        <div style="font-size:11px;color:var(--text2);margin:3px 0 10px;">Выбери сторону, задай прямоугольник в долях карты. Зоны показываются цветом: T Spawn — красным, CT Spawn — синим.</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;"><button class="btn ms-spawn-side btn-save" data-side="attack" type="button">T SPAWN</button><button class="btn ms-spawn-side" data-side="defense" type="button">CT SPAWN</button></div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(80px,1fr));gap:8px;">
+          <div><label class="flabel">X</label><input class="finput ms-spawn-value" id="ms-spawn-x" type="number" min="0" max="1" step="0.001"></div>
+          <div><label class="flabel">Y</label><input class="finput ms-spawn-value" id="ms-spawn-y" type="number" min="0" max="1" step="0.001"></div>
+          <div><label class="flabel">Ширина</label><input class="finput ms-spawn-value" id="ms-spawn-w" type="number" min="0.01" max="1" step="0.001"></div>
+          <div><label class="flabel">Высота</label><input class="finput ms-spawn-value" id="ms-spawn-h" type="number" min="0.01" max="1" step="0.001"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;"><button id="ms-spawn-draw" class="btn" type="button">▭ Нарисовать зону на карте</button><button id="ms-spawn-clear" class="btn btn-delete" type="button">Очистить зону</button><button id="ms-spawn-save" class="btn btn-save" type="button">💾 Сохранить зоны</button><span id="ms-spawn-status" style="font-size:11px;color:var(--text2);"></span></div>
       </div>
     </div>
 
@@ -2736,7 +2790,7 @@
     </div>
 
     <!-- Saved styles table -->
-    <div style="border-top:1px solid var(--border);padding-top:20px;">
+    <div id="ms-section-library" style="border-top:1px solid var(--border);padding-top:20px;scroll-margin-top:76px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <span style="font-size:13px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:1px;">Сохранённые стили</span>
         <select id="ms-sort" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;">
@@ -2862,12 +2916,6 @@
     <button id="mp-save-btn" style="width:100%;padding:13px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;">
       💾 Сохранить маппул
     </button>
-    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
-      <h4 style="color:var(--text);margin:0 0 6px;">🧭 Поворот карт</h4>
-      <p style="color:var(--text2);font-size:13px;margin:0 0 14px;">Настрой ориентацию стороны защиты. Атака в приложении автоматически будет повёрнута ещё на 180°.</p>
-      <div id="mo-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:14px;"></div>
-      <button id="mo-save-btn" class="btn btn-save" style="width:100%;justify-content:center;padding:12px;">💾 Сохранить повороты</button>
-    </div>
     <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
       <h4 style="color:var(--text);margin-bottom:6px;">🔄 Смена патча</h4>
       <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Пометить все одобренные лайнапы старого патча как устаревшие. Используй при выходе нового патча.</p>
@@ -3555,6 +3603,33 @@ let _mapCalibrationPromise = null;
 let _mapSiteLabelsCache = {};
 let _mapSiteLabelsDraft = {};
 let _mapSiteLabelsPromise = null;
+let _mapSiteLabelsLoaded = false;
+let _mapAnnotationModes = {};
+let _mapAnnotationModesLoaded = false;
+let _mapSpawnZones = {};
+let _mapSpawnZonesLoaded = false;
+let _msSelectedSpawnSide = 'attack';
+let _msSpawnDraw = null;
+
+async function loadMapAnnotationModes() {
+  if (_mapAnnotationModesLoaded) return _mapAnnotationModes;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'map_annotation_modes'));
+    _mapAnnotationModes = snap.exists() ? (snap.data() || {}) : {};
+  } catch (_) { _mapAnnotationModes = {}; }
+  _mapAnnotationModesLoaded = true;
+  return _mapAnnotationModes;
+}
+
+function currentMapStyleName() {
+  return document.getElementById('ms-map-pick')?.selectedOptions?.[0]?.textContent?.trim() || 'Ascent';
+}
+
+function renderMapAnnotationMode() {
+  const map = currentMapStyleName();
+  const mode = _mapAnnotationModes[map] || 'full';
+  document.querySelectorAll('.ms-annotation-mode').forEach(btn => btn.classList.toggle('active', btn.dataset.annotationMode === mode));
+}
 let _msSelectedSiteLabel = 0;
 let _msSiteLabelDrag = null;
 
@@ -3626,12 +3701,45 @@ function _msCurrentMapName() {
 function _msCloneSiteLabels(labels) {
   if (!Array.isArray(labels)) return [];
   return labels
-    .map(item => ({
-      label: String(item?.label || '').trim().toUpperCase(),
+    .map((item, index) => ({
+      id: String(item?.id || `label-${index}-${String(item?.label || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}`),
+      label: String(item?.label || '').trim(),
       x: Math.max(0, Math.min(1, Number(item?.x))),
       y: Math.max(0, Math.min(1, Number(item?.y))),
+      level: ['site', 'main', 'full'].includes(item?.level) ? item.level : (/^[ABC]$/i.test(String(item?.label || '').trim()) ? 'site' : 'main'),
     }))
     .filter(item => item.label && Number.isFinite(item.x) && Number.isFinite(item.y));
+}
+
+function _msDefaultSpawnZones() {
+  return { attack: null, defense: null };
+}
+function _msCloneSpawnZones(value) {
+  const result = _msDefaultSpawnZones();
+  ['attack', 'defense'].forEach(side => {
+    const item = value?.[side];
+    if (!item) return;
+    const x = _msClamp01(item.x), y = _msClamp01(item.y);
+    const width = Math.max(.01, Math.min(1 - x, Number(item.width) || .15));
+    const height = Math.max(.01, Math.min(1 - y, Number(item.height) || .12));
+    result[side] = { x, y, width, height, label: side === 'attack' ? 'T SPAWN' : 'CT SPAWN' };
+  });
+  return result;
+}
+function _msDraftSpawnZones(mapName = _msCurrentMapName()) {
+  if (!_mapSpawnZones[mapName]) _mapSpawnZones[mapName] = _msDefaultSpawnZones();
+  return _mapSpawnZones[mapName];
+}
+async function loadMapSpawnZones() {
+  if (_mapSpawnZonesLoaded) return _mapSpawnZones;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'map_spawn_zones'));
+    Object.entries(snap.exists() ? snap.data() : {}).forEach(([map, zones]) => {
+      if (map !== 'updatedAt') _mapSpawnZones[map] = _msCloneSpawnZones(zones);
+    });
+  } catch (e) { console.warn('loadMapSpawnZones', e); }
+  _mapSpawnZonesLoaded = true;
+  return _mapSpawnZones;
 }
 
 function _msSavedSiteLabels(mapName = _msCurrentMapName()) {
@@ -3660,6 +3768,7 @@ async function loadMapSiteLabelsConfig() {
       console.warn('loadMapSiteLabelsConfig', e);
       _mapSiteLabelsCache = {};
     }
+    _mapSiteLabelsLoaded = true;
     return _mapSiteLabelsCache;
   })();
   return _mapSiteLabelsPromise;
@@ -3669,8 +3778,9 @@ function _msDrawSiteLabels(canvas, data = null, labelsOverride = null) {
   if (!canvas) return;
   const settings = { ...MS_LABEL_DEFAULTS, ...(data || {}) };
   if (settings.site_labels_enabled === false) return;
-  const labels = labelsOverride || _msDraftSiteLabels();
-  if (!labels.length) return;
+  const mode = _mapAnnotationModes[_msCurrentMapName()] || 'full';
+  if (mode === 'clean') return;
+  const labels = (labelsOverride || _msDraftSiteLabels()).filter(item => mode === 'full' || item.level !== 'full');
   const ctx = canvas.getContext('2d');
   const rawSize = Number(settings.site_label_size);
   const rawAlpha = Number(settings.site_label_alpha);
@@ -3679,6 +3789,19 @@ function _msDrawSiteLabels(canvas, data = null, labelsOverride = null) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const zones = _msDraftSpawnZones();
+  Object.entries(zones).forEach(([side, zone]) => {
+    if (!zone) return;
+    const color = side === 'attack' ? '255,70,85' : '79,195,247';
+    ctx.fillStyle = `rgba(${color},.18)`;
+    ctx.strokeStyle = `rgba(${color},.9)`;
+    ctx.lineWidth = 2;
+    ctx.fillRect(zone.x * canvas.width, zone.y * canvas.height, zone.width * canvas.width, zone.height * canvas.height);
+    ctx.strokeRect(zone.x * canvas.width, zone.y * canvas.height, zone.width * canvas.width, zone.height * canvas.height);
+    ctx.font = `800 ${Math.max(10, size * .55)}px Inter, Arial, sans-serif`;
+    ctx.fillStyle = `rgba(${color},1)`;
+    ctx.fillText(zone.label, (zone.x + zone.width / 2) * canvas.width, (zone.y + zone.height / 2) * canvas.height);
+  });
   ctx.font = `500 ${size}px Inter, Arial, sans-serif`;
   labels.forEach(site => {
     const x = site.x * canvas.width;
@@ -3714,12 +3837,25 @@ function _msRenderSiteLabelEditor() {
   const selected = labels[_msSelectedSiteLabel];
   const xInput = document.getElementById('ms-site-label-x');
   const yInput = document.getElementById('ms-site-label-y');
+  const nameInput = document.getElementById('ms-position-name');
+  const levelInput = document.getElementById('ms-position-level');
   if (xInput) { xInput.disabled = !selected; xInput.value = selected ? selected.x.toFixed(3) : ''; }
   if (yInput) { yInput.disabled = !selected; yInput.value = selected ? selected.y.toFixed(3) : ''; }
+  if (nameInput) nameInput.value = selected?.label || '';
+  if (levelInput) levelInput.value = selected?.level || 'main';
   const status = document.getElementById('ms-site-label-status');
   if (status) status.textContent = selected
     ? `${_msCurrentMapName()} · ${selected.label}: X ${selected.x.toFixed(3)}, Y ${selected.y.toFixed(3)}`
     : `${_msCurrentMapName()}: букв нет`;
+}
+
+function _msRenderSpawnEditor() {
+  document.querySelectorAll('.ms-spawn-side').forEach(btn => btn.classList.toggle('btn-save', btn.dataset.side === _msSelectedSpawnSide));
+  const zone = _msDraftSpawnZones()[_msSelectedSpawnSide];
+  const values = { 'ms-spawn-x': zone?.x, 'ms-spawn-y': zone?.y, 'ms-spawn-w': zone?.width, 'ms-spawn-h': zone?.height };
+  Object.entries(values).forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.value = value == null ? '' : Number(value).toFixed(3); });
+  const status = document.getElementById('ms-spawn-status');
+  if (status) status.textContent = `${_msCurrentMapName()} · ${_msSelectedSpawnSide === 'attack' ? 'T SPAWN' : 'CT SPAWN'}${zone ? '' : ' — не задан'}`;
 }
 
 function _msUpdateSelectedSiteLabel(x, y) {
@@ -3746,6 +3882,12 @@ function _msBeginSiteLabelDrag(event) {
   if (event.button !== undefined && event.button !== 0) return;
   const point = _msCanvasNormalizedPoint(event);
   if (!point) return;
+  if (_msSpawnDraw?.armed) {
+    event.preventDefault();
+    _msSpawnDraw = { armed: true, pointerId: event.pointerId, start: point };
+    try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) {}
+    return;
+  }
   const labels = _msDraftSiteLabels();
   let nearest = -1;
   let nearestDistance = Infinity;
@@ -3767,6 +3909,12 @@ function _msBeginSiteLabelDrag(event) {
 }
 
 function _msMoveSiteLabel(event) {
+  if (_msSpawnDraw?.pointerId === event.pointerId && _msSpawnDraw.start) {
+    const point = _msCanvasNormalizedPoint(event); if (!point) return;
+    const start = _msSpawnDraw.start;
+    _msDraftSpawnZones()[_msSelectedSpawnSide] = { x: Math.min(start.x, point.x), y: Math.min(start.y, point.y), width: Math.max(.01, Math.abs(point.x - start.x)), height: Math.max(.01, Math.abs(point.y - start.y)), label: _msSelectedSpawnSide === 'attack' ? 'T SPAWN' : 'CT SPAWN' };
+    _msRenderSpawnEditor(); _msScheduleRedraw(); event.preventDefault(); return;
+  }
   if (!_msSiteLabelDrag || _msSiteLabelDrag.pointerId !== event.pointerId) return;
   const point = _msCanvasNormalizedPoint(event);
   if (!point) return;
@@ -3776,6 +3924,11 @@ function _msMoveSiteLabel(event) {
 }
 
 function _msEndSiteLabelDrag(event) {
+  if (_msSpawnDraw?.pointerId === event.pointerId) {
+    _msSpawnDraw = null;
+    document.getElementById('ms-spawn-draw')?.classList.remove('btn-save');
+    _msRenderSpawnEditor(); _msScheduleRedraw(); return;
+  }
   if (!_msSiteLabelDrag || _msSiteLabelDrag.pointerId !== event.pointerId) return;
   _msSiteLabelDrag = null;
   const canvas = document.getElementById('ms-canvas');
@@ -3903,7 +4056,10 @@ function _msSetTint(r, g, b) {
 
 async function loadMapStyleTab() {
   try {
+    await _moLoad();
+    await loadMapAnnotationModes();
     await loadMapSiteLabelsConfig();
+    await loadMapSpawnZones();
     const snap = await getDoc(doc(db, 'settings', 'map_style_themes'));
     if (snap.exists()) _msThemesCache = snap.data();
     const calSnap = await getDoc(doc(db, 'settings', 'map_calibration'));
@@ -3914,7 +4070,10 @@ async function loadMapStyleTab() {
   _mcLoadSelectedMap();
   _msDraftSiteLabels();
   _msRenderSiteLabelEditor();
+  _msRenderSpawnEditor();
   _msLoadMap(document.getElementById('ms-map-pick').value);
+  _msSyncRotationControls();
+  renderMapAnnotationMode();
 }
 
 function _msSwitchTheme(theme) {
@@ -3999,8 +4158,80 @@ document.getElementById('ms-map-pick').addEventListener('change', e => {
   _msSelectedSiteLabel = 0;
   _msDraftSiteLabels();
   _msRenderSiteLabelEditor();
+  _msRenderSpawnEditor();
   _mcLoadSelectedMap();
   _msLoadMap(e.target.value);
+  _msSyncRotationControls();
+  renderMapAnnotationMode();
+  _msScheduleRedraw();
+});
+
+document.querySelectorAll('.ms-annotation-mode').forEach(button => button.addEventListener('click', async () => {
+  const map = currentMapStyleName();
+  _mapAnnotationModes[map] = button.dataset.annotationMode || 'full';
+  renderMapAnnotationMode();
+  try {
+    await setDoc(doc(db, 'settings', 'map_annotation_modes'), {
+      [map]: _mapAnnotationModes[map],
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    toast(`Режим «${button.textContent.trim()}» сохранён для ${map}`, 's');
+    _msScheduleRedraw();
+  } catch (e) { toast('Ошибка сохранения режима: ' + e.message, 'e'); }
+}));
+
+document.querySelectorAll('[data-ms-section]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.getElementById(button.dataset.msSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('[data-ms-section]').forEach(item => item.classList.remove('active'));
+    button.classList.add('active');
+  });
+});
+
+function _msRotationMapName() {
+  return document.getElementById('ms-map-pick')?.selectedOptions?.[0]?.textContent?.trim() || 'Ascent';
+}
+
+function _msSyncRotationControls() {
+  const mapName = _msRotationMapName();
+  const turns = ((Number(_moTurns[mapName]) || 0) % 4 + 4) % 4;
+  const value = document.getElementById('ms-rotate-value');
+  if (value) value.textContent = `${turns * 90}°`;
+  ['ms-canvas-before', 'ms-canvas'].forEach(id => {
+    const canvas = document.getElementById(id);
+    if (canvas) {
+      canvas.style.transform = `rotate(${turns * 90}deg)`;
+      canvas.style.transformOrigin = 'center';
+    }
+  });
+}
+
+function _msRotateSelectedMap(delta) {
+  const mapName = _msRotationMapName();
+  _moTurns[mapName] = (((Number(_moTurns[mapName]) || 0) + delta) % 4 + 4) % 4;
+  _msSyncRotationControls();
+}
+
+document.getElementById('ms-rotate-left')?.addEventListener('click', () => _msRotateSelectedMap(-1));
+document.getElementById('ms-rotate-right')?.addEventListener('click', () => _msRotateSelectedMap(1));
+document.getElementById('ms-rotate-save')?.addEventListener('click', async function() {
+  this.disabled = true;
+  try {
+    const defense_quarter_turns = {};
+    MP_ALL_MAPS.forEach(map => { defense_quarter_turns[map.name] = Number(_moTurns[map.name]) || 0; });
+    await setDoc(doc(db, 'settings', 'map_orientations'), {
+      defense_quarter_turns,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    toast(`Поворот ${_msRotationMapName()} сохранён`, 's');
+    _moRender();
+  } catch (e) {
+    toast('Ошибка сохранения поворота: ' + e.message, 'e');
+  } finally {
+    this.disabled = false;
+  }
 });
 
 let _siteOnlineTimer = null;
@@ -4030,6 +4261,34 @@ function startSiteOnlineCounter() {
     const y = document.getElementById('ms-site-label-y')?.value;
     _msUpdateSelectedSiteLabel(x, y);
   });
+});
+['ms-position-name','ms-position-level'].forEach(id => document.getElementById(id)?.addEventListener('change', () => {
+  const selected = _msDraftSiteLabels()[_msSelectedSiteLabel];
+  if (!selected) return;
+  selected.label = String(document.getElementById('ms-position-name')?.value || '').trim() || selected.label;
+  selected.level = document.getElementById('ms-position-level')?.value || 'main';
+  _msRenderSiteLabelEditor(); _msScheduleRedraw();
+}));
+document.getElementById('ms-position-add')?.addEventListener('click', () => {
+  const name = String(document.getElementById('ms-position-name')?.value || '').trim();
+  if (!name) return toast('Введи английское название позиции', 'i');
+  const labels = _msDraftSiteLabels();
+  labels.push({ id: `label-${Date.now()}`, label: name, level: document.getElementById('ms-position-level')?.value || 'main', x: .5, y: .5 });
+  _msSelectedSiteLabel = labels.length - 1; _msRenderSiteLabelEditor(); _msScheduleRedraw();
+});
+document.querySelectorAll('.ms-spawn-side').forEach(btn => btn.addEventListener('click', () => { _msSelectedSpawnSide = btn.dataset.side; _msRenderSpawnEditor(); }));
+document.querySelectorAll('.ms-spawn-value').forEach(input => input.addEventListener('change', () => {
+  const x = _msClamp01(document.getElementById('ms-spawn-x')?.value), y = _msClamp01(document.getElementById('ms-spawn-y')?.value);
+  _msDraftSpawnZones()[_msSelectedSpawnSide] = { x, y, width: Math.max(.01, Math.min(1 - x, Number(document.getElementById('ms-spawn-w')?.value) || .15)), height: Math.max(.01, Math.min(1 - y, Number(document.getElementById('ms-spawn-h')?.value) || .12)), label: _msSelectedSpawnSide === 'attack' ? 'T SPAWN' : 'CT SPAWN' };
+  _msRenderSpawnEditor(); _msScheduleRedraw();
+}));
+document.getElementById('ms-spawn-draw')?.addEventListener('click', function() { _msSpawnDraw = { armed: true }; this.classList.add('btn-save'); toast('Зажми ЛКМ на правой карте и выдели зону', 'i'); });
+document.getElementById('ms-spawn-clear')?.addEventListener('click', () => { _msDraftSpawnZones()[_msSelectedSpawnSide] = null; _msRenderSpawnEditor(); _msScheduleRedraw(); });
+document.getElementById('ms-spawn-save')?.addEventListener('click', async function() {
+  const mapName = _msCurrentMapName(); this.disabled = true;
+  try { await setDoc(doc(db, 'settings', 'map_spawn_zones'), { [mapName]: _msCloneSpawnZones(_msDraftSpawnZones()), updatedAt: serverTimestamp() }, { merge: true }); toast(`Зоны спавна ${mapName} сохранены`, 's'); }
+  catch (e) { toast('Ошибка сохранения зон: ' + e.message, 'e'); }
+  finally { this.disabled = false; }
 });
 document.querySelectorAll('.ms-site-nudge').forEach(button => {
   button.addEventListener('click', () => {
@@ -6400,10 +6659,12 @@ async function _moLoad() {
 function _moRender() {
   const grid = document.getElementById('mo-grid');
   if (!grid) return;
+  const selectedMap = _msRotationMapName();
   grid.innerHTML = MP_ALL_MAPS.map(map => {
     const turns = ((Number(_moTurns[map.name]) || 0) % 4 + 4) % 4;
     const image = `https://media.valorant-api.com/maps/${map.uuid}/displayicon.png`;
-    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+    const selected = map.name === selectedMap;
+    return `<div data-mo-select="${map.name}" style="background:var(--surface2);border:1px solid ${selected ? 'var(--primary)' : 'var(--border)'};border-radius:10px;padding:10px;cursor:pointer;box-shadow:${selected ? '0 0 0 2px rgba(255,70,85,.18)' : 'none'};transition:.15s;">
       <div style="height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#090d16;border-radius:7px;">
         <img src="${image}" alt="${map.name}" loading="lazy" style="width:138px;height:138px;object-fit:contain;transform:rotate(${turns * 90}deg);transition:transform .2s;">
       </div>
@@ -6415,6 +6676,15 @@ function _moRender() {
       </div>
     </div>`;
   }).join('');
+  grid.querySelectorAll('[data-mo-select]').forEach(card => card.addEventListener('click', event => {
+    if (event.target.closest('[data-mo-map]')) return;
+    const map = MP_ALL_MAPS.find(item => item.name === card.dataset.moSelect);
+    const select = document.getElementById('ms-map-pick');
+    if (!map || !select) return;
+    select.value = map.uuid;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    _moRender();
+  }));
   grid.querySelectorAll('[data-mo-map]').forEach(button => button.addEventListener('click', () => {
     const name = button.dataset.moMap;
     _moTurns[name] = (((Number(_moTurns[name]) || 0) + Number(button.dataset.moDelta)) % 4 + 4) % 4;
@@ -6621,8 +6891,8 @@ function cardHtml(l) {
     removed:  ['b-removed',  'УДАЛЁН'],
     archived: ['b-archived', 'АРХИВ'],
   };
-  const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid);
-  const moderatorApproved = moderatorReviewed && ['approved', 'hot'].includes(l.status);
+  const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid || l.edited_by_moderator_uid || l.edited_at || l.moderator_template_completed);
+  const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
   const cardClass = moderatorApproved ? 'moderator-approved' : moderatorRejected ? 'moderator-rejected' : '';
   const [bc, bl] = moderatorApproved
@@ -6637,6 +6907,7 @@ function cardHtml(l) {
     <div class="linfo">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
         <span class="badge ${bc}" style="font-size:9px;padding:2px 6px;">${bl}</span>
+        ${l.status === 'approved' && moderatorReviewed ? '<span style="color:#38bdf8;font-size:9px;font-weight:800;">🛡 проверено модератором</span>' : ''}
         ${l.is_exclusive ? '<span style="color:#f59e0b;font-size:10px;">👑</span>' : ''}
       </div>
       <div class="ltitle">${esc(l.title ?? '—')}</div>
@@ -6823,8 +7094,8 @@ function detailHtml(l) {
     removed:  ['b-removed',  'УДАЛЁН'],
     archived: ['b-archived', 'АРХИВ'],
   };
-  const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid);
-  const moderatorApproved = moderatorReviewed && ['approved', 'hot'].includes(l.status);
+  const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid || l.edited_by_moderator_uid || l.edited_at || l.moderator_template_completed);
+  const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
   const [bc, bl] = moderatorApproved
     ? ['b-moderator-approved', '🛡 ПРОВЕРЕНО МОДЕРАТОРОМ · ОДОБРЕНО']
@@ -6847,7 +7118,10 @@ function detailHtml(l) {
       ${l.is_exclusive ? '<span style="color:#f59e0b;">👑 Эксклюзив</span>' : ''}
     </div>
   </div>
-  <span class="badge ${bc}" style="flex-shrink:0;">${bl}</span>
+  <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;">
+    <span class="badge ${bc}" style="flex-shrink:0;">${bl}</span>
+    ${l.status === 'approved' && moderatorReviewed ? '<span style="color:#38bdf8;font-size:10px;font-weight:800;">🛡 проверено модератором</span>' : ''}
+  </div>
 </div>
 <div class="editor-primary-actions">${lineupActionButtonsHtml(l, true)}</div>
 <div class="editor-save-row" id="save-btn-row-${l.id}" style="display:none;">
@@ -6856,6 +7130,7 @@ function detailHtml(l) {
 </div>
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
+  ${l.hot_confirmed_by_name ? `<div class="dfield" style="grid-column:1/-1;border-color:#f59e0b;background:rgba(245,158,11,.08);"><div class="dlabel">Подтверждение в «Пирожки»</div><div class="dval" style="color:#fbbf24;font-weight:800;">🔥 Подтверждено${l.hot_confirmed_by_role ? ` · ${l.hot_confirmed_by_role === 'moderator' ? 'модератором' : 'администратором'}` : ''} · ${esc(l.hot_confirmed_by_name)}</div></div>` : ''}
   ${moderatorReviewed ? `<div class="dfield" style="grid-column:1/-1;border-color:${moderatorRejected ? '#ef4444' : '#38bdf8'};background:${moderatorRejected ? 'rgba(239,68,68,.08)' : 'rgba(56,189,248,.08)'};"><div class="dlabel">Проверка модератором</div><div class="dval" style="color:${moderatorRejected ? '#ff6b75' : '#38bdf8'};font-weight:800;">🛡 ${moderatorRejected ? 'Отклонено' : 'Одобрено'}${l.moderated_by_name || l.rejected_by_name ? ` · ${esc(l.moderated_by_name || l.rejected_by_name)}` : ''}</div></div>` : ''}
   <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(contentMeta(contentCategoryOf(l)).title)}</div></div>
   <div class="dfield"><div class="dlabel">Сторона раунда</div> <div class="dval">${l.round_side === 'defense' ? 'Защита' : l.round_side === 'attack' ? 'Атака' : 'Не указана (legacy)'}</div></div>
@@ -7356,7 +7631,13 @@ async function notifyLineupAuthorRejected(uid, lineup, reason) {
 async function approveLineup(id, userId) {
   if (!confirm('Отправить лайнап в «Горячие пирожки»?\nОн станет виден пользователям только после финального подтверждения.')) return;
   try {
-    await updateDoc(doc(db, 'lineups', id), { status: 'hot' });
+    await updateDoc(doc(db, 'lineups', id), {
+      status: 'hot',
+      hot_confirmed_by_uid: currentUser?.uid || null,
+      hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      hot_confirmed_by_role: currentUserRole || 'admin',
+      hot_confirmed_at: serverTimestamp(),
+    });
     await writeAudit(id, 'hot');
     patchStatus(id, 'hot');
     toast('Лайнап в горячих пирожках 🔥', 's');
@@ -7370,7 +7651,12 @@ async function publishLineup(id, userId) {
     const beforeSnap = await getDoc(ref);
     const before = beforeSnap.exists() ? { id, ...beforeSnap.data() } : (lineups.find(x => x.id === id) || { id });
     const wasApproved = before.status === 'approved';
-    const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
+    const updateData = {
+      status: 'approved', hot_confirmed_at: serverTimestamp(),
+      hot_confirmed_by_uid: currentUser?.uid || null,
+      hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      hot_confirmed_by_role: currentUserRole || 'admin',
+    };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     await updateDoc(ref, updateData);
     const lineupSnap = await getDoc(ref);
@@ -7405,7 +7691,12 @@ async function publishAllHot() {
       publishable.push(data);
     }
     if (!publishable.length) { toast('Все выбранные лайнапы уже опубликованы', 'i'); return; }
-    const updateData = { status: 'approved', hot_confirmed_at: serverTimestamp() };
+    const updateData = {
+      status: 'approved', hot_confirmed_at: serverTimestamp(),
+      hot_confirmed_by_uid: currentUser?.uid || null,
+      hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      hot_confirmed_by_role: currentUserRole || 'admin',
+    };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     const b = writeBatch(db);
     publishable.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
@@ -9141,10 +9432,20 @@ const MAP_SITE_LABELS = {
 
 function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS) {
   if (!canvasEl) return;
-  canvasEl.querySelectorAll('.map-site-label').forEach(el => el.remove());
+  canvasEl.dataset.siteLabelsMap = mapName;
+  if (!_mapSiteLabelsLoaded) {
+    loadMapSiteLabelsConfig().then(() => {
+      if (canvasEl.isConnected && canvasEl.dataset.siteLabelsMap === mapName) {
+        renderMapSiteLabels(canvasEl, mapName, settings);
+      }
+    });
+  }
+  canvasEl.querySelectorAll('.map-site-label,.map-spawn-zone').forEach(el => el.remove());
   const data = { ...MS_LABEL_DEFAULTS, ...(settings || {}) };
   if (data.site_labels_enabled === false) return;
-  const labels = _msSavedSiteLabels(mapName);
+  const mode = _mapAnnotationModes[mapName] || 'full';
+  if (mode === 'clean') return;
+  const labels = _msSavedSiteLabels(mapName).filter(item => mode === 'full' || item.level !== 'full');
   const rawSize = Number(data.site_label_size);
   const rawAlpha = Number(data.site_label_alpha);
   const size = Math.max(12, Math.min(28, Number.isFinite(rawSize) ? rawSize : MS_LABEL_DEFAULTS.site_label_size));
@@ -9159,6 +9460,16 @@ function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS) {
     el.style.height = `${Math.round(size * 1.6)}px`;
     el.style.fontSize = `${size}px`;
     el.style.opacity = String(alpha);
+    canvasEl.appendChild(el);
+  });
+  const zones = _mapSpawnZones[mapName] || _msDefaultSpawnZones();
+  Object.entries(zones).forEach(([side, zone]) => {
+    if (!zone) return;
+    const el = document.createElement('span');
+    el.className = 'map-spawn-zone'; el.textContent = zone.label;
+    el.style.left = `${zone.x * 100}%`; el.style.top = `${zone.y * 100}%`; el.style.width = `${zone.width * 100}%`; el.style.height = `${zone.height * 100}%`;
+    const color = side === 'attack' ? '255,70,85' : '79,195,247';
+    el.style.color = `rgb(${color})`; el.style.borderColor = `rgba(${color},.85)`; el.style.background = `rgba(${color},.16)`;
     canvasEl.appendChild(el);
   });
 }
@@ -15698,7 +16009,8 @@ function renderUsersList(users) {
     const nameTag = hasName
       ? ''
       : `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(255,70,85,.15);color:var(--red);margin-left:4px;">без ника</span>`;
-    const displayName = u.name || u.username || u.displayName || 'Аноним';
+    const fallbackEmail = String(u.user_email || u.yandex_email || '').split('@')[0];
+    const displayName = u.name || u.username || u.displayName || u.yandex_name || fallbackEmail || 'Без ника';
     const initial = esc((displayName || '?')[0].toUpperCase());
     return `<div onclick="openUserProfilePanel('${u.id}')"
         style="padding:8px 10px;border-radius:var(--r);cursor:pointer;border:1px solid var(--border);display:flex;align-items:center;gap:8px;"
