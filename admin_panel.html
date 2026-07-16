@@ -3625,6 +3625,7 @@ let _mapSpawnZones = {};
 let _mapSpawnZonesLoaded = false;
 let _msSelectedSpawnSide = 'attack';
 let _msSpawnDraw = null;
+let _msSpawnDrag = null;
 
 async function loadMapAnnotationModes() {
   if (_mapAnnotationModesLoaded) return _mapAnnotationModes;
@@ -3917,20 +3918,20 @@ function _msBeginSiteLabelDrag(event) {
     try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) {}
     return;
   }
+  const activeZone = _msDraftSpawnZones()[_msSelectedSpawnSide];
+  if (activeZone && point.x >= activeZone.x && point.x <= activeZone.x + activeZone.width && point.y >= activeZone.y && point.y <= activeZone.y + activeZone.height) {
+    event.preventDefault();
+    _msSpawnDrag = { pointerId: event.pointerId, offsetX: point.x - activeZone.x, offsetY: point.y - activeZone.y };
+    try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) {}
+    return;
+  }
   const labels = _msDraftSiteLabels();
-  let nearest = -1;
-  let nearestDistance = Infinity;
-  labels.forEach((item, index) => {
-    const distance = Math.hypot(item.x - point.x, item.y - point.y);
-    if (distance < nearestDistance) { nearestDistance = distance; nearest = index; }
-  });
   const canvas = event.currentTarget;
-  const hitRadius = Math.max(0.035, (Number(document.getElementById('ms-site-label-size')?.value) || 18) / Math.max(1, canvas.clientWidth) * 1.2);
-  if (nearest < 0 || nearestDistance > hitRadius) nearest = _msSelectedSiteLabel;
-  if (!labels[nearest]) return;
+  const selectedIndex = Math.max(0, Math.min(_msSelectedSiteLabel, labels.length - 1));
+  if (!labels[selectedIndex]) return;
   event.preventDefault();
-  _msSelectedSiteLabel = nearest;
-  _msSiteLabelDrag = { pointerId: event.pointerId, index: nearest };
+  _msSelectedSiteLabel = selectedIndex;
+  _msSiteLabelDrag = { pointerId: event.pointerId, index: selectedIndex };
   canvas.style.cursor = 'grabbing';
   if (canvas.isConnected) {
     try { canvas.setPointerCapture?.(event.pointerId); } catch (_) {}
@@ -3944,6 +3945,16 @@ function _msMoveSiteLabel(event) {
     const start = _msSpawnDraw.start;
     _msDraftSpawnZones()[_msSelectedSpawnSide] = { x: Math.min(start.x, point.x), y: Math.min(start.y, point.y), width: Math.max(.01, Math.abs(point.x - start.x)), height: Math.max(.01, Math.abs(point.y - start.y)), label: _msSelectedSpawnSide === 'attack' ? 'T SPAWN' : 'CT SPAWN' };
     _msRenderSpawnEditor(); _msScheduleRedraw(); event.preventDefault(); return;
+  }
+  if (_msSpawnDrag?.pointerId === event.pointerId) {
+    const point = _msCanvasNormalizedPoint(event); if (!point) return;
+    const zone = _msDraftSpawnZones()[_msSelectedSpawnSide];
+    if (zone) {
+      zone.x = Math.max(0, Math.min(1 - zone.width, point.x - _msSpawnDrag.offsetX));
+      zone.y = Math.max(0, Math.min(1 - zone.height, point.y - _msSpawnDrag.offsetY));
+      _msRenderSpawnEditor(); _msScheduleRedraw(); event.preventDefault();
+    }
+    return;
   }
   if (!_msSiteLabelDrag || _msSiteLabelDrag.pointerId !== event.pointerId) return;
   const point = _msCanvasNormalizedPoint(event);
@@ -8876,6 +8887,10 @@ function renderSlotExtraTools(id) {
   if (!enabled) {
     picker.innerHTML = '';
     list.innerHTML = '';
+    return;
+  }
+  if (_msSpawnDrag?.pointerId === event.pointerId) {
+    _msSpawnDrag = null;
     return;
   }
   s.extraAbilities = Array.isArray(s.extraAbilities) ? s.extraAbilities : [];
