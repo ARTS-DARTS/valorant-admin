@@ -4714,7 +4714,8 @@ document.getElementById('ms-save-all-map-settings')?.addEventListener('click', a
     await batch.commit();
     Object.entries(labelsPayload).forEach(([map, labels]) => { _mapSiteLabelsCache[map] = _msCloneSiteLabels(labels); _mapSiteLabelsDraft[map] = _msCloneSiteLabels(labels); });
     _msRenderBefore();
-    toast(`Все настройки карт сохранены · ${mapName}`, 's');
+    const savedMaps = MP_ALL_MAPS.map(map => map.name);
+    toast(`Сохранены карты (${savedMaps.length}): ${savedMaps.join(', ')}`, 's');
     if (typeof addAuditLog === 'function') addAuditLog('map_geometry_saved', { map: mapName, maps: MP_ALL_MAPS.length });
   } catch (e) {
     console.error('map-geometry-save', e); toast('Ошибка общего сохранения: ' + e.message, 'e');
