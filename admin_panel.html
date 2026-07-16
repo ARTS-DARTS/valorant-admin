@@ -316,6 +316,11 @@
     .ms-mapstyle-shell { max-width:1500px !important; }
     .ms-workbench { display:grid;grid-template-columns:minmax(420px,.88fr) minmax(520px,1.12fr);gap:18px;align-items:start; }
     .ms-workbench-preview { position:sticky;top:124px;min-width:0; }
+    .ms-map-picker-bar { display:grid;grid-template-columns:auto minmax(140px,1fr) auto auto;gap:7px;align-items:center;margin-bottom:9px;padding:9px;border:1px solid var(--border);border-radius:10px;background:rgba(10,16,28,.98); }
+    .ms-map-picker-bar label { color:var(--text2);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px; }
+    .ms-map-picker-bar #ms-map-pick { width:100%;padding:8px 10px !important; }
+    .ms-map-step { width:34px;height:34px;border:1px solid var(--border2);border-radius:8px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:16px;font-weight:800; }
+    .ms-map-step:hover { color:#fff;border-color:var(--primary);background:rgba(255,70,85,.14); }
     .ms-workbench-preview .ms-preview-grid { position:relative;top:auto;display:block !important;margin:0 !important; }
     .ms-workbench-preview .ms-preview-grid > div:first-child { display:none; }
     .ms-workbench-preview .ms-preview-grid > div:last-child > div:first-child { font-size:0 !important; }
@@ -2673,7 +2678,7 @@
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
         <div>
           <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Позиции и обозначения выбранной карты</div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Добавляй английские названия, выбирай уровень показа и перетаскивай подпись прямо на правой карте.</div>
+          <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Выбери подпись, затем зажми ЛКМ на карте слева и перетащи её в нужное место.</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button type="button" class="btn ms-site-label-add" data-label="A" style="font-size:12px;">+ A</button>
@@ -3907,7 +3912,8 @@ function _msBeginSiteLabelDrag(event) {
   });
   const canvas = event.currentTarget;
   const hitRadius = Math.max(0.035, (Number(document.getElementById('ms-site-label-size')?.value) || 18) / Math.max(1, canvas.clientWidth) * 1.2);
-  if (nearest < 0 || nearestDistance > hitRadius) return;
+  if (nearest < 0 || nearestDistance > hitRadius) nearest = _msSelectedSiteLabel;
+  if (!labels[nearest]) return;
   event.preventDefault();
   _msSelectedSiteLabel = nearest;
   _msSiteLabelDrag = { pointerId: event.pointerId, index: nearest };
@@ -4105,6 +4111,25 @@ function setupMapStyleWorkbench() {
   settingsColumn.className = 'ms-workbench-settings';
   parent.insertBefore(workbench, appearance);
   workbench.append(previewColumn, settingsColumn);
+  const picker = document.getElementById('ms-map-pick');
+  if (picker) {
+    const pickerBar = document.createElement('div');
+    pickerBar.className = 'ms-map-picker-bar';
+    pickerBar.innerHTML = '<label for="ms-map-pick">Карта</label>';
+    const previous = document.createElement('button');
+    previous.type = 'button'; previous.className = 'ms-map-step'; previous.title = 'Предыдущая карта'; previous.textContent = '‹';
+    const next = document.createElement('button');
+    next.type = 'button'; next.className = 'ms-map-step'; next.title = 'Следующая карта'; next.textContent = '›';
+    const changeMap = delta => {
+      const count = picker.options.length;
+      picker.selectedIndex = (picker.selectedIndex + delta + count) % count;
+      picker.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    previous.addEventListener('click', () => changeMap(-1));
+    next.addEventListener('click', () => changeMap(1));
+    pickerBar.append(picker, previous, next);
+    previewColumn.appendChild(pickerBar);
+  }
   previewColumn.appendChild(preview);
   settings.forEach(element => settingsColumn.appendChild(element));
 }
