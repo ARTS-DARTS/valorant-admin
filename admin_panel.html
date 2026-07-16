@@ -3801,6 +3801,7 @@ function _msDrawSiteLabels(canvas, data = null, labelsOverride = null) {
   const rawAlpha = Number(settings.site_label_alpha);
   const size = Math.max(12, Math.min(28, Number.isFinite(rawSize) ? rawSize : MS_LABEL_DEFAULTS.site_label_size));
   const alpha = Math.max(0.2, Math.min(1, Number.isFinite(rawAlpha) ? rawAlpha : MS_LABEL_DEFAULTS.site_label_alpha));
+  const turns = ((Number(_moTurns[_msCurrentMapName()]) || 0) % 4 + 4) % 4;
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -3815,7 +3816,13 @@ function _msDrawSiteLabels(canvas, data = null, labelsOverride = null) {
     ctx.strokeRect(zone.x * canvas.width, zone.y * canvas.height, zone.width * canvas.width, zone.height * canvas.height);
     ctx.font = `800 ${Math.max(10, size * .55)}px Inter, Arial, sans-serif`;
     ctx.fillStyle = `rgba(${color},1)`;
-    ctx.fillText(zone.label, (zone.x + zone.width / 2) * canvas.width, (zone.y + zone.height / 2) * canvas.height);
+    const labelX = (zone.x + zone.width / 2) * canvas.width;
+    const labelY = (zone.y + zone.height / 2) * canvas.height;
+    ctx.save();
+    ctx.translate(labelX, labelY);
+    ctx.rotate(-turns * Math.PI / 2);
+    ctx.fillText(zone.label, 0, 0);
+    ctx.restore();
   });
   ctx.font = `500 ${size}px Inter, Arial, sans-serif`;
   labels.forEach(site => {
@@ -3823,7 +3830,11 @@ function _msDrawSiteLabels(canvas, data = null, labelsOverride = null) {
     const y = site.y * canvas.height;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(site.label, x, y + size * 0.03);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-turns * Math.PI / 2);
+    ctx.fillText(site.label, 0, size * 0.03);
+    ctx.restore();
   });
   ctx.restore();
 }
@@ -3887,10 +3898,13 @@ function _msCanvasNormalizedPoint(event) {
   const canvas = document.getElementById('ms-canvas');
   const rect = canvas?.getBoundingClientRect();
   if (!rect || !rect.width || !rect.height) return null;
-  return {
-    x: _msClamp01((event.clientX - rect.left) / rect.width),
-    y: _msClamp01((event.clientY - rect.top) / rect.height),
-  };
+  const screenX = _msClamp01((event.clientX - rect.left) / rect.width);
+  const screenY = _msClamp01((event.clientY - rect.top) / rect.height);
+  const turns = ((Number(_moTurns[_msCurrentMapName()]) || 0) % 4 + 4) % 4;
+  if (turns === 1) return { x: screenY, y: 1 - screenX };
+  if (turns === 2) return { x: 1 - screenX, y: 1 - screenY };
+  if (turns === 3) return { x: 1 - screenY, y: screenX };
+  return { x: screenX, y: screenY };
 }
 
 function _msBeginSiteLabelDrag(event) {
