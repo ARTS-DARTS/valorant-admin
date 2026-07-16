@@ -989,7 +989,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">map-rotation-author-fix | 2026-07-16 20:25</span>
+      <span class="admin-version" id="admin-build-version">extra-ability-editor | 2026-07-16 21:05</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -9597,7 +9597,7 @@ function _buildTrajSvg(points, w, h, markerId, color = '#FF4655', opacity = 0.85
 
 function renderTrajectory() {
   const c = _mapCanvas(); if (!c) return;
-  c.querySelector('.traj-svg')?.remove();
+  c.querySelectorAll('.traj-svg').forEach(el => el.remove());
   if (trajectoryPoints.length === 0) return;
   const wrap = document.getElementById('map-picker-wrap');
   const path = _trajectoryFromPosition(trajectoryPoints, markerX, markerY);
@@ -10045,6 +10045,12 @@ function _getEditSession(id, l) {
       screenshots: _lineupScreenshotUrls(l).map(url => ({ type: 'existing', url })),
       videoUrl: l.video_url ?? null, videoXhr: null,
       trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
+      extraAbilities: (Array.isArray(l.extra_abilities) ? l.extra_abilities : []).map((item, index) => ({
+        ...item,
+        order: Number(item.order || index + 1),
+        trajectory: Array.isArray(item.trajectory) ? item.trajectory.map(point => ({ ...point })) : [],
+      })),
+      selectedExtraIndex: null,
       targetX: typeof l.target_x === 'number' ? l.target_x : null,
       targetY: typeof l.target_y === 'number' ? l.target_y : null,
       mapMode: isDefense ? 'defense' : 'position',
@@ -10097,6 +10103,11 @@ function buildEditForm(id, l) {
   </div>
   <div class="fg full" id="ce-ability-wrap-${id}" style="display:none;"><label class="flabel">Способность</label>
     <div class="ability-row" id="ce-ability-row-${id}"></div>
+  </div>
+  <div class="fg full" id="ce-extra-wrap-${id}"><label class="flabel">Дополнительные способности</label>
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Выбери доп. абилку, затем рисуй её траекторию теми же инструментами карты.</div>
+    <div class="ability-row" id="ce-extra-picker-${id}"></div>
+    <div class="extra-ability-list" id="ce-extra-list-${id}" style="margin-top:8px;"></div>
   </div>
   <div class="fg full"><label class="flabel">Эксклюзивный доступ 👑</label>
     <label class="fcheck-row">
@@ -10214,8 +10225,54 @@ function renderEditAbilityRow(id) {
       sess.ability = btn.dataset.ab;
       row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
       btn.classList.add('sel'); renderEditMarker(id);
+      renderEditExtraTools(id);
     });
   });
+}
+
+function _activeEditTrajectory(sess) {
+  return Number.isInteger(sess.selectedExtraIndex) && sess.extraAbilities?.[sess.selectedExtraIndex]
+    ? sess.extraAbilities[sess.selectedExtraIndex].trajectory
+    : sess.trajectory;
+}
+
+function _setActiveEditTrajectory(sess, points) {
+  if (Number.isInteger(sess.selectedExtraIndex) && sess.extraAbilities?.[sess.selectedExtraIndex]) {
+    sess.extraAbilities[sess.selectedExtraIndex].trajectory = points;
+  } else {
+    sess.trajectory = points;
+  }
+}
+
+function renderEditExtraTools(id) {
+  const s = editSessions[id], picker = document.getElementById('ce-extra-picker-' + id), list = document.getElementById('ce-extra-list-' + id);
+  if (!s || !picker || !list) return;
+  const category = normalizeContentCategory(document.getElementById('ce-cat-' + id)?.value || '');
+  const enabled = (category === 'lineup' || category === 'combo') && !!s.agent && !!s.ability;
+  document.getElementById('ce-extra-wrap-' + id).style.display = enabled ? '' : 'none';
+  if (!enabled) return;
+  const abilities = (AGENT_ABILITIES[s.agent] || AGENTS[s.agent] || []).filter(ab => ab !== s.ability);
+  picker.innerHTML = abilities.map(ab => `<button class="abil-btn" type="button" data-edit-extra-add="${esc(ab)}" ${s.extraAbilities.length >= 2 ? 'disabled' : ''}>
+    ${_abilityIcon(s.agent, ab) ? `<img src="${esc(_abilityIcon(s.agent, ab))}" alt="">` : ''}<span>${esc(ab)}</span></button>`).join('');
+  picker.querySelectorAll('[data-edit-extra-add]').forEach(button => button.addEventListener('click', () => {
+    if (s.extraAbilities.length >= 2) return;
+    const ability = button.dataset.editExtraAdd;
+    s.extraAbilities.push({ order:s.extraAbilities.length + 1, ability, icon:_abilityIcon(s.agent, ability), trajectory:[], range_radius:0, effect_shape:'circle' });
+    s.selectedExtraIndex = s.extraAbilities.length - 1;
+    _setEditMapMode(id, 'trajectory'); renderEditExtraTools(id); renderEditTrajectory(id);
+  }));
+  list.innerHTML = `<span class="extra-ability-chip${s.selectedExtraIndex === null ? ' sel' : ''}" data-edit-extra-main><b>★</b><span>Основная · ${s.trajectory.length} т.</span></span>` +
+    (s.extraAbilities.length ? s.extraAbilities.map((item, index) => `<span class="extra-ability-chip${s.selectedExtraIndex === index ? ' sel' : ''}" data-edit-extra-select="${index}">
+      <b>${index + 1}</b>${item.icon ? `<img src="${esc(item.icon)}" alt="">` : ''}<span>${esc(item.ability)} · ${item.trajectory.length} т.</span><button type="button" data-edit-extra-remove="${index}">×</button></span>`).join('') : '<span style="font-size:11px;color:var(--text2);">Допов пока нет</span>');
+  list.querySelector('[data-edit-extra-main]')?.addEventListener('click', () => { s.selectedExtraIndex = null; _setEditMapMode(id, 'trajectory'); renderEditExtraTools(id); renderEditTrajectory(id); });
+  list.querySelectorAll('[data-edit-extra-select]').forEach(chip => chip.addEventListener('click', event => {
+    if (event.target.closest('[data-edit-extra-remove]')) return;
+    s.selectedExtraIndex = Number(chip.dataset.editExtraSelect); _setEditMapMode(id, 'trajectory'); renderEditExtraTools(id); renderEditTrajectory(id);
+  }));
+  list.querySelectorAll('[data-edit-extra-remove]').forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation(); const index = Number(button.dataset.editExtraRemove); s.extraAbilities.splice(index, 1);
+    s.extraAbilities.forEach((item, order) => item.order = order + 1); s.selectedExtraIndex = null; renderEditExtraTools(id); renderEditTrajectory(id);
+  }));
 }
 
 function _eCanvas(id)  { const w = document.getElementById('ce-map-wrap-' + id); return w ? w.querySelector('.map-canvas') : null; }
@@ -10323,9 +10380,15 @@ function renderEditTrajectory(id) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
   c.querySelector('.traj-svg')?.remove();
-  const sess = editSessions[id]; if (!sess || sess.trajectory.length === 0) return;
-  const path = _trajectoryFromPosition(sess.trajectory, sess.markerX, sess.markerY);
-  c.appendChild(_buildTrajSvg(_pointsToWrap(path, _eImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id));
+  const sess = editSessions[id]; if (!sess) return;
+  if (sess.trajectory.length) {
+    const path = _trajectoryFromPosition(sess.trajectory, sess.markerX, sess.markerY);
+    c.appendChild(_buildTrajSvg(_pointsToWrap(path, _eImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, 'traj-arrow-' + id, '#FF4655', sess.selectedExtraIndex === null ? .9 : .4));
+  }
+  sess.extraAbilities.forEach((item, index) => {
+    if (!item.trajectory.length) return;
+    c.appendChild(_buildTrajSvg(_pointsToWrap(item.trajectory, _eImgRect(id), wrap), wrap.clientWidth, wrap.clientHeight, `traj-extra-${id}-${index}`, sess.selectedExtraIndex === index ? '#50d6ff' : '#9b7bff', sess.selectedExtraIndex === index ? .95 : .5, `+${index + 1}`));
+  });
 }
 
 function _setEditMapMode(id, mode) {
@@ -10410,8 +10473,9 @@ function initEditMapInteraction(id, initialMap) {
     if(normalizeContentCategory(document.getElementById('ce-cat-'+id)?.value ?? '')==='defense')return;
     const ir = _eImgRect(id);
     const p = _eventToMapNorm(e.clientX, e.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
-    if (s.trajectory.length === 0 && s.markerX !== null) s.trajectory.push({ x: s.markerX, y: s.markerY });
-    s.trajectory.push({ x: p.x, y: p.y }); renderEditTrajectory(id);
+    const points = _activeEditTrajectory(s);
+    if (points.length === 0 && s.selectedExtraIndex === null && s.markerX !== null) points.push({ x: s.markerX, y: s.markerY });
+    points.push({ x: p.x, y: p.y }); _setActiveEditTrajectory(s, points); renderEditTrajectory(id); renderEditExtraTools(id);
     _setEditMapMode(id, 'trajectory');
   });
   document.getElementById('ce-map-' + id)?.addEventListener('change', e => {
@@ -10423,8 +10487,8 @@ function initEditMapInteraction(id, initialMap) {
   document.getElementById('ce-mode-pos-'  + id)?.addEventListener('click', () => _setEditMapMode(id, 'position'));
   document.getElementById('ce-mode-target-'  + id)?.addEventListener('click', () => _setEditMapMode(id, 'target'));
   document.getElementById('ce-mode-traj-' + id)?.addEventListener('click', () => _setEditMapMode(id, 'trajectory'));
-  document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory.pop(); renderEditTrajectory(id); });
-  document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; sess.trajectory = []; renderEditTrajectory(id); });
+  document.getElementById('ce-traj-undo-'  + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; _activeEditTrajectory(sess).pop(); renderEditTrajectory(id); renderEditExtraTools(id); });
+  document.getElementById('ce-traj-clear-' + id)?.addEventListener('click', () => { const sess = editSessions[id]; if (!sess) return; _setActiveEditTrajectory(sess, []); renderEditTrajectory(id); renderEditExtraTools(id); });
   ['site','number'].forEach(field=>document.getElementById(`ce-defense-${field}-${id}`)?.addEventListener('input',()=>_defRender(id,true)));
   _defInitTools(id,true);
   renderEditTrajectory(id);
@@ -10576,6 +10640,7 @@ async function openEditForm(id) {
   if (saveRow) saveRow.style.display = '';
   await _ensureIconsLoaded();
   initEditAgentGrid(id); renderEditAbilityRow(id);
+  renderEditExtraTools(id);
   const pickAuthor = () => openAuthorPanel(id);
   document.getElementById('ce-author-' + id)?.addEventListener('click', pickAuthor);
   document.getElementById('ce-author-pick-' + id)?.addEventListener('click', pickAuthor);
@@ -10638,6 +10703,7 @@ async function saveEditedLineup(id) {
       position_x: sess.markerX ?? l.position_x ?? 0,
       position_y: sess.markerY ?? l.position_y ?? 0,
       trajectory: sess.trajectory,
+      extra_abilities: sess.extraAbilities.map((item, index) => ({ ...item, order:index + 1 })),
       ...extras,
     };
     const changes = {};
