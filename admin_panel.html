@@ -313,6 +313,16 @@
     .ms-annotation-mode.active { color:#fff;background:rgba(79,195,247,.18);border-color:#4fc3f7; }
     .ms-orientation-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px; }
     .ms-preview-grid { position:sticky;top:124px;z-index:12;padding:10px;border:1px solid rgba(79,195,247,.28);border-radius:10px;background:rgba(10,16,28,.97);backdrop-filter:blur(10px);box-shadow:0 14px 35px rgba(0,0,0,.28); }
+    .ms-mapstyle-shell { max-width:1500px !important; }
+    .ms-workbench { display:grid;grid-template-columns:minmax(420px,.88fr) minmax(520px,1.12fr);gap:18px;align-items:start; }
+    .ms-workbench-preview { position:sticky;top:124px;min-width:0; }
+    .ms-workbench-preview .ms-preview-grid { position:relative;top:auto;display:block !important;margin:0 !important; }
+    .ms-workbench-preview .ms-preview-grid > div:first-child { display:none; }
+    .ms-workbench-preview .ms-preview-grid > div:last-child > div:first-child { font-size:0 !important; }
+    .ms-workbench-preview .ms-preview-grid > div:last-child > div:first-child::after { content:'Предпросмотр карты';font-size:10px; }
+    .ms-workbench-settings { min-width:0; }
+    .ms-workbench-settings > :first-child { margin-top:0 !important; }
+    @media (max-width:1120px) { .ms-workbench { grid-template-columns:1fr; } .ms-workbench-preview { position:relative;top:auto; } }
     @media (max-width:720px) { .ms-preview-grid { position:relative;top:auto; } }
     .map-marker { position: absolute; width: 20px; height: 20px; background: var(--surface); border: 2px solid var(--primary); border-radius: 50%; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 0 6px rgba(0,0,0,.75); z-index: 2; overflow: hidden; display: flex; align-items: center; justify-content: center; }
     .map-marker img { width: 14px; height: 14px; object-fit: cover; }
@@ -2545,7 +2555,7 @@
 
 <!-- ── Map Style Tab ───────────────────────────────────────────────────────── -->
 <div id="tab-mapstyle" style="display:none;padding:20px;">
-  <div style="max-width:1020px;margin:0 auto;">
+  <div class="ms-mapstyle-shell" style="max-width:1020px;margin:0 auto;">
 
     <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
@@ -2574,7 +2584,7 @@
       <button type="button" data-ms-section="ms-section-appearance">🎨 Внешний вид</button>
       <button type="button" data-ms-section="ms-section-orientation">🧭 Поворот</button>
       <button type="button" data-ms-section="ms-section-calibration">📐 Калибровка</button>
-      <button type="button" data-ms-section="ms-section-labels">🔤 Зоны A/B/C</button>
+      <button type="button" data-ms-section="ms-section-labels">📍 Позиции и спавны</button>
       <button type="button" data-ms-section="ms-section-library">🗂 Темы</button>
     </nav>
 
@@ -4055,6 +4065,7 @@ function _msSetTint(r, g, b) {
 }
 
 async function loadMapStyleTab() {
+  setupMapStyleWorkbench();
   try {
     await _moLoad();
     await loadMapAnnotationModes();
@@ -4074,6 +4085,28 @@ async function loadMapStyleTab() {
   _msLoadMap(document.getElementById('ms-map-pick').value);
   _msSyncRotationControls();
   renderMapAnnotationMode();
+}
+
+function setupMapStyleWorkbench() {
+  if (document.querySelector('.ms-workbench')) return;
+  const preview = document.querySelector('#tab-mapstyle .ms-preview-grid');
+  const appearance = document.getElementById('ms-section-appearance');
+  const parent = preview?.parentElement;
+  if (!preview || !appearance || !parent) return;
+  const children = Array.from(parent.children);
+  const firstSetting = children.indexOf(appearance);
+  if (firstSetting < 0) return;
+  const settings = children.slice(firstSetting).filter(element => element !== preview);
+  const workbench = document.createElement('div');
+  workbench.className = 'ms-workbench';
+  const previewColumn = document.createElement('aside');
+  previewColumn.className = 'ms-workbench-preview';
+  const settingsColumn = document.createElement('div');
+  settingsColumn.className = 'ms-workbench-settings';
+  parent.insertBefore(workbench, appearance);
+  workbench.append(previewColumn, settingsColumn);
+  previewColumn.appendChild(preview);
+  settings.forEach(element => settingsColumn.appendChild(element));
 }
 
 function _msSwitchTheme(theme) {
