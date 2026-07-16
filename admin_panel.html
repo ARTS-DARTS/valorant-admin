@@ -2623,10 +2623,15 @@
     <section id="ms-section-orientation" class="ms-system-section">
       <div class="ms-system-section-head">
         <div><b>🧭 Ориентация карт</b><span>Настрой поворот защиты. Атака в приложении добавляет ещё 180°.</span></div>
-        <button id="mo-save-btn" class="btn btn-save">💾 Сохранить повороты</button>
+        <button id="mo-save-btn" class="btn btn-save" style="display:none;">💾 Сохранить повороты</button>
       </div>
       <div id="mo-grid" class="ms-orientation-grid"></div>
     </section>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--primary);border-radius:10px;background:rgba(255,70,85,.06);">
+      <div><b style="color:var(--text);font-size:14px;">Настройки геометрии карт</b><div style="color:var(--text2);font-size:11px;margin-top:3px;">Сохраняет повороты, калибровку, позиции и области спавна одним действием.</div></div>
+      <button id="ms-save-all-map-settings" class="btn btn-save" type="button" style="padding:10px 18px;white-space:nowrap;">💾 Сохранить всё</button>
+    </div>
 
     <!-- Map calibration -->
     <div id="ms-section-calibration" style="margin-bottom:24px;padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);scroll-margin-top:76px;">
@@ -2635,7 +2640,7 @@
           <div style="font-size:13px;font-weight:800;color:var(--text);letter-spacing:.5px;">Калибровка бокса карты</div>
           <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-top:3px;">Сдвигает и масштабирует координаты маркеров/траекторий для выбранной карты. Приложение и админка читают один документ Firestore.</div>
         </div>
-        <button id="mc-save-btn" class="btn btn-save" style="padding:8px 14px;font-size:12px;">💾 Сохранить бокс</button>
+        <button id="mc-save-btn" class="btn btn-save" style="display:none;">💾 Сохранить бокс</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;">
         <div>
@@ -2708,7 +2713,7 @@
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;">
         <button id="ms-site-label-reset" type="button" class="btn btn-delete" style="font-size:12px;">Вернуть точки по умолчанию</button>
-        <button id="ms-site-label-save" type="button" class="btn btn-save" style="font-size:12px;">💾 Сохранить позиции</button>
+        <button id="ms-site-label-save" type="button" class="btn btn-save" style="display:none;">💾 Сохранить позиции</button>
         <span id="ms-site-label-status" style="font-size:11px;color:var(--text2);"></span>
       </div>
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
@@ -2721,7 +2726,7 @@
           <div><label class="flabel">Ширина</label><input class="finput ms-spawn-value" id="ms-spawn-w" type="number" min="0.01" max="1" step="0.001"></div>
           <div><label class="flabel">Высота</label><input class="finput ms-spawn-value" id="ms-spawn-h" type="number" min="0.01" max="1" step="0.001"></div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;"><button id="ms-spawn-draw" class="btn" type="button">▭ Нарисовать зону на карте</button><button id="ms-spawn-clear" class="btn btn-delete" type="button">Очистить зону</button><button id="ms-spawn-save" class="btn btn-save" type="button">💾 Сохранить области всех карт</button><span id="ms-spawn-status" style="font-size:11px;color:var(--text2);"></span></div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;"><button id="ms-spawn-draw" class="btn" type="button">▭ Нарисовать зону на карте</button><button id="ms-spawn-clear" class="btn btn-delete" type="button">Очистить зону</button><button id="ms-spawn-save" class="btn btn-save" type="button" style="display:none;">💾 Сохранить области всех карт</button><span id="ms-spawn-status" style="font-size:11px;color:var(--text2);"></span></div>
       </div>
     </div>
 
@@ -4681,6 +4686,38 @@ document.getElementById('mc-save-btn')?.addEventListener('click', async () => {
       status.textContent = e.message;
     }
     toast('Ошибка: ' + e.message, 'e');
+  }
+});
+
+document.getElementById('ms-save-all-map-settings')?.addEventListener('click', async function() {
+  const mapName = _msCurrentMapName();
+  const calibration = _mcReadForm();
+  _mapCalibrationCache[mapName] = calibration;
+  const labelsPayload = {}, spawnPayload = {}, defenseQuarterTurns = {};
+  MP_ALL_MAPS.forEach(map => {
+    labelsPayload[map.name] = _msCloneSiteLabels(_msDraftSiteLabels(map.name));
+    spawnPayload[map.name] = _msCloneSpawnZones(_msDraftSpawnZones(map.name));
+    defenseQuarterTurns[map.name] = Number(_moTurns[map.name]) || 0;
+  });
+  const original = this.textContent;
+  this.disabled = true; this.textContent = '⏳ Сохраняю…';
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'settings', 'map_calibration'), { [mapName]: { ...calibration, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' } }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_site_labels'), { ...labelsPayload, updatedAt: serverTimestamp() }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_spawn_zones'), { ...spawnPayload, updatedAt: serverTimestamp() }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_orientations'), { defense_quarter_turns: defenseQuarterTurns, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_annotation_modes'), { ..._mapAnnotationModes, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
+    batch.set(doc(db, 'settings', 'config_versions'), { map_annotations: Date.now(), updated_at: serverTimestamp() }, { merge: true });
+    await batch.commit();
+    Object.entries(labelsPayload).forEach(([map, labels]) => { _mapSiteLabelsCache[map] = _msCloneSiteLabels(labels); _mapSiteLabelsDraft[map] = _msCloneSiteLabels(labels); });
+    _msRenderBefore();
+    toast(`Все настройки карт сохранены · ${mapName}`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('map_geometry_saved', { map: mapName, maps: MP_ALL_MAPS.length });
+  } catch (e) {
+    console.error('map-geometry-save', e); toast('Ошибка общего сохранения: ' + e.message, 'e');
+  } finally {
+    this.disabled = false; this.textContent = original;
   }
 });
 
