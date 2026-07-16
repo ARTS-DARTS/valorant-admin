@@ -4375,7 +4375,15 @@ document.querySelectorAll('.ms-spawn-value').forEach(input => input.addEventList
   _msDraftSpawnZones()[_msSelectedSpawnSide] = { x, y, width: Math.max(.01, Math.min(1 - x, Number(document.getElementById('ms-spawn-w')?.value) || .15)), height: Math.max(.01, Math.min(1 - y, Number(document.getElementById('ms-spawn-h')?.value) || .12)), label: _msSelectedSpawnSide === 'attack' ? 'T SPAWN' : 'CT SPAWN' };
   _msRenderSpawnEditor(); _msScheduleRedraw();
 }));
-document.getElementById('ms-spawn-draw')?.addEventListener('click', function() { _msSpawnDraw = { armed: true }; this.classList.add('btn-save'); toast('Зажми ЛКМ на правой карте и выдели зону', 'i'); });
+document.getElementById('ms-spawn-draw')?.addEventListener('click', function() {
+  _msDraftSpawnZones()[_msSelectedSpawnSide] = null;
+  _msSpawnDrag = null;
+  _msSpawnDraw = { armed: true };
+  this.classList.add('btn-save');
+  _msRenderSpawnEditor();
+  _msScheduleRedraw();
+  toast('Зажми ЛКМ на карте и выдели новую зону', 'i');
+});
 document.getElementById('ms-spawn-clear')?.addEventListener('click', () => { _msDraftSpawnZones()[_msSelectedSpawnSide] = null; _msRenderSpawnEditor(); _msScheduleRedraw(); });
 document.getElementById('ms-spawn-save')?.addEventListener('click', async function() {
   const mapName = _msCurrentMapName(); this.disabled = true;
