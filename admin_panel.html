@@ -4693,6 +4693,8 @@ document.getElementById('ms-save-all-map-settings')?.addEventListener('click', a
   const mapName = _msCurrentMapName();
   const calibration = _mcReadForm();
   _mapCalibrationCache[mapName] = calibration;
+  const calibrationPayload = {};
+  Object.entries(_mapCalibrationCache).forEach(([map, value]) => { if (value && typeof value === 'object') calibrationPayload[map] = { ...value }; });
   const labelsPayload = {}, spawnPayload = {}, defenseQuarterTurns = {};
   MP_ALL_MAPS.forEach(map => {
     labelsPayload[map.name] = _msCloneSiteLabels(_msDraftSiteLabels(map.name));
@@ -4703,7 +4705,7 @@ document.getElementById('ms-save-all-map-settings')?.addEventListener('click', a
   this.disabled = true; this.textContent = '⏳ Сохраняю…';
   try {
     const batch = writeBatch(db);
-    batch.set(doc(db, 'settings', 'map_calibration'), { [mapName]: { ...calibration, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' } }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_calibration'), { ...calibrationPayload, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
     batch.set(doc(db, 'settings', 'map_site_labels'), { ...labelsPayload, updatedAt: serverTimestamp() }, { merge: true });
     batch.set(doc(db, 'settings', 'map_spawn_zones'), { ...spawnPayload, updatedAt: serverTimestamp() }, { merge: true });
     batch.set(doc(db, 'settings', 'map_orientations'), { defense_quarter_turns: defenseQuarterTurns, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
