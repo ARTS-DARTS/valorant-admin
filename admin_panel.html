@@ -989,7 +989,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">map-label-editor | 2026-07-13 10:30</span>
+      <span class="admin-version" id="admin-build-version">map-rotation-author-fix | 2026-07-16 20:25</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -2859,6 +2859,12 @@
       💾 Сохранить маппул
     </button>
     <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+      <h4 style="color:var(--text);margin:0 0 6px;">🧭 Поворот карт</h4>
+      <p style="color:var(--text2);font-size:13px;margin:0 0 14px;">Настрой ориентацию стороны защиты. Атака в приложении автоматически будет повёрнута ещё на 180°.</p>
+      <div id="mo-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:14px;"></div>
+      <button id="mo-save-btn" class="btn btn-save" style="width:100%;justify-content:center;padding:12px;">💾 Сохранить повороты</button>
+    </div>
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
       <h4 style="color:var(--text);margin-bottom:6px;">🔄 Смена патча</h4>
       <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">Пометить все одобренные лайнапы старого патча как устаревшие. Используй при выходе нового патча.</p>
       <button onclick="showNewPatchDialog()" style="padding:9px 18px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5);color:#f59e0b;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:600;">
@@ -4160,6 +4166,8 @@ const MP_ALL_MAPS = [
 const MP_FALLBACK = ['Ascent', 'Bind', 'Breeze', 'Haven', 'Lotus', 'Split', 'Summit', 'Sunset'];
 let _mpPool   = new Set();
 let _mpLoaded = false;
+let _moLoaded = false;
+let _moTurns = { Haven: 1 };
 
 async function loadMapPoolTab() {
   if (!_mpLoaded) {
@@ -4174,6 +4182,7 @@ async function loadMapPoolTab() {
     _mpLoaded = true;
   }
   _mpRenderGrid();
+  await _moLoad();
 }
 
 function _mpRenderGrid() {
@@ -6369,6 +6378,65 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
   } catch (e) { toast('Ошибка массового действия: ' + e.message, 'e'); }
   finally { button.disabled = false; }
 });
+
+async function _moLoad() {
+  if (!_moLoaded) {
+    try {
+      const snap = await getDoc(doc(db, 'settings', 'map_orientations'));
+      const stored = snap.exists() ? snap.data().defense_quarter_turns : null;
+      if (stored && typeof stored === 'object') _moTurns = { ..._moTurns, ...stored };
+    } catch (e) {
+      console.warn('map orientations:', e.message);
+    }
+    _moLoaded = true;
+  }
+  _moRender();
+}
+
+function _moRender() {
+  const grid = document.getElementById('mo-grid');
+  if (!grid) return;
+  grid.innerHTML = MP_ALL_MAPS.map(map => {
+    const turns = ((Number(_moTurns[map.name]) || 0) % 4 + 4) % 4;
+    const image = `https://media.valorant-api.com/maps/${map.uuid}/displayicon.png`;
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+      <div style="height:150px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#090d16;border-radius:7px;">
+        <img src="${image}" alt="${map.name}" loading="lazy" style="width:138px;height:138px;object-fit:contain;transform:rotate(${turns * 90}deg);transition:transform .2s;">
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;margin-top:9px;">
+        <b style="color:var(--text);font-size:12px;flex:1;">${map.name}</b>
+        <button class="btn" data-mo-map="${map.name}" data-mo-delta="-1" title="90° против часовой" style="padding:5px 8px;">↶</button>
+        <span style="font-size:10px;color:var(--text2);width:28px;text-align:center;">${turns * 90}°</span>
+        <button class="btn" data-mo-map="${map.name}" data-mo-delta="1" title="90° по часовой" style="padding:5px 8px;">↷</button>
+      </div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('[data-mo-map]').forEach(button => button.addEventListener('click', () => {
+    const name = button.dataset.moMap;
+    _moTurns[name] = (((Number(_moTurns[name]) || 0) + Number(button.dataset.moDelta)) % 4 + 4) % 4;
+    _moRender();
+  }));
+}
+
+document.getElementById('mo-save-btn')?.addEventListener('click', async function() {
+  const button = this;
+  button.disabled = true;
+  try {
+    const defense_quarter_turns = {};
+    MP_ALL_MAPS.forEach(map => { defense_quarter_turns[map.name] = Number(_moTurns[map.name]) || 0; });
+    await setDoc(doc(db, 'settings', 'map_orientations'), {
+      defense_quarter_turns,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    toast('Повороты карт сохранены', 's');
+    if (typeof addAuditLog === 'function') addAuditLog('map_orientations_updated', defense_quarter_turns);
+  } catch (e) {
+    toast('Ошибка сохранения поворотов: ' + e.message, 'e');
+  } finally {
+    button.disabled = false;
+  }
+});
 document.getElementById('btn-map-panel').addEventListener('click', () => {
   const panel = document.getElementById('map-panel');
   const btn   = document.getElementById('btn-map-panel');
@@ -7574,6 +7642,38 @@ async function updateAuthorApprovedLineups(uid, delta, meta = {}) {
     }, { merge: true });
   }).catch(e => {
     console.warn('updateAuthorApprovedLineups:', e.message);
+  });
+}
+
+async function transferApprovedLineupAuthor(fromUid, toUid, lineupId) {
+  if (!fromUid || !toUid || fromUid === toUid) return;
+  await runTransaction(db, async tx => {
+    const refs = [
+      doc(db, 'users', fromUid), doc(db, 'user_stats', fromUid),
+      doc(db, 'users', toUid), doc(db, 'user_stats', toUid),
+    ];
+    const snaps = await Promise.all(refs.map(ref => tx.get(ref)));
+    const apply = (userRef, statsRef, userSnap, statsSnap, delta, uid) => {
+      if (!userSnap.exists()) return;
+      const user = userSnap.data() || {}, stats = statsSnap.data() || {};
+      const approved = Math.max(0, Number(user.approved_lineups || 0) + delta);
+      const approvedCount = Math.max(0, Number(user.approved_lineups_count ?? user.approved_lineups ?? 0) + delta);
+      const progress = Math.max(0, Number(user.progress_points ?? 0) + delta);
+      const statsApproved = Math.max(0, Number(stats.approved_lineups ?? user.approved_lineups ?? 0) + delta);
+      tx.update(userRef, {
+        approved_lineups: approved, approved_lineups_count: approvedCount, progress_points: progress,
+        approved_lineups_updated_at: serverTimestamp(), approved_lineups_update_reason: 'lineup_author_changed',
+        approved_lineups_last_lineup_id: lineupId,
+      });
+      tx.set(statsRef, {
+        uid, approved_lineups: statsApproved,
+        approved_lineups_count: Math.max(0, Number(stats.approved_lineups_count ?? statsApproved - delta) + delta),
+        progress_points: Math.max(0, Number(stats.progress_points ?? 0) + delta),
+        updated_at: serverTimestamp(), update_reason: 'lineup_author_changed', last_lineup_id: lineupId,
+      }, { merge: true });
+    };
+    apply(refs[0], refs[1], snaps[0], snaps[1], -1, fromUid);
+    apply(refs[2], refs[3], snaps[2], snaps[3], 1, toUid);
   });
 }
 
@@ -9932,6 +10032,8 @@ function _getEditSession(id, l) {
     const isDefense = contentCategoryOf(l) === 'defense';
     editSessions[id] = {
       agent: l.agent ?? '', ability: l.ability ?? '',
+      authorName: l.submitted_by ?? l.author ?? '',
+      authorUid: lineupAuthorUid(l),
       markerX: typeof (isDefense ? l.marker_x : l.position_x) === 'number' ? (isDefense ? l.marker_x : l.position_x) : null,
       markerY: typeof (isDefense ? l.marker_y : l.position_y) === 'number' ? (isDefense ? l.marker_y : l.position_y) : null,
       siteMarkerX:typeof l.site_marker_x === 'number' ? l.site_marker_x : null,
@@ -9982,6 +10084,13 @@ function buildEditForm(id, l) {
       <option value="attack"${l.round_side !== 'defense' ? ' selected' : ''}>Атака</option>
       <option value="defense"${l.round_side === 'defense' ? ' selected' : ''}>Защита</option>
     </select>
+  </div>
+  <div class="fg full"><label class="flabel">Автор</label>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input class="finput" id="ce-author-${id}" value="${esc(l.submitted_by ?? l.author ?? '')}" placeholder="Выбери автора" readonly style="cursor:pointer;">
+      <button type="button" class="btn" id="ce-author-pick-${id}" style="white-space:nowrap;border:1px solid var(--border);">👤 Выбрать</button>
+    </div>
+    <div id="ce-author-uid-${id}" style="font-size:10px;color:var(--text2);margin-top:4px;">UID: ${esc(lineupAuthorUid(l) || 'не указан')}</div>
   </div>
   <div class="fg full"><label class="flabel">Агент</label>
     <div class="agent-grid" id="ce-agent-grid-${id}"></div>
@@ -10467,6 +10576,9 @@ async function openEditForm(id) {
   if (saveRow) saveRow.style.display = '';
   await _ensureIconsLoaded();
   initEditAgentGrid(id); renderEditAbilityRow(id);
+  const pickAuthor = () => openAuthorPanel(id);
+  document.getElementById('ce-author-' + id)?.addEventListener('click', pickAuthor);
+  document.getElementById('ce-author-pick-' + id)?.addEventListener('click', pickAuthor);
   initEditMapInteraction(id, l.map ?? '');
   renderEditScreenshots(id); initEditScreenshots(id); initEditVideo(id);
 }
@@ -10518,6 +10630,8 @@ async function saveEditedLineup(id) {
     const extras = _contentEditExtrasForSave(category, id, sess);
     const updates = {
       title, description: desc, map, agent: needsAgent ? sess.agent : '', ability: needsAbility ? sess.ability : '',
+      submitted_by: sess.authorName || l.submitted_by || '',
+      user_id: sess.authorUid || l.user_id || '',
       category, content_type: category, schema_version: l.schema_version ?? 1, round_side: roundSide, is_exclusive: excl, screenshots,
       range_radius: parseFloat(document.getElementById('ce-range-' + id)?.value || '0') || 0,
       video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
@@ -10535,9 +10649,16 @@ async function saveEditedLineup(id) {
     if ((l.map ?? '') !== map) changes.map = { from: l.map ?? '', to: map };
     if ((l.agent ?? '') !== updates.agent) changes.agent = { from: l.agent ?? '', to: updates.agent };
     if ((l.ability ?? '') !== updates.ability) changes.ability = { from: l.ability ?? '', to: updates.ability };
+    if ((l.submitted_by ?? '') !== updates.submitted_by || lineupAuthorUid(l) !== updates.user_id) {
+      changes.author = { from: l.submitted_by ?? '', to: updates.submitted_by };
+    }
 
+    const previousAuthorUid = lineupAuthorUid(l);
     await updateDoc(doc(db, 'lineups', id), updates);
     await writeAudit(id, 'edited', changes);
+    if (l.status === 'approved' && previousAuthorUid !== updates.user_id) {
+      await transferApprovedLineupAuthor(previousAuthorUid, updates.user_id, id);
+    }
     const idx = lineups.findIndex(l => l.id === id);
     if (idx !== -1) Object.assign(lineups[idx], updates);
     toast('Изменения сохранены ✅', 's');
@@ -10868,6 +10989,7 @@ function _wireEditVideoZone(id) {
 let apUsers   = [];
 let apLoaded  = false;
 let apOpen    = false;
+let apEditLineupId = null;
 
 async function loadAuthorPanelUsers() {
   try {
@@ -10950,6 +11072,19 @@ function apRenderSuggestions(q) {
 }
 
 function apSelectUser(name, uid) {
+  if (apEditLineupId) {
+    const sess = editSessions[apEditLineupId];
+    if (sess) {
+      sess.authorName = name;
+      sess.authorUid = uid;
+      const input = document.getElementById('ce-author-' + apEditLineupId);
+      const hint = document.getElementById('ce-author-uid-' + apEditLineupId);
+      if (input) input.value = name;
+      if (hint) hint.textContent = `UID: ${uid}`;
+    }
+    closeAuthorPanel();
+    return;
+  }
   selectedAuthor = { uid, name };
   const input = document.getElementById('f-author-input');
   const sel   = document.getElementById('author-selected');
@@ -10960,7 +11095,8 @@ function apSelectUser(name, uid) {
   queueAdminAddDraftSave();
 }
 
-function openAuthorPanel() {
+function openAuthorPanel(editLineupId = null) {
+  apEditLineupId = editLineupId;
   apOpen = true;
   if (!apLoaded) loadAuthorPanelUsers();
   document.getElementById('author-panel')?.classList.add('open');
@@ -10979,6 +11115,7 @@ function closeAuthorPanel() {
   if (search) search.value = '';
   document.getElementById('ap-suggestions').style.display = 'none';
   apRenderAlpha('');
+  apEditLineupId = null;
 }
 
 // Открываем панель при фокусе на поле автора
