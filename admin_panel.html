@@ -6304,7 +6304,12 @@ document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
   const list = document.getElementById('lineup-list');
   list.addEventListener('click', e => {
     const head = e.target.closest('.lcard-head');
-    if (head) { selectLineup(head.dataset.id, e.shiftKey); return; }
+    if (head) {
+      const id = head.dataset.id;
+      if (!e.shiftKey) _selectionAnchorId = id;
+      selectLineup(id, e.shiftKey);
+      return;
+    }
   });
 })();
 
@@ -6359,7 +6364,7 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         patchStatus(id, 'archived');
       }
     }
-    _selectedIds.clear(); _lastSelectedIndex = -1; renderList();
+    _selectedIds.clear(); _lastSelectedIndex = -1; _selectionAnchorId = ''; renderList();
     toast(`${ids.length} лайнапов обработано`, 's');
   } catch (e) { toast('Ошибка массового действия: ' + e.message, 'e'); }
   finally { button.disabled = false; }
@@ -6443,7 +6448,8 @@ function updateStatsBar() {
 }
 
 const _selectedIds = new Set();
-let _lastSelectedIndex = -1;
+  let _lastSelectedIndex = -1;
+  let _selectionAnchorId = '';
 let _visibleLineups = [];
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -6798,9 +6804,10 @@ function updateBulkSelectionUi() {
 
 function selectLineup(id, rangeSelect = false) {
   const index = _visibleLineups.findIndex(item => item.id === id);
-  if (rangeSelect && _lastSelectedIndex >= 0 && index >= 0) {
-    const start = Math.min(_lastSelectedIndex, index);
-    const end = Math.max(_lastSelectedIndex, index);
+  const anchorIndex = _visibleLineups.findIndex(item => item.id === _selectionAnchorId);
+  if (rangeSelect && anchorIndex >= 0 && index >= 0) {
+    const start = Math.min(anchorIndex, index);
+    const end = Math.max(anchorIndex, index);
     _visibleLineups.slice(start, end + 1).forEach(item => _selectedIds.add(item.id));
   } else {
     // Обычный клик в списке всегда выбирает только один элемент.
@@ -6808,6 +6815,7 @@ function selectLineup(id, rangeSelect = false) {
     if (id) _selectedIds.add(id);
   }
   _lastSelectedIndex = index;
+  if (!_selectionAnchorId) _selectionAnchorId = id;
   _selectedId = id;
   updateBulkSelectionUi();
   const l = lineups.find(l => l.id === id);
