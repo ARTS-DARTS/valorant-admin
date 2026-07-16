@@ -3910,6 +3910,8 @@ function _msCanvasNormalizedPoint(event) {
 
 function _msBeginSiteLabelDrag(event) {
   if (event.button !== undefined && event.button !== 0) return;
+  _msSiteLabelDrag = null;
+  _msSpawnDrag = null;
   const point = _msCanvasNormalizedPoint(event);
   if (!point) return;
   if (_msSpawnDraw?.armed) {
@@ -3919,8 +3921,15 @@ function _msBeginSiteLabelDrag(event) {
     try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) {}
     return;
   }
-  const activeZone = _msDraftSpawnZones()[_msSelectedSpawnSide];
-  if (activeZone && point.x >= activeZone.x && point.x <= activeZone.x + activeZone.width && point.y >= activeZone.y && point.y <= activeZone.y + activeZone.height) {
+  const zones = _msDraftSpawnZones();
+  const hitSide = ['attack', 'defense'].find(side => {
+    const zone = zones[side];
+    return zone && point.x >= zone.x && point.x <= zone.x + zone.width && point.y >= zone.y && point.y <= zone.y + zone.height;
+  });
+  if (hitSide) {
+    const activeZone = zones[hitSide];
+    _msSelectedSpawnSide = hitSide;
+    _msRenderSpawnEditor();
     event.preventDefault();
     _msSpawnDrag = { pointerId: event.pointerId, offsetX: point.x - activeZone.x, offsetY: point.y - activeZone.y };
     event.currentTarget.style.cursor = 'grabbing';
@@ -3979,6 +3988,13 @@ function _msEndSiteLabelDrag(event) {
     const drawCanvas = document.getElementById('ms-canvas');
     if (drawCanvas) drawCanvas.style.cursor = 'default';
     _msRenderSpawnEditor(); _msScheduleRedraw(); return;
+  }
+  if (_msSpawnDrag?.pointerId === event.pointerId) {
+    _msSpawnDrag = null;
+    const dragCanvas = document.getElementById('ms-canvas');
+    if (dragCanvas) { dragCanvas.style.cursor = 'default'; try { dragCanvas.releasePointerCapture?.(event.pointerId); } catch (_) {} }
+    _msRenderSpawnEditor();
+    return;
   }
   if (!_msSiteLabelDrag || _msSiteLabelDrag.pointerId !== event.pointerId) return;
   _msSiteLabelDrag = null;
@@ -4407,7 +4423,7 @@ _msLabelCanvas?.addEventListener('pointermove', _msMoveSiteLabel);
 _msLabelCanvas?.addEventListener('pointerup', _msEndSiteLabelDrag);
 _msLabelCanvas?.addEventListener('pointercancel', _msEndSiteLabelDrag);
 _msLabelCanvas?.addEventListener('lostpointercapture', event => {
-  if (_msSiteLabelDrag?.pointerId === event.pointerId) _msEndSiteLabelDrag(event);
+  if (_msSiteLabelDrag?.pointerId === event.pointerId || _msSpawnDrag?.pointerId === event.pointerId || _msSpawnDraw?.pointerId === event.pointerId) _msEndSiteLabelDrag(event);
 });
 document.querySelectorAll('.ms-site-label-add').forEach(button => {
   button.addEventListener('click', () => {
