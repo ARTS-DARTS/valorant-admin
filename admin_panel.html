@@ -6802,10 +6802,10 @@ function selectLineup(id, rangeSelect = false) {
     const start = Math.min(_lastSelectedIndex, index);
     const end = Math.max(_lastSelectedIndex, index);
     _visibleLineups.slice(start, end + 1).forEach(item => _selectedIds.add(item.id));
-  } else if (_selectedIds.has(id)) {
-    _selectedIds.delete(id);
   } else {
-    _selectedIds.add(id);
+    // Обычный клик в списке всегда выбирает только один элемент.
+    _selectedIds.clear();
+    if (id) _selectedIds.add(id);
   }
   _lastSelectedIndex = index;
   _selectedId = id;
