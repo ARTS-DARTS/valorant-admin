@@ -1027,7 +1027,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">sensor-rect-editor | 2026-07-17 04:44</span>
+      <span class="admin-version" id="admin-build-version">defense-draw-lock | 2026-07-17 18:52</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -9600,7 +9600,8 @@ function initSlotMapWrap(id) {
   wrap.addEventListener('mousedown', e => {
     if (e.button!==0 || !_sCanvas(id)) return; e.preventDefault();
     const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
-    if (category === 'defense' && !e.shiftKey) {
+    const defenseToolActive = category === 'defense' || ['ability','moveAbility','zoom'].includes(s.defenseMode);
+    if (defenseToolActive && !e.shiftKey) {
       if (s.defensePreview) return;
       const ir = _sImgRect(id);
       const start = _eventToMapNorm(e.clientX,e.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);
@@ -11410,7 +11411,8 @@ function initEditMapInteraction(id, initialMap) {
   wrap.addEventListener('mousedown', e => {
     if (e.button !== 0 || !_eCanvas(id)) return; e.preventDefault();
     const category=normalizeContentCategory(document.getElementById('ce-cat-'+id)?.value ?? '');
-    if(category==='defense'&&!e.shiftKey){
+    const defenseToolActive=category==='defense'||['ability','moveAbility','zoom'].includes(s.defenseMode);
+    if(defenseToolActive&&!e.shiftKey){
       if(s.defensePreview)return;
       const ir=_eImgRect(id),start=_eventToMapNorm(e.clientX,e.clientY,wrap,ir,s.mapTx,s.mapTy,s.mapScale);
       if(s.defenseMode==='zoom'){
