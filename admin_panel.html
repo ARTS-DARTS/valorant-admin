@@ -1972,8 +1972,8 @@
               <g id="rng-sensor-shape" style="display:none;">
                 <rect id="rng-sensor-rect" x="0" y="0" width="0" height="0" rx="1" fill="rgba(54,89,173,.38)" stroke="#65dcff" stroke-width="2" style="pointer-events:none;"/>
                 <line id="rng-sensor-axis" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,.55)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
-                <circle id="rng-sensor-pivot" cx="0" cy="0" r="7" fill="#fff" stroke="#173b52" stroke-width="2" style="pointer-events:all;cursor:move;"/>
-                <circle id="rng-sensor-rotate" cx="0" cy="0" r="7" fill="#ff5967" stroke="#ffd1d5" stroke-width="2" style="pointer-events:all;cursor:grab;"/>
+                <circle id="rng-sensor-pivot" cx="0" cy="0" r="8" fill="#fff" stroke="#173b52" stroke-width="2" style="pointer-events:all;cursor:move;touch-action:none;"/>
+                <circle id="rng-sensor-rotate" cx="0" cy="0" r="8" fill="#ff5967" stroke="#ffd1d5" stroke-width="2" style="pointer-events:all;cursor:grab;touch-action:none;"/>
               </g>
             </svg>
             <!-- Hint overlay when no map -->
@@ -17137,6 +17137,8 @@ let _rngCy = 0.5;
 let _rngShapeWidth = 0.12;
 let _rngShapeHeight = 0.08;
 let _rngShapeRotation = 0;
+let _rngRotateX = 0.62;
+let _rngRotateY = 0.5;
 let _rngShapeDrag = '';
 let _rngShapeDragged = false;
 let _rngRows    = [];
@@ -17191,16 +17193,19 @@ function _rngWireEvents() {
     const r = document.getElementById('rng-map-container').getBoundingClientRect();
     return { x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)), y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height)) };
   };
-  document.getElementById('rng-sensor-pivot').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='pivot'; _rngShapeDragged=false; });
-  document.getElementById('rng-sensor-rotate').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='rotate'; _rngShapeDragged=false; });
+  document.getElementById('rng-sensor-pivot').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='pivot'; _rngShapeDragged=false; document.body.style.userSelect='none'; });
+  document.getElementById('rng-sensor-rotate').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='rotate'; _rngShapeDragged=false; document.body.style.userSelect='none'; });
   window.addEventListener('pointermove', e => {
     if (!_rngShapeDrag) return;
     const p=shapePoint(e); _rngShapeDragged=true;
     if (_rngShapeDrag === 'pivot') { _rngCx=p.x; _rngCy=p.y; }
-    else _rngShapeRotation=Math.atan2(p.y-_rngCy,p.x-_rngCx)*180/Math.PI;
+    else { _rngRotateX=p.x; _rngRotateY=p.y; }
+    _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
     rngUpdateCircle();
   });
-  window.addEventListener('pointerup', () => { if (_rngShapeDrag) _rngShapeDrag=''; });
+  const finishShapeDrag=() => { if (_rngShapeDrag) { _rngShapeDrag=''; document.body.style.userSelect=''; _rngUpdateApplyInfo(); } };
+  window.addEventListener('pointerup', finishShapeDrag);
+  window.addEventListener('pointercancel', finishShapeDrag);
 
   // Drag screenshot overlay; fall through to circle-move on plain click
   let _shotDragging = false, _shotDragged = false;
@@ -17403,7 +17408,10 @@ async function _rngLoadSelectedConfig() {
       _rngShapeHeight=Math.max(.02,Math.min(.35,Number(data.shape_height)||.08));
       _rngShapeRotation=Number(data.shape_rotation)||0;
       const pivot=Array.isArray(data.points)?data.points.find(p=>p?.role==='pivot')||data.points[0]:null;
+      const rotation=Array.isArray(data.points)?data.points.find(p=>p?.role==='rotation')||data.points[1]:null;
       if (pivot && Number.isFinite(Number(pivot.x)) && Number.isFinite(Number(pivot.y))) { _rngCx=Number(pivot.x); _rngCy=Number(pivot.y); }
+      if (rotation && Number.isFinite(Number(rotation.x)) && Number.isFinite(Number(rotation.y))) { _rngRotateX=Number(rotation.x); _rngRotateY=Number(rotation.y); }
+      else { const rad=_rngShapeRotation*Math.PI/180; _rngRotateX=_rngCx+Math.cos(rad)*.12; _rngRotateY=_rngCy+Math.sin(rad)*.12; }
       document.getElementById('rng-shape-width').value=_rngShapeWidth;
       document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
       document.getElementById('rng-shape-height').value=_rngShapeHeight;
@@ -17441,8 +17449,7 @@ function rngUpdateCircle() {
     const rect=document.getElementById('rng-sensor-rect');
     rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy-rh/2); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
     rect.setAttribute('transform',`rotate(${_rngShapeRotation} ${cx} ${cy})`);
-    const rad=_rngShapeRotation*Math.PI/180, handleDist=rw/2+24;
-    const hx=cx+Math.cos(rad)*handleDist, hy=cy+Math.sin(rad)*handleDist;
+    const hx=_rngRotateX*w, hy=_rngRotateY*w;
     const axis=document.getElementById('rng-sensor-axis'); axis.setAttribute('x1',cx); axis.setAttribute('y1',cy); axis.setAttribute('x2',hx); axis.setAttribute('y2',hy);
     const pivot=document.getElementById('rng-sensor-pivot'); pivot.setAttribute('cx',cx); pivot.setAttribute('cy',cy);
     const rotate=document.getElementById('rng-sensor-rotate'); rotate.setAttribute('cx',hx); rotate.setAttribute('cy',hy);
@@ -17471,10 +17478,9 @@ async function rngApplyToLineups() {
   try {
     const cfgKey = (map + '__' + _rngAgent + '__' + _rngAbility).replace(/[\\/. ]/g, '_');
     const sensor=_rngIsSonicSensor();
-    const rad=_rngShapeRotation*Math.PI/180;
     const shapeData=sensor ? {
       shape_kind:'sensor_rect', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
-      points:[{role:'pivot',x:_rngCx,y:_rngCy},{role:'rotation',x:_rngCx+Math.cos(rad)*_rngShapeWidth/2,y:_rngCy+Math.sin(rad)*_rngShapeWidth/2}]
+      points:[{role:'pivot',x:_rngCx,y:_rngCy},{role:'rotation',x:_rngRotateX,y:_rngRotateY}]
     } : {};
     await setDoc(doc(db, 'range_config', cfgKey), {
       map, agent: _rngAgent, ability: _rngAbility, range_radius: val, ...shapeData, updatedAt: serverTimestamp()
@@ -17703,7 +17709,7 @@ window.rngApplyEntry = async function(map, agent, ability, idx, cfgId) {
   try {
     await setDoc(doc(db, 'range_config', cfgId), {
       map, agent, ability, range_radius: val, updatedAt: serverTimestamp()
-    });
+    }, { merge:true });
     const snap = await getDocs(query(
       collection(db, 'lineups'),
       where('map', '==', map),
