@@ -284,6 +284,8 @@
     .defense-shape-line-bg { stroke:rgba(5,10,20,.8); stroke-width:3.5; stroke-linecap:round; }
     .defense-shape-line { stroke:#50d6ff; stroke-width:1.35; stroke-linecap:round; filter:drop-shadow(0 0 2px rgba(80,214,255,.7)); }
     .defense-shape-mesh { stroke:#50d6ff; stroke-width:1.35; }
+    .defense-shape-sensor { stroke:#65dcff; stroke-width:1.15; opacity:.9; filter:drop-shadow(0 0 2px rgba(101,220,255,.8)); }
+    .defense-shape-sensor-ring { fill:#173b52; stroke:#9cecff; stroke-width:1.1; filter:drop-shadow(0 0 3px rgba(101,220,255,.9)); }
     .defense-shape-node { fill:#e8faff; stroke:#50d6ff; stroke-width:.55; }
     .defense-shape-area { fill:rgba(80,214,255,.18); stroke:#8ce8ff; stroke-width:1; vector-effect:non-scaling-stroke; }
     .defense-shape-area.net { stroke:none; }
@@ -301,6 +303,7 @@
     .map-canvas { position: absolute; inset: 0; transform-origin: 0 0; }
     .map-canvas img { width: 100%; height: 100%; display: block; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
     .map-site-label { position: absolute; transform: translate(-50%,-50%); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; font-weight: 700; line-height: 1; text-shadow: 0 1px 4px rgba(0,0,0,.9); pointer-events: none; user-select: none; z-index: 2; white-space:nowrap; }
+    .map-site-label.map-site-label--compact { width:auto !important; height:auto !important; font-size:12px !important; }
     .map-spawn-zone { position:absolute;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;pointer-events:none;z-index:1;border:2px solid;border-radius:5px;box-sizing:border-box; }
     .ms-category-nav { position:sticky;top:56px;z-index:30;display:flex;gap:7px;flex-wrap:wrap;padding:10px;margin:14px 0;background:rgba(10,16,28,.98);border:1px solid var(--border);border-radius:10px;backdrop-filter:blur(12px);box-shadow:0 8px 18px rgba(0,0,0,.2); }
     .ms-category-nav button { border:1px solid var(--border2);background:var(--surface2);color:var(--text2);border-radius:8px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;transition:.15s; }
@@ -1021,7 +1024,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">extra-ability-editor | 2026-07-16 21:05</span>
+      <span class="admin-version" id="admin-build-version">sensor-rect-editor | 2026-07-17 04:44</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1917,7 +1920,7 @@
           </div>
 
           <!-- Ползунок -->
-          <div style="margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);">
+          <div id="rng-radius-editor" style="margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface2);">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
               <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;">Радиус</div>
               <span id="rng-meters" style="font-size:12px;color:var(--primary);font-weight:600;">≈ 10.0 м</span>
@@ -1932,6 +1935,15 @@
               0.035 ≈ 3.5м &nbsp;·&nbsp; 0.05 ≈ 5м &nbsp;·&nbsp; 0.07 ≈ 7м<br>
               0.10 ≈ 10м &nbsp;·&nbsp; 0.15 ≈ 15м
             </div>
+          </div>
+
+          <div id="rng-sensor-editor" style="display:none;margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid rgba(79,195,247,.5);background:var(--surface2);">
+            <div style="font-size:10px;color:#65dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Редактор звукового сенсора</div>
+            <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Ширина прямоугольника</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.02" max="0.35" step="0.002" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.02" max="0.35" step="0.002" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
+            <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Высота прямоугольника</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-height" type="range" min="0.02" max="0.35" step="0.002" value="0.08" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-height-value" type="number" min="0.02" max="0.35" step="0.002" value="0.08" class="finput" style="width:78px;font-size:12px;"></div>
+            <div style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — центр и ось вращения.<br><b style="color:#ff6b78;">Красная точка</b> — тяни мышью для поворота модели.</div>
           </div>
 
           <!-- Применить -->
@@ -1953,10 +1965,16 @@
           <div id="rng-map-container" style="position:relative;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;cursor:crosshair;aspect-ratio:1/1;max-width:580px;user-select:none;">
             <img id="rng-map-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
             <img id="rng-shot-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;pointer-events:none;display:none;transform-origin:center;transition:opacity .1s;" src="" alt="">
-            <svg id="rng-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;" xmlns="http://www.w3.org/2000/svg">
+            <svg id="rng-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:auto;" xmlns="http://www.w3.org/2000/svg">
               <circle id="rng-circle-fill"   cx="50%" cy="50%" r="0" fill="rgba(255,70,85,0.18)"/>
               <circle id="rng-circle-border" cx="50%" cy="50%" r="0" fill="none" stroke="rgba(255,70,85,0.75)" stroke-width="1.5" stroke-dasharray="5,3"/>
               <circle id="rng-center-dot"    cx="50%" cy="50%" r="4"  fill="rgba(255,70,85,1)" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+              <g id="rng-sensor-shape" style="display:none;">
+                <rect id="rng-sensor-rect" x="0" y="0" width="0" height="0" rx="1" fill="rgba(54,89,173,.38)" stroke="#65dcff" stroke-width="2" style="pointer-events:none;"/>
+                <line id="rng-sensor-axis" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,.55)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
+                <circle id="rng-sensor-pivot" cx="0" cy="0" r="7" fill="#fff" stroke="#173b52" stroke-width="2" style="pointer-events:all;cursor:move;"/>
+                <circle id="rng-sensor-rotate" cx="0" cy="0" r="7" fill="#ff5967" stroke="#ffd1d5" stroke-width="2" style="pointer-events:all;cursor:grab;"/>
+              </g>
             </svg>
             <!-- Hint overlay when no map -->
             <div id="rng-map-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text2);pointer-events:none;">
@@ -1966,7 +1984,7 @@
           </div>
 
           <div style="font-size:10px;color:var(--text2);margin-top:6px;">
-            Кликни на карту чтобы переместить центр круга
+            <span id="rng-map-help">Кликни на карту чтобы переместить центр круга</span>
           </div>
 
           <!-- Screenshot overlay -->
@@ -4339,6 +4357,7 @@ document.getElementById('ms-rotate-save')?.addEventListener('click', async funct
       updated_at: serverTimestamp(),
       updated_by: currentUser?.email || currentUser?.displayName || 'admin',
     }, { merge: true });
+    await bumpConfigVersions(['map_annotations']);
     toast(`Поворот ${_msRotationMapName()} сохранён`, 's');
     _moRender();
   } catch (e) {
@@ -4490,6 +4509,7 @@ document.getElementById('ms-site-label-save')?.addEventListener('click', async f
       [mapName]: labels,
       updatedAt: serverTimestamp(),
     }, { merge: true });
+    await bumpConfigVersions(['map_annotations']);
     _mapSiteLabelsCache[mapName] = _msCloneSiteLabels(labels);
     _mapSiteLabelsDraft[mapName] = _msCloneSiteLabels(labels);
     _msRenderBefore();
@@ -4694,33 +4714,69 @@ document.getElementById('ms-save-all-map-settings')?.addEventListener('click', a
   const calibration = _mcReadForm();
   _mapCalibrationCache[mapName] = calibration;
   const calibrationPayload = {};
-  Object.entries(_mapCalibrationCache).forEach(([map, value]) => { if (value && typeof value === 'object') calibrationPayload[map] = { ...value }; });
-  const labelsPayload = {}, spawnPayload = {}, defenseQuarterTurns = {};
+  Object.entries(_mapCalibrationCache).forEach(([map, value]) => {
+    if (value && typeof value === 'object') calibrationPayload[map] = { ...value };
+  });
+
+  const labelsPayload = {};
+  const spawnPayload = {};
+  const defenseQuarterTurns = {};
   MP_ALL_MAPS.forEach(map => {
     labelsPayload[map.name] = _msCloneSiteLabels(_msDraftSiteLabels(map.name));
     spawnPayload[map.name] = _msCloneSpawnZones(_msDraftSpawnZones(map.name));
     defenseQuarterTurns[map.name] = Number(_moTurns[map.name]) || 0;
   });
+
   const original = this.textContent;
-  this.disabled = true; this.textContent = '⏳ Сохраняю…';
+  this.disabled = true;
+  this.textContent = '⏳ Сохраняю…';
   try {
     const batch = writeBatch(db);
-    batch.set(doc(db, 'settings', 'map_calibration'), { ...calibrationPayload, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
-    batch.set(doc(db, 'settings', 'map_site_labels'), { ...labelsPayload, updatedAt: serverTimestamp() }, { merge: true });
-    batch.set(doc(db, 'settings', 'map_spawn_zones'), { ...spawnPayload, updatedAt: serverTimestamp() }, { merge: true });
-    batch.set(doc(db, 'settings', 'map_orientations'), { defense_quarter_turns: defenseQuarterTurns, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
-    batch.set(doc(db, 'settings', 'map_annotation_modes'), { ..._mapAnnotationModes, updated_at: serverTimestamp(), updated_by: currentUser?.email || currentUser?.displayName || 'admin' }, { merge: true });
-    batch.set(doc(db, 'settings', 'config_versions'), { map_annotations: Date.now(), updated_at: serverTimestamp() }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_calibration'), {
+      ...calibrationPayload,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_site_labels'), {
+      ...labelsPayload,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_spawn_zones'), {
+      ...spawnPayload,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_orientations'), {
+      defense_quarter_turns: defenseQuarterTurns,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    batch.set(doc(db, 'settings', 'map_annotation_modes'), {
+      ..._mapAnnotationModes,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    batch.set(doc(db, 'settings', 'config_versions'), {
+      map_annotations: Date.now(),
+      updated_at: serverTimestamp(),
+    }, { merge: true });
     await batch.commit();
-    Object.entries(labelsPayload).forEach(([map, labels]) => { _mapSiteLabelsCache[map] = _msCloneSiteLabels(labels); _mapSiteLabelsDraft[map] = _msCloneSiteLabels(labels); });
+
+    Object.entries(labelsPayload).forEach(([map, labels]) => {
+      _mapSiteLabelsCache[map] = _msCloneSiteLabels(labels);
+      _mapSiteLabelsDraft[map] = _msCloneSiteLabels(labels);
+    });
     _msRenderBefore();
     const savedMaps = MP_ALL_MAPS.map(map => map.name);
     toast(`Сохранены карты (${savedMaps.length}): ${savedMaps.join(', ')}`, 's');
-    if (typeof addAuditLog === 'function') addAuditLog('map_geometry_saved', { map: mapName, maps: MP_ALL_MAPS.length });
+    if (typeof addAuditLog === 'function') {
+      addAuditLog('map_geometry_saved', { map: mapName, maps: MP_ALL_MAPS.length });
+    }
   } catch (e) {
-    console.error('map-geometry-save', e); toast('Ошибка общего сохранения: ' + e.message, 'e');
+    console.error('map-geometry-save', e);
+    toast('Ошибка общего сохранения: ' + e.message, 'e');
   } finally {
-    this.disabled = false; this.textContent = original;
+    this.disabled = false;
+    this.textContent = original;
   }
 });
 
@@ -6796,12 +6852,15 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         patchStatus(id, 'moderator_draft');
       } else if (action === 'approve') {
         await updateDoc(doc(db, 'lineups', id), {
-          status: 'hot', moderated_by_uid: currentUser?.uid || null,
+          status: 'hot',
+          moderated_by_uid: currentUser?.uid || null,
           moderated_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-          moderated_by_role: currentUserRole || 'admin', moderated_at: serverTimestamp(),
+          moderated_by_role: currentUserRole || 'admin',
+          moderated_at: serverTimestamp(),
           hot_confirmed_by_uid: currentUser?.uid || null,
           hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-          hot_confirmed_by_role: currentUserRole || 'admin', hot_confirmed_at: serverTimestamp(),
+          hot_confirmed_by_role: currentUserRole || 'admin',
+          hot_confirmed_at: serverTimestamp(),
         });
         await writeAudit(id, 'hot');
         patchStatus(id, 'hot');
@@ -6878,6 +6937,7 @@ document.getElementById('mo-save-btn')?.addEventListener('click', async function
       updated_at: serverTimestamp(),
       updated_by: currentUser?.email || currentUser?.displayName || 'admin',
     }, { merge: true });
+    await bumpConfigVersions(['map_annotations']);
     toast('Повороты карт сохранены', 's');
     if (typeof addAuditLog === 'function') addAuditLog('map_orientations_updated', defense_quarter_turns);
   } catch (e) {
@@ -8540,7 +8600,7 @@ function _defShape(agent, ability) {
   const key = `${agent || ''} ${ability || ''}`.toLowerCase();
   if (/deadlock/.test(key) && /barrier mesh|barrier|барьер|сетка/.test(key)) return { kind:'mesh_burst', radius:.097 };
   if (/deadlock/.test(key) && /gravnet|grav.*net|грав/.test(key)) return { kind:'net_area', radius:.04335 };
-  if (/deadlock/.test(key) && /sonic|sensor|сенсор|датчик|звуков/.test(key)) return { kind:'point', radius:0 };
+  if (/deadlock/.test(key) && /sonic|sensor|сенсор|датчик|звуков/.test(key)) return { kind:'sensor_rect', radius:.055 };
   if (/cypher/.test(key) && /trapwire|растяж/.test(key)) return { kind:'line_segment', radius:0 };
   if (/cypher/.test(key) && /cyber cage|cage|клет/.test(key)) return { kind:'circle_area', radius:.026, theme:'cage' };
   if (/viper/.test(key) && /toxic screen|screen|завес/.test(key)) return { kind:'line_segment', radius:0 };
@@ -8722,6 +8782,10 @@ function _defRender(id, edit = false) {
     if (item.shape_kind === 'mesh_burst') {
       const d=radius/Math.sqrt(2); return [[-d,-d],[d,-d],[-d,d],[d,d]].map(([dx,dy]) => `<line class="defense-shape-line-bg" x1="${center.x}%" y1="${center.y}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><line class="defense-shape-mesh" x1="${center.x}%" y1="${center.y}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><circle class="defense-shape-node" cx="${center.x+dx}%" cy="${center.y+dy}%" r=".6%"></circle>`).join('');
     }
+    if (item.shape_kind === 'sensor_area' || item.shape_kind === 'sensor_rect') {
+      const d=radius/Math.sqrt(2);
+      return [[-d,-d],[d,-d],[-d,d],[d,d]].map(([dx,dy]) => `<line class="defense-shape-line-bg" x1="${center.x-dx}%" y1="${center.y-dy}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><line class="defense-shape-sensor" x1="${center.x-dx}%" y1="${center.y-dy}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line>`).join('') + `<circle class="defense-shape-sensor-ring" cx="${center.x}%" cy="${center.y}%" r="1.7%"></circle>`;
+    }
     if (item.shape_kind === 'net_area') {
       return `<circle class="defense-shape-area net" cx="${center.x}%" cy="${center.y}%" r="${radius}%" style="fill:url(#${netPatternId})"></circle>`;
     }
@@ -8739,6 +8803,10 @@ function _defRender(id, edit = false) {
   (s.defenseAbilities || []).forEach((item,index) => {
     const p=pct(item), sel=s.selectedDefenseIndex===index?' sel':'';
     if (item.shape_kind === 'line_segment' && item.points?.length===2) item.points.forEach((pt,pi)=>{ const a=pct(pt); html += `<div class="defense-line-anchor${sel}" data-defense-index="${index}" data-defense-point="${pi}" style="left:${a.x}%;top:${a.y}%"></div>`; });
+    if ((item.shape_kind === 'mesh_burst' || item.shape_kind === 'sensor_area' || item.shape_kind === 'sensor_rect') && sel) {
+      const r=Math.max(0, Number(item.shape_radius || 0)), d=r/Math.sqrt(2);
+      [[-d,-d],[d,-d],[-d,d],[d,d]].forEach(([dx,dy],pi)=>{ html += `<div class="defense-line-anchor" data-defense-index="${index}" data-defense-radius-point="${pi}" style="left:${p.x+dx}%;top:${p.y+dy}%"></div>`; });
+    }
     if (item.shape_kind !== 'net_area') html += `<div class="defense-ability-point${sel}" data-defense-index="${index}" style="left:${p.x}%;top:${p.y}%">${item.icon?`<img src="${esc(item.icon)}" alt="">`:''}</div>`;
   });
   layer.innerHTML = html; ctx.canvas.appendChild(layer); _defWireLayer(ctx, layer);
@@ -8747,14 +8815,18 @@ function _defRender(id, edit = false) {
 function _defWireLayer(ctx, layer) {
   layer.querySelectorAll('[data-defense-index],[data-defense-role]').forEach(node => node.addEventListener('mousedown', event => {
     if (event.button !== 0) return; event.preventDefault(); event.stopPropagation();
-    const index = Number(node.dataset.defenseIndex), pointIndex = node.dataset.defensePoint === undefined ? null : Number(node.dataset.defensePoint);
+    const index = Number(node.dataset.defenseIndex), pointIndex = node.dataset.defensePoint === undefined ? null : Number(node.dataset.defensePoint), radiusPoint = node.dataset.defenseRadiusPoint === undefined ? null : Number(node.dataset.defenseRadiusPoint);
     const role = node.dataset.defenseRole || '';
     if (Number.isInteger(index)) ctx.session.selectedDefenseIndex = index;
     const move = ev => {
       const p=_eventToMapNorm(ev.clientX,ev.clientY,ctx.wrap,ctx.imgRect,ctx.session.mapTx,ctx.session.mapTy,ctx.session.mapScale);
       if (role==='site') { ctx.session.siteMarkerX=p.x; ctx.session.siteMarkerY=p.y; }
       else if (role==='setup') { ctx.session.markerX=p.x; ctx.session.markerY=p.y; }
-      else if (Number.isInteger(index) && pointIndex !== null) {
+      else if (Number.isInteger(index) && radiusPoint !== null) {
+        const item=ctx.session.defenseAbilities[index];
+        const dx=p.x-item.x, dy=p.y-item.y;
+        item.shape_radius=Math.max(0.005, Math.min(0.45, Math.sqrt(dx*dx+dy*dy)*Math.sqrt(2)));
+      } else if (Number.isInteger(index) && pointIndex !== null) {
         const item=ctx.session.defenseAbilities[index]; item.points[pointIndex]=p;
         item.x=(item.points[0].x+item.points[1].x)/2; item.y=(item.points[0].y+item.points[1].y)/2;
       } else if (Number.isInteger(index)) _defMoveAbility(ctx.session.defenseAbilities[index],p);
@@ -8779,7 +8851,7 @@ function _defRenderTools(id, edit = false) {
   list?.querySelectorAll('[data-defense-remove]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const i=Number(btn.dataset.defenseRemove);ctx.session.defenseAbilities.splice(i,1);ctx.session.defenseAbilities.forEach((x,j)=>x.order=j+1);ctx.session.selectedDefenseIndex=null;_defRender(id,edit);_defRenderTools(id,edit);queueAdminAddDraftSave();}));
   const selected=ctx.session.defenseAbilities?.[ctx.session.selectedDefenseIndex];
   const radius=root.querySelector('[data-defense-radius]');
-  if(radius){radius.disabled=!selected||!['mesh_burst','circle_area','net_area'].includes(selected.shape_kind);radius.value=selected?Number(selected.shape_radius||0).toFixed(4):'';}
+  if(radius){radius.disabled=!selected||!['mesh_burst','sensor_area','circle_area','net_area'].includes(selected.shape_kind);radius.value=selected?Number(selected.shape_radius||0).toFixed(4):'';}
   const back=root.querySelector('[data-defense-back]'); if(back) back.hidden=!ctx.session.defensePreview;
 }
 
@@ -9126,7 +9198,7 @@ function updateSlotMapWrap(id, mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
-  renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName);
+  renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName, MS_LABEL_DEFAULTS, { sitesOnly: true });
   const img = wrap.querySelector('.map-canvas img');
   if (img) {
     const tryRender = () => { _sApply(id); renderSlotMarker(id); renderSlotTraj(id); _defRender(id, false); };
@@ -9628,13 +9700,13 @@ const MAP_SITE_LABELS = {
   Summit:   [{ label:'A', x:.36, y:.36 }, { label:'B', x:.75, y:.45 }],
 };
 
-function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS) {
+function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS, options = {}) {
   if (!canvasEl) return;
   canvasEl.dataset.siteLabelsMap = mapName;
   if (!_mapSiteLabelsLoaded) {
     loadMapSiteLabelsConfig().then(() => {
       if (canvasEl.isConnected && canvasEl.dataset.siteLabelsMap === mapName) {
-        renderMapSiteLabels(canvasEl, mapName, settings);
+        renderMapSiteLabels(canvasEl, mapName, settings, options);
       }
     });
   }
@@ -9643,14 +9715,16 @@ function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS) {
   if (data.site_labels_enabled === false) return;
   const mode = _mapAnnotationModes[mapName] || 'full';
   if (mode === 'clean') return;
-  const labels = _msSavedSiteLabels(mapName).filter(item => mode === 'full' || item.level !== 'full');
+  const labels = _msSavedSiteLabels(mapName).filter(item =>
+    options.sitesOnly ? item.level === 'site' : (mode === 'full' || item.level !== 'full')
+  );
   const rawSize = Number(data.site_label_size);
   const rawAlpha = Number(data.site_label_alpha);
   const size = Math.max(12, Math.min(28, Number.isFinite(rawSize) ? rawSize : MS_LABEL_DEFAULTS.site_label_size));
   const alpha = Math.max(0.2, Math.min(1, Number.isFinite(rawAlpha) ? rawAlpha : MS_LABEL_DEFAULTS.site_label_alpha));
   labels.forEach(site => {
     const el = document.createElement('span');
-    el.className = 'map-site-label';
+    el.className = `map-site-label${options.sitesOnly ? ' map-site-label--compact' : ''}`;
     el.textContent = site.label;
     el.style.left = `${site.x * 100}%`;
     el.style.top = `${site.y * 100}%`;
@@ -9970,7 +10044,7 @@ function updateMapPicker(mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${mapName}" crossorigin="anonymous" draggable="false"></div>`;
-  renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName);
+  renderMapSiteLabels(wrap.querySelector('.map-canvas'), mapName, MS_LABEL_DEFAULTS, { sitesOnly: true });
   const img = wrap.querySelector('.map-canvas img');
   if (img) {
     const tryRender = () => { _mapApply(); renderMarker(); renderTrajectory(); };
@@ -10839,7 +10913,7 @@ function updateEditMapPicker(id, mapName) {
     return;
   }
   wrap.innerHTML = `<div class="map-canvas"><img src="${imgUrl}" alt="${esc(key)}" crossorigin="anonymous" draggable="false"></div>`;
-  renderMapSiteLabels(wrap.querySelector('.map-canvas'), key);
+  renderMapSiteLabels(wrap.querySelector('.map-canvas'), key, MS_LABEL_DEFAULTS, { sitesOnly: true });
   const img = wrap.querySelector('.map-canvas img');
   if (!img) return;
   const tryRender = () => { if (_eCanvas(id)) { _eApply(id); renderEditMarker(id); renderEditTrajectory(id); _defRender(id, true); } };
@@ -17060,6 +17134,11 @@ let _rngAgent   = '';
 let _rngAbility = '';
 let _rngCx = 0.5;
 let _rngCy = 0.5;
+let _rngShapeWidth = 0.12;
+let _rngShapeHeight = 0.08;
+let _rngShapeRotation = 0;
+let _rngShapeDrag = '';
+let _rngShapeDragged = false;
 let _rngRows    = [];
 let _rngSortCol = 'map';
 let _rngSortDir = 'asc';
@@ -17084,6 +17163,7 @@ function _rngWireEvents() {
       img.src = ''; hint.style.display = 'flex'; lbl.textContent = 'выберите карту и агента';
     }
     _rngUpdateApplyInfo();
+    _rngLoadSelectedConfig();
   });
 
   document.getElementById('rng-slider').addEventListener('input', rngUpdateCircle);
@@ -17093,6 +17173,34 @@ function _rngWireEvents() {
     document.getElementById('rng-slider').value = v;
     rngUpdateCircle();
   });
+
+  const bindShapeSize = (key) => {
+    const slider = document.getElementById(`rng-shape-${key}`);
+    const input = document.getElementById(`rng-shape-${key}-value`);
+    const update = value => {
+      const v = Math.max(.02, Math.min(.35, parseFloat(value) || .02));
+      if (key === 'width') _rngShapeWidth = v; else _rngShapeHeight = v;
+      slider.value = v; input.value = v.toFixed(3); rngUpdateCircle(); _rngUpdateApplyInfo();
+    };
+    slider.addEventListener('input', () => update(slider.value));
+    input.addEventListener('input', () => update(input.value));
+  };
+  bindShapeSize('width'); bindShapeSize('height');
+
+  const shapePoint = event => {
+    const r = document.getElementById('rng-map-container').getBoundingClientRect();
+    return { x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)), y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height)) };
+  };
+  document.getElementById('rng-sensor-pivot').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='pivot'; _rngShapeDragged=false; });
+  document.getElementById('rng-sensor-rotate').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='rotate'; _rngShapeDragged=false; });
+  window.addEventListener('pointermove', e => {
+    if (!_rngShapeDrag) return;
+    const p=shapePoint(e); _rngShapeDragged=true;
+    if (_rngShapeDrag === 'pivot') { _rngCx=p.x; _rngCy=p.y; }
+    else _rngShapeRotation=Math.atan2(p.y-_rngCy,p.x-_rngCx)*180/Math.PI;
+    rngUpdateCircle();
+  });
+  window.addEventListener('pointerup', () => { if (_rngShapeDrag) _rngShapeDrag=''; });
 
   // Drag screenshot overlay; fall through to circle-move on plain click
   let _shotDragging = false, _shotDragged = false;
@@ -17104,6 +17212,7 @@ function _rngWireEvents() {
   };
   const mapCont = document.getElementById('rng-map-container');
   mapCont.addEventListener('mousedown', function(e) {
+    if (e.target.closest?.('#rng-sensor-pivot,#rng-sensor-rotate')) return;
     if (!_shotActive()) return;
     e.preventDefault();
     _shotDragging = true; _shotDragged = false;
@@ -17131,6 +17240,7 @@ function _rngWireEvents() {
   });
 
   mapCont.addEventListener('click', function(e) {
+    if (_rngShapeDragged) { _rngShapeDragged=false; return; }
     if (_shotDragged) { _shotDragged = false; return; }
     const r = this.getBoundingClientRect();
     _rngCx = (e.clientX - r.left) / r.width;
@@ -17231,6 +17341,8 @@ function _rngBuildAgentGrid() {
 
 function rngSelectAgent(agent) {
   _rngAgent = agent; _rngAbility = '';
+  document.getElementById('rng-radius-editor').style.display = '';
+  document.getElementById('rng-sensor-editor').style.display = 'none';
   document.querySelectorAll('#rng-agent-grid > div').forEach(d => {
     d.style.borderColor = d.dataset.agent === agent ? 'var(--primary)' : 'transparent';
   });
@@ -17258,12 +17370,49 @@ function rngSelectAgent(agent) {
   _rngUpdateApplyInfo();
 }
 
-function rngSelectAbility(ab) {
+async function rngSelectAbility(ab) {
   _rngAbility = ab;
   document.querySelectorAll('#rng-ability-row > div').forEach(d => {
     d.style.borderColor = d.dataset.ability === ab ? 'var(--primary)' : 'transparent';
   });
+  const sensor = _rngIsSonicSensor();
+  document.getElementById('rng-radius-editor').style.display = sensor ? 'none' : '';
+  document.getElementById('rng-sensor-editor').style.display = sensor ? '' : 'none';
+  document.getElementById('rng-map-help').textContent = sensor
+    ? 'Белую точку тяни для перемещения. Красную — для вращения прямоугольника.'
+    : 'Кликни на карту чтобы переместить центр круга';
+  await _rngLoadSelectedConfig();
+  rngUpdateCircle();
   _rngUpdateApplyInfo();
+}
+
+function _rngIsSonicSensor() {
+  return /deadlock/i.test(_rngAgent) && /sonic|sensor|звуков|сенсор|датчик/i.test(_rngAbility);
+}
+
+async function _rngLoadSelectedConfig() {
+  const map=document.getElementById('rng-map')?.value;
+  if (!map || !_rngAgent || !_rngAbility) return;
+  try {
+    const cfgId=(map+'__'+_rngAgent+'__'+_rngAbility).replace(/[\\/. ]/g,'_');
+    const snap=await getDoc(doc(db,'range_config',cfgId));
+    if (!snap.exists()) return;
+    const data=snap.data();
+    if (_rngIsSonicSensor()) {
+      _rngShapeWidth=Math.max(.02,Math.min(.35,Number(data.shape_width)||.12));
+      _rngShapeHeight=Math.max(.02,Math.min(.35,Number(data.shape_height)||.08));
+      _rngShapeRotation=Number(data.shape_rotation)||0;
+      const pivot=Array.isArray(data.points)?data.points.find(p=>p?.role==='pivot')||data.points[0]:null;
+      if (pivot && Number.isFinite(Number(pivot.x)) && Number.isFinite(Number(pivot.y))) { _rngCx=Number(pivot.x); _rngCy=Number(pivot.y); }
+      document.getElementById('rng-shape-width').value=_rngShapeWidth;
+      document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
+      document.getElementById('rng-shape-height').value=_rngShapeHeight;
+      document.getElementById('rng-shape-height-value').value=_rngShapeHeight.toFixed(3);
+    } else if (Number(data.range_radius)>0) {
+      document.getElementById('rng-slider').value=Number(data.range_radius);
+    }
+    rngUpdateCircle();
+  } catch(e) { console.warn('range config load failed',e); }
 }
 
 function rngUpdateCircle() {
@@ -17278,12 +17427,26 @@ function rngUpdateCircle() {
   const cxPct = (_rngCx * 100).toFixed(2) + '%';
   const cyPct = (_rngCy * 100).toFixed(2) + '%';
 
+  const sensor=_rngIsSonicSensor();
+  document.getElementById('rng-sensor-shape').style.display=sensor?'':'none';
   ['rng-circle-fill','rng-circle-border','rng-center-dot'].forEach(id => {
+    document.getElementById(id).style.display=sensor?'none':'';
     document.getElementById(id).setAttribute('cx', cxPct);
     document.getElementById(id).setAttribute('cy', cyPct);
   });
   document.getElementById('rng-circle-fill').setAttribute('r', pxR);
   document.getElementById('rng-circle-border').setAttribute('r', pxR);
+  if (sensor) {
+    const cx=_rngCx*w, cy=_rngCy*w, rw=_rngShapeWidth*w, rh=_rngShapeHeight*w;
+    const rect=document.getElementById('rng-sensor-rect');
+    rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy-rh/2); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
+    rect.setAttribute('transform',`rotate(${_rngShapeRotation} ${cx} ${cy})`);
+    const rad=_rngShapeRotation*Math.PI/180, handleDist=rw/2+24;
+    const hx=cx+Math.cos(rad)*handleDist, hy=cy+Math.sin(rad)*handleDist;
+    const axis=document.getElementById('rng-sensor-axis'); axis.setAttribute('x1',cx); axis.setAttribute('y1',cy); axis.setAttribute('x2',hx); axis.setAttribute('y2',hy);
+    const pivot=document.getElementById('rng-sensor-pivot'); pivot.setAttribute('cx',cx); pivot.setAttribute('cy',cy);
+    const rotate=document.getElementById('rng-sensor-rotate'); rotate.setAttribute('cx',hx); rotate.setAttribute('cy',hy);
+  }
 }
 
 function _rngUpdateApplyInfo() {
@@ -17294,7 +17457,9 @@ function _rngUpdateApplyInfo() {
   wrap.style.display = 'block';
   const val    = parseFloat(document.getElementById('rng-slider').value) || 0;
   const meters = (val / 0.007).toFixed(1);
-  info.textContent = `${_rngAgent} · ${_rngAbility} · ${map} — радиус ${val.toFixed(3)} (≈ ${meters} м)`;
+  info.textContent = _rngIsSonicSensor()
+    ? `${_rngAgent} · ${_rngAbility} · ${map} — прямоугольник ${_rngShapeWidth.toFixed(3)} × ${_rngShapeHeight.toFixed(3)}, угол ${_rngShapeRotation.toFixed(1)}°`
+    : `${_rngAgent} · ${_rngAbility} · ${map} — радиус ${val.toFixed(3)} (≈ ${meters} м)`;
 }
 
 async function rngApplyToLineups() {
@@ -17305,8 +17470,14 @@ async function rngApplyToLineups() {
   btn.disabled = true; btn.textContent = '⏳ Применяю…';
   try {
     const cfgKey = (map + '__' + _rngAgent + '__' + _rngAbility).replace(/[\\/. ]/g, '_');
+    const sensor=_rngIsSonicSensor();
+    const rad=_rngShapeRotation*Math.PI/180;
+    const shapeData=sensor ? {
+      shape_kind:'sensor_rect', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
+      points:[{role:'pivot',x:_rngCx,y:_rngCy},{role:'rotation',x:_rngCx+Math.cos(rad)*_rngShapeWidth/2,y:_rngCy+Math.sin(rad)*_rngShapeWidth/2}]
+    } : {};
     await setDoc(doc(db, 'range_config', cfgKey), {
-      map, agent: _rngAgent, ability: _rngAbility, range_radius: val, updatedAt: serverTimestamp()
+      map, agent: _rngAgent, ability: _rngAbility, range_radius: val, ...shapeData, updatedAt: serverTimestamp()
     });
     const snap = await getDocs(query(
       collection(db, 'lineups'),
@@ -17318,7 +17489,7 @@ async function rngApplyToLineups() {
     snap.forEach(d => matched.push(d.ref));
     if (matched.length) {
       const batch = writeBatch(db);
-      matched.forEach(ref => batch.update(ref, { range_radius: val }));
+      matched.forEach(ref => batch.update(ref, { range_radius: val, ...shapeData }));
       await batch.commit();
       toast('✅ Сохранено + обновлено ' + matched.length + ' лайнапов');
     } else {
