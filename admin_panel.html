@@ -324,7 +324,7 @@
     .ms-workbench-preview { position:sticky;top:124px;min-width:0; }
     .ms-map-picker-bar { display:grid;grid-template-columns:auto minmax(140px,1fr) auto auto;gap:7px;align-items:center;margin-bottom:9px;padding:9px;border:1px solid var(--border);border-radius:10px;background:rgba(10,16,28,.98); }
     .ms-map-picker-bar label { color:var(--text2);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px; }
-    .ms-map-picker-bar #ms-map-pick { width:100%;padding:8px 10px !important; }
+    .ms-map-picker-bar #ms-global-map-pick { width:100%;padding:8px 10px !important;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:7px; }
     .ms-map-step { width:34px;height:34px;border:1px solid var(--border2);border-radius:8px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:16px;font-weight:800; }
     .ms-map-step:hover { color:#fff;border-color:var(--primary);background:rgba(255,70,85,.14); }
     .ms-workbench-preview .ms-preview-grid { position:relative;top:auto;display:block !important;margin:0 !important; }
@@ -3716,7 +3716,15 @@ async function _mgLoadGeometry() {
         if (Array.isArray(value)) _mgGeometry[map] = _mgCloneObjects(value);
       });
     }
-  } catch (e) { console.warn('map collision geometry', e); }
+  } catch (e) {
+    console.warn('map collision geometry collection', e);
+    try {
+      const legacy = await getDoc(doc(db, 'settings', 'map_collision_geometry'));
+      Object.entries(legacy.exists() ? legacy.data() : {}).forEach(([map, value]) => {
+        if (Array.isArray(value)) _mgGeometry[map] = _mgCloneObjects(value);
+      });
+    } catch (legacyError) { console.warn('map collision geometry legacy', legacyError); }
+  }
   _mgLoaded = true;
 }
 
@@ -4349,19 +4357,28 @@ function setupMapStyleWorkbench() {
   if (picker) {
     const pickerBar = document.createElement('div');
     pickerBar.className = 'ms-map-picker-bar';
-    pickerBar.innerHTML = '<label for="ms-map-pick">Карта</label>';
+    pickerBar.innerHTML = '<label for="ms-global-map-pick">Карта</label>';
+    const globalPicker = document.createElement('select');
+    globalPicker.id = 'ms-global-map-pick';
+    globalPicker.className = 'finput';
+    globalPicker.innerHTML = Array.from(picker.options).map(option => `<option value="${esc(option.value)}">${esc(option.textContent)}</option>`).join('');
+    globalPicker.value = picker.value;
+    globalPicker.addEventListener('change', () => {
+      picker.value = globalPicker.value;
+      picker.dispatchEvent(new Event('change', { bubbles:true }));
+    });
     const previous = document.createElement('button');
     previous.type = 'button'; previous.className = 'ms-map-step'; previous.title = 'Предыдущая карта'; previous.textContent = '‹';
     const next = document.createElement('button');
     next.type = 'button'; next.className = 'ms-map-step'; next.title = 'Следующая карта'; next.textContent = '›';
     const changeMap = delta => {
-      const count = picker.options.length;
-      picker.selectedIndex = (picker.selectedIndex + delta + count) % count;
-      picker.dispatchEvent(new Event('change', { bubbles: true }));
+      const count = globalPicker.options.length;
+      globalPicker.selectedIndex = (globalPicker.selectedIndex + delta + count) % count;
+      globalPicker.dispatchEvent(new Event('change', { bubbles: true }));
     };
     previous.addEventListener('click', () => changeMap(-1));
     next.addEventListener('click', () => changeMap(1));
-    pickerBar.append(picker, previous, next);
+    pickerBar.append(globalPicker, previous, next);
     previewColumn.appendChild(pickerBar);
   }
   previewColumn.appendChild(preview);
@@ -4456,6 +4473,8 @@ document.getElementById('ms-map-pick').addEventListener('change', e => {
   _mgLoadMap(e.target.value);
   const collisionPicker = document.getElementById('mg-map-pick');
   if (collisionPicker) collisionPicker.value = e.target.value;
+  const globalPicker = document.getElementById('ms-global-map-pick');
+  if (globalPicker) globalPicker.value = e.target.value;
   _msSyncRotationControls();
   renderMapAnnotationMode();
   _msScheduleRedraw();
