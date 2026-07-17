@@ -2706,8 +2706,17 @@
         </div>
       </div>
       <div style="display:grid;grid-template-columns:minmax(280px,1.5fr) minmax(220px,.7fr);gap:14px;align-items:start;">
-        <div style="position:relative;border:1px solid var(--border2);border-radius:8px;overflow:hidden;background:#080d18;">
-          <canvas id="mg-canvas" style="display:block;width:100%;aspect-ratio:1;touch-action:none;cursor:crosshair;"></canvas>
+        <div>
+          <div id="mg-viewport" style="position:relative;border:1px solid var(--border2);border-radius:8px;overflow:auto;background:#080d18;max-height:min(72vh,760px);scrollbar-color:var(--border2) var(--surface2);">
+            <canvas id="mg-canvas" style="display:block;width:100%;max-width:none;aspect-ratio:1;touch-action:none;cursor:crosshair;"></canvas>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap;">
+            <button id="mg-zoom-out" class="btn" type="button" title="Уменьшить">−</button>
+            <span id="mg-zoom-value" style="min-width:48px;text-align:center;font-size:11px;font-weight:800;color:var(--text);">100%</span>
+            <button id="mg-zoom-in" class="btn" type="button" title="Увеличить">＋</button>
+            <button id="mg-zoom-reset" class="btn" type="button">Сбросить масштаб</button>
+            <span style="font-size:10px;color:var(--text2);">Колесо мыши — приблизить под курсором</span>
+          </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:9px;">
           <div style="font-size:12px;color:var(--text2);line-height:1.5;">Нажимай по углам препятствия. «Замкнуть» создаёт полигон. Для одной стены из двух точек выбери «Сегмент».</div>
@@ -3689,6 +3698,7 @@ let _mgImage = null;
 let _mgDraft = [];
 let _mgDrawing = false;
 let _mgSelectedId = null;
+let _mgZoom = 1;
 
 function _mgCloneObjects(value) {
   if (!Array.isArray(value)) return [];
@@ -3785,6 +3795,28 @@ function _mgRenderList() {
   const remove = document.getElementById('mg-delete'); if (remove) remove.disabled = !_mgSelectedId;
   const draftStatus = document.getElementById('mg-draft-status'); if (draftStatus) draftStatus.textContent = `Точек: ${_mgDraft.length}${_mgDrawing ? ' · рисование' : ''}`;
   const status = document.getElementById('mg-status'); if (status) status.textContent = `${_msCurrentMapName()}: ${objects.length} объектов`;
+}
+
+function _mgApplyZoom(nextZoom, clientX = null, clientY = null) {
+  const viewport = document.getElementById('mg-viewport');
+  const canvas = document.getElementById('mg-canvas');
+  if (!viewport || !canvas) return;
+  const previous = _mgZoom;
+  const next = Math.max(.75, Math.min(5, Number(nextZoom) || 1));
+  const rect = viewport.getBoundingClientRect();
+  const localX = clientX == null ? viewport.clientWidth / 2 : clientX - rect.left;
+  const localY = clientY == null ? viewport.clientHeight / 2 : clientY - rect.top;
+  const contentX = viewport.scrollLeft + localX;
+  const contentY = viewport.scrollTop + localY;
+  _mgZoom = next;
+  canvas.style.width = `${next * 100}%`;
+  const ratio = next / previous;
+  requestAnimationFrame(() => {
+    viewport.scrollLeft = contentX * ratio - localX;
+    viewport.scrollTop = contentY * ratio - localY;
+  });
+  const value = document.getElementById('mg-zoom-value');
+  if (value) value.textContent = `${Math.round(next * 100)}%`;
 }
 
 function _mgLoadMap(uuid) {
@@ -4502,6 +4534,14 @@ document.getElementById('mg-canvas')?.addEventListener('pointerdown', event => {
   _mgDraft.push(point); _mgRender(); event.preventDefault();
   if (document.getElementById('mg-kind')?.value === 'segment' && _mgDraft.length === 2) _mgFinishDraft();
 });
+document.getElementById('mg-viewport')?.addEventListener('wheel', event => {
+  event.preventDefault();
+  const factor = event.deltaY < 0 ? 1.16 : 1 / 1.16;
+  _mgApplyZoom(_mgZoom * factor, event.clientX, event.clientY);
+}, { passive:false });
+document.getElementById('mg-zoom-in')?.addEventListener('click', () => _mgApplyZoom(_mgZoom * 1.25));
+document.getElementById('mg-zoom-out')?.addEventListener('click', () => _mgApplyZoom(_mgZoom / 1.25));
+document.getElementById('mg-zoom-reset')?.addEventListener('click', () => _mgApplyZoom(1));
 document.getElementById('mg-delete')?.addEventListener('click', () => {
   if (!_mgSelectedId) return;
   const objects = _mgObjects(); const index = objects.findIndex(item => item.id === _mgSelectedId);
