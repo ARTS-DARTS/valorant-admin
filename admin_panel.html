@@ -6795,7 +6795,14 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         await writeAudit(id, 'sent_to_moderation');
         patchStatus(id, 'moderator_draft');
       } else if (action === 'approve') {
-        await updateDoc(doc(db, 'lineups', id), { status: 'hot' });
+        await updateDoc(doc(db, 'lineups', id), {
+          status: 'hot', moderated_by_uid: currentUser?.uid || null,
+          moderated_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+          moderated_by_role: currentUserRole || 'admin', moderated_at: serverTimestamp(),
+          hot_confirmed_by_uid: currentUser?.uid || null,
+          hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+          hot_confirmed_by_role: currentUserRole || 'admin', hot_confirmed_at: serverTimestamp(),
+        });
         await writeAudit(id, 'hot');
         patchStatus(id, 'hot');
       } else {
@@ -7060,6 +7067,7 @@ function cardHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid || l.edited_by_moderator_uid || l.edited_at || l.moderator_template_completed);
+  const moderatorName = l.moderated_by_name || l.edited_by_moderator_name || l.hot_confirmed_by_name || '';
   const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
   const cardClass = moderatorApproved ? 'moderator-approved' : moderatorRejected ? 'moderator-rejected' : '';
@@ -7075,7 +7083,7 @@ function cardHtml(l) {
     <div class="linfo">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
         <span class="badge ${bc}" style="font-size:9px;padding:2px 6px;">${bl}</span>
-        ${l.status === 'approved' && moderatorReviewed ? '<span style="color:#38bdf8;font-size:9px;font-weight:800;">🛡 проверено модератором</span>' : ''}
+        ${l.status === 'approved' && moderatorReviewed ? `<span style="color:#38bdf8;font-size:9px;font-weight:800;">🛡 одобрил: ${esc(moderatorName || 'не указан')}</span>` : ''}
         ${l.is_exclusive ? '<span style="color:#f59e0b;font-size:10px;">👑</span>' : ''}
       </div>
       <div class="ltitle">${esc(l.title ?? '—')}</div>
@@ -7263,6 +7271,7 @@ function detailHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid || l.edited_by_moderator_uid || l.edited_at || l.moderator_template_completed);
+  const moderatorName = l.moderated_by_name || l.edited_by_moderator_name || l.hot_confirmed_by_name || '';
   const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
   const [bc, bl] = moderatorApproved
@@ -7288,7 +7297,7 @@ function detailHtml(l) {
   </div>
   <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;">
     <span class="badge ${bc}" style="flex-shrink:0;">${bl}</span>
-    ${l.status === 'approved' && moderatorReviewed ? '<span style="color:#38bdf8;font-size:10px;font-weight:800;">🛡 проверено модератором</span>' : ''}
+    ${l.status === 'approved' && moderatorReviewed ? `<span style="color:#38bdf8;font-size:10px;font-weight:800;">🛡 одобрил: ${esc(moderatorName || 'не указан')}</span>` : ''}
   </div>
 </div>
 <div class="editor-primary-actions">${lineupActionButtonsHtml(l, true)}</div>
@@ -7299,7 +7308,7 @@ function detailHtml(l) {
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
   ${l.hot_confirmed_by_name ? `<div class="dfield" style="grid-column:1/-1;border-color:#f59e0b;background:rgba(245,158,11,.08);"><div class="dlabel">Подтверждение в «Пирожки»</div><div class="dval" style="color:#fbbf24;font-weight:800;">🔥 Подтверждено${l.hot_confirmed_by_role ? ` · ${l.hot_confirmed_by_role === 'moderator' ? 'модератором' : 'администратором'}` : ''} · ${esc(l.hot_confirmed_by_name)}</div></div>` : ''}
-  ${moderatorReviewed ? `<div class="dfield" style="grid-column:1/-1;border-color:${moderatorRejected ? '#ef4444' : '#38bdf8'};background:${moderatorRejected ? 'rgba(239,68,68,.08)' : 'rgba(56,189,248,.08)'};"><div class="dlabel">Проверка модератором</div><div class="dval" style="color:${moderatorRejected ? '#ff6b75' : '#38bdf8'};font-weight:800;">🛡 ${moderatorRejected ? 'Отклонено' : 'Одобрено'}${l.moderated_by_name || l.rejected_by_name ? ` · ${esc(l.moderated_by_name || l.rejected_by_name)}` : ''}</div></div>` : ''}
+  ${moderatorReviewed ? `<div class="dfield" style="grid-column:1/-1;border-color:${moderatorRejected ? '#ef4444' : '#38bdf8'};background:${moderatorRejected ? 'rgba(239,68,68,.08)' : 'rgba(56,189,248,.08)'};"><div class="dlabel">Проверка модератором</div><div class="dval" style="color:${moderatorRejected ? '#ff6b75' : '#38bdf8'};font-weight:800;">🛡 ${moderatorRejected ? 'Отклонил' : 'Одобрил'}: ${esc((moderatorRejected ? l.rejected_by_name : moderatorName) || 'не указан')}</div></div>` : ''}
   <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(contentMeta(contentCategoryOf(l)).title)}</div></div>
   <div class="dfield"><div class="dlabel">Сторона раунда</div> <div class="dval">${l.round_side === 'defense' ? 'Защита' : l.round_side === 'attack' ? 'Атака' : 'Не указана (legacy)'}</div></div>
   <div class="dfield"><div class="dlabel">Позиция X</div> <div class="dval">${fmtNum(l.position_x)}</div></div>
@@ -7801,6 +7810,10 @@ async function approveLineup(id, userId) {
   try {
     await updateDoc(doc(db, 'lineups', id), {
       status: 'hot',
+      moderated_by_uid: currentUser?.uid || null,
+      moderated_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      moderated_by_role: currentUserRole || 'admin',
+      moderated_at: serverTimestamp(),
       hot_confirmed_by_uid: currentUser?.uid || null,
       hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
       hot_confirmed_by_role: currentUserRole || 'admin',
@@ -7820,10 +7833,10 @@ async function publishLineup(id, userId) {
     const before = beforeSnap.exists() ? { id, ...beforeSnap.data() } : (lineups.find(x => x.id === id) || { id });
     const wasApproved = before.status === 'approved';
     const updateData = {
-      status: 'approved', hot_confirmed_at: serverTimestamp(),
-      hot_confirmed_by_uid: currentUser?.uid || null,
-      hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-      hot_confirmed_by_role: currentUserRole || 'admin',
+      status: 'approved', published_at: serverTimestamp(),
+      published_by_uid: currentUser?.uid || null,
+      published_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      published_by_role: currentUserRole || 'admin',
     };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     await updateDoc(ref, updateData);
@@ -7860,10 +7873,10 @@ async function publishAllHot() {
     }
     if (!publishable.length) { toast('Все выбранные лайнапы уже опубликованы', 'i'); return; }
     const updateData = {
-      status: 'approved', hot_confirmed_at: serverTimestamp(),
-      hot_confirmed_by_uid: currentUser?.uid || null,
-      hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-      hot_confirmed_by_role: currentUserRole || 'admin',
+      status: 'approved', published_at: serverTimestamp(),
+      published_by_uid: currentUser?.uid || null,
+      published_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      published_by_role: currentUserRole || 'admin',
     };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     const b = writeBatch(db);
