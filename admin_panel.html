@@ -3666,7 +3666,7 @@ function currentMapStyleName() {
 
 function renderMapAnnotationMode() {
   const map = currentMapStyleName();
-  const mode = _mapAnnotationModes[map] || 'full';
+  const mode = _mapAnnotationModes[map] || 'main';
   document.querySelectorAll('.ms-annotation-mode').forEach(btn => btn.classList.toggle('active', btn.dataset.annotationMode === mode));
 }
 let _msSelectedSiteLabel = 0;
@@ -3817,7 +3817,7 @@ function _msDrawSiteLabels(canvas, data = null, labelsOverride = null) {
   if (!canvas) return;
   const settings = { ...MS_LABEL_DEFAULTS, ...(data || {}) };
   if (settings.site_labels_enabled === false) return;
-  const mode = _mapAnnotationModes[_msCurrentMapName()] || 'full';
+  const mode = _mapAnnotationModes[_msCurrentMapName()] || 'main';
   if (mode === 'clean') return;
   const labels = (labelsOverride || _msDraftSiteLabels()).filter(item => mode === 'full' || item.level !== 'full');
   const ctx = canvas.getContext('2d');
@@ -4300,7 +4300,7 @@ document.getElementById('ms-map-pick').addEventListener('change', e => {
 
 document.querySelectorAll('.ms-annotation-mode').forEach(button => button.addEventListener('click', async () => {
   const map = currentMapStyleName();
-  _mapAnnotationModes[map] = button.dataset.annotationMode || 'full';
+  _mapAnnotationModes[map] = button.dataset.annotationMode || 'main';
   renderMapAnnotationMode();
   try {
     await setDoc(doc(db, 'settings', 'map_annotation_modes'), {
@@ -9713,7 +9713,7 @@ function renderMapSiteLabels(canvasEl, mapName, settings = MS_LABEL_DEFAULTS, op
   canvasEl.querySelectorAll('.map-site-label,.map-spawn-zone').forEach(el => el.remove());
   const data = { ...MS_LABEL_DEFAULTS, ...(settings || {}) };
   if (data.site_labels_enabled === false) return;
-  const mode = _mapAnnotationModes[mapName] || 'full';
+  const mode = _mapAnnotationModes[mapName] || 'main';
   if (mode === 'clean') return;
   const labels = _msSavedSiteLabels(mapName).filter(item =>
     options.sitesOnly ? item.level === 'site' : (mode === 'full' || item.level !== 'full')
