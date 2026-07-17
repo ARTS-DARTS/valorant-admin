@@ -8639,9 +8639,12 @@ function _defNormalizeAbility(item, index, agent) {
   const ability = String(item?.ability || '').trim();
   const canonical = _defShape(agent, ability);
   const storedKind = item?.shape_kind || item?.shape?.kind;
-  const kind = canonical.kind === 'sensor_rect' && ['point','sensor_area'].includes(storedKind)
-    ? 'sensor_rect'
-    : (storedKind || canonical.kind);
+  // Known abilities have a canonical geometry. A stale/corrupted draft used to
+  // copy sensor_rect to every placed ability and the stored value then won here,
+  // turning Barrier Mesh, GravNet and Annihilation into Sonic Sensors on reload.
+  // Keep stored geometry only for abilities which do not have a dedicated shape.
+  const hasCanonicalGeometry = canonical.kind !== 'point' || /^deadlock$/i.test(String(agent || '').trim());
+  const kind = hasCanonicalGeometry ? canonical.kind : (storedKind || canonical.kind);
   const points = (Array.isArray(item?.points) ? item.points : [])
     .map((p, pointIndex) => ({
       ...(kind === 'sensor_rect' ? { role:String(p?.role || (pointIndex === 0 ? 'pivot' : 'rotation')) } : {}),
@@ -8652,8 +8655,9 @@ function _defNormalizeAbility(item, index, agent) {
     x = points.reduce((sum, p) => sum + p.x, 0) / points.length;
     y = points.reduce((sum, p) => sum + p.y, 0) / points.length;
   }
+  const canonicalIcon = _abilityIcon(agent, ability);
   return {
-    ability, slot:String(item?.slot || ''), icon:String(item?.icon || _abilityIcon(agent, ability) || ''),
+    ability, slot:String(item?.slot || ''), icon:String(canonicalIcon || item?.icon || ''),
     x:_defClamp(Number.isFinite(x) ? x : .5), y:_defClamp(Number.isFinite(y) ? y : .5),
     label:String(item?.label || ''), note:String(item?.note || ''), order:Number(item?.order || index + 1),
     shape_kind:kind, shape_radius:Number(item?.shape_radius ?? item?.shape?.radius ?? canonical.radius ?? 0),
