@@ -2699,7 +2699,11 @@
     <section id="ms-section-collision" class="ms-system-section" style="scroll-margin-top:76px;">
       <div class="ms-system-section-head">
         <div><b>🧱 Геометрические стены и боксы</b><span>Жёлтые зоны сайтов не являются стенами. Каждый контур — отдельный объект, который можно выбрать и удалить.</span></div>
-        <button id="mg-save" class="btn btn-save" type="button">💾 Сохранить стены</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          <label for="mg-map-pick" style="font-size:11px;color:var(--text2);font-weight:800;">КАРТА</label>
+          <select id="mg-map-pick" class="finput" style="min-width:150px;background:var(--bg);"></select>
+          <button id="mg-save" class="btn btn-save" type="button">💾 Сохранить стены</button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:minmax(280px,1.5fr) minmax(220px,.7fr);gap:14px;align-items:start;">
         <div style="position:relative;border:1px solid var(--border2);border-radius:8px;overflow:hidden;background:#080d18;">
@@ -3704,10 +3708,14 @@ function _mgObjects(map = _msCurrentMapName()) {
 async function _mgLoadGeometry() {
   if (_mgLoaded) return;
   try {
-    const snap = await getDoc(doc(db, 'settings', 'map_collision_geometry'));
-    Object.entries(snap.exists() ? snap.data() : {}).forEach(([map, value]) => {
-      if (Array.isArray(value)) _mgGeometry[map] = _mgCloneObjects(value);
-    });
+    const snap = await getDocs(collection(db, 'settings', 'map_collision_geometry', 'maps'));
+    snap.forEach(mapDoc => { _mgGeometry[mapDoc.id] = _mgCloneObjects(mapDoc.data()?.objects); });
+    if (snap.empty) {
+      const legacy = await getDoc(doc(db, 'settings', 'map_collision_geometry'));
+      Object.entries(legacy.exists() ? legacy.data() : {}).forEach(([map, value]) => {
+        if (Array.isArray(value)) _mgGeometry[map] = _mgCloneObjects(value);
+      });
+    }
   } catch (e) { console.warn('map collision geometry', e); }
   _mgLoaded = true;
 }
@@ -3779,6 +3787,16 @@ function _mgLoadMap(uuid) {
   image.onerror = () => { _mgImage = null; _mgRender(); };
   image.src = `https://media.valorant-api.com/maps/${uuid}/displayicon.png`;
   _mgRender();
+}
+
+function _mgSetupMapPicker() {
+  const master = document.getElementById('ms-map-pick');
+  const picker = document.getElementById('mg-map-pick');
+  if (!master || !picker) return;
+  if (!picker.options.length) {
+    picker.innerHTML = Array.from(master.options).map(option => `<option value="${esc(option.value)}">${esc(option.textContent)}</option>`).join('');
+  }
+  picker.value = master.value;
 }
 
 function _mgFinishDraft() {
@@ -4297,6 +4315,7 @@ async function loadMapStyleTab() {
     _mapCalibrationCache = calSnap.exists() ? calSnap.data() : {};
   } catch(e) { console.error('loadMapStyleTab', e); }
   _msSwitchTheme(_msCurrentTheme);
+  _mgSetupMapPicker();
   _msRenderStylesTable();
   _mcLoadSelectedMap();
   _msDraftSiteLabels();
@@ -4435,9 +4454,18 @@ document.getElementById('ms-map-pick').addEventListener('change', e => {
   _mcLoadSelectedMap();
   _msLoadMap(e.target.value);
   _mgLoadMap(e.target.value);
+  const collisionPicker = document.getElementById('mg-map-pick');
+  if (collisionPicker) collisionPicker.value = e.target.value;
   _msSyncRotationControls();
   renderMapAnnotationMode();
   _msScheduleRedraw();
+});
+
+document.getElementById('mg-map-pick')?.addEventListener('change', event => {
+  const master = document.getElementById('ms-map-pick');
+  if (!master || master.value === event.target.value) return;
+  master.value = event.target.value;
+  master.dispatchEvent(new Event('change', { bubbles:true }));
 });
 
 document.getElementById('mg-new')?.addEventListener('click', () => {
@@ -4465,9 +4493,8 @@ document.getElementById('mg-delete')?.addEventListener('click', () => {
 document.getElementById('mg-save')?.addEventListener('click', async function() {
   const original = this.textContent; this.disabled = true; this.textContent = '⏳ Сохраняю…';
   try {
-    const payload = {};
-    MP_ALL_MAPS.forEach(map => { payload[map.name] = _mgCloneObjects(_mgGeometry[map.name]); });
-    await setDoc(doc(db, 'settings', 'map_collision_geometry'), { ...payload, updated_at:serverTimestamp(), updated_by:currentUser?.email || currentUser?.displayName || 'admin' }, { merge:true });
+    const mapName = _msCurrentMapName();
+    await setDoc(doc(db, 'settings', 'map_collision_geometry', 'maps', mapName), { objects:_mgCloneObjects(_mgGeometry[mapName]), updated_at:serverTimestamp(), updated_by:currentUser?.email || currentUser?.displayName || 'admin' }, { merge:true });
     await setDoc(doc(db, 'settings', 'config_versions'), { map_collision_geometry:Date.now(), updated_at:serverTimestamp() }, { merge:true });
     toast(`Стены ${_msCurrentMapName()} сохранены`, 's');
     if (typeof addAuditLog === 'function') addAuditLog('map_collision_geometry_saved', { map:_msCurrentMapName(), objects:_mgObjects().length });
