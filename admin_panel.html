@@ -8669,6 +8669,16 @@ function _defNormalizeAbility(item, index, agent) {
   };
 }
 
+function _defRepairAbilityInPlace(item, agent) {
+  if (!item) return item;
+  const canonical = _defShape(agent, item.ability);
+  const hasCanonicalGeometry = canonical.kind !== 'point' || /^deadlock$/i.test(String(agent || '').trim());
+  if (hasCanonicalGeometry && item.shape_kind !== canonical.kind) item.shape_kind = canonical.kind;
+  const canonicalIcon = _abilityIcon(agent, item.ability);
+  if (canonicalIcon && item.icon !== canonicalIcon) item.icon = canonicalIcon;
+  return item;
+}
+
 function _defContext(id, edit = false) {
   const session = edit ? editSessions[id] : addSlotSessions[id];
   const wrap = document.getElementById(edit ? `ce-map-wrap-${id}` : `slot-${id}-map-wrap`);
@@ -8851,6 +8861,10 @@ function _defRender(id, edit = false) {
   ctx.canvas.querySelector('.defense-map-layer')?.remove();
   if (_defCategory(ctx) !== 'defense') return;
   const s = ctx.session, agent = _defAgent(ctx);
+  // Repair sessions which were already open when the bad sensor geometry was
+  // saved. This intentionally mutates only the kind/icon and preserves points,
+  // positions and user-adjusted dimensions.
+  (s.defenseAbilities || []).forEach(item => _defRepairAbilityInPlace(item, agent));
   const netPatternId = `def-net-${edit ? 'e' : 'a'}-${String(id).replace(/[^a-zA-Z0-9_-]/g,'')}`;
   const layer = document.createElement('div'); layer.className = 'defense-map-layer';
   const pct = p => { const q = _defPointToWrap(ctx,p); return {x:q.x*100,y:q.y*100}; };
