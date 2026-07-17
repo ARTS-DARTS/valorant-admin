@@ -8903,11 +8903,17 @@ function _defWireLayer(ctx, layer) {
           const minY=Math.min(item.points[0].y,item.points[1].y),maxY=Math.max(item.points[0].y,item.points[1].y);
           const dx=Math.max(-minX,Math.min(1-maxX,requestedDx)),dy=Math.max(-minY,Math.min(1-maxY,requestedDy));
           item.points=item.points.map(point=>({...point,x:_defClamp(point.x+dx),y:_defClamp(point.y+dy)}));
+        } else if(item.shape_kind==='sensor_rect'){
+          const lockedWidth=Math.max(.01,Number(item.shape_width)||.12);
+          const dx=p.x-item.points[0].x,dy=p.y-item.points[0].y,length=Math.hypot(dx,dy);
+          if(length<.001)return;
+          const candidate={...item.points[1],x:item.points[0].x+dx/length*lockedWidth,y:item.points[0].y+dy/length*lockedWidth};
+          if(candidate.x<0||candidate.x>1||candidate.y<0||candidate.y>1)return;
+          item.points[1]=candidate;
         } else item.points[pointIndex]=p;
         item.x=(item.points[0].x+item.points[1].x)/2; item.y=(item.points[0].y+item.points[1].y)/2;
         if(item.shape_kind==='sensor_rect'){
           const dx=item.points[1].x-item.points[0].x,dy=item.points[1].y-item.points[0].y;
-          item.shape_width=Math.max(.01,Math.hypot(dx,dy));
           item.shape_rotation=Math.atan2(dy,dx)*180/Math.PI;
           item.points[0].role='pivot';item.points[1].role='rotation';
         }
