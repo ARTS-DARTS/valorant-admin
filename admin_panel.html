@@ -8698,6 +8698,20 @@ async function _defLoadConfiguredShape(ctx, abilityItem) {
     }
     if (data) break;
   }
+  if (!data) {
+    const globalKey=`__sensor_shape__${agent}`;
+    data=_defShapeConfigCache.get(globalKey)||null;
+    if (!data) {
+      try {
+        const snap=await getDocs(query(collection(db,'range_config'),where('agent','==',agent),limit(200)));
+        const matches=snap.docs.map(item=>item.data())
+          .filter(config=>config.shape_kind==='sensor_rect'&&_defShape(agent,config.ability).kind==='sensor_rect')
+          .sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
+        data=matches[0]||null;
+        if(data)_defShapeConfigCache.set(globalKey,data);
+      } catch(e) { console.warn('_defLoadConfiguredShape global fallback',e); }
+    }
+  }
   data ||= {};
   const configPoints=Array.isArray(data.points)?data.points:[];
   const pivot=configPoints.find(p=>p?.role==='pivot')||configPoints[0];
@@ -17588,6 +17602,7 @@ async function rngApplyToLineups() {
       map, agent: _rngAgent, ability: _rngAbility, range_radius: val, ...shapeData, updatedAt: serverTimestamp()
     });
     _defShapeConfigCache.delete(cfgKey);
+    if(sensor)_defShapeConfigCache.delete(`__sensor_shape__${_rngAgent}`);
     const snap = await getDocs(query(
       collection(db, 'lineups'),
       where('map', '==', map),
