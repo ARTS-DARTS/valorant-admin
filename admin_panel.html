@@ -2614,6 +2614,7 @@
       <button type="button" data-ms-section="ms-section-appearance">🎨 Внешний вид</button>
       <button type="button" data-ms-section="ms-section-orientation">🧭 Поворот</button>
       <button type="button" data-ms-section="ms-section-calibration">📐 Калибровка</button>
+      <button type="button" data-ms-section="ms-section-collision">🧱 Стены</button>
       <button type="button" data-ms-section="ms-section-labels">📍 Позиции и спавны</button>
       <button type="button" data-ms-section="ms-section-library">🗂 Темы</button>
     </nav>
@@ -2694,6 +2695,28 @@
         <span id="mc-status" style="font-size:12px;color:var(--text2);align-self:center;"></span>
       </div>
     </div>
+
+    <section id="ms-section-collision" class="ms-system-section" style="scroll-margin-top:76px;">
+      <div class="ms-system-section-head">
+        <div><b>🧱 Геометрические стены и боксы</b><span>Жёлтые зоны сайтов не являются стенами. Каждый контур — отдельный объект, который можно выбрать и удалить.</span></div>
+        <button id="mg-save" class="btn btn-save" type="button">💾 Сохранить стены</button>
+      </div>
+      <div style="display:grid;grid-template-columns:minmax(280px,1.5fr) minmax(220px,.7fr);gap:14px;align-items:start;">
+        <div style="position:relative;border:1px solid var(--border2);border-radius:8px;overflow:hidden;background:#080d18;">
+          <canvas id="mg-canvas" style="display:block;width:100%;aspect-ratio:1;touch-action:none;cursor:crosshair;"></canvas>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div style="font-size:12px;color:var(--text2);line-height:1.5;">Нажимай по углам препятствия. «Замкнуть» создаёт полигон. Для одной стены из двух точек выбери «Сегмент».</div>
+          <select id="mg-kind" class="finput" style="background:var(--bg);"><option value="wall">Стена / полигон</option><option value="box">Бокс / колонна</option><option value="segment">Сегмент</option></select>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;"><button id="mg-new" class="btn" type="button">＋ Новый объект</button><button id="mg-close" class="btn btn-save" type="button">Замкнуть</button><button id="mg-cancel" class="btn" type="button">Отмена</button></div>
+          <div id="mg-draft-status" style="font-size:11px;color:var(--text2);">Точек: 0</div>
+          <div style="border-top:1px solid var(--border);padding-top:9px;"><b style="font-size:12px;">Объекты выбранной карты</b></div>
+          <div id="mg-list" style="display:flex;flex-direction:column;gap:5px;max-height:260px;overflow:auto;"></div>
+          <button id="mg-delete" class="btn btn-delete" type="button" disabled>Удалить выбранную стену</button>
+          <span id="mg-status" style="font-size:11px;color:var(--text2);"></span>
+        </div>
+      </div>
+    </section>
 
     <!-- Per-map site label positions -->
     <div id="ms-section-labels" style="margin-bottom:24px;padding:16px;border:1px solid var(--primary);border-radius:8px;background:var(--surface);scroll-margin-top:76px;">
@@ -3656,6 +3679,115 @@ let _mapSpawnZonesLoaded = false;
 let _msSelectedSpawnSide = 'attack';
 let _msSpawnDraw = null;
 let _msSpawnDrag = null;
+let _mgGeometry = {};
+let _mgLoaded = false;
+let _mgImage = null;
+let _mgDraft = [];
+let _mgDrawing = false;
+let _mgSelectedId = null;
+
+function _mgCloneObjects(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item, index) => ({
+    id: String(item?.id || `wall-${Date.now()}-${index}`),
+    kind: ['wall','box','segment'].includes(item?.kind) ? item.kind : 'wall',
+    closed: item?.closed !== false && item?.kind !== 'segment',
+    points: (Array.isArray(item?.points) ? item.points : []).map(point => ({ x:_msClamp01(point?.x), y:_msClamp01(point?.y) })).filter(point => Number.isFinite(point.x) && Number.isFinite(point.y)),
+  })).filter(item => item.points.length >= 2);
+}
+
+function _mgObjects(map = _msCurrentMapName()) {
+  if (!Array.isArray(_mgGeometry[map])) _mgGeometry[map] = [];
+  return _mgGeometry[map];
+}
+
+async function _mgLoadGeometry() {
+  if (_mgLoaded) return;
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'map_collision_geometry'));
+    Object.entries(snap.exists() ? snap.data() : {}).forEach(([map, value]) => {
+      if (Array.isArray(value)) _mgGeometry[map] = _mgCloneObjects(value);
+    });
+  } catch (e) { console.warn('map collision geometry', e); }
+  _mgLoaded = true;
+}
+
+function _mgScreenPoint(point, canvas) {
+  const turns = ((Number(_moTurns[_msCurrentMapName()]) || 0) % 4 + 4) % 4;
+  if (turns === 1) return { x:(1-point.y)*canvas.width, y:point.x*canvas.height };
+  if (turns === 2) return { x:(1-point.x)*canvas.width, y:(1-point.y)*canvas.height };
+  if (turns === 3) return { x:point.y*canvas.width, y:(1-point.x)*canvas.height };
+  return { x:point.x*canvas.width, y:point.y*canvas.height };
+}
+
+function _mgEventPoint(event) {
+  const canvas = document.getElementById('mg-canvas');
+  const rect = canvas?.getBoundingClientRect();
+  if (!rect?.width || !rect?.height) return null;
+  const sx = _msClamp01((event.clientX - rect.left) / rect.width);
+  const sy = _msClamp01((event.clientY - rect.top) / rect.height);
+  const turns = ((Number(_moTurns[_msCurrentMapName()]) || 0) % 4 + 4) % 4;
+  if (turns === 1) return { x:sy, y:1-sx };
+  if (turns === 2) return { x:1-sx, y:1-sy };
+  if (turns === 3) return { x:1-sy, y:sx };
+  return { x:sx, y:sy };
+}
+
+function _mgRender() {
+  const canvas = document.getElementById('mg-canvas');
+  if (!canvas) return;
+  if (!canvas.width) canvas.width = 1024;
+  if (!canvas.height) canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (_mgImage) ctx.drawImage(_mgImage, 0, 0, canvas.width, canvas.height);
+  const drawObject = (item, selected = false, draft = false) => {
+    if (!item.points?.length) return;
+    const points = item.points.map(point => _mgScreenPoint(point, canvas));
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y);
+    points.slice(1).forEach(point => ctx.lineTo(point.x, point.y));
+    if (item.closed && points.length >= 3) ctx.closePath();
+    ctx.lineWidth = selected ? 6 : 3;
+    ctx.strokeStyle = selected ? '#ffdc3d' : draft ? '#4fc3f7' : '#ff7043';
+    if (item.closed && points.length >= 3) { ctx.fillStyle = selected ? 'rgba(255,220,61,.22)' : 'rgba(255,112,67,.13)'; ctx.fill(); }
+    ctx.stroke();
+    points.forEach(point => { ctx.fillStyle = selected ? '#ffdc3d' : '#fff'; ctx.fillRect(point.x-4, point.y-4, 8, 8); });
+    ctx.restore();
+  };
+  _mgObjects().forEach(item => drawObject(item, item.id === _mgSelectedId));
+  if (_mgDraft.length) drawObject({ points:_mgDraft, closed:false }, false, true);
+  _mgRenderList();
+}
+
+function _mgRenderList() {
+  const list = document.getElementById('mg-list');
+  const objects = _mgObjects();
+  if (list) {
+    list.innerHTML = objects.length ? objects.map((item,index) => `<button type="button" class="btn${item.id===_mgSelectedId?' btn-save':''}" data-mg-id="${esc(item.id)}" style="text-align:left;font-size:11px;">${index+1}. ${item.kind==='box'?'Бокс':item.kind==='segment'?'Сегмент':'Стена'} · ${item.points.length} точек</button>`).join('') : '<span style="font-size:11px;color:var(--text2);">Стены ещё не размечены</span>';
+    list.querySelectorAll('[data-mg-id]').forEach(button => button.addEventListener('click', () => { _mgSelectedId = button.dataset.mgId; _mgRender(); }));
+  }
+  const remove = document.getElementById('mg-delete'); if (remove) remove.disabled = !_mgSelectedId;
+  const draftStatus = document.getElementById('mg-draft-status'); if (draftStatus) draftStatus.textContent = `Точек: ${_mgDraft.length}${_mgDrawing ? ' · рисование' : ''}`;
+  const status = document.getElementById('mg-status'); if (status) status.textContent = `${_msCurrentMapName()}: ${objects.length} объектов`;
+}
+
+function _mgLoadMap(uuid) {
+  _mgDraft = []; _mgDrawing = false; _mgSelectedId = null;
+  const image = new Image(); image.crossOrigin = 'anonymous';
+  image.onload = () => { _mgImage = image; const canvas = document.getElementById('mg-canvas'); canvas.width=image.naturalWidth; canvas.height=image.naturalHeight; _mgRender(); };
+  image.onerror = () => { _mgImage = null; _mgRender(); };
+  image.src = `https://media.valorant-api.com/maps/${uuid}/displayicon.png`;
+  _mgRender();
+}
+
+function _mgFinishDraft() {
+  const kind = document.getElementById('mg-kind')?.value || 'wall';
+  const minimum = kind === 'segment' ? 2 : 3;
+  if (_mgDraft.length < minimum) { toast(`Нужно минимум ${minimum} точки`, 'e'); return; }
+  _mgObjects().push({ id:`${kind}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`, kind, closed:kind !== 'segment', points:_mgDraft.map(point => ({...point})) });
+  _mgDraft = []; _mgDrawing = false; _mgRender();
+}
 
 async function loadMapAnnotationModes() {
   if (_mapAnnotationModesLoaded) return _mapAnnotationModes;
@@ -4158,6 +4290,7 @@ async function loadMapStyleTab() {
     await loadMapAnnotationModes();
     await loadMapSiteLabelsConfig();
     await loadMapSpawnZones();
+    await _mgLoadGeometry();
     const snap = await getDoc(doc(db, 'settings', 'map_style_themes'));
     if (snap.exists()) _msThemesCache = snap.data();
     const calSnap = await getDoc(doc(db, 'settings', 'map_calibration'));
@@ -4170,6 +4303,7 @@ async function loadMapStyleTab() {
   _msRenderSiteLabelEditor();
   _msRenderSpawnEditor();
   _msLoadMap(document.getElementById('ms-map-pick').value);
+  _mgLoadMap(document.getElementById('ms-map-pick').value);
   _msSyncRotationControls();
   renderMapAnnotationMode();
 }
@@ -4300,9 +4434,45 @@ document.getElementById('ms-map-pick').addEventListener('change', e => {
   _msRenderSpawnEditor();
   _mcLoadSelectedMap();
   _msLoadMap(e.target.value);
+  _mgLoadMap(e.target.value);
   _msSyncRotationControls();
   renderMapAnnotationMode();
   _msScheduleRedraw();
+});
+
+document.getElementById('mg-new')?.addEventListener('click', () => {
+  _mgDraft = []; _mgDrawing = true; _mgSelectedId = null; _mgRender();
+});
+document.getElementById('mg-cancel')?.addEventListener('click', () => {
+  _mgDraft = []; _mgDrawing = false; _mgRender();
+});
+document.getElementById('mg-close')?.addEventListener('click', _mgFinishDraft);
+document.getElementById('mg-kind')?.addEventListener('change', () => {
+  if (document.getElementById('mg-kind')?.value === 'segment' && _mgDraft.length >= 2) _mgFinishDraft();
+});
+document.getElementById('mg-canvas')?.addEventListener('pointerdown', event => {
+  if (!_mgDrawing) return;
+  const point = _mgEventPoint(event); if (!point) return;
+  _mgDraft.push(point); _mgRender(); event.preventDefault();
+  if (document.getElementById('mg-kind')?.value === 'segment' && _mgDraft.length === 2) _mgFinishDraft();
+});
+document.getElementById('mg-delete')?.addEventListener('click', () => {
+  if (!_mgSelectedId) return;
+  const objects = _mgObjects(); const index = objects.findIndex(item => item.id === _mgSelectedId);
+  if (index >= 0) objects.splice(index, 1);
+  _mgSelectedId = null; _mgRender();
+});
+document.getElementById('mg-save')?.addEventListener('click', async function() {
+  const original = this.textContent; this.disabled = true; this.textContent = '⏳ Сохраняю…';
+  try {
+    const payload = {};
+    MP_ALL_MAPS.forEach(map => { payload[map.name] = _mgCloneObjects(_mgGeometry[map.name]); });
+    await setDoc(doc(db, 'settings', 'map_collision_geometry'), { ...payload, updated_at:serverTimestamp(), updated_by:currentUser?.email || currentUser?.displayName || 'admin' }, { merge:true });
+    await setDoc(doc(db, 'settings', 'config_versions'), { map_collision_geometry:Date.now(), updated_at:serverTimestamp() }, { merge:true });
+    toast(`Стены ${_msCurrentMapName()} сохранены`, 's');
+    if (typeof addAuditLog === 'function') addAuditLog('map_collision_geometry_saved', { map:_msCurrentMapName(), objects:_mgObjects().length });
+  } catch (e) { toast('Ошибка сохранения стен: ' + e.message, 'e'); }
+  finally { this.disabled = false; this.textContent = original; }
 });
 
 document.querySelectorAll('.ms-annotation-mode').forEach(button => button.addEventListener('click', async () => {
