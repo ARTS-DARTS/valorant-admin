@@ -1939,11 +1939,11 @@
 
           <div id="rng-sensor-editor" style="display:none;margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid rgba(79,195,247,.5);background:var(--surface2);">
             <div style="font-size:10px;color:#65dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Редактор звукового сенсора</div>
-            <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Ширина прямоугольника</label>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.02" max="0.35" step="0.002" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.02" max="0.35" step="0.002" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
+            <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Расстояние между белой и красной точками</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.02" max="0.8" step="0.002" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.02" max="0.8" step="0.002" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
             <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Высота прямоугольника</label>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-height" type="range" min="0.02" max="0.35" step="0.002" value="0.08" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-height-value" type="number" min="0.02" max="0.35" step="0.002" value="0.08" class="finput" style="width:78px;font-size:12px;"></div>
-            <div style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — середина верхней стороны и ось вращения.<br><b style="color:#ff6b78;">Красная точка</b> — тяни мышью для поворота модели.</div>
+            <div style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — середина левой стороны.<br><b style="color:#ff6b78;">Красная точка</b> — середина правой стороны. Прямоугольник всегда строится между точками.</div>
           </div>
 
           <!-- Применить -->
@@ -1971,7 +1971,7 @@
               <circle id="rng-center-dot"    cx="50%" cy="50%" r="4"  fill="rgba(255,70,85,1)" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
               <g id="rng-sensor-shape" style="display:none;">
                 <rect id="rng-sensor-rect" x="0" y="0" width="0" height="0" rx="1" fill="rgba(54,89,173,.38)" stroke="#65dcff" stroke-width="2" style="pointer-events:none;"/>
-                <line id="rng-sensor-axis" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,.55)" stroke-width="1" stroke-dasharray="4,3" style="pointer-events:none;"/>
+                <line id="rng-sensor-axis" x1="0" y1="0" x2="0" y2="0" stroke="transparent" stroke-width="1" style="pointer-events:none;"/>
                 <circle id="rng-sensor-pivot" cx="0" cy="0" r="8" fill="#fff" stroke="#173b52" stroke-width="2" style="pointer-events:all;cursor:move;touch-action:none;"/>
                 <circle id="rng-sensor-rotate" cx="0" cy="0" r="8" fill="#ff5967" stroke="#ffd1d5" stroke-width="2" style="pointer-events:all;cursor:grab;touch-action:none;"/>
               </g>
@@ -17180,8 +17180,14 @@ function _rngWireEvents() {
     const slider = document.getElementById(`rng-shape-${key}`);
     const input = document.getElementById(`rng-shape-${key}-value`);
     const update = value => {
-      const v = Math.max(.02, Math.min(.35, parseFloat(value) || .02));
-      if (key === 'width') _rngShapeWidth = v; else _rngShapeHeight = v;
+      const max = key === 'width' ? 0.8 : 0.35;
+      const v = Math.max(.02, Math.min(max, parseFloat(value) || .02));
+      if (key === 'width') {
+        _rngShapeWidth = v;
+        const rad=_rngShapeRotation*Math.PI/180;
+        _rngRotateX=Math.max(0,Math.min(1,_rngCx+Math.cos(rad)*v));
+        _rngRotateY=Math.max(0,Math.min(1,_rngCy+Math.sin(rad)*v));
+      } else _rngShapeHeight = v;
       slider.value = v; input.value = v.toFixed(3); rngUpdateCircle(); _rngUpdateApplyInfo();
     };
     slider.addEventListener('input', () => update(slider.value));
@@ -17201,6 +17207,9 @@ function _rngWireEvents() {
     if (_rngShapeDrag === 'pivot') { _rngCx=p.x; _rngCy=p.y; }
     else { _rngRotateX=p.x; _rngRotateY=p.y; }
     _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
+    _rngShapeWidth=Math.max(.02,Math.min(.8,Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy)));
+    document.getElementById('rng-shape-width').value=_rngShapeWidth;
+    document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
     rngUpdateCircle();
   });
   const finishShapeDrag=() => { if (_rngShapeDrag) { _rngShapeDrag=''; document.body.style.userSelect=''; _rngUpdateApplyInfo(); } };
@@ -17250,6 +17259,8 @@ function _rngWireEvents() {
     const r = this.getBoundingClientRect();
     _rngCx = (e.clientX - r.left) / r.width;
     _rngCy = (e.clientY - r.top)  / r.height;
+    _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
+    _rngShapeWidth=Math.max(.02,Math.min(.8,Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy)));
     rngUpdateCircle();
   });
 
@@ -17404,14 +17415,17 @@ async function _rngLoadSelectedConfig() {
     if (!snap.exists()) return;
     const data=snap.data();
     if (_rngIsSonicSensor()) {
-      _rngShapeWidth=Math.max(.02,Math.min(.35,Number(data.shape_width)||.12));
+      _rngShapeWidth=Math.max(.02,Math.min(.8,Number(data.shape_width)||.12));
       _rngShapeHeight=Math.max(.02,Math.min(.35,Number(data.shape_height)||.08));
       _rngShapeRotation=Number(data.shape_rotation)||0;
       const pivot=Array.isArray(data.points)?data.points.find(p=>p?.role==='pivot')||data.points[0]:null;
       const rotation=Array.isArray(data.points)?data.points.find(p=>p?.role==='rotation')||data.points[1]:null;
       if (pivot && Number.isFinite(Number(pivot.x)) && Number.isFinite(Number(pivot.y))) { _rngCx=Number(pivot.x); _rngCy=Number(pivot.y); }
-      if (rotation && Number.isFinite(Number(rotation.x)) && Number.isFinite(Number(rotation.y))) { _rngRotateX=Number(rotation.x); _rngRotateY=Number(rotation.y); }
-      else { const rad=_rngShapeRotation*Math.PI/180; _rngRotateX=_rngCx+Math.cos(rad)*.12; _rngRotateY=_rngCy+Math.sin(rad)*.12; }
+      if (rotation && Number.isFinite(Number(rotation.x)) && Number.isFinite(Number(rotation.y))) {
+        _rngRotateX=Number(rotation.x); _rngRotateY=Number(rotation.y);
+        _rngShapeWidth=Math.max(.02,Math.min(.8,Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy)));
+        _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
+      } else { const rad=_rngShapeRotation*Math.PI/180; _rngRotateX=_rngCx+Math.cos(rad)*_rngShapeWidth; _rngRotateY=_rngCy+Math.sin(rad)*_rngShapeWidth; }
       document.getElementById('rng-shape-width').value=_rngShapeWidth;
       document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
       document.getElementById('rng-shape-height').value=_rngShapeHeight;
@@ -17445,15 +17459,14 @@ function rngUpdateCircle() {
   document.getElementById('rng-circle-fill').setAttribute('r', pxR);
   document.getElementById('rng-circle-border').setAttribute('r', pxR);
   if (sensor) {
-    const cx=_rngCx*w, cy=_rngCy*w, rw=_rngShapeWidth*w, rh=_rngShapeHeight*w;
+    const ax=_rngCx*w, ay=_rngCy*w, bx=_rngRotateX*w, by=_rngRotateY*w;
+    const cx=(ax+bx)/2, cy=(ay+by)/2, rw=Math.max(1,Math.hypot(bx-ax,by-ay)), rh=_rngShapeHeight*w;
     const rect=document.getElementById('rng-sensor-rect');
-    // Белая точка — верхняя центральная точка прямоугольника, а не его центр.
-    rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
+    rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy-rh/2); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
     rect.setAttribute('transform',`rotate(${_rngShapeRotation} ${cx} ${cy})`);
-    const hx=_rngRotateX*w, hy=_rngRotateY*w;
-    const axis=document.getElementById('rng-sensor-axis'); axis.setAttribute('x1',cx); axis.setAttribute('y1',cy); axis.setAttribute('x2',hx); axis.setAttribute('y2',hy);
-    const pivot=document.getElementById('rng-sensor-pivot'); pivot.setAttribute('cx',cx); pivot.setAttribute('cy',cy);
-    const rotate=document.getElementById('rng-sensor-rotate'); rotate.setAttribute('cx',hx); rotate.setAttribute('cy',hy);
+    const axis=document.getElementById('rng-sensor-axis'); axis.setAttribute('x1',ax); axis.setAttribute('y1',ay); axis.setAttribute('x2',bx); axis.setAttribute('y2',by);
+    const pivot=document.getElementById('rng-sensor-pivot'); pivot.setAttribute('cx',ax); pivot.setAttribute('cy',ay);
+    const rotate=document.getElementById('rng-sensor-rotate'); rotate.setAttribute('cx',bx); rotate.setAttribute('cy',by);
   }
 }
 
@@ -17480,7 +17493,7 @@ async function rngApplyToLineups() {
     const cfgKey = (map + '__' + _rngAgent + '__' + _rngAbility).replace(/[\\/. ]/g, '_');
     const sensor=_rngIsSonicSensor();
     const shapeData=sensor ? {
-      shape_kind:'sensor_rect', shape_anchor:'top_center', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
+      shape_kind:'sensor_rect', shape_anchor:'edge_midpoints', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
       points:[{role:'pivot',x:_rngCx,y:_rngCy},{role:'rotation',x:_rngRotateX,y:_rngRotateY}]
     } : {};
     await setDoc(doc(db, 'range_config', cfgKey), {
