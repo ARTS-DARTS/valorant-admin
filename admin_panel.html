@@ -1943,7 +1943,7 @@
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.02" max="0.35" step="0.002" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.02" max="0.35" step="0.002" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
             <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Высота прямоугольника</label>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-height" type="range" min="0.02" max="0.35" step="0.002" value="0.08" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-height-value" type="number" min="0.02" max="0.35" step="0.002" value="0.08" class="finput" style="width:78px;font-size:12px;"></div>
-            <div style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — центр и ось вращения.<br><b style="color:#ff6b78;">Красная точка</b> — тяни мышью для поворота модели.</div>
+            <div style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — середина верхней стороны и ось вращения.<br><b style="color:#ff6b78;">Красная точка</b> — тяни мышью для поворота модели.</div>
           </div>
 
           <!-- Применить -->
@@ -17447,7 +17447,8 @@ function rngUpdateCircle() {
   if (sensor) {
     const cx=_rngCx*w, cy=_rngCy*w, rw=_rngShapeWidth*w, rh=_rngShapeHeight*w;
     const rect=document.getElementById('rng-sensor-rect');
-    rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy-rh/2); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
+    // Белая точка — верхняя центральная точка прямоугольника, а не его центр.
+    rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
     rect.setAttribute('transform',`rotate(${_rngShapeRotation} ${cx} ${cy})`);
     const hx=_rngRotateX*w, hy=_rngRotateY*w;
     const axis=document.getElementById('rng-sensor-axis'); axis.setAttribute('x1',cx); axis.setAttribute('y1',cy); axis.setAttribute('x2',hx); axis.setAttribute('y2',hy);
@@ -17479,7 +17480,7 @@ async function rngApplyToLineups() {
     const cfgKey = (map + '__' + _rngAgent + '__' + _rngAbility).replace(/[\\/. ]/g, '_');
     const sensor=_rngIsSonicSensor();
     const shapeData=sensor ? {
-      shape_kind:'sensor_rect', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
+      shape_kind:'sensor_rect', shape_anchor:'top_center', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
       points:[{role:'pivot',x:_rngCx,y:_rngCy},{role:'rotation',x:_rngRotateX,y:_rngRotateY}]
     } : {};
     await setDoc(doc(db, 'range_config', cfgKey), {
