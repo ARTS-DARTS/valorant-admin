@@ -3729,10 +3729,9 @@ async function _mgLoadGeometry() {
 }
 
 function _mgScreenPoint(point, canvas) {
-  const turns = ((Number(_moTurns[_msCurrentMapName()]) || 0) % 4 + 4) % 4;
-  if (turns === 1) return { x:(1-point.y)*canvas.width, y:point.x*canvas.height };
-  if (turns === 2) return { x:(1-point.x)*canvas.width, y:(1-point.y)*canvas.height };
-  if (turns === 3) return { x:point.y*canvas.width, y:(1-point.x)*canvas.height };
+  // The whole collision canvas (map image + geometry) is rotated with CSS by
+  // _msSyncRotationControls. Keep stored/drawn coordinates unrotated here so
+  // walls cannot drift away from the minimap.
   return { x:point.x*canvas.width, y:point.y*canvas.height };
 }
 
@@ -4553,7 +4552,7 @@ function _msSyncRotationControls() {
   const turns = ((Number(_moTurns[mapName]) || 0) % 4 + 4) % 4;
   const value = document.getElementById('ms-rotate-value');
   if (value) value.textContent = `${turns * 90}°`;
-  ['ms-canvas-before', 'ms-canvas'].forEach(id => {
+  ['ms-canvas-before', 'ms-canvas', 'mg-canvas'].forEach(id => {
     const canvas = document.getElementById(id);
     if (canvas) {
       canvas.style.transform = `rotate(${turns * 90}deg)`;
