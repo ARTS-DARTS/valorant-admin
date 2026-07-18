@@ -3570,7 +3570,7 @@ function switchTab(t) {
   document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
   document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-mappool').style.display        = t === 'mappool'      ? 'block' : 'none';
-  document.getElementById('tab-contentcfg').style.display     = (t === 'contentcfg' || t === 'agents') ? 'block' : 'none';
+  document.getElementById('tab-contentcfg').style.display     = t === 'contentcfg' ? 'block' : 'none';
   document.getElementById('tab-messages').style.display       = t === 'messages'     ? 'block' : 'none';
   document.getElementById('tab-modapps').style.display        = t === 'modapps'      ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
@@ -3591,7 +3591,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-contentcfg').classList.toggle('active', t === 'contentcfg' || t === 'agents');
   document.getElementById('tab-btn-messages').classList.toggle('active', t === 'messages');
   document.getElementById('tab-btn-modapps').classList.toggle('active', t === 'modapps');
-  if (t === 'agents') { loadAgentsForConfig(); loadContentConfigTab(); _loadAgentCategoryAccess(); }
+  if (t === 'agents') { loadAgentsForConfig(); _loadAgentCategoryAccess(); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'events') loadUpdateEvents();
   if (t === 'analytics') loadAnalytics();
@@ -6523,6 +6523,8 @@ function _setAgentCategoryTab(cat) {
   });
   _refreshSelectedAgentCategoryStatuses();
   const isWallbang = cat === 'wallbang';
+  document.getElementById('tab-contentcfg').style.display = isWallbang ? 'block' : 'none';
+  if (isWallbang) loadContentConfigTab();
   document.getElementById('agents-config-mode-tabs').style.display = isWallbang ? 'none' : 'flex';
   document.getElementById('agents-wallbang-note').style.display = isWallbang ? 'block' : 'none';
   document.getElementById('agents-card-grid').style.display = isWallbang ? 'none' : 'grid';
