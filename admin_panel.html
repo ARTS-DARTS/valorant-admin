@@ -14505,20 +14505,7 @@ async function _translatePushText(text, targetLanguage) {
 }
 
 async function buildPushTranslations(title, body) {
-  const translations = { ru: { title, body } };
-  await Promise.all(_PUSH_LOCALES.filter(locale => locale !== 'ru').map(async locale => {
-    try {
-      const [translatedTitle, translatedBody] = await Promise.all([
-        _translatePushText(title, locale),
-        _translatePushText(body, locale),
-      ]);
-      translations[locale] = { title: translatedTitle, body: translatedBody };
-    } catch (error) {
-      console.warn(`Push translation failed for ${locale}:`, error);
-      translations[locale] = { title, body };
-    }
-  }));
-  return translations;
+  return { ru: { title, body } };
 }
 
 // ── News banner editor ───────────────────────────────────────────────────────
