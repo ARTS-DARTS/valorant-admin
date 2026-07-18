@@ -6577,6 +6577,16 @@ async function _loadAgentAbilitiesForCategory() {
     chk.addEventListener('change', () => { lbl.textContent = chk.checked ? 'Включена' : 'Выключена'; });
     list.appendChild(row);
   });
+  const agentVisible = _agentVisibilityCache.get(_agentConfigCacheKey(agent.displayName, _selectedAgentCategory)) !== false;
+  list.querySelectorAll('input[type="checkbox"]').forEach(input => { input.disabled = !agentVisible; });
+  let notice = document.getElementById('agents-abilities-visibility-notice');
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'agents-abilities-visibility-notice';
+    notice.style.cssText = 'font-size:12px;color:#f59e0b;margin:-8px 0 12px;';
+    list.parentElement.insertBefore(notice, list);
+  }
+  notice.textContent = agentVisible ? '' : 'Агент скрыт в этой категории. Сначала включи его видимость.';
 }
 
 async function _selectAgentCard(name) {
