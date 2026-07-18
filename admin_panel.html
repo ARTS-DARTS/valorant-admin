@@ -224,8 +224,8 @@
     .agent-card { position: relative; border-radius: 7px; border: 2px solid var(--border); background: var(--surface2); cursor: pointer; transition: border-color .13s, background .13s; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
     .agent-card:hover  { border-color: var(--primary); }
     .agent-card.sel    { border-color: var(--primary); background: rgba(255,70,85,.12); }
-    .agent-card img    { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; pointer-events: none; }
-    .agent-card .ac-fallback { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+    .agent-card img    { width: 86px; height: 86px; object-fit: cover; object-position: center; display: block; pointer-events: none; flex:0 0 86px; }
+    .agent-card .ac-fallback { width: 86px; height: 86px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex:0 0 86px; }
     .agent-card .ac-name { font-size: 9px; font-weight: 700; color: var(--text2); text-align: center; padding: 3px 3px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .agent-card.sel .ac-name { color: var(--primary); }
     .agent-category-toggle { width:calc(100% - 8px);margin:2px 4px 5px;padding:5px 3px;border:1px solid var(--border);border-radius:5px;font-size:9px;font-weight:800;cursor:default;white-space:nowrap; }
@@ -6392,7 +6392,11 @@ function _renderAgentBulkControls() {
 function _setAgentBulkAction(action) {
   _agentBulkAction = action;
   _agentBulkSelection.clear();
-  document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => card.classList.remove('sel'));
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => {
+    const hiddenInAbilityMode = _selectedAgentConfigMode === 'abilities' && card.style.display === 'none';
+    card.classList.toggle('sel', !hiddenInAbilityMode);
+    if (!hiddenInAbilityMode && card.dataset.name) _agentBulkSelection.add(card.dataset.name);
+  });
   _renderAgentBulkControls();
 }
 
