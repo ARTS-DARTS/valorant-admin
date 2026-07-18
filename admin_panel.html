@@ -1024,7 +1024,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">agent-category-cache-sync | 2026-07-18 04:32</span>
+      <span class="admin-version" id="admin-build-version">agent-platform-split | 2026-07-18 04:45</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1864,6 +1864,10 @@
       <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Сначала выберите категорию. Статус можно менять прямо на карточках агентов; открывайте агента только для настройки отдельных абилок.</p>
 
       <div class="dlabel" style="margin-bottom:8px;">Категория для всех агентов</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;" id="agents-target-tabs">
+        <button type="button" class="btn btn-save" data-agent-target="app">📱 ПРИЛОЖЕНИЕ</button>
+        <button type="button" class="btn" data-agent-target="site">🌐 САЙТ</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="agents-cat-tabs">
         <button class="btn btn-save" data-cat="lineup" id="agents-tab-lineup">🎯 Лайнапы</button>
         <button class="btn" data-cat="combo" id="agents-tab-combo" style="border:1px solid var(--border);color:var(--text2);">⚡ Комбо</button>
@@ -6271,6 +6275,9 @@ const _agentCategoryConfigCache = new Map();
 let _agentCategoryLoadToken = 0;
 let _agentBulkAction = null;
 const _agentBulkSelection = new Set();
+let _selectedAgentTarget = 'app';
+const _agentTargetCategoryId = (category, target = _selectedAgentTarget) => `${category}__${target}`;
+const _agentConfigCacheKey = (agent, category, target = _selectedAgentTarget) => `${agent}|${category}|${target}`;
 
 async function loadAgentsForConfig() {
   if (_agentsData.length > 0) {
@@ -6373,8 +6380,8 @@ document.getElementById('agents-bulk-confirm')?.addEventListener('click', async 
       const agent = _agentsData.find(item => item.displayName === agentName); if (!agent) return;
       const current = await _readAgentCategoryConfig(agent, _selectedAgentCategory);
       const config = Object.fromEntries(Object.keys(current).map(name => [name, enabled]));
-      await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', _selectedAgentCategory), { abilities: config });
-      _agentCategoryConfigCache.set(`${agentName}|${_selectedAgentCategory}`, config);
+      await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', _agentTargetCategoryId(_selectedAgentCategory)), { abilities: config });
+      _agentCategoryConfigCache.set(_agentConfigCacheKey(agentName, _selectedAgentCategory), config);
       _paintAgentCategoryStatus(agentName, config);
     }));
     await bumpConfigVersions(['ability_config']);
@@ -6385,9 +6392,10 @@ document.getElementById('agents-bulk-confirm')?.addEventListener('click', async 
 });
 
 async function _readAgentCategoryConfig(agent, category) {
-  const key = `${agent.displayName}|${category}`;
+  const key = _agentConfigCacheKey(agent.displayName, category);
   if (_agentCategoryConfigCache.has(key)) return _agentCategoryConfigCache.get(key);
-  let snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', category));
+  let snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', _agentTargetCategoryId(category)));
+  if (!snap.exists()) snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', category));
   if (!snap.exists() && category === 'wallbang') {
     snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', 'smoke'));
   }
@@ -6445,6 +6453,19 @@ async function _refreshAgentCatDots(agentName, force = false) {
 
 let _selectedAgentCategory = 'lineup';
 
+function _setAgentTarget(target) {
+  _selectedAgentTarget = target === 'site' ? 'site' : 'app';
+  document.querySelectorAll('#agents-target-tabs [data-agent-target]').forEach(button => {
+    button.className = button.dataset.agentTarget === _selectedAgentTarget ? 'btn btn-save' : 'btn';
+  });
+  _setAgentBulkAction(null);
+  _refreshSelectedAgentCategoryStatuses();
+  if (_selectedAgentName) _loadAgentAbilitiesForCategory();
+}
+document.querySelectorAll('#agents-target-tabs [data-agent-target]').forEach(button => {
+  button.addEventListener('click', () => _setAgentTarget(button.dataset.agentTarget));
+});
+
 function _setAgentCategoryTab(cat) {
   _selectedAgentCategory = cat;
   _setAgentBulkAction(null);
@@ -6466,7 +6487,8 @@ async function _loadAgentAbilitiesForCategory() {
   const name = _selectedAgentName; if (!name) return;
   const agent = _agentsData.find(a => a.displayName === name); if (!agent) return;
   try {
-    let snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', _selectedAgentCategory));
+    let snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', _agentTargetCategoryId(_selectedAgentCategory)));
+    if (!snap.exists()) snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', _selectedAgentCategory));
     if (!snap.exists() && _selectedAgentCategory === 'wallbang') {
       snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(name), 'categories', 'smoke'));
     }
@@ -6520,9 +6542,9 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     if (chk) config[name] = chk.checked;
   });
   try {
-    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _selectedAgentCategory), { abilities: config });
+    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _agentTargetCategoryId(_selectedAgentCategory)), { abilities: config });
     await bumpConfigVersions(['ability_config']);
-    _agentCategoryConfigCache.set(`${_selectedAgentName}|${_selectedAgentCategory}`, config);
+    _agentCategoryConfigCache.set(_agentConfigCacheKey(_selectedAgentName, _selectedAgentCategory), config);
     _paintAgentCategoryStatus(_selectedAgentName, config);
     const st = document.getElementById('agents-save-status');
     st.style.display = 'block';
