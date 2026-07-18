@@ -1875,6 +1875,8 @@
       <div id="agents-wallbang-note" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;color:var(--text2);margin-bottom:14px;">В прострелах агенты не используются. Здесь настраивается только доступность категории; список оружия находится ниже.</div>
       <div id="agents-category-status" style="font-size:11px;color:var(--text2);margin:-7px 0 12px;">Загрузка статусов…</div>
       <div id="agents-bulk-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <button type="button" class="btn" id="agents-select-all">Выбрать всех</button>
+        <button type="button" class="btn" id="agents-clear-selection">Снять выделение</button>
         <button type="button" class="btn" id="agents-bulk-enable">✓ Включить</button>
         <button type="button" class="btn" id="agents-bulk-disable">○ Выключить</button>
         <button type="button" class="btn btn-save" id="agents-bulk-confirm" disabled>Подтвердить</button>
@@ -6392,14 +6394,28 @@ function _renderAgentBulkControls() {
 function _setAgentBulkAction(action) {
   _agentBulkAction = action;
   _agentBulkSelection.clear();
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => card.classList.remove('sel'));
+  _renderAgentBulkControls();
+}
+
+function _selectAllAgentCards() {
+  _agentBulkSelection.clear();
   document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => {
-    const hiddenInAbilityMode = _selectedAgentConfigMode === 'abilities' && card.style.display === 'none';
-    card.classList.toggle('sel', !hiddenInAbilityMode);
-    if (!hiddenInAbilityMode && card.dataset.name) _agentBulkSelection.add(card.dataset.name);
+    if (card.style.display === 'none') return;
+    if (card.dataset.name) _agentBulkSelection.add(card.dataset.name);
+    card.classList.add('sel');
   });
   _renderAgentBulkControls();
 }
 
+function _clearAgentCardSelection() {
+  _agentBulkSelection.clear();
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => card.classList.remove('sel'));
+  _renderAgentBulkControls();
+}
+
+document.getElementById('agents-select-all')?.addEventListener('click', _selectAllAgentCards);
+document.getElementById('agents-clear-selection')?.addEventListener('click', _clearAgentCardSelection);
 document.getElementById('agents-bulk-enable')?.addEventListener('click', () => _setAgentBulkAction('enable'));
 document.getElementById('agents-bulk-disable')?.addEventListener('click', () => _setAgentBulkAction('disable'));
 document.getElementById('agents-bulk-confirm')?.addEventListener('click', async function() {
