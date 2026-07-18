@@ -227,8 +227,6 @@
     .agent-card:hover .agent-disable-btn { opacity: 1; }
     .agent-card.disabled-agent { opacity: 0.35; filter: grayscale(1); }
     .agent-card.disabled-agent .agent-disable-btn { opacity: 1; background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); color: #22c55e; }
-    .agent-category-toggle { width:calc(100% - 8px);margin:2px 4px 5px;padding:5px 3px;border:1px solid var(--border);border-radius:5px;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap; }
-    .agent-category-toggle:disabled { opacity:.55;cursor:wait; }
     .agent-cat-dots { display:flex; gap:3px; justify-content:center; margin-top:3px; padding-bottom:3px; }
     .cat-dot { width:6px; height:6px; border-radius:50%; background:var(--border); transition:.15s; }
     .cat-dot.has-abilities { background:var(--primary); }
@@ -1029,7 +1027,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">agent-category-matrix | 2026-07-17 19:08</span>
+      <span class="admin-version" id="admin-build-version">global-category-access | 2026-07-18 00:12</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1866,7 +1864,7 @@
       </div>
 
       <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
-      <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Сначала выберите категорию. Статус можно менять прямо на карточках агентов; открывайте агента только для настройки отдельных абилок.</p>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Категория включается или выключается один раз для всех агентов. Карточка агента нужна только для настройки отдельных абилок.</p>
 
       <div class="dlabel" style="margin-bottom:8px;">Категория для всех агентов</div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="agents-cat-tabs">
@@ -1875,9 +1873,12 @@
         <button class="btn" data-cat="wallbang" id="agents-tab-wallbang" style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
         <button class="btn" data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
       </div>
-      <div id="agents-category-status" style="font-size:11px;color:var(--text2);margin:-7px 0 12px;">Загрузка статусов…</div>
+      <div style="display:flex;align-items:center;gap:10px;margin:-7px 0 14px;">
+        <button type="button" class="btn" id="agents-global-category-toggle" disabled>Загрузка общего статуса…</button>
+        <span style="font-size:11px;color:var(--text2);">Общий статус действует сразу для всех агентов.</span>
+      </div>
 
-      <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-bottom:24px;">
+      <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-bottom:24px;">
         <div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>
       </div>
 
@@ -6267,8 +6268,7 @@ let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
 let _disabledAgents = new Set();
 const _catDotCache = {};
-const _agentCategoryConfigCache = new Map();
-let _agentCategoryLoadToken = 0;
+let _agentGlobalAccessLoaded = false;
 
 async function _loadDisabledAgents() {
   try {
@@ -6280,7 +6280,7 @@ async function _loadDisabledAgents() {
 async function loadAgentsForConfig() {
   if (_agentsData.length > 0) {
     _renderAgentCards();
-    _refreshSelectedAgentCategoryStatuses();
+    _loadAgentGlobalCategoryAccess();
     return;
   }
   document.getElementById('agents-card-grid').innerHTML =
@@ -6296,7 +6296,7 @@ async function loadAgentsForConfig() {
     _agentsData = agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
     await _loadDisabledAgents();
     _renderAgentCards();
-    _refreshSelectedAgentCategoryStatuses();
+    _loadAgentGlobalCategoryAccess();
   } catch (e) {
     document.getElementById('agents-card-grid').innerHTML =
       `<div class="state" style="grid-column:1/-1;color:var(--red);">Ошибка загрузки: ${esc(e.message)}</div>`;
@@ -6316,8 +6316,7 @@ function _renderAgentCards() {
       ${icon ? `<img src="${icon}" alt="${agent.displayName}" crossorigin="anonymous" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
       <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
       <div class="ac-name">${agent.displayName}</div>
-      <button class="agent-disable-btn" title="${isDisabled ? 'Восстановить агента' : 'Скрыть агента'}">${isDisabled ? '↩' : '✕'}</button>
-      <button type="button" class="agent-category-toggle" data-agent-category-toggle disabled>Загрузка…</button>`;
+      <button class="agent-disable-btn" title="${isDisabled ? 'Восстановить агента' : 'Скрыть агента'}">${isDisabled ? '↩' : '✕'}</button>`;
     card.addEventListener('click', event => { if (!event.target.closest('button')) _selectAgentCard(agent.displayName); });
     card.querySelector('.agent-disable-btn').addEventListener('click', async e => {
       e.stopPropagation();
@@ -6336,84 +6335,8 @@ function _renderAgentCards() {
         toast('Ошибка: ' + err.message, 'e');
       }
     });
-    card.querySelector('[data-agent-category-toggle]').addEventListener('click', event => {
-      event.stopPropagation();
-      _toggleAgentCategory(agent.displayName, event.currentTarget);
-    });
     grid.appendChild(card);
   });
-}
-
-function _buildAgentAbilitiesConfig(agent, stored = {}) {
-  const result = {};
-  (agent.abilities || []).filter(ability => ability.displayIcon).forEach(ability => {
-    const normalized = normalizeAbilityName(agent.displayName, ability.displayName, ability.slot);
-    result[normalized] = stored[normalized] !== false && stored[ability.displayName] !== false;
-  });
-  return result;
-}
-
-function _paintAgentCategoryStatus(agentName, config) {
-  const card = document.querySelector(`#agents-card-grid .agent-card[data-name="${CSS.escape(agentName)}"]`);
-  const button = card?.querySelector('[data-agent-category-toggle]');
-  if (!button) return;
-  const enabled = Object.values(config || {}).some(Boolean);
-  button.disabled = false;
-  button.dataset.enabled = enabled ? 'true' : 'false';
-  button.textContent = enabled ? '✓ Включена' : '○ Выключена';
-  button.style.cssText = enabled
-    ? 'border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#4ade80;'
-    : 'border-color:rgba(148,163,184,.28);background:rgba(148,163,184,.08);color:var(--text2);';
-}
-
-async function _readAgentCategoryConfig(agent, category) {
-  const key = `${agent.displayName}|${category}`;
-  if (_agentCategoryConfigCache.has(key)) return _agentCategoryConfigCache.get(key);
-  let snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', category));
-  if (!snap.exists() && category === 'wallbang') {
-    snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', 'smoke'));
-  }
-  const config = _buildAgentAbilitiesConfig(agent, snap.exists() ? (snap.data().abilities || {}) : {});
-  _agentCategoryConfigCache.set(key, config);
-  return config;
-}
-
-async function _refreshSelectedAgentCategoryStatuses() {
-  const token = ++_agentCategoryLoadToken;
-  const category = _selectedAgentCategory;
-  const status = document.getElementById('agents-category-status');
-  if (status) status.textContent = 'Загрузка статусов выбранной категории…';
-  document.querySelectorAll('[data-agent-category-toggle]').forEach(button => { button.disabled = true; button.textContent = 'Загрузка…'; });
-  let loaded = 0;
-  await Promise.all(_agentsData.map(async agent => {
-    try {
-      const config = await _readAgentCategoryConfig(agent, category);
-      if (token === _agentCategoryLoadToken) _paintAgentCategoryStatus(agent.displayName, config);
-    } catch (_) {}
-    loaded += 1;
-    if (token === _agentCategoryLoadToken && status) status.textContent = `Загружено ${loaded} из ${_agentsData.length}`;
-  }));
-  if (token === _agentCategoryLoadToken && status) status.textContent = 'Нажмите статус на карточке, чтобы включить или выключить все абилки агента в этой категории.';
-}
-
-async function _toggleAgentCategory(agentName, button) {
-  const agent = _agentsData.find(item => item.displayName === agentName); if (!agent) return;
-  const category = _selectedAgentCategory;
-  const key = `${agentName}|${category}`;
-  button.disabled = true;
-  try {
-    const current = await _readAgentCategoryConfig(agent, category);
-    const nextEnabled = !Object.values(current).some(Boolean);
-    const config = Object.fromEntries(Object.keys(current).map(name => [name, nextEnabled]));
-    await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', category), { abilities: config });
-    _agentCategoryConfigCache.set(key, config);
-    _paintAgentCategoryStatus(agentName, config);
-    if (_selectedAgentName === agentName) await _loadAgentAbilitiesForCategory();
-    toast(`${agentName}: ${nextEnabled ? 'категория включена' : 'категория выключена'}`, 's');
-  } catch (error) {
-    button.disabled = false;
-    toast('Ошибка: ' + error.message, 'e');
-  }
 }
 
 function _applyAgentCatDots(agentName, result) {
@@ -6447,6 +6370,65 @@ async function _refreshAgentCatDots(agentName, force = false) {
 
 let _selectedAgentCategory = 'lineup';
 
+function _agentCategoryAccessField(category) { return `${category}_enabled`; }
+function _agentCategoryIsEnabled(category) {
+  const value = _ccCategoryAccess[_agentCategoryAccessField(category)];
+  return category === 'lineup' ? value !== false : value === true;
+}
+function _renderAgentGlobalCategoryToggle() {
+  const button = document.getElementById('agents-global-category-toggle'); if (!button) return;
+  const enabled = _agentCategoryIsEnabled(_selectedAgentCategory);
+  button.disabled = !_agentGlobalAccessLoaded;
+  button.textContent = enabled ? '✓ Категория включена для всех' : '○ Категория выключена для всех';
+  button.style.cssText = enabled
+    ? 'border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#4ade80;'
+    : 'border-color:rgba(148,163,184,.3);background:rgba(148,163,184,.08);color:var(--text2);';
+}
+async function _loadAgentGlobalCategoryAccess() {
+  try {
+    const snap = await getDoc(doc(db, 'settings', 'category_access'));
+    if (snap.exists()) {
+      const data = snap.data();
+      _ccCategoryAccess = {
+        ..._ccCategoryAccess,
+        lineup_enabled: data.lineup_enabled !== false,
+        combo_enabled: data.combo_enabled === true,
+        wallbang_enabled: data.wallbang_enabled === true,
+        defense_enabled: data.defense_enabled === true,
+      };
+    }
+    _agentGlobalAccessLoaded = true;
+  } catch (error) {
+    toast('Не удалось загрузить общий статус категорий: ' + error.message, 'e');
+  }
+  _renderAgentGlobalCategoryToggle();
+}
+
+document.getElementById('agents-global-category-toggle')?.addEventListener('click', async function() {
+  if (!_agentGlobalAccessLoaded) return;
+  const category = _selectedAgentCategory;
+  const field = _agentCategoryAccessField(category);
+  const enabled = !_agentCategoryIsEnabled(category);
+  this.disabled = true;
+  try {
+    await setDoc(doc(db, 'settings', 'category_access'), {
+      [field]: enabled,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'Admin',
+    }, { merge: true });
+    await bumpConfigVersions(['category_access']);
+    _ccCategoryAccess[field] = enabled;
+    _ccVersions.category_access = Date.now();
+    _renderAgentGlobalCategoryToggle();
+    _ccRender();
+    toast(`${category}: общий доступ ${enabled ? 'включён' : 'выключен'}`, 's');
+    addAuditLog('category_access_updated', { category, enabled });
+  } catch (error) {
+    toast('Ошибка: ' + error.message, 'e');
+    this.disabled = false;
+  }
+});
+
 function _setAgentCategoryTab(cat) {
   _selectedAgentCategory = cat;
   ['lineup','combo','wallbang','defense'].forEach(c => {
@@ -6455,7 +6437,7 @@ function _setAgentCategoryTab(cat) {
     btn.className      = active ? 'btn btn-save' : 'btn';
     btn.style.cssText  = active ? '' : 'border:1px solid var(--border);color:var(--text2);';
   });
-  _refreshSelectedAgentCategoryStatuses();
+  _renderAgentGlobalCategoryToggle();
   if (_selectedAgentName) _loadAgentAbilitiesForCategory();
 }
 
@@ -6522,8 +6504,6 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
   });
   try {
     await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _selectedAgentCategory), { abilities: config });
-    _agentCategoryConfigCache.set(`${_selectedAgentName}|${_selectedAgentCategory}`, config);
-    _paintAgentCategoryStatus(_selectedAgentName, config);
     const st = document.getElementById('agents-save-status');
     st.style.display = 'block';
     st.textContent = `✅ Сохранено для ${_selectedAgentName} / ${_selectedAgentCategory}`;
