@@ -1024,7 +1024,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">agent-platform-split | 2026-07-18 04:45</span>
+      <span class="admin-version" id="admin-build-version">agent-config-architecture | 2026-07-18 10:10</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1064,7 +1064,7 @@
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
         <button class="tab"        id="tab-btn-mappool"><i class="bi bi-star"></i><span>Маппул</span></button>
-        <button class="tab"        id="tab-btn-contentcfg"><i class="bi bi-toggle-on"></i><span>Категории</span></button>
+        <button class="tab" style="display:none" id="tab-btn-contentcfg"><i class="bi bi-toggle-on"></i><span>Категории</span></button>
         <button class="tab"        id="tab-btn-messages"><i class="bi bi-chat-dots"></i><span>Сообщения</span><span id="msg-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
         <button class="tab"        id="tab-btn-modapps"><i class="bi bi-shield-check"></i><span>Заявки</span><span id="ma-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
       </div>
@@ -1845,23 +1845,8 @@
   <div id="tab-agents" style="display:none;">
     <div style="max-width:1200px;padding-bottom:20px;">
 
-      <!-- ── Agent Colors ────────────────────────────────────────────────── -->
-      <div id="ac-section" style="margin-bottom:32px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <div>
-            <div class="form-title" style="margin:0 0 4px;">🎨 Цвета агентов</div>
-            <div style="font-size:12px;color:var(--text2);">Цвет траектории и круга дальности. Сохраняется в Firestore — вступает в силу без обновления.</div>
-          </div>
-          <button id="ac-save-btn" class="btn btn-save" style="padding:9px 22px;flex-shrink:0;">Сохранить</button>
-        </div>
-        <div id="ac-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px;">
-          <div class="state" style="grid-column:1/-1;padding:20px;">Загрузка…</div>
-        </div>
-        <div style="height:1px;background:var(--border);margin-top:28px;"></div>
-      </div>
-
-      <div class="form-title">🤖 АГЕНТЫ — настройка доступных абилок</div>
-      <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Сначала выберите категорию. Статус можно менять прямо на карточках агентов; открывайте агента только для настройки отдельных абилок.</p>
+      <div class="form-title">🤖 АГЕНТЫ И КАТЕГОРИИ</div>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Настройки приложения и публичного сайта независимы. На этой админ-панели ограничения не применяются.</p>
 
       <div class="dlabel" style="margin-bottom:8px;">Категория для всех агентов</div>
       <div style="display:flex;gap:8px;margin-bottom:10px;" id="agents-target-tabs">
@@ -1871,11 +1856,20 @@
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;" id="agents-cat-tabs">
         <button class="btn btn-save" data-cat="lineup" id="agents-tab-lineup">🎯 Лайнапы</button>
         <button class="btn" data-cat="combo" id="agents-tab-combo" style="border:1px solid var(--border);color:var(--text2);">⚡ Комбо</button>
-        <button class="btn" data-cat="wallbang" id="agents-tab-wallbang" style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
         <button class="btn" data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
+        <button class="btn" data-cat="wallbang" id="agents-tab-wallbang" style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
       </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+        <div><b id="agents-category-access-title">Категория «Лайнапы»</b><div style="font-size:11px;color:var(--text2);margin-top:3px;">Выключение скрывает категорию, но сохраняет все настройки.</div></div>
+        <label class="toggle-switch"><input type="checkbox" id="agents-category-access"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="agents-config-mode-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
+        <button type="button" class="btn btn-save" data-agent-mode="visibility">Видимость агентов</button>
+        <button type="button" class="btn" data-agent-mode="abilities">Настройка абилок</button>
+      </div>
+      <div id="agents-wallbang-note" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;color:var(--text2);margin-bottom:14px;">В прострелах агенты не используются. Здесь настраивается только доступность категории; список оружия находится ниже.</div>
       <div id="agents-category-status" style="font-size:11px;color:var(--text2);margin:-7px 0 12px;">Загрузка статусов…</div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+      <div id="agents-bulk-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <button type="button" class="btn" id="agents-bulk-enable">✓ Включить</button>
         <button type="button" class="btn" id="agents-bulk-disable">○ Выключить</button>
         <button type="button" class="btn btn-save" id="agents-bulk-confirm" disabled>Подтвердить</button>
@@ -3032,15 +3026,15 @@
   <div style="max-width:980px;margin:0 auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:10px;">
       <div>
-        <h3 style="margin:0;color:var(--text);">🎛 Категории приложения</h3>
+        <h3 style="margin:0;color:var(--text);">💥 Настройки прострелов</h3>
         <p style="color:var(--text2);font-size:13px;margin:6px 0 0;">
-          Включай и выключай доступ к режимам приложения. Ниже остаются справочники для новых категорий.
+          Прострелы не используют агентов. Здесь задаётся только разрешённое оружие.
         </p>
       </div>
       <span id="cc-version-hint" style="font-size:12px;color:var(--text2);">Версии: загрузка…</span>
     </div>
 
-    <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.28);border-radius:10px;padding:16px;margin-top:18px;">
+    <div style="display:none;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.28);border-radius:10px;padding:16px;margin-top:18px;">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px;">
         <div>
           <h4 style="margin:0 0 4px;color:var(--text);">🚨 Аварийный доступ к категориям</h4>
@@ -3103,7 +3097,7 @@
         <button id="cc-weapons-save" class="btn btn-save" style="width:100%;justify-content:center;">💾 Сохранить оружие</button>
       </div>
 
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
+      <div style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;">
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;">
           <div>
             <h4 style="margin:0 0 4px;color:var(--text);">🛡 Агенты защиты</h4>
@@ -3576,7 +3570,7 @@ function switchTab(t) {
   document.getElementById('tab-mapstyle').style.display      = t === 'mapstyle'     ? 'block' : 'none';
   document.getElementById('tab-agentcolors').style.display   = t === 'agentcolors'  ? 'block' : 'none';
   document.getElementById('tab-mappool').style.display        = t === 'mappool'      ? 'block' : 'none';
-  document.getElementById('tab-contentcfg').style.display     = t === 'contentcfg'   ? 'block' : 'none';
+  document.getElementById('tab-contentcfg').style.display     = (t === 'contentcfg' || t === 'agents') ? 'block' : 'none';
   document.getElementById('tab-messages').style.display       = t === 'messages'     ? 'block' : 'none';
   document.getElementById('tab-modapps').style.display        = t === 'modapps'      ? 'block' : 'none';
   document.getElementById('tab-btn-list').classList.toggle('active',      t === 'list');
@@ -3597,7 +3591,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-contentcfg').classList.toggle('active', t === 'contentcfg');
   document.getElementById('tab-btn-messages').classList.toggle('active', t === 'messages');
   document.getElementById('tab-btn-modapps').classList.toggle('active', t === 'modapps');
-  if (t === 'agents') { loadAgentsForConfig(); loadAgentColorsSection('ac-grid'); }
+  if (t === 'agents') { loadAgentsForConfig(); loadContentConfigTab(); _loadAgentCategoryAccess(); }
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'events') loadUpdateEvents();
   if (t === 'analytics') loadAnalytics();
@@ -6261,7 +6255,7 @@ async function _acSave(btnEl) {
   }
 }
 
-document.getElementById('ac-save-btn').addEventListener('click', function() { _acSave(this); });
+document.getElementById('ac-save-btn')?.addEventListener('click', function() { _acSave(this); });
 document.getElementById('ac-save-btn2').addEventListener('click', function() { _acSave(this); });
 
 // ── Agents config editor ──────────────────────────────────────────────────────
@@ -6272,10 +6266,12 @@ let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
 const _catDotCache = {};
 const _agentCategoryConfigCache = new Map();
+const _agentVisibilityCache = new Map();
 let _agentCategoryLoadToken = 0;
 let _agentBulkAction = null;
 const _agentBulkSelection = new Set();
 let _selectedAgentTarget = 'app';
+let _selectedAgentConfigMode = 'visibility';
 const _agentTargetCategoryId = (category, target = _selectedAgentTarget) => `${category}__${target}`;
 const _agentConfigCacheKey = (agent, category, target = _selectedAgentTarget) => `${agent}|${category}|${target}`;
 
@@ -6342,9 +6338,11 @@ function _paintAgentCategoryStatus(agentName, config) {
   const card = document.querySelector(`#agents-card-grid .agent-card[data-name="${CSS.escape(agentName)}"]`);
   const button = card?.querySelector('[data-agent-category-toggle]');
   if (!button) return;
-  const enabled = Object.values(config || {}).some(Boolean);
+  const enabled = _selectedAgentConfigMode === 'visibility'
+    ? _agentVisibilityCache.get(_agentConfigCacheKey(agentName, _selectedAgentCategory)) !== false
+    : Object.values(config || {}).some(Boolean);
   button.dataset.enabled = enabled ? 'true' : 'false';
-  button.textContent = enabled ? '✓ Включена' : '○ Выключена';
+  button.textContent = enabled ? '✓ Включён' : '○ Выключен';
   button.style.cssText = enabled
     ? 'border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#4ade80;'
     : 'border-color:rgba(148,163,184,.28);background:rgba(148,163,184,.08);color:var(--text2);';
@@ -6379,8 +6377,12 @@ document.getElementById('agents-bulk-confirm')?.addEventListener('click', async 
     await Promise.all(names.map(async agentName => {
       const agent = _agentsData.find(item => item.displayName === agentName); if (!agent) return;
       const current = await _readAgentCategoryConfig(agent, _selectedAgentCategory);
-      const config = Object.fromEntries(Object.keys(current).map(name => [name, enabled]));
-      await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', _agentTargetCategoryId(_selectedAgentCategory)), { abilities: config });
+      const config = _selectedAgentConfigMode === 'abilities'
+        ? Object.fromEntries(Object.keys(current).map(name => [name, enabled]))
+        : current;
+      const payload = _selectedAgentConfigMode === 'visibility' ? { visible: enabled } : { abilities: config };
+      await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', _agentTargetCategoryId(_selectedAgentCategory)), payload, { merge: true });
+      if (_selectedAgentConfigMode === 'visibility') _agentVisibilityCache.set(_agentConfigCacheKey(agentName, _selectedAgentCategory), enabled);
       _agentCategoryConfigCache.set(_agentConfigCacheKey(agentName, _selectedAgentCategory), config);
       _paintAgentCategoryStatus(agentName, config);
     }));
@@ -6399,7 +6401,9 @@ async function _readAgentCategoryConfig(agent, category) {
   if (!snap.exists() && category === 'wallbang') {
     snap = await getDoc(doc(db, 'agents_config', sanitizeAgentId(agent.displayName), 'categories', 'smoke'));
   }
-  const config = _buildAgentAbilitiesConfig(agent, snap.exists() ? (snap.data().abilities || {}) : {});
+  const data = snap.exists() ? snap.data() : {};
+  const config = _buildAgentAbilitiesConfig(agent, data.abilities || {});
+  _agentVisibilityCache.set(key, data.visible !== false);
   _agentCategoryConfigCache.set(key, config);
   return config;
 }
@@ -6459,6 +6463,7 @@ function _setAgentTarget(target) {
     button.className = button.dataset.agentTarget === _selectedAgentTarget ? 'btn btn-save' : 'btn';
   });
   _setAgentBulkAction(null);
+  _loadAgentCategoryAccess();
   _refreshSelectedAgentCategoryStatuses();
   if (_selectedAgentName) _loadAgentAbilitiesForCategory();
 }
@@ -6466,9 +6471,50 @@ document.querySelectorAll('#agents-target-tabs [data-agent-target]').forEach(but
   button.addEventListener('click', () => _setAgentTarget(button.dataset.agentTarget));
 });
 
+const _agentCategoryLabels = { lineup: 'Лайнапы', combo: 'Комбо', defense: 'Защита', wallbang: 'Прострелы' };
+async function _loadAgentCategoryAccess() {
+  const checkbox = document.getElementById('agents-category-access');
+  const title = document.getElementById('agents-category-access-title');
+  if (title) title.textContent = `Категория «${_agentCategoryLabels[_selectedAgentCategory]}»`;
+  if (!checkbox) return;
+  checkbox.disabled = true;
+  try {
+    let snap = await getDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`));
+    if (!snap.exists()) snap = await getDoc(doc(db, 'settings', 'category_access'));
+    const data = snap.exists() ? snap.data() : {};
+    checkbox.checked = _selectedAgentCategory === 'lineup'
+      ? data.lineup_enabled !== false
+      : data[`${_selectedAgentCategory}_enabled`] === true;
+  } finally { checkbox.disabled = false; }
+}
+document.getElementById('agents-category-access')?.addEventListener('change', async function() {
+  this.disabled = true;
+  try {
+    const payload = { [`${_selectedAgentCategory}_enabled`]: this.checked };
+    await setDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`), payload, { merge: true });
+    if (_selectedAgentTarget === 'app') await setDoc(doc(db, 'settings', 'category_access'), payload, { merge: true });
+    await bumpConfigVersions(['category_access']);
+    toast(`Категория ${this.checked ? 'включена' : 'выключена'}`, 's');
+  } catch (error) { this.checked = !this.checked; toast('Ошибка: ' + error.message, 'e'); }
+  finally { this.disabled = false; }
+});
+
+function _setAgentConfigMode(mode) {
+  _selectedAgentConfigMode = mode === 'abilities' ? 'abilities' : 'visibility';
+  document.querySelectorAll('#agents-config-mode-tabs [data-agent-mode]').forEach(button => {
+    button.className = button.dataset.agentMode === _selectedAgentConfigMode ? 'btn btn-save' : 'btn';
+  });
+  document.getElementById('agents-abilities-block').style.display = 'none';
+  _selectedAgentName = null;
+  _setAgentBulkAction(null);
+  _refreshSelectedAgentCategoryStatuses();
+}
+document.querySelectorAll('#agents-config-mode-tabs [data-agent-mode]').forEach(button => button.addEventListener('click', () => _setAgentConfigMode(button.dataset.agentMode)));
+
 function _setAgentCategoryTab(cat) {
   _selectedAgentCategory = cat;
   _setAgentBulkAction(null);
+  _loadAgentCategoryAccess();
   ['lineup','combo','wallbang','defense'].forEach(c => {
     const btn = document.getElementById('agents-tab-'+c); if (!btn) return;
     const active = c === cat;
@@ -6476,6 +6522,11 @@ function _setAgentCategoryTab(cat) {
     btn.style.cssText  = active ? '' : 'border:1px solid var(--border);color:var(--text2);';
   });
   _refreshSelectedAgentCategoryStatuses();
+  const isWallbang = cat === 'wallbang';
+  document.getElementById('agents-config-mode-tabs').style.display = isWallbang ? 'none' : 'flex';
+  document.getElementById('agents-wallbang-note').style.display = isWallbang ? 'block' : 'none';
+  document.getElementById('agents-card-grid').style.display = isWallbang ? 'none' : 'grid';
+  document.getElementById('agents-bulk-controls').style.display = isWallbang ? 'none' : 'flex';
   if (_selectedAgentName) _loadAgentAbilitiesForCategory();
 }
 
@@ -6519,6 +6570,7 @@ async function _loadAgentAbilitiesForCategory() {
 }
 
 async function _selectAgentCard(name) {
+  if (_selectedAgentConfigMode !== 'abilities') return;
   _selectedAgentName = name;
   document.querySelectorAll('#agents-card-grid .agent-card').forEach(c => {
     c.classList.toggle('sel', c.dataset.name === name);
@@ -6542,7 +6594,7 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
     if (chk) config[name] = chk.checked;
   });
   try {
-    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _agentTargetCategoryId(_selectedAgentCategory)), { abilities: config });
+    await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _agentTargetCategoryId(_selectedAgentCategory)), { abilities: config }, { merge: true });
     await bumpConfigVersions(['ability_config']);
     _agentCategoryConfigCache.set(_agentConfigCacheKey(_selectedAgentName, _selectedAgentCategory), config);
     _paintAgentCategoryStatus(_selectedAgentName, config);
