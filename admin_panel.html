@@ -1064,7 +1064,7 @@
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
         <button class="tab"        id="tab-btn-mappool"><i class="bi bi-star"></i><span>Маппул</span></button>
-        <button class="tab" style="display:none" id="tab-btn-contentcfg"><i class="bi bi-toggle-on"></i><span>Категории</span></button>
+        <button class="tab" id="tab-btn-contentcfg"><i class="bi bi-toggle-on"></i><span>Категории</span></button>
         <button class="tab"        id="tab-btn-messages"><i class="bi bi-chat-dots"></i><span>Сообщения</span><span id="msg-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
         <button class="tab"        id="tab-btn-modapps"><i class="bi bi-shield-check"></i><span>Заявки</span><span id="ma-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
       </div>
@@ -1845,7 +1845,7 @@
   <div id="tab-agents" style="display:none;">
     <div style="max-width:1200px;padding-bottom:20px;">
 
-      <div class="form-title">🤖 АГЕНТЫ И КАТЕГОРИИ</div>
+      <div class="form-title">🧩 НАСТРОЙКИ КАТЕГОРИЙ КОНТЕНТА</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:14px;">Настройки приложения и публичного сайта независимы. На этой админ-панели ограничения не применяются.</p>
 
       <div class="dlabel" style="margin-bottom:8px;">Категория для всех агентов</div>
@@ -3588,7 +3588,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-mapstyle').classList.toggle('active',     t === 'mapstyle');
   document.getElementById('tab-btn-agentcolors').classList.toggle('active', t === 'agentcolors');
   document.getElementById('tab-btn-mappool').classList.toggle('active', t === 'mappool');
-  document.getElementById('tab-btn-contentcfg').classList.toggle('active', t === 'contentcfg');
+  document.getElementById('tab-btn-contentcfg').classList.toggle('active', t === 'contentcfg' || t === 'agents');
   document.getElementById('tab-btn-messages').classList.toggle('active', t === 'messages');
   document.getElementById('tab-btn-modapps').classList.toggle('active', t === 'modapps');
   if (t === 'agents') { loadAgentsForConfig(); loadContentConfigTab(); _loadAgentCategoryAccess(); }
@@ -3667,7 +3667,7 @@ document.getElementById('tab-btn-ranges').addEventListener('click',    () => swi
 document.getElementById('tab-btn-mapstyle').addEventListener('click',     () => switchTab('mapstyle'));
 document.getElementById('tab-btn-agentcolors').addEventListener('click',  () => switchTab('agentcolors'));
 document.getElementById('tab-btn-mappool').addEventListener('click',      () => switchTab('mappool'));
-document.getElementById('tab-btn-contentcfg').addEventListener('click',   () => switchTab('contentcfg'));
+document.getElementById('tab-btn-contentcfg').addEventListener('click',   () => switchTab('agents'));
 document.getElementById('tab-btn-messages').addEventListener('click',     () => switchTab('messages'));
 document.getElementById('tab-btn-modapps').addEventListener('click',      () => switchTab('modapps'));
 
