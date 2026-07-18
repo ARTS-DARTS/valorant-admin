@@ -12741,8 +12741,10 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
   const btn = document.getElementById('cl-publish-btn');
   btn.disabled = true; btn.textContent = '\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u044f\u2026';
   try {
+    const contentTranslations = await buildPushTranslations(title, text);
     await addDoc(collection(db, 'changelog'), {
       title, body: text, type: clType, emoji: tpl.emoji, label: tpl.label,
+      translations: contentTranslations,
       published_at: serverTimestamp(),
       author: currentUser?.displayName || currentUser?.email || 'Admin',
     });
@@ -12752,9 +12754,14 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
     if (sendPush) {
       try {
         const pushBody = text.length > 120 ? text.slice(0, 117) + '\u2026' : text;
+        const pushTranslations = Object.fromEntries(Object.entries(contentTranslations).map(([locale, item]) => [locale, {
+          title: `${tpl.emoji} ${item.title}`,
+          body: item.body.length > 120 ? item.body.slice(0, 117) + '\u2026' : item.body,
+        }]));
         await sendPushNotification({
           title: `${tpl.emoji} ${title}`,
           body:  pushBody,
+          translations: pushTranslations,
           type:  'changelog',
           allowAll: true,
         });
@@ -14484,6 +14491,36 @@ function initMapInteraction(container) {
 const _PUSH_PROXY   = 'https://valorant-upload.vercel.app/api/send-push';
 const _ADMIN_SECRET = 'vl_adm_8f2k9p4x7q3m';
 
+const _PUSH_LOCALES = ['ru', 'en', 'tr', 'es', 'pt'];
+
+async function _translatePushText(text, targetLanguage) {
+  if (targetLanguage === 'ru' || !text) return text;
+  const query = new URLSearchParams({
+    client: 'gtx', sl: 'ru', tl: targetLanguage, dt: 't', q: text,
+  });
+  const response = await fetch(`https://translate.googleapis.com/translate_a/single?${query}`);
+  if (!response.ok) throw new Error(`translation HTTP ${response.status}`);
+  const payload = await response.json();
+  return (payload?.[0] || []).map(part => part?.[0] || '').join('').trim() || text;
+}
+
+async function buildPushTranslations(title, body) {
+  const translations = { ru: { title, body } };
+  await Promise.all(_PUSH_LOCALES.filter(locale => locale !== 'ru').map(async locale => {
+    try {
+      const [translatedTitle, translatedBody] = await Promise.all([
+        _translatePushText(title, locale),
+        _translatePushText(body, locale),
+      ]);
+      translations[locale] = { title: translatedTitle, body: translatedBody };
+    } catch (error) {
+      console.warn(`Push translation failed for ${locale}:`, error);
+      translations[locale] = { title, body };
+    }
+  }));
+  return translations;
+}
+
 // ── News banner editor ───────────────────────────────────────────────────────
 let nbPages = [
   { blocks: [{ text: '', color: '#ffffff', background_color: '', font_size: 16, bold: false, italic: false, underline: false, align: 'left', capsule: false, capsule_color: '#FF4655' }], button_text: '', button_url: '', button_color: '#4FC3F7', button_x: 0.5, button_y: 0.9 }
@@ -14927,15 +14964,16 @@ function initNotifCategories() {
 }
 initNotifCategories();
 
-async function sendPushNotification({ title, body, type, targetUid, data, allowAll = false }) {
+async function sendPushNotification({ title, body, translations, type, targetUid, data, allowAll = false }) {
   const uid = targetUid ?? _ncTargetUid;
   if (!uid && !allowAll) {
     throw new Error('Выбери конкретного получателя или явно включи режим "Все пользователи"');
   }
+  const localizedTexts = translations || await buildPushTranslations(title, body);
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
-    body:    JSON.stringify({ title, body, type, targetUid: uid || undefined, data }),
+    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
