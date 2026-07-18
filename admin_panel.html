@@ -615,11 +615,13 @@
     .cl-post-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
     .cl-post-meta  { font-size: 11px; color: var(--text2); margin-bottom: 7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .cl-post-body  { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
-    .cl-post-del   {
+    .cl-post-actions { display:flex; align-items:center; gap:3px; flex-shrink:0; }
+    .cl-post-action {
       background: transparent; border: none; color: var(--text2);
       cursor: pointer; font-size: 15px; padding: 2px 4px; flex-shrink:0;
       transition: color .13s; line-height:1;
     }
+    .cl-post-edit:hover { color: var(--primary); }
     .cl-post-del:hover { color: var(--red); }
     .cl-badge {
       display: inline-flex; align-items: center; gap: 4px;
@@ -1072,6 +1074,7 @@
         <button class="tab" style="display:none" id="tab-btn-contentcfg"><i class="bi bi-toggle-on"></i><span>Категории</span></button>
         <button class="tab"        id="tab-btn-messages"><i class="bi bi-chat-dots"></i><span>Сообщения</span><span id="msg-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
         <button class="tab"        id="tab-btn-modapps"><i class="bi bi-shield-check"></i><span>Заявки</span><span id="ma-nav-badge" style="display:none;margin-left:4px;background:var(--primary);color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;">0</span></button>
+        <button class="tab"        id="tab-btn-translations"><i class="bi bi-translate"></i><span>Переводы</span></button>
       </div>
     </nav>
 
@@ -1455,6 +1458,19 @@
 
     </div>
 
+    <!-- Translations tab -->
+    <div id="tab-translations" style="display:none;">
+      <div class="form-wrap" style="max-width:760px;">
+        <div class="form-title"><i class="bi bi-translate"></i> ПЕРЕВОДЫ</div>
+        <p style="color:var(--text2);line-height:1.5;">Русский текст является источником. Система переводит только новые и изменённые записи и сохраняет результат в Firestore.</p>
+        <div id="translation-stats" class="state">Проверка состояния…</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+          <button class="btn" id="btn-sync-translations"><i class="bi bi-cloud-arrow-up"></i> Синхронизировать русские тексты</button>
+          <button class="btn btn-save" id="btn-translate-content"><i class="bi bi-translate"></i> Обновить переводы</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Changelog tab -->
     <div id="tab-changelog" style="display:none;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:1100px;">
@@ -1462,7 +1478,12 @@
         <!-- LEFT: editor -->
         <div>
           <div class="form-wrap" style="max-width:100%;">
-            <div class="form-title">✍️ НАПИСАТЬ НОВОСТЬ</div>
+            <div class="form-title" id="cl-form-title">✍️ НАПИСАТЬ НОВОСТЬ</div>
+
+            <div id="cl-edit-notice" style="display:none;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;padding:10px 12px;border:1px solid rgba(255,70,85,.45);border-radius:8px;background:rgba(255,70,85,.08);">
+              <span style="font-size:12px;color:var(--text);">✏️ Редактирование опубликованной новости</span>
+              <button class="btn" id="cl-edit-cancel" style="padding:5px 9px;font-size:11px;">Отмена</button>
+            </div>
 
             <div class="fg" style="margin-bottom:12px;">
               <label class="flabel">Тип</label>
@@ -1489,7 +1510,7 @@
               <textarea class="ftextarea" id="cl-result" placeholder="Здесь появится готовый пост…" style="min-height:160px;"></textarea>
             </div>
 
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;user-select:none;">
+            <label id="cl-push-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;user-select:none;">
               <input type="checkbox" id="cl-send-push" checked style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
               <span style="font-size:13px;color:var(--text);">🔔 Отправить пуш всем пользователям</span>
             </label>
@@ -3289,6 +3310,7 @@ import {
   updateDoc, deleteDoc, addDoc, query, orderBy, where, or, limit, startAfter,
   serverTimestamp, increment, getCountFromServer, onSnapshot, writeBatch, arrayUnion, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 const cfg = {
   apiKey:            'AIzaSyA1ya7fO5ZSeeokEfRHikWwpBXeXYhm9ww',
@@ -3302,6 +3324,10 @@ const cfg = {
 const app  = initializeApp(cfg);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+const functions = getFunctions(app, 'us-central1');
+const translatePendingContent = httpsCallable(functions, 'translatePendingContent');
+const syncTranslationSources = httpsCallable(functions, 'syncTranslationSources');
+const getTranslationStats = httpsCallable(functions, 'getTranslationStats');
 
 const SEL_ACCESS_KEY = '6eac43cff0e4498c864fc36fdcd27a64';
 const SEL_SECRET_KEY = 'e2ffe93a51ba4c05abadc810d9c0edfc';
@@ -3568,6 +3594,7 @@ function switchTab(t) {
   document.getElementById('tab-add').style.display       = t === 'add'       ? 'block' : 'none';
   document.getElementById('tab-admins').style.display    = t === 'admins'    ? 'block' : 'none';
   document.getElementById('tab-changelog').style.display = t === 'changelog' ? 'block' : 'none';
+  document.getElementById('tab-translations').style.display = t === 'translations' ? 'block' : 'none';
   document.getElementById('tab-events').style.display    = t === 'events'    ? 'block' : 'none';
   document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
   document.getElementById('tab-duels').style.display     = t === 'duels'     ? 'block' : 'none';
@@ -3586,6 +3613,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-add').classList.toggle('active',       t === 'add');
   document.getElementById('tab-btn-admins').classList.toggle('active',    t === 'admins');
   document.getElementById('tab-btn-changelog').classList.toggle('active', t === 'changelog');
+  document.getElementById('tab-btn-translations').classList.toggle('active', t === 'translations');
   document.getElementById('tab-btn-events').classList.toggle('active',    t === 'events');
   document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
   document.getElementById('tab-btn-duels').classList.toggle('active',     t === 'duels');
@@ -3648,6 +3676,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 document.getElementById('tab-btn-list').addEventListener('click',      () => switchTab('list'));
+document.getElementById('tab-btn-translations').addEventListener('click', () => { switchTab('translations'); refreshTranslationStats(); });
 let _addTabReady = false;
 let _iconsReady = null;
 function _ensureIconsLoaded() {
@@ -9622,7 +9651,17 @@ function _slotExtraEnabled() {
 }
 
 function _abilityIcon(agent, ability) {
-  return (AGENT_ABILITY_ICONS[agent] ?? {})[ability] ?? '';
+  const icons = AGENT_ABILITY_ICONS[agent] ?? {};
+  const requested = normalizeAbilityName(agent, ability).trim().toLowerCase();
+  const direct = icons[ability] || icons[normalizeAbilityName(agent, ability)];
+  if (direct) return direct;
+  for (const [name, icon] of Object.entries(icons)) {
+    const key = String(name).trim().toLowerCase();
+    if (key === requested || key.includes(requested) || requested.includes(key)) {
+      return icon || '';
+    }
+  }
+  return '';
 }
 
 function _activeSlotTrajectory(s) {
@@ -10556,6 +10595,15 @@ async function loadAgentIcons() {
       }
     }
   }
+  // Drafts may have been restored before the API catalog finished loading.
+  // Re-normalize their defense ability icons now that canonical URLs exist.
+  Object.keys(addSlotSessions || {}).forEach(id => {
+    const session = addSlotSessions[id];
+    if (!session) return;
+    (session.defenseAbilities || []).forEach(item => _defRepairAbilityInPlace(item, pickedAgent || ''));
+    if (typeof _defRender === 'function') _defRender(id, false);
+    if (typeof _defRenderTools === 'function') _defRenderTools(id, false);
+  });
   initAgentGrid();
 }
 
@@ -12469,6 +12517,35 @@ document.getElementById('nu-user-modal').addEventListener('click', e => {
 });
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
+async function refreshTranslationStats() {
+  const el = document.getElementById('translation-stats'); if (!el) return;
+  try { const { data } = await getTranslationStats(); el.textContent = `Всего текстов: ${data.total}. Требуют перевода: ${data.pending}. Символов: ${data.characters}.`; }
+  catch (e) { el.textContent = 'Не удалось загрузить статистику: ' + (e?.message || e); }
+}
+document.getElementById('btn-sync-translations')?.addEventListener('click', async () => {
+  const button = document.getElementById('btn-sync-translations'); if (!button) return; button.disabled = true;
+  try { const sources = await fetch('./localization_sources_ru.json', { cache: 'no-store' }).then(r => r.json()); const { data } = await syncTranslationSources({ sources }); toast(`Синхронизировано русских текстов: ${data.synced}`, 's'); await refreshTranslationStats(); }
+  catch (e) { toast('Ошибка синхронизации: ' + (e?.message || e), 'e'); } finally { button.disabled = false; }
+});
+document.getElementById('btn-translate-content')?.addEventListener('click', async () => {
+  const button = document.getElementById('btn-translate-content');
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  const original = button.innerHTML;
+  button.innerHTML = '<i class="bi bi-hourglass-split"></i><span>Переводим…</span>';
+  try {
+    const result = await translatePendingContent();
+    const data = result.data || {};
+    toast(`Переводы обновлены: ${data.translated || 0} записей, ${data.characters || 0} символов`, 's');
+  } catch (error) {
+    console.error('[translations]', error);
+    toast('Не удалось обновить переводы: ' + (error?.message || error), 'e');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = original;
+  }
+});
+
 function toast(msg, type = 'i') {
   const el = document.createElement('div');
   el.className = `toast ${type}`; el.textContent = msg;
@@ -12644,12 +12721,31 @@ document.getElementById('btn-add-admin').addEventListener('click', async () => {
 
 // ── Changelog ─────────────────────────────────────────────────────────────────
 let clType = 'update';
+let clEditingId = null;
+const clPostsById = new Map();
+
+function clSelectType(type) {
+  clType = CL_TEMPLATES[type] ? type : 'update';
+  document.querySelectorAll('.cl-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === clType);
+  });
+}
+
+function clResetEditor() {
+  clEditingId = null;
+  document.getElementById('cl-raw').value = '';
+  document.getElementById('cl-result').value = '';
+  document.getElementById('cl-publish-btn').disabled = true;
+  document.getElementById('cl-publish-btn').textContent = '📢 Опубликовать';
+  document.getElementById('cl-form-title').textContent = '✍️ НАПИСАТЬ НОВОСТЬ';
+  document.getElementById('cl-edit-notice').style.display = 'none';
+  document.getElementById('cl-push-row').style.display = 'flex';
+  clSelectType('update');
+}
 
 document.getElementById('cl-type-btns')?.querySelectorAll('.cl-type-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.cl-type-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    clType = btn.dataset.type;
+    clSelectType(btn.dataset.type);
   });
 });
 
@@ -12722,13 +12818,10 @@ document.getElementById('cl-result')?.addEventListener('input', () => {
 });
 
 document.getElementById('cl-clear-btn')?.addEventListener('click', () => {
-  document.getElementById('cl-raw').value    = '';
-  document.getElementById('cl-result').value = '';
-  document.getElementById('cl-publish-btn').disabled = true;
-  document.querySelectorAll('.cl-type-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.cl-type-btn[data-type="update"]')?.classList.add('active');
-  clType = 'update';
+  clResetEditor();
 });
+
+document.getElementById('cl-edit-cancel')?.addEventListener('click', clResetEditor);
 
 document.getElementById('cl-publish-btn')?.addEventListener('click', async () => {
   const text = document.getElementById('cl-result')?.value.trim();
@@ -12742,6 +12835,18 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
   btn.disabled = true; btn.textContent = '\u041f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u044f\u2026';
   try {
     const contentTranslations = await buildPushTranslations(title, text);
+    if (clEditingId) {
+      await updateDoc(doc(db, 'changelog', clEditingId), {
+        title, body: text, type: clType, emoji: tpl.emoji, label: tpl.label,
+        translations: contentTranslations,
+        updated_at: serverTimestamp(),
+        edited_by: currentUser?.displayName || currentUser?.email || 'Admin',
+      });
+      toast('Новость обновлена ✅', 's');
+      clResetEditor();
+      await loadChangelogPosts();
+      return;
+    }
     await addDoc(collection(db, 'changelog'), {
       title, body: text, type: clType, emoji: tpl.emoji, label: tpl.label,
       translations: contentTranslations,
@@ -12773,13 +12878,12 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
       toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u2705', 's');
     }
 
-    document.getElementById('cl-raw').value    = '';
-    document.getElementById('cl-result').value = '';
-    btn.textContent = '\uD83D\uDCE2 \u041e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c';
+    clResetEditor();
     loadChangelogPosts();
   } catch (e) {
     toast('\u041e\u0448\u0438\u0431\u043a\u0430: ' + e.message, 'e');
-    btn.disabled = false; btn.textContent = '\uD83D\uDCE2 \u041e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c';
+    btn.disabled = false;
+    btn.textContent = clEditingId ? '💾 Сохранить изменения' : '\uD83D\uDCE2 \u041e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u0442\u044c';
   }
 });
 
@@ -12788,8 +12892,13 @@ async function loadChangelogPosts() {
   el.innerHTML = '<div class="state">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430\u2026</div>';
   try {
     const snap = await getDocs(query(collection(db, 'changelog'), orderBy('published_at', 'desc')));
+    clPostsById.clear();
     if (!snap.docs.length) { el.innerHTML = '<div class="state">\u041d\u043e\u0432\u043e\u0441\u0442\u0435\u0439 \u043f\u043e\u043a\u0430 \u043d\u0435\u0442</div>'; return; }
+    snap.docs.forEach(d => clPostsById.set(d.id, d.data()));
     el.innerHTML = snap.docs.map(d => clPostHtml(d.id, d.data())).join('');
+    el.querySelectorAll('.cl-post-edit').forEach(btn => {
+      btn.addEventListener('click', () => clEditPost(btn.dataset.id));
+    });
     el.querySelectorAll('.cl-post-del').forEach(btn => {
       btn.addEventListener('click', () => clDeletePost(btn.dataset.id));
     });
@@ -12806,7 +12915,10 @@ function clPostHtml(id, d) {
   return '<div class="cl-post-card">'
     + '<div class="cl-post-head">'
     + '<div style="flex:1;min-width:0;"><div class="cl-post-title">' + esc(d.title || '\u2014') + '</div></div>'
-    + '<button class="cl-post-del" data-id="' + id + '" title="\u0423\u0434\u0430\u043b\u0438\u0442\u044c">\uD83D\uDDD1</button>'
+    + '<div class="cl-post-actions">'
+    + '<button class="cl-post-action cl-post-edit" data-id="' + id + '" title="Редактировать"><i class="bi bi-pencil"></i></button>'
+    + '<button class="cl-post-action cl-post-del" data-id="' + id + '" title="\u0423\u0434\u0430\u043b\u0438\u0442\u044c"><i class="bi bi-trash"></i></button>'
+    + '</div>'
     + '</div>'
     + '<div class="cl-post-meta">'
     + '<span class="' + badgeClass + '">' + esc(d.emoji || '') + ' ' + esc(d.label || d.type || '') + '</span>'
@@ -12815,6 +12927,21 @@ function clPostHtml(id, d) {
     + '</div>'
     + '<div class="cl-post-body">' + esc(d.body || '') + '</div>'
     + '</div>';
+}
+
+function clEditPost(id) {
+  const post = clPostsById.get(id);
+  if (!post) { toast('Не удалось открыть новость', 'e'); return; }
+  clEditingId = id;
+  clSelectType(post.type || 'update');
+  document.getElementById('cl-raw').value = '';
+  document.getElementById('cl-result').value = post.body || '';
+  document.getElementById('cl-publish-btn').disabled = !(post.body || '').trim();
+  document.getElementById('cl-publish-btn').textContent = '💾 Сохранить изменения';
+  document.getElementById('cl-form-title').textContent = '✏️ РЕДАКТИРОВАТЬ НОВОСТЬ';
+  document.getElementById('cl-edit-notice').style.display = 'flex';
+  document.getElementById('cl-push-row').style.display = 'none';
+  document.getElementById('cl-form-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function clDeletePost(id) {
@@ -14505,6 +14632,9 @@ async function _translatePushText(text, targetLanguage) {
 }
 
 async function buildPushTranslations(title, body) {
+  // The browser must not call the translation endpoint directly: mobile
+  // browsers and CORS blockers reject it. The protected push server expands
+  // this Russian source into all supported locales.
   return { ru: { title, body } };
 }
 
