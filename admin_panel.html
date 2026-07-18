@@ -1024,7 +1024,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">agent-category-bulk-mode | 2026-07-18 04:20</span>
+      <span class="admin-version" id="admin-build-version">agent-category-cache-sync | 2026-07-18 04:32</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -6377,6 +6377,7 @@ document.getElementById('agents-bulk-confirm')?.addEventListener('click', async 
       _agentCategoryConfigCache.set(`${agentName}|${_selectedAgentCategory}`, config);
       _paintAgentCategoryStatus(agentName, config);
     }));
+    await bumpConfigVersions(['ability_config']);
     toast(`${enabled ? 'Включено' : 'Выключено'} агентов: ${names.length}`, 's');
     _setAgentBulkAction(null);
   } catch (error) { toast('Ошибка: ' + error.message, 'e'); }
@@ -6520,6 +6521,7 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
   });
   try {
     await setDoc(doc(db, 'agents_config', sanitizeAgentId(_selectedAgentName), 'categories', _selectedAgentCategory), { abilities: config });
+    await bumpConfigVersions(['ability_config']);
     _agentCategoryConfigCache.set(`${_selectedAgentName}|${_selectedAgentCategory}`, config);
     _paintAgentCategoryStatus(_selectedAgentName, config);
     const st = document.getElementById('agents-save-status');
