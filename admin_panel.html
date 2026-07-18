@@ -6346,9 +6346,8 @@ function _paintAgentCategoryStatus(agentName, config) {
   const button = card?.querySelector('[data-agent-category-toggle]');
   if (!button) return;
   const visible = _agentVisibilityCache.get(_agentConfigCacheKey(agentName, _selectedAgentCategory)) !== false;
-  const enabled = _selectedAgentConfigMode === 'visibility'
-    ? visible
-    : visible && Object.values(config || {}).some(Boolean);
+  const hasEnabledAbility = Object.values(config || {}).some(Boolean);
+  const enabled = visible && hasEnabledAbility;
   button.dataset.enabled = enabled ? 'true' : 'false';
   button.textContent = enabled ? '✓ Включён' : '○ Выключен';
   button.style.cssText = enabled
