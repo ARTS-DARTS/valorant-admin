@@ -6369,6 +6369,15 @@ function _sortAgentCardsByStatus() {
   cards.forEach(card => grid.appendChild(card));
 }
 
+function _applyAgentModeFilter() {
+  const abilityMode = _selectedAgentConfigMode === 'abilities';
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => {
+    const name = card.dataset.name || '';
+    const visible = _agentVisibilityCache.get(_agentConfigCacheKey(name, _selectedAgentCategory)) !== false;
+    card.style.display = abilityMode && !visible ? 'none' : '';
+  });
+}
+
 function _renderAgentBulkControls() {
   const enable = document.getElementById('agents-bulk-enable');
   const disable = document.getElementById('agents-bulk-disable');
@@ -6408,6 +6417,7 @@ document.getElementById('agents-bulk-confirm')?.addEventListener('click', async 
       _paintAgentCategoryStatus(agentName, config);
     }));
     await bumpConfigVersions(['ability_config']);
+    _applyAgentModeFilter();
     _sortAgentCardsByStatus();
     toast(`${enabled ? 'Включено' : 'Выключено'} агентов: ${names.length}`, 's');
     _setAgentBulkAction(null);
@@ -6446,7 +6456,10 @@ async function _refreshSelectedAgentCategoryStatuses() {
     if (token === _agentCategoryLoadToken && status) status.textContent = `Загружено ${loaded} из ${_agentsData.length}`;
   }));
   if (token === _agentCategoryLoadToken && status) status.textContent = 'Выберите действие, отметьте агентов и подтвердите изменение.';
-  if (token === _agentCategoryLoadToken) _sortAgentCardsByStatus();
+  if (token === _agentCategoryLoadToken) {
+    _applyAgentModeFilter();
+    _sortAgentCardsByStatus();
+  }
 }
 
 function _applyAgentCatDots(agentName, result) {
@@ -6530,6 +6543,7 @@ function _setAgentConfigMode(mode) {
   document.getElementById('agents-abilities-block').style.display = 'none';
   document.getElementById('agents-editor-layout')?.classList.toggle('abilities-layout', _selectedAgentConfigMode === 'abilities');
   _selectedAgentName = null;
+  _applyAgentModeFilter();
   _setAgentBulkAction(null);
   _refreshSelectedAgentCategoryStatuses();
 }
