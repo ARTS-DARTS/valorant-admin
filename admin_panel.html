@@ -223,8 +223,7 @@
     .agent-card .ac-fallback { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; }
     .agent-card .ac-name { font-size: 9px; font-weight: 700; color: var(--text2); text-align: center; padding: 3px 3px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .agent-card.sel .ac-name { color: var(--primary); }
-    .agent-category-toggle { width:calc(100% - 8px);margin:2px 4px 5px;padding:5px 3px;border:1px solid var(--border);border-radius:5px;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap; }
-    .agent-category-toggle:disabled { opacity:.55;cursor:wait; }
+    .agent-category-toggle { width:calc(100% - 8px);margin:2px 4px 5px;padding:5px 3px;border:1px solid var(--border);border-radius:5px;font-size:9px;font-weight:800;cursor:default;white-space:nowrap; }
     .agent-cat-dots { display:flex; gap:3px; justify-content:center; margin-top:3px; padding-bottom:3px; }
     .cat-dot { width:6px; height:6px; border-radius:50%; background:var(--border); transition:.15s; }
     .cat-dot.has-abilities { background:var(--primary); }
@@ -1025,7 +1024,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">agent-category-single-toggle | 2026-07-18 04:08</span>
+      <span class="admin-version" id="admin-build-version">agent-category-bulk-mode | 2026-07-18 04:20</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1872,6 +1871,12 @@
         <button class="btn" data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
       </div>
       <div id="agents-category-status" style="font-size:11px;color:var(--text2);margin:-7px 0 12px;">Загрузка статусов…</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
+        <button type="button" class="btn" id="agents-bulk-enable">✓ Включить</button>
+        <button type="button" class="btn" id="agents-bulk-disable">○ Выключить</button>
+        <button type="button" class="btn btn-save" id="agents-bulk-confirm" disabled>Подтвердить</button>
+        <span id="agents-bulk-count" style="font-size:11px;color:var(--text2);">Сначала выбери действие</span>
+      </div>
 
       <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-bottom:24px;">
         <div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>
@@ -6264,6 +6269,8 @@ let _selectedAgentName = null;
 const _catDotCache = {};
 const _agentCategoryConfigCache = new Map();
 let _agentCategoryLoadToken = 0;
+let _agentBulkAction = null;
+const _agentBulkSelection = new Set();
 
 async function loadAgentsForConfig() {
   if (_agentsData.length > 0) {
@@ -6302,11 +6309,14 @@ function _renderAgentCards() {
       ${icon ? `<img src="${icon}" alt="${agent.displayName}" crossorigin="anonymous" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
       <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
       <div class="ac-name">${agent.displayName}</div>
-      <button type="button" class="agent-category-toggle" data-agent-category-toggle disabled>Загрузка…</button>`;
-    card.addEventListener('click', event => { if (!event.target.closest('button')) _selectAgentCard(agent.displayName); });
-    card.querySelector('[data-agent-category-toggle]').addEventListener('click', event => {
-      event.stopPropagation();
-      _toggleAgentCategory(agent.displayName, event.currentTarget);
+      <div class="agent-category-toggle" data-agent-category-toggle>Загрузка…</div>`;
+    card.addEventListener('click', () => {
+      if (_agentBulkAction) {
+        if (_agentBulkSelection.has(agent.displayName)) _agentBulkSelection.delete(agent.displayName);
+        else _agentBulkSelection.add(agent.displayName);
+        card.classList.toggle('sel', _agentBulkSelection.has(agent.displayName));
+        _renderAgentBulkControls();
+      } else _selectAgentCard(agent.displayName);
     });
     grid.appendChild(card);
   });
@@ -6326,13 +6336,52 @@ function _paintAgentCategoryStatus(agentName, config) {
   const button = card?.querySelector('[data-agent-category-toggle]');
   if (!button) return;
   const enabled = Object.values(config || {}).some(Boolean);
-  button.disabled = false;
   button.dataset.enabled = enabled ? 'true' : 'false';
   button.textContent = enabled ? '✓ Включена' : '○ Выключена';
   button.style.cssText = enabled
     ? 'border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.12);color:#4ade80;'
     : 'border-color:rgba(148,163,184,.28);background:rgba(148,163,184,.08);color:var(--text2);';
 }
+
+function _renderAgentBulkControls() {
+  const enable = document.getElementById('agents-bulk-enable');
+  const disable = document.getElementById('agents-bulk-disable');
+  const confirm = document.getElementById('agents-bulk-confirm');
+  const count = document.getElementById('agents-bulk-count');
+  if (enable) enable.className = _agentBulkAction === 'enable' ? 'btn btn-save' : 'btn';
+  if (disable) disable.className = _agentBulkAction === 'disable' ? 'btn btn-delete' : 'btn';
+  if (confirm) confirm.disabled = !_agentBulkAction || !_agentBulkSelection.size;
+  if (count) count.textContent = !_agentBulkAction ? 'Сначала выбери действие' : `Выбрано агентов: ${_agentBulkSelection.size}`;
+}
+
+function _setAgentBulkAction(action) {
+  _agentBulkAction = action;
+  _agentBulkSelection.clear();
+  document.querySelectorAll('#agents-card-grid .agent-card').forEach(card => card.classList.remove('sel'));
+  _renderAgentBulkControls();
+}
+
+document.getElementById('agents-bulk-enable')?.addEventListener('click', () => _setAgentBulkAction('enable'));
+document.getElementById('agents-bulk-disable')?.addEventListener('click', () => _setAgentBulkAction('disable'));
+document.getElementById('agents-bulk-confirm')?.addEventListener('click', async function() {
+  if (!_agentBulkAction || !_agentBulkSelection.size) return;
+  const enabled = _agentBulkAction === 'enable';
+  const names = [..._agentBulkSelection];
+  this.disabled = true; const original = this.textContent; this.textContent = 'Сохраняю…';
+  try {
+    await Promise.all(names.map(async agentName => {
+      const agent = _agentsData.find(item => item.displayName === agentName); if (!agent) return;
+      const current = await _readAgentCategoryConfig(agent, _selectedAgentCategory);
+      const config = Object.fromEntries(Object.keys(current).map(name => [name, enabled]));
+      await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', _selectedAgentCategory), { abilities: config });
+      _agentCategoryConfigCache.set(`${agentName}|${_selectedAgentCategory}`, config);
+      _paintAgentCategoryStatus(agentName, config);
+    }));
+    toast(`${enabled ? 'Включено' : 'Выключено'} агентов: ${names.length}`, 's');
+    _setAgentBulkAction(null);
+  } catch (error) { toast('Ошибка: ' + error.message, 'e'); }
+  finally { this.textContent = original; _renderAgentBulkControls(); }
+});
 
 async function _readAgentCategoryConfig(agent, category) {
   const key = `${agent.displayName}|${category}`;
@@ -6361,27 +6410,7 @@ async function _refreshSelectedAgentCategoryStatuses() {
     loaded += 1;
     if (token === _agentCategoryLoadToken && status) status.textContent = `Загружено ${loaded} из ${_agentsData.length}`;
   }));
-  if (token === _agentCategoryLoadToken && status) status.textContent = 'Нажмите статус на карточке, чтобы включить или выключить все абилки агента в этой категории.';
-}
-
-async function _toggleAgentCategory(agentName, button) {
-  const agent = _agentsData.find(item => item.displayName === agentName); if (!agent) return;
-  const category = _selectedAgentCategory;
-  const key = `${agentName}|${category}`;
-  button.disabled = true;
-  try {
-    const current = await _readAgentCategoryConfig(agent, category);
-    const nextEnabled = !Object.values(current).some(Boolean);
-    const config = Object.fromEntries(Object.keys(current).map(name => [name, nextEnabled]));
-    await setDoc(doc(db, 'agents_config', sanitizeAgentId(agentName), 'categories', category), { abilities: config });
-    _agentCategoryConfigCache.set(key, config);
-    _paintAgentCategoryStatus(agentName, config);
-    if (_selectedAgentName === agentName) await _loadAgentAbilitiesForCategory();
-    toast(`${agentName}: ${nextEnabled ? 'категория включена' : 'категория выключена'}`, 's');
-  } catch (error) {
-    button.disabled = false;
-    toast('Ошибка: ' + error.message, 'e');
-  }
+  if (token === _agentCategoryLoadToken && status) status.textContent = 'Выберите действие, отметьте агентов и подтвердите изменение.';
 }
 
 function _applyAgentCatDots(agentName, result) {
@@ -6417,6 +6446,7 @@ let _selectedAgentCategory = 'lineup';
 
 function _setAgentCategoryTab(cat) {
   _selectedAgentCategory = cat;
+  _setAgentBulkAction(null);
   ['lineup','combo','wallbang','defense'].forEach(c => {
     const btn = document.getElementById('agents-tab-'+c); if (!btn) return;
     const active = c === cat;
