@@ -9,6 +9,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
     #tab-btn-contentcfg { display: none !important; }
+    @media (min-width: 900px) {
+      #agents-editor-layout.abilities-layout { display:grid !important; grid-template-columns:minmax(0,1fr) 380px; gap:18px; align-items:start; }
+      #agents-editor-layout.abilities-layout #agents-abilities-block { max-width:none !important; position:sticky; top:18px; }
+    }
     :root {
       --bg: #0a0f1a;
       --surface: #111827;
@@ -1877,6 +1881,7 @@
         <span id="agents-bulk-count" style="font-size:11px;color:var(--text2);">Сначала выбери действие</span>
       </div>
 
+      <div id="agents-editor-layout" style="display:block;">
       <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-bottom:24px;">
         <div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>
       </div>
@@ -1889,6 +1894,7 @@
           <button class="btn btn-save" id="agents-save-btn">💾 Сохранить</button>
         </div>
         <div id="agents-save-status" style="margin-top:8px;font-size:12px;color:var(--green);display:none;"></div>
+      </div>
       </div>
     </div>
   </div>
@@ -6506,6 +6512,7 @@ function _setAgentConfigMode(mode) {
     button.className = button.dataset.agentMode === _selectedAgentConfigMode ? 'btn btn-save' : 'btn';
   });
   document.getElementById('agents-abilities-block').style.display = 'none';
+  document.getElementById('agents-editor-layout')?.classList.toggle('abilities-layout', _selectedAgentConfigMode === 'abilities');
   _selectedAgentName = null;
   _setAgentBulkAction(null);
   _refreshSelectedAgentCategoryStatuses();
@@ -6581,6 +6588,7 @@ async function _selectAgentCard(name) {
   document.getElementById('agents-selected-name').textContent = name;
   await _loadAgentAbilitiesForCategory();
   document.getElementById('agents-abilities-block').style.display = 'block';
+  document.getElementById('agents-editor-layout')?.classList.add('abilities-layout');
   document.getElementById('agents-save-status').style.display = 'none';
   document.getElementById('agents-abilities-block').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
