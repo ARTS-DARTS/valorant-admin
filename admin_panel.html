@@ -223,10 +223,6 @@
     .agent-card .ac-fallback { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 22px; }
     .agent-card .ac-name { font-size: 9px; font-weight: 700; color: var(--text2); text-align: center; padding: 3px 3px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .agent-card.sel .ac-name { color: var(--primary); }
-    .agent-disable-btn { position: absolute; top: 3px; right: 3px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4); color: #ef4444; border-radius: 4px; font-size: 10px; line-height: 1; width: 18px; height: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; z-index: 2; opacity: 0; transition: opacity .15s; }
-    .agent-card:hover .agent-disable-btn { opacity: 1; }
-    .agent-card.disabled-agent { opacity: 0.35; filter: grayscale(1); }
-    .agent-card.disabled-agent .agent-disable-btn { opacity: 1; background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.4); color: #22c55e; }
     .agent-category-toggle { width:calc(100% - 8px);margin:2px 4px 5px;padding:5px 3px;border:1px solid var(--border);border-radius:5px;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap; }
     .agent-category-toggle:disabled { opacity:.55;cursor:wait; }
     .agent-cat-dots { display:flex; gap:3px; justify-content:center; margin-top:3px; padding-bottom:3px; }
@@ -1029,7 +1025,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">agent-category-matrix | 2026-07-17 19:08</span>
+      <span class="admin-version" id="admin-build-version">agent-category-single-toggle | 2026-07-18 04:08</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -6265,17 +6261,9 @@ const sanitizeAgentId = name => name.replaceAll('/', '_');
 let _agentsData = [];
 let _agentAbilitiesConfig = {};
 let _selectedAgentName = null;
-let _disabledAgents = new Set();
 const _catDotCache = {};
 const _agentCategoryConfigCache = new Map();
 let _agentCategoryLoadToken = 0;
-
-async function _loadDisabledAgents() {
-  try {
-    const snap = await getDoc(doc(db, 'agents_config', '_disabled_agents'));
-    _disabledAgents = new Set(snap.exists() ? (snap.data().disabled || []) : []);
-  } catch(_) { _disabledAgents = new Set(); }
-}
 
 async function loadAgentsForConfig() {
   if (_agentsData.length > 0) {
@@ -6294,7 +6282,6 @@ async function loadAgentsForConfig() {
       _apiCacheSet('_api_agents_v2', agents);
     }
     _agentsData = agents.slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
-    await _loadDisabledAgents();
     _renderAgentCards();
     _refreshSelectedAgentCategoryStatuses();
   } catch (e) {
@@ -6308,34 +6295,15 @@ function _renderAgentCards() {
   grid.innerHTML = '';
   _agentsData.forEach(agent => {
     const card = document.createElement('div');
-    const isDisabled = _disabledAgents.has(agent.displayName);
-    card.className = 'agent-card' + (_selectedAgentName === agent.displayName ? ' sel' : '') + (isDisabled ? ' disabled-agent' : '');
+    card.className = 'agent-card' + (_selectedAgentName === agent.displayName ? ' sel' : '');
     card.dataset.name = agent.displayName;
     const icon = agent.displayIconSmall || agent.displayIcon || '';
     card.innerHTML = `
       ${icon ? `<img src="${icon}" alt="${agent.displayName}" crossorigin="anonymous" onerror="this.parentElement.querySelector('.ac-fallback').style.display='flex';this.style.display='none'">` : ''}
       <div class="ac-fallback" style="display:${icon ? 'none' : 'flex'}">🤖</div>
       <div class="ac-name">${agent.displayName}</div>
-      <button class="agent-disable-btn" title="${isDisabled ? 'Восстановить агента' : 'Скрыть агента'}">${isDisabled ? '↩' : '✕'}</button>
       <button type="button" class="agent-category-toggle" data-agent-category-toggle disabled>Загрузка…</button>`;
     card.addEventListener('click', event => { if (!event.target.closest('button')) _selectAgentCard(agent.displayName); });
-    card.querySelector('.agent-disable-btn').addEventListener('click', async e => {
-      e.stopPropagation();
-      const name = agent.displayName;
-      const wasDisabled = _disabledAgents.has(name);
-      if (wasDisabled) { _disabledAgents.delete(name); } else { _disabledAgents.add(name); }
-      try {
-        await setDoc(doc(db, 'agents_config', '_disabled_agents'), { disabled: [..._disabledAgents] });
-        card.classList.toggle('disabled-agent', !wasDisabled);
-        const btn = card.querySelector('.agent-disable-btn');
-        btn.textContent = wasDisabled ? '✕' : '↩';
-        btn.title = wasDisabled ? 'Скрыть агента' : 'Восстановить агента';
-        toast(wasDisabled ? 'Агент восстановлен' : 'Агент скрыт', 'i');
-      } catch (err) {
-        if (wasDisabled) { _disabledAgents.add(name); } else { _disabledAgents.delete(name); }
-        toast('Ошибка: ' + err.message, 'e');
-      }
-    });
     card.querySelector('[data-agent-category-toggle]').addEventListener('click', event => {
       event.stopPropagation();
       _toggleAgentCategory(agent.displayName, event.currentTarget);
