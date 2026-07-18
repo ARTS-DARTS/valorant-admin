@@ -1882,7 +1882,7 @@
       </div>
 
       <div id="agents-editor-layout" style="display:block;">
-      <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-bottom:24px;">
+      <div id="agents-card-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:7px;margin-bottom:24px;">
         <div class="state" style="grid-column:1/-1;padding:24px;">Загрузка агентов…</div>
       </div>
 
@@ -6345,9 +6345,10 @@ function _paintAgentCategoryStatus(agentName, config) {
   const card = document.querySelector(`#agents-card-grid .agent-card[data-name="${CSS.escape(agentName)}"]`);
   const button = card?.querySelector('[data-agent-category-toggle]');
   if (!button) return;
+  const visible = _agentVisibilityCache.get(_agentConfigCacheKey(agentName, _selectedAgentCategory)) !== false;
   const enabled = _selectedAgentConfigMode === 'visibility'
-    ? _agentVisibilityCache.get(_agentConfigCacheKey(agentName, _selectedAgentCategory)) !== false
-    : Object.values(config || {}).some(Boolean);
+    ? visible
+    : visible && Object.values(config || {}).some(Boolean);
   button.dataset.enabled = enabled ? 'true' : 'false';
   button.textContent = enabled ? '✓ Включён' : '○ Выключен';
   button.style.cssText = enabled
