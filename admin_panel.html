@@ -6356,6 +6356,19 @@ function _paintAgentCategoryStatus(agentName, config) {
     : 'border-color:rgba(148,163,184,.28);background:rgba(148,163,184,.08);color:var(--text2);';
 }
 
+function _sortAgentCardsByStatus() {
+  const grid = document.getElementById('agents-card-grid');
+  if (!grid) return;
+  const cards = [...grid.querySelectorAll('.agent-card')];
+  cards.sort((a, b) => {
+    const aEnabled = a.querySelector('[data-agent-category-toggle]')?.dataset.enabled === 'true';
+    const bEnabled = b.querySelector('[data-agent-category-toggle]')?.dataset.enabled === 'true';
+    if (aEnabled !== bEnabled) return aEnabled ? -1 : 1;
+    return String(a.dataset.name || '').localeCompare(String(b.dataset.name || ''), 'ru');
+  });
+  cards.forEach(card => grid.appendChild(card));
+}
+
 function _renderAgentBulkControls() {
   const enable = document.getElementById('agents-bulk-enable');
   const disable = document.getElementById('agents-bulk-disable');
@@ -6395,6 +6408,7 @@ document.getElementById('agents-bulk-confirm')?.addEventListener('click', async 
       _paintAgentCategoryStatus(agentName, config);
     }));
     await bumpConfigVersions(['ability_config']);
+    _sortAgentCardsByStatus();
     toast(`${enabled ? 'Включено' : 'Выключено'} агентов: ${names.length}`, 's');
     _setAgentBulkAction(null);
   } catch (error) { toast('Ошибка: ' + error.message, 'e'); }
@@ -6432,6 +6446,7 @@ async function _refreshSelectedAgentCategoryStatuses() {
     if (token === _agentCategoryLoadToken && status) status.textContent = `Загружено ${loaded} из ${_agentsData.length}`;
   }));
   if (token === _agentCategoryLoadToken && status) status.textContent = 'Выберите действие, отметьте агентов и подтвердите изменение.';
+  if (token === _agentCategoryLoadToken) _sortAgentCardsByStatus();
 }
 
 function _applyAgentCatDots(agentName, result) {
