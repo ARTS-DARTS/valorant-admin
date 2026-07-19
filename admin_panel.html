@@ -3586,6 +3586,17 @@ function loginErr(msg) {
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 let _activeTab = null;
+// Авторизация может вызвать switchTab(), пока module-скрипт ещё продолжает
+// инициализацию. Эти состояния должны существовать до первого переключения.
+let analyticsLoaded = false;
+let _allUsers = [];
+let _userSearchQuery = '';
+let _userAuthFilter = 'all';
+let _userVerifFilter = 'all';
+let _usersCursor = null;
+let _usersHasMore = false;
+let _usersTotal = null;
+let _usersLoading = false;
 
 function stopInactiveRealtime(activeTab) {
   if (activeTab !== 'list') stopLineupsRealtime();
@@ -3655,6 +3666,7 @@ function switchTab(t) {
   if (t === 'notif') { if (!apLoaded) loadAuthorPanelUsers(); loadForceUpdateVersion(); }
 }
 window.switchTab = switchTab;
+window.switchUserCat = switchUserCat;
 
 // ── Экономия квоты Firestore: приостанавливаем live-listeners, когда вкладка
 // браузера скрыта (админ ушёл / AFK). Пока вкладка открыта на 'list'/'messages'/
@@ -9706,12 +9718,6 @@ function renderSlotExtraTools(id) {
     list.innerHTML = '';
     return;
   }
-  if (_msSpawnDrag?.pointerId === event.pointerId) {
-    _msSpawnDrag = null;
-    const canvas = document.getElementById('ms-canvas');
-    if (canvas) canvas.style.cursor = 'default';
-    return;
-  }
   s.extraAbilities = Array.isArray(s.extraAbilities) ? s.extraAbilities : [];
   const abilities = (AGENT_ABILITIES[pickedAgent] || []).filter(ab => ab !== pickedAbility);
   picker.innerHTML = abilities.map(ab => {
@@ -13531,8 +13537,6 @@ async function loadNewUsersAnalytics() {
   }
 }
 
-let analyticsLoaded = false;
-
 async function loadAnalytics(force = false) {
   if (analyticsLoaded && !force) return;
   analyticsLoaded = true;
@@ -16965,15 +16969,6 @@ document.getElementById('lineup-detail-overlay').addEventListener('click', e => 
 });
 
 // ── Пользователи ──────────────────────────────────────────────────────────────
-
-let _allUsers = [];
-let _userSearchQuery = '';
-let _userAuthFilter = 'all';
-let _userVerifFilter = 'all';
-let _usersCursor = null;
-let _usersHasMore = false;
-let _usersTotal = null;
-let _usersLoading = false;
 
 const USER_REQUIRED_VIEWS = 5;
 const USER_DEFAULT_TRIAL_DAYS = 30;
