@@ -1037,7 +1037,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">sova-shot-hud-v2 | 2026-07-19 18:25</span>
+      <span class="admin-version" id="admin-build-version">hot-notifications-v1 | 2026-07-19 20:11</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -7407,17 +7407,8 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         await writeAudit(id, 'sent_to_moderation');
         patchStatus(id, 'moderator_draft');
       } else if (action === 'approve') {
-        await updateDoc(doc(db, 'lineups', id), {
-          status: 'hot',
-          moderated_by_uid: currentUser?.uid || null,
-          moderated_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-          moderated_by_role: currentUserRole || 'admin',
-          moderated_at: serverTimestamp(),
-          hot_confirmed_by_uid: currentUser?.uid || null,
-          hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-          hot_confirmed_by_role: currentUserRole || 'admin',
-          hot_confirmed_at: serverTimestamp(),
-        });
+        const lineup = lineups.find(item => item.id === id);
+        await confirmLineupHot(id, lineup?.user_id || '');
         await writeAudit(id, 'hot');
         patchStatus(id, 'hot');
       } else {
@@ -8424,20 +8415,10 @@ async function notifyLineupAuthorRejected(uid, lineup, reason) {
 async function approveLineup(id, userId) {
   if (!confirm('Отправить лайнап в «Горячие пирожки»?\nОн станет виден пользователям только после финального подтверждения.')) return;
   try {
-    await updateDoc(doc(db, 'lineups', id), {
-      status: 'hot',
-      moderated_by_uid: currentUser?.uid || null,
-      moderated_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-      moderated_by_role: currentUserRole || 'admin',
-      moderated_at: serverTimestamp(),
-      hot_confirmed_by_uid: currentUser?.uid || null,
-      hot_confirmed_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
-      hot_confirmed_by_role: currentUserRole || 'admin',
-      hot_confirmed_at: serverTimestamp(),
-    });
+    const result = await confirmLineupHot(id, userId);
     await writeAudit(id, 'hot');
     patchStatus(id, 'hot');
-    toast('Лайнап в горячих пирожках 🔥', 's');
+    toast(`Лайнап в горячих пирожках 🔥${result.cooldownReset ? ' · КД автора сброшено' : ''}`, 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
@@ -15208,6 +15189,78 @@ async function writeUserNotification(uid, payload) {
     is_read: false,
   });
   await batch.commit();
+}
+
+const HOT_REWARD_LEVELS = [
+  { min:0, cooldownMinutes:60 }, { min:3, cooldownMinutes:45 },
+  { min:7, cooldownMinutes:30 }, { min:15, cooldownMinutes:15 },
+  { min:30, cooldownMinutes:5 }, { min:50, cooldownMinutes:2 },
+  { min:100, cooldownMinutes:0 },
+];
+
+function hotCooldownMinutes(approved) {
+  return HOT_REWARD_LEVELS.reduce((current, level) => approved >= level.min ? level : current, HOT_REWARD_LEVELS[0]).cooldownMinutes;
+}
+
+async function confirmLineupHot(lineupId, fallbackUid = '') {
+  const lineupRef = doc(db, 'lineups', lineupId);
+  const result = await runTransaction(db, async tx => {
+    const lineupSnap = await tx.get(lineupRef);
+    if (!lineupSnap.exists()) throw new Error('Лайнап не найден');
+    const lineup = { id:lineupId, ...lineupSnap.data() };
+    const uid = lineupAuthorUid(lineup, fallbackUid);
+    const alreadyNotified = !!lineup.hot_author_notified_at;
+    let cooldownReset = false;
+    let notificationRef = null;
+    let userNotificationRef = null;
+
+    if (uid && !alreadyNotified) {
+      const rateRef = doc(db, 'rate_limits', uid);
+      const userRef = doc(db, 'users', uid);
+      const statsRef = doc(db, 'user_stats', uid);
+      const [rateSnap, userSnap, statsSnap] = await Promise.all([tx.get(rateRef), tx.get(userRef), tx.get(statsRef)]);
+      const user = userSnap.data() || {};
+      const stats = statsSnap.data() || {};
+      const approved = Math.max(
+        Number(user.approved_lineups || user.approved_lineups_count || 0),
+        Number(stats.approved_lineups || stats.approved_lineups_count || 0),
+      ) + Math.max(Number(user.bonus_lineups || 0), Number(stats.bonus_lineups || stats.bonus_points || 0));
+      const cooldownMs = hotCooldownMinutes(approved) * 60_000;
+      const lastAt = rateSnap.data()?.last_lineup_at?.toMillis?.() || 0;
+      cooldownReset = rateSnap.exists() && cooldownMs > 0 && lastAt + cooldownMs > Date.now();
+      if (cooldownReset) tx.delete(rateRef);
+      notificationRef = doc(collection(db, 'notifications', uid, 'items'));
+      userNotificationRef = doc(collection(db, 'users', uid, 'notifications'));
+    }
+
+    const moderatorName = currentUser?.displayName || currentUser?.email || 'Admin';
+    tx.update(lineupRef, {
+      status:'hot',
+      moderated_by_uid:currentUser?.uid || null,
+      moderated_by_name:moderatorName,
+      moderated_by_role:currentUserRole || 'admin',
+      moderated_at:serverTimestamp(),
+      hot_confirmed_by_uid:currentUser?.uid || null,
+      hot_confirmed_by_name:moderatorName,
+      hot_confirmed_by_role:currentUserRole || 'admin',
+      hot_confirmed_at:serverTimestamp(),
+      ...(!alreadyNotified && uid ? { hot_author_notified_at:serverTimestamp(), hot_cooldown_reset:cooldownReset } : {}),
+    });
+
+    if (notificationRef && userNotificationRef) {
+      const details = [lineup.agent, lineup.map].filter(Boolean).join(' · ');
+      const body = `${details ? `${details}. ` : ''}Лайнап подтверждён и перемещён в «Пирожки», но пока ещё не опубликован.${cooldownReset ? ' КД на новую отправку сброшено.' : ''}`;
+      const payload = {
+        type:'lineup_hot', lineup_id:lineupId, title:'Лайнап подтверждён 🔥', body,
+        agent:lineup.agent || '', map:lineup.map || '', cooldown_reset:cooldownReset,
+        created_at:serverTimestamp(),
+      };
+      tx.set(notificationRef, { ...payload, is_read:false });
+      tx.set(userNotificationRef, { ...payload, read:false });
+    }
+    return { uid, cooldownReset, alreadyNotified };
+  });
+  return result;
 }
 
 // ── Target picker logic ───────────────────────────────────────────────────────
