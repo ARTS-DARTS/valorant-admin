@@ -1037,7 +1037,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">hot-notifications-v1 | 2026-07-19 20:11</span>
+      <span class="admin-version" id="admin-build-version">sova-charge-clean-v1 | 2026-07-19 20:19</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -11458,7 +11458,6 @@ function buildEditForm(id, l) {
           <div aria-hidden="true" style="position:absolute;left:33.333%;top:4px;width:1px;height:14px;background:#fff;pointer-events:none;"></div>
           <div aria-hidden="true" style="position:absolute;left:66.666%;top:4px;width:1px;height:14px;background:#fff;pointer-events:none;"></div>
           <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:9px;letter-spacing:2px;color:var(--text2);">ЗАРЯД</span>
-          <output id="ce-sova-charge-value-${id}" style="position:absolute;right:0;bottom:0;font-size:9px;color:var(--text2);"></output>
         </div>
       </div>
       <div>
@@ -11485,8 +11484,6 @@ function renderEditSovaShot(id) {
   const charge = document.getElementById('ce-sova-charge-' + id);
   if (charge) charge.value = String(sess.sovaCharge);
   if (charge) charge.style.setProperty('--charge', `${sess.sovaCharge / 3 * 100}%`);
-  const value = document.getElementById('ce-sova-charge-value-' + id);
-  if (value) value.textContent = `${sess.sovaCharge.toFixed(2)} / 3`;
   panel.querySelectorAll('[data-bounce]').forEach(button => {
     const active = Number(button.dataset.bounce) <= sess.sovaBounces;
     const diamond = button.firstElementChild;
