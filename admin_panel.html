@@ -6408,6 +6408,17 @@ function _paintAgentCategoryStatus(agentName, config) {
     : 'border-color:rgba(148,163,184,.28);background:rgba(148,163,184,.08);color:var(--text2);';
 }
 
+function lineupNeedsMetadataReview(item = {}) {
+  if (!['easy', 'medium', 'hard'].includes(String(item.difficulty || '').trim())) return true;
+  if (!['attack', 'defense'].includes(String(item.round_side || '').trim())) return true;
+  const agent = String(item.agent || '').trim().toLowerCase();
+  const ability = String(item.ability || '').trim().toLowerCase();
+  const sovaArrow = (agent === 'sova' || agent === 'сова') && /shock|recon|шок|развед|стрел/.test(ability);
+  if (!sovaArrow) return false;
+  return !(typeof item.sova_charge === 'number' && item.sova_charge >= 0 && item.sova_charge <= 3) ||
+    !(Number.isInteger(item.sova_bounces) && item.sova_bounces >= 0 && item.sova_bounces <= 2);
+}
+
 function _sortAgentCardsByStatus() {
   const grid = document.getElementById('agents-card-grid');
   if (!grid) return;
@@ -8438,6 +8449,7 @@ async function publishLineup(id, userId) {
     const wasApproved = before.status === 'approved';
     const updateData = {
       status: 'approved', published_at: serverTimestamp(),
+      metadata_review_required: lineupNeedsMetadataReview(before),
       published_by_uid: currentUser?.uid || null,
       published_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
       published_by_role: currentUserRole || 'admin',
@@ -8484,7 +8496,7 @@ async function publishAllHot() {
     };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     const b = writeBatch(db);
-    publishable.forEach(l => b.update(doc(db, 'lineups', l.id), updateData));
+    publishable.forEach(l => b.update(doc(db, 'lineups', l.id), { ...updateData, metadata_review_required: lineupNeedsMetadataReview(l) }));
     await b.commit();
     const authorGroups = new Map();
     const publishedLineups = [];
