@@ -2612,6 +2612,7 @@
     <span style="font-size:15px;font-weight:700;color:var(--text);">⚠️ Логи / Ошибки</span>
     <div style="flex:1;"></div>
     <button class="btn" id="logs-refresh-btn" style="border:1px solid var(--border);color:var(--text2);padding:6px 14px;font-size:12px;">🔄 Обновить</button>
+    <button class="btn" id="logs-export-btn" style="border:1px solid #38bdf8;color:#38bdf8;padding:6px 14px;font-size:12px;">⬇ Скачать отчёт</button>
     <button class="btn btn-delete" id="logs-clear-btn" style="font-size:12px;padding:6px 14px;">🗑️ Очистить всё</button>
   </div>
   <div class="logs-filter-row">
@@ -16913,6 +16914,93 @@ async function _deleteLogGroup(groupDomId, btn) {
 }
 
 document.getElementById('logs-refresh-btn').addEventListener('click', loadLogsTab);
+
+function _exportLogValue(value) {
+  if (value?.toDate) return value.toDate().toISOString();
+  if (Array.isArray(value)) return value.map(_exportLogValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, _exportLogValue(item)]));
+  }
+  return value;
+}
+
+async function _loadAllErrorsForExport(onProgress) {
+  const result = [];
+  let cursor = null;
+  do {
+    const constraints = [orderBy('timestamp', 'desc'), limit(500)];
+    if (cursor) constraints.push(startAfter(cursor));
+    const snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
+    result.push(...snap.docs.map(item => ({ id: item.id, ...item.data() })));
+    cursor = snap.docs.at(-1) || null;
+    onProgress?.(result.length);
+    if (snap.size < 500) break;
+  } while (cursor);
+  return result;
+}
+
+async function _clearErrorsAndRefresh(button) {
+  button.disabled = true;
+  const original = button.textContent;
+  try {
+    const deleted = await _clearAllAppErrors(count => { button.textContent = `Удалено: ${count}…`; });
+    _logsCache = []; _logsUsers = {}; _logsRenderedGroups = {};
+    document.getElementById('logs-list').innerHTML = '<div class="state">Нет логов 🎉</div>';
+    addAuditLog('app_errors_clear_all', { deleted });
+    toast(`История очищена: удалено ${deleted} записей`, 's');
+  } finally {
+    button.disabled = false;
+    button.textContent = original;
+  }
+}
+
+document.getElementById('logs-export-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('logs-export-btn');
+  btn.disabled = true;
+  btn.textContent = 'Готовим файл…';
+  try {
+    const logs = await _loadAllErrorsForExport(count => { btn.textContent = `Собрано: ${count}…`; });
+    if (!logs.length) { toast('Ошибок для скачивания нет', 'i'); return; }
+    const report = {
+      report: 'Valorant Lineups application errors',
+      exported_at: new Date().toISOString(),
+      admin_build: currentAdminBuildVersion(),
+      total_errors: logs.length,
+      errors: logs.map(log => ({
+        id: log.id,
+        timestamp: _exportLogValue(log.timestamp),
+        application_version: String(log.appVersion || 'unknown'),
+        application_version_name: String(log.appVersionName || 'unknown'),
+        application_build_number: String(log.appBuildNumber || 'unknown'),
+        application_package: String(log.appPackageName || 'unknown'),
+        platform: log.platform || 'unknown',
+        type: log.type || 'unknown',
+        user_uid: _logUid(log),
+        user_label: _logUserLabel(_logUid(log)),
+        message: log.message || '',
+        human_comment: _logHumanComment(log),
+        stack_trace: log.stack || '',
+        context: _exportLogValue(log.context || null),
+      })),
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    link.href = url; link.download = `valorant-lineups-errors-${stamp}.json`;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    toast(`Отчёт скачан: ${logs.length} ошибок`, 's');
+    if (confirm(`Отчёт на ${logs.length} ошибок скачан. Очистить список ошибок теперь?`)) {
+      await _clearErrorsAndRefresh(document.getElementById('logs-clear-btn'));
+    }
+  } catch (error) {
+    toast('Не удалось скачать отчёт: ' + error.message, 'e');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⬇ Скачать отчёт';
+  }
+});
 
 async function _clearAllAppErrors(onProgress) {
   const pageSize = 400;
