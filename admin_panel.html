@@ -2529,7 +2529,7 @@
             <span class="nc-icon">🆕</span>
             <div>
               <div class="nc-title">Обновление приложения</div>
-              <div class="nc-desc">Задать актуальную версию и оповестить всех пушем</div>
+              <div class="nc-desc">Задать актуальную версию и оповестить только тех, кто ещё не обновился</div>
             </div>
           </div>
           <div class="fg" style="margin-top:13px;">
@@ -2541,6 +2541,14 @@
             <div style="font-size:11px;color:var(--text2);margin-top:6px;">
               Текущее в Firestore: <span id="fu-current" style="color:var(--text);font-weight:600;">…</span>.
               Разница 1 патч = мягкое обновление, 2+ = обязательное.
+            </div>
+          </div>
+          <div class="fg" style="margin-top:12px;">
+            <label class="flabel">Android versionCode</label>
+            <input class="finput" id="fu-version-code" inputmode="numeric" placeholder="Например: 736789" style="background:var(--bg);">
+            <div style="font-size:11px;color:var(--text2);margin-top:6px;">
+              Текущее в Firestore: <span id="fu-current-code" style="color:var(--text);font-weight:600;">…</span>.
+              Пуш получат только сборки с меньшим кодом.
             </div>
           </div>
           <div class="fg" style="margin-top:12px;">
@@ -12466,6 +12474,7 @@ document.getElementById('ap-search')?.addEventListener('input', e => {
 function closeProfileModal() {
   document.getElementById('profile-modal').style.display = 'none';
 }
+window.closeProfileModal = closeProfileModal;
 async function openUserProfile(uid, name) {
   const modal = document.getElementById('profile-modal');
   const body  = document.getElementById('profile-modal-body');
@@ -13382,7 +13391,8 @@ async function loadNewUsersAnalytics() {
       active24h,
       active7d,
       active30d,
-      confirmedProfiles,
+      confirmedByFlag,
+      confirmedByViews,
     ] = await Promise.all([
       countDocs(usersRef),
       countDocs(usersRef, [where('created_at', '>=', new Date(new Date().setHours(0, 0, 0, 0)))]),
@@ -13391,11 +13401,13 @@ async function loadNewUsersAnalytics() {
       countDocsSafe(usersRef, [where('last_seen', '>=', d24h)]),
       countDocsSafe(usersRef, [where('last_seen', '>=', d7)]),
       countDocsSafe(usersRef, [where('last_seen', '>=', d30)]),
-      countDocsSafe(usersRef, [or(
-        where('verified_not_fake', '==', true),
-        where('lineups_viewed', '>=', USER_REQUIRED_VIEWS),
-      )]),
+      countDocsSafe(usersRef, [where('verified_not_fake', '==', true)]),
+      countDocsSafe(usersRef, [where('lineups_viewed', '>=', USER_REQUIRED_VIEWS)]),
     ]);
+    // Эти множества могут пересекаться. Без отдельного агрегатного поля точное
+    // объединение потребовало бы чтения всех пользователей, поэтому показываем
+    // безопасную нижнюю оценку без дорогого клиентского скана.
+    const confirmedProfiles = Math.max(confirmedByFlag, confirmedByViews);
     let nuPassword = 0, nuGoogle = 0, nuYandex = 0;
     const nuByDay = {};
     days.forEach(d => { nuByDay[d] = 0; });
@@ -15081,7 +15093,7 @@ function initNotifCategories() {
 }
 initNotifCategories();
 
-async function sendPushNotification({ title, body, translations, type, targetUid, data, allowAll = false }) {
+async function sendPushNotification({ title, body, translations, type, targetUid, data, maxAndroidVersionCode, allowAll = false }) {
   const uid = targetUid ?? _ncTargetUid;
   if (!uid && !allowAll) {
     throw new Error('Выбери конкретного получателя или явно включи режим "Все пользователи"');
@@ -15090,7 +15102,7 @@ async function sendPushNotification({ title, body, translations, type, targetUid
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
-    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data }),
+    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data, maxAndroidVersionCode }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -16214,10 +16226,15 @@ async function loadForceUpdateVersion() {
   if (!cur) return;
   try {
     const snap = await getDoc(doc(db, 'settings', 'app_version'));
-    const v = snap.exists() ? (snap.data().latest_version || '') : '';
+    const data = snap.exists() ? snap.data() : {};
+    const v = data.latest_version || '';
+    const versionCode = String(data.latest_version_code || '');
     cur.textContent = v || 'не задано';
+    document.getElementById('fu-current-code').textContent = versionCode || 'не задано';
     const input = document.getElementById('fu-version');
     if (input && !input.value) input.value = v;
+    const codeInput = document.getElementById('fu-version-code');
+    if (codeInput && !codeInput.value) codeInput.value = versionCode;
   } catch (e) {
     cur.textContent = 'ошибка загрузки';
   }
@@ -16225,18 +16242,23 @@ async function loadForceUpdateVersion() {
 
 document.getElementById('fu-save-btn')?.addEventListener('click', async () => {
   const version = document.getElementById('fu-version').value.trim();
+  const versionCode = document.getElementById('fu-version-code').value.trim();
   if (!version) { toast('Укажи версию', 'e'); return; }
   if (!/^\d+\.\d+(\.\d+)?$/.test(version)) {
     toast('Формат версии: 9.05 или 9.0.5', 'e'); return;
+  }
+  if (!/^\d+$/.test(versionCode) || Number(versionCode) <= 0) {
+    toast('Укажи Android versionCode числом', 'e'); return;
   }
   const btn = document.getElementById('fu-save-btn');
   btn.disabled = true;
   try {
     await setDoc(doc(db, 'settings', 'app_version'),
-      { latest_version: version, updatedAt: serverTimestamp() }, { merge: true });
+      { latest_version: version, latest_version_code: Number(versionCode), updatedAt: serverTimestamp() }, { merge: true });
     document.getElementById('fu-current').textContent = version;
+    document.getElementById('fu-current-code').textContent = versionCode;
     toast(`Версия ${version} сохранена`, 's');
-    if (typeof addAuditLog === 'function') addAuditLog('app_version_updated', { version });
+    if (typeof addAuditLog === 'function') addAuditLog('app_version_updated', { version, versionCode: Number(versionCode) });
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');
   } finally {
@@ -16245,15 +16267,31 @@ document.getElementById('fu-save-btn')?.addEventListener('click', async () => {
 });
 
 document.getElementById('fu-push-btn')?.addEventListener('click', async () => {
+  const latestVersion = document.getElementById('fu-current').textContent.trim();
+  const latestVersionCode = document.getElementById('fu-current-code').textContent.trim();
+  if (!/^\d+\.\d+(\.\d+)?$/.test(latestVersion)) {
+    toast('Сначала сохрани актуальную версию', 'e');
+    return;
+  }
+  if (!/^\d+$/.test(latestVersionCode)) {
+    toast('Сначала сохрани Android versionCode', 'e');
+    return;
+  }
   const body = document.getElementById('fu-push-body').value.trim()
     || 'Доступна новая версия — обновите приложение';
   const btn = document.getElementById('fu-push-btn');
   btn.disabled = true;
   _ncSetStatus('forceupdate', true, 'Отправка…');
   try {
-    await sendPushNotification({ title: '🆕 Обновление приложения', body, type: 'force_update', allowAll: true });
-    _ncSetStatus('forceupdate', true, '✅ Отправлено — при клике откроется Google Play');
-    toast('Пуш об обновлении отправлен всем', 's');
+    await sendPushNotification({
+      title: '🆕 Обновление приложения',
+      body,
+      type: 'force_update',
+      maxAndroidVersionCode: latestVersionCode,
+      allowAll: true,
+    });
+    _ncSetStatus('forceupdate', true, `✅ Отправлено пользователям без актуальной версии ${latestVersion}`);
+    toast(`Пуш отправлен пользователям без версии ${latestVersion}`, 's');
   } catch (e) {
     _ncSetStatus('forceupdate', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
@@ -16796,20 +16834,44 @@ async function _deleteLogGroup(groupDomId, btn) {
 
 document.getElementById('logs-refresh-btn').addEventListener('click', loadLogsTab);
 
+async function _clearAllAppErrors(onProgress) {
+  const pageSize = 400;
+  let deleted = 0;
+
+  // The logs screen only loads the newest 200 records. Keep querying the
+  // collection until it is actually empty instead of deleting only the cache.
+  while (true) {
+    const snap = await getDocs(query(collection(db, 'app_errors'), limit(pageSize)));
+    if (snap.empty) break;
+
+    const batch = writeBatch(db);
+    snap.docs.forEach(item => batch.delete(item.ref));
+    await batch.commit();
+    deleted += snap.size;
+    onProgress?.(deleted);
+  }
+
+  return deleted;
+}
+
 document.getElementById('logs-clear-btn').addEventListener('click', async () => {
-  if (!confirm(`Удалить все ${_logsCache.length} записей? Это нельзя отменить.`)) return;
+  if (!confirm('Удалить всю историю ошибок, включая записи, которые сейчас не показаны? Это нельзя отменить.')) return;
   const btn = document.getElementById('logs-clear-btn');
   btn.disabled = true;
   btn.textContent = 'Удаляем…';
   try {
-    await Promise.all(_logsCache.map(l =>
-      auditDeleteDoc('app_errors', l.id, { reason: 'app_errors_clear_all', snapshot: l })
-    ));
+    const deleted = await _clearAllAppErrors(count => {
+      btn.textContent = `Удалено: ${count}…`;
+    });
     _logsCache = [];
+    _logsUsers = {};
+    _logsRenderedGroups = {};
     document.getElementById('logs-list').innerHTML = '<div class="state">Нет логов 🎉</div>';
-    toast('Логи очищены', 's');
+    addAuditLog('app_errors_clear_all', { deleted });
+    toast(`История очищена: удалено ${deleted} записей`, 's');
   } catch (e) {
     toast('Ошибка: ' + e.message, 'e');
+    await loadLogsTab();
   }
   btn.disabled = false;
   btn.textContent = '🗑️ Очистить всё';
