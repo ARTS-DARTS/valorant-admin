@@ -1391,11 +1391,6 @@
                 <option value="warning">Под угрозой</option>
               </select>
             </div>
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px;">
-              <input class="finput" id="user-verify-before-date" type="date" value="2026-06-20" style="width:145px;font-size:12px;padding:6px 9px;background:var(--bg);">
-              <button class="btn btn-save" id="user-verify-before-btn" style="font-size:12px;padding:7px 10px;">✅ Подтвердить всех до даты</button>
-              <span id="user-verify-before-status" style="font-size:11px;color:var(--text2);"></span>
-            </div>
             <div id="user-search-results" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
               <div style="color:var(--text2);font-size:13px;padding:8px;">Загрузка…</div>
             </div>
@@ -17135,65 +17130,6 @@ document.getElementById('user-verif-filter')?.addEventListener('change', e => {
   _userVerifFilter = e.target.value;
   renderUsersList(applyUserFilters());
 });
-
-document.getElementById('user-verify-before-btn')?.addEventListener('click', async () => {
-  const dateValue = document.getElementById('user-verify-before-date')?.value || '2026-06-20';
-  const cutoff = new Date(dateValue + 'T00:00:00Z');
-  if (!Number.isFinite(cutoff.getTime())) { toast('Укажи корректную дату', 'e'); return; }
-  const candidates = _allUsers.filter(u => {
-    if (u.verified_not_fake) return false;
-    const created = u.created_at?.toDate?.() ?? null;
-    return created && created < cutoff;
-  });
-  if (!candidates.length) {
-    toast('Нет неподтверждённых аккаунтов до этой даты', 'i');
-    return;
-  }
-  if (!confirm(`Подтвердить ${candidates.length} аккаунтов, зарегистрированных до ${dateValue}?`)) return;
-  const btn = document.getElementById('user-verify-before-btn');
-  const status = document.getElementById('user-verify-before-status');
-  btn.disabled = true;
-  if (status) status.textContent = `0/${candidates.length}`;
-  try {
-    let done = 0;
-    for (let i = 0; i < candidates.length; i += 220) {
-      const batch = writeBatch(db);
-      candidates.slice(i, i + 220).forEach(u => {
-        batch.update(doc(db, 'users', u.id), {
-          verified_not_fake: true,
-          verified_at: serverTimestamp(),
-          verification_reason: 'pre_tracking_manual_batch',
-        });
-        batch.set(doc(db, 'user_private', u.id), {
-          uid: u.id,
-          verified_not_fake: true,
-          verified_at: serverTimestamp(),
-          verification_reason: 'pre_tracking_manual_batch',
-          trust: {
-            verified_not_fake: true,
-            verified_at: serverTimestamp(),
-            verification_reason: 'pre_tracking_manual_batch',
-          },
-          updated_at: serverTimestamp(),
-          schema_version: 2,
-        }, { merge: true });
-      });
-      await batch.commit();
-      done += Math.min(220, candidates.length - i);
-      if (status) status.textContent = `${done}/${candidates.length}`;
-    }
-    _allUsers = _allUsers.map(u => candidates.some(c => c.id === u.id)
-      ? { ...u, verified_not_fake: true, verification_reason: 'pre_tracking_manual_batch' }
-      : u);
-    renderUsersList(applyUserFilters());
-    toast(`Подтверждено аккаунтов: ${candidates.length}`, 's');
-  } catch (e) {
-    toast('Ошибка подтверждения: ' + e.message, 'e');
-  } finally {
-    btn.disabled = false;
-  }
-});
-
 
 async function openUserProfilePanel(uid) {
   const panel = document.getElementById('user-profile-panel');
