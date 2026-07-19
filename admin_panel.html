@@ -11298,6 +11298,8 @@ function _getEditSession(id, l) {
       mapScale: 1, mapTx: 0, mapTy: 0, mapDragging: false,
       screenshots: _lineupScreenshotUrls(l).map(url => ({ type: 'existing', url })),
       videoUrl: l.video_url ?? null, videoXhr: null,
+      sovaCharge: Math.max(1, Math.min(3, Number(l.sova_charge) || 3)),
+      sovaBounces: Math.max(0, Math.min(2, Number(l.sova_bounces) || 0)),
       trajectory: Array.isArray(l.trajectory) ? [...l.trajectory] : [],
       extraAbilities: (Array.isArray(l.extra_abilities) ? l.extra_abilities : []).map((item, index) => ({
         ...item,
@@ -11440,7 +11442,42 @@ function buildEditForm(id, l) {
       <div id="ce-vprog-${id}"></div>`}
     </div>
   </div>
+  <div class="fg full" id="ce-sova-shot-${id}" style="display:none;padding:14px;border:1px solid rgba(79,195,247,.4);border-radius:10px;background:rgba(20,55,78,.35);">
+    <label class="flabel" style="color:#4fc3f7;margin-bottom:10px;">🏹 Параметры стрелы Совы</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <label class="flabel">Сила натяжения
+        <select class="fselect" id="ce-sova-charge-${id}">
+          <option value="1"${Number(l.sova_charge) === 1 ? ' selected' : ''}>1 деление</option>
+          <option value="2"${Number(l.sova_charge) === 2 ? ' selected' : ''}>2 деления</option>
+          <option value="3"${!l.sova_charge || Number(l.sova_charge) === 3 ? ' selected' : ''}>3 деления</option>
+        </select>
+      </label>
+      <label class="flabel">Отскоки
+        <select class="fselect" id="ce-sova-bounces-${id}">
+          <option value="0"${!l.sova_bounces ? ' selected' : ''}>0 отскоков</option>
+          <option value="1"${Number(l.sova_bounces) === 1 ? ' selected' : ''}>1 отскок</option>
+          <option value="2"${Number(l.sova_bounces) === 2 ? ' selected' : ''}>2 отскока</option>
+        </select>
+      </label>
+    </div>
+  </div>
 </div>`;
+}
+
+function _isSovaArrowEdit(sess) {
+  const agent = String(sess?.agent || '').trim().toLowerCase();
+  const ability = String(sess?.ability || '').trim().toLowerCase();
+  return (agent === 'sova' || agent === 'сова') && /shock|recon|шок|развед|стрел/.test(ability);
+}
+
+function renderEditSovaShot(id) {
+  const sess = editSessions[id], panel = document.getElementById('ce-sova-shot-' + id);
+  if (!sess || !panel) return;
+  panel.style.display = _isSovaArrowEdit(sess) ? '' : 'none';
+  const charge = document.getElementById('ce-sova-charge-' + id);
+  const bounces = document.getElementById('ce-sova-bounces-' + id);
+  if (charge) charge.value = String(sess.sovaCharge);
+  if (bounces) bounces.value = String(sess.sovaBounces);
 }
 
 function initEditAgentGrid(id) {
@@ -11458,7 +11495,7 @@ function initEditAgentGrid(id) {
       sess.agent = card.dataset.agent; sess.ability = '';
       sess.selectedDefenseAbility = null;
       grid.querySelectorAll('.agent-card').forEach(c => c.classList.remove('sel'));
-      card.classList.add('sel'); renderEditAbilityRow(id); _defRenderTools(id,true); _defRender(id,true);
+      card.classList.add('sel'); renderEditAbilityRow(id); renderEditSovaShot(id); _defRenderTools(id,true); _defRender(id,true);
     });
   });
 }
@@ -11480,6 +11517,7 @@ function renderEditAbilityRow(id) {
       row.querySelectorAll('.abil-btn').forEach(b => b.classList.remove('sel'));
       btn.classList.add('sel'); renderEditMarker(id);
       renderEditExtraTools(id);
+      renderEditSovaShot(id);
     });
   });
 }
@@ -11894,7 +11932,13 @@ async function openEditForm(id) {
   const saveRow = document.getElementById('save-btn-row-' + id);
   if (saveRow) saveRow.style.display = '';
   await _ensureIconsLoaded();
-  initEditAgentGrid(id); renderEditAbilityRow(id);
+  initEditAgentGrid(id); renderEditAbilityRow(id); renderEditSovaShot(id);
+  document.getElementById('ce-sova-charge-' + id)?.addEventListener('change', event => {
+    editSessions[id].sovaCharge = Math.max(1, Math.min(3, Number(event.target.value) || 3));
+  });
+  document.getElementById('ce-sova-bounces-' + id)?.addEventListener('change', event => {
+    editSessions[id].sovaBounces = Math.max(0, Math.min(2, Number(event.target.value) || 0));
+  });
   renderEditExtraTools(id);
   const pickAuthor = () => openAuthorPanel(id);
   document.getElementById('ce-author-' + id)?.addEventListener('click', pickAuthor);
@@ -11955,6 +11999,8 @@ async function saveEditedLineup(id) {
       category, content_type: category, schema_version: l.schema_version ?? 1, round_side: roundSide, is_exclusive: excl, screenshots,
       range_radius: parseFloat(document.getElementById('ce-range-' + id)?.value || '0') || 0,
       video_url: sess.videoUrl === null ? (l.video_url ?? '') : sess.videoUrl,
+      sova_charge: _isSovaArrowEdit(sess) ? sess.sovaCharge : null,
+      sova_bounces: _isSovaArrowEdit(sess) ? sess.sovaBounces : null,
       position_x: sess.markerX ?? l.position_x ?? 0,
       position_y: sess.markerY ?? l.position_y ?? 0,
       trajectory: sess.trajectory,
