@@ -11468,7 +11468,7 @@ function buildEditForm(id, l) {
   </div>
   <div class="fg full" id="ce-sova-shot-${id}" style="display:none;padding:14px;border:1px solid rgba(79,195,247,.4);border-radius:10px;background:rgba(20,55,78,.35);">
     <label class="flabel" style="color:#4fc3f7;margin-bottom:10px;">🏹 Параметры стрелы Совы</label>
-    <div style="display:grid;grid-template-columns:minmax(240px,1fr) auto;gap:24px;align-items:center;">
+    <div style="display:grid;grid-template-columns:1fr;gap:8px;align-items:center;">
       <div>
         <div class="flabel" style="margin-bottom:8px;">Сила натяжения</div>
         <div style="position:relative;padding-bottom:24px;">
@@ -11481,7 +11481,7 @@ function buildEditForm(id, l) {
       </div>
       <div>
         <div class="flabel" style="margin-bottom:8px;text-align:center;">Отскоки</div>
-        <div id="ce-sova-bounces-${id}" style="display:flex;gap:14px;">
+        <div id="ce-sova-bounces-${id}" style="display:flex;justify-content:center;gap:14px;margin:0 auto;">
           ${[1,2].map(n => `<button type="button" data-bounce="${n}" aria-label="${n}-й отскок" style="width:34px;height:34px;border:0;background:transparent;cursor:pointer;padding:7px;"><span style="display:block;width:17px;height:17px;transform:rotate(45deg);border:2px solid #7d8990;background:rgba(111,126,134,.28);"></span></button>`).join('')}
         </div>
       </div>
