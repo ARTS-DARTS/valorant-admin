@@ -17835,6 +17835,7 @@ async function resetUserCooldown(uid, name, panelId) {
     toast('Ошибка сброса КД: ' + e.message, 'e');
   }
 }
+window.resetUserCooldown = resetUserCooldown;
 
 async function banUserAccount(uid, name) {
   if (!confirm(`Заблокировать пользователя ${name}?`)) return;
