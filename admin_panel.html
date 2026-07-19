@@ -1272,15 +1272,6 @@
             </select>
           </div>
 
-          <div class="fg">
-            <label class="flabel">Сторона раунда</label>
-            <select class="fselect" id="f-round-side">
-              <option value="attack">Атака</option>
-              <option value="defense">Защита</option>
-              <option value="any">Любая</option>
-            </select>
-          </div>
-
           <div class="fg" style="align-self:end;">
             <label class="fcheck-row">
               <input type="checkbox" id="f-exclusive">
@@ -9072,6 +9063,7 @@ function collectAdminAddDraft() {
     return {
       title: document.getElementById(`slot-${id}-title`)?.value || '',
       description: document.getElementById(`slot-${id}-desc`)?.value || '',
+      roundSide: document.getElementById(`slot-${id}-round-side`)?.value || s.roundSide || 'attack',
       markerX: s.markerX ?? null,
       markerY: s.markerY ?? null,
       targetX: s.targetX ?? null,
@@ -9534,12 +9526,21 @@ function _defToolsHtml(id, edit = false) {
 }
 
 function _buildSlotHtml(id) {
+  const roundSide = addSlotSessions[id]?.roundSide || 'attack';
   return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div class="dlabel" id="slot-${id}-num">Лайнап #1</div>
       <button class="btn btn-delete" style="padding:4px 10px;font-size:12px;" id="slot-${id}-del-btn">✕ Удалить</button>
     </div>
     <div class="fgrid">
+      <div class="fg full">
+        <label class="flabel">Сторона раунда</label>
+        <select class="fselect" id="slot-${id}-round-side">
+          <option value="attack" ${roundSide === 'attack' ? 'selected' : ''}>Атака</option>
+          <option value="defense" ${roundSide === 'defense' ? 'selected' : ''}>Защита</option>
+          <option value="any" ${roundSide === 'any' ? 'selected' : ''}>Любая</option>
+        </select>
+      </div>
       <div class="fg full">
         <label class="flabel">Название</label>
         <input class="finput" id="slot-${id}-title" placeholder="Название лайнапа">
@@ -10058,12 +10059,12 @@ function _initSlotEvents(id) {
 
 function _syncAddSlotBtn() {
   const btn=document.getElementById('btn-add-slot'); if(!btn) return;
-  btn.style.display=Object.keys(addSlotSessions).length>=12?'none':'inline-flex';
+  btn.style.display='inline-flex';
 }
 function createAddSlot(draftSlot = null) {
-  if(Object.keys(addSlotSessions).length>=12){toast('Максимум 12 слотов','e');return;}
   const id=_nextAddSlotId++;
   addSlotSessions[id]={
+    roundSide:['attack','defense','any'].includes(draftSlot?.roundSide || draftSlot?.round_side) ? (draftSlot?.roundSide || draftSlot?.round_side) : 'attack',
     markerX:draftSlot?.markerX ?? null,
     markerY:draftSlot?.markerY ?? null,
     targetX:draftSlot?.targetX ?? null,
@@ -10099,6 +10100,7 @@ function createAddSlot(draftSlot = null) {
   _syncAddSlotBtn();
   refreshAddContentExtras();
   queueAdminAddDraftSave();
+  return id;
 }
 function deleteAddSlot(id) {
   const s=addSlotSessions[id]; if(!s) return;
@@ -10132,7 +10134,6 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const ability  = pickedAbility;
   const category = normalizeContentCategory(document.getElementById('f-category').value);
   const status   = document.getElementById('f-status').value;
-  const roundSide = document.getElementById('f-round-side').value;
   const excl     = document.getElementById('f-exclusive').checked;
   const moderatorOnly = document.getElementById('bulk-moderator-only')?.checked === true;
   const needsAgent = category !== 'wallbang';
@@ -10172,6 +10173,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
       const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
+      const roundSide=document.getElementById('slot-'+id+'-round-side')?.value||'attack';
       const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
       const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
       const extras = moderatorOnly ? {} : _contentExtrasForSave(category, category === 'wallbang' ? 'add-wallbang' : 'add-defense', s);
@@ -10773,7 +10775,7 @@ function restoreAdminAddDraft() {
     Object.keys(addSlotSessions).forEach(id => delete addSlotSessions[id]);
     _nextAddSlotId = 0;
     const slots = Array.isArray(draft.slots) && draft.slots.length ? draft.slots : [{}];
-    slots.slice(0, 12).forEach(slot => createAddSlot(slot));
+    slots.forEach(slot => createAddSlot(slot));
     toast('Черновик добавления восстановлен', 'i');
   } finally {
     _restoringAddDraft = false;
@@ -11012,6 +11014,7 @@ restoreAdminAddDraft();
 
     showBulkProgress(toProcess.length);
     let firstScrollId = null;
+    let assignedCount = 0;
 
     for (let i = 0; i < toProcess.length; i++) {
       const file = toProcess[i];
@@ -11027,20 +11030,18 @@ restoreAdminAddDraft();
       if (emptySlotId !== undefined) {
         targetId = emptySlotId;
       } else {
-        const beforeIds = new Set(Object.keys(addSlotSessions));
-        document.getElementById('btn-add-slot')?.click();
-        await new Promise(r => setTimeout(r, 100));
-        targetId = Object.keys(addSlotSessions).find(id => !beforeIds.has(id));
+        targetId = createAddSlot();
       }
 
       if (targetId !== undefined) {
         _handleSlotVideoFile(Number(targetId), file);
+        assignedCount += 1;
         if (firstScrollId === null) firstScrollId = targetId;
       }
     }
 
     hideBulkProgress();
-    const n = toProcess.length;
+    const n = assignedCount;
     toast(`✅ Создано ${n} слот${n===1?'':n<=4?'а':'ов'} с видео`, 's');
 
     if (firstScrollId !== null) {
