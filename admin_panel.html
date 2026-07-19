@@ -10129,51 +10129,57 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
   const status   = document.getElementById('f-status').value;
   const roundSide = document.getElementById('f-round-side').value;
   const excl     = document.getElementById('f-exclusive').checked;
+  const moderatorOnly = document.getElementById('bulk-moderator-only')?.checked === true;
   const needsAgent = category !== 'wallbang';
   const needsAbility = category === 'lineup' || category === 'combo';
-  if (!map)      { toast('Выбери карту','e'); return; }
   if (!category) { toast('Выбери категорию','e'); return; }
   if (!canSaveContentCategory(category)) { toast('Эта категория пока закрыта для добавления','e'); return; }
+  if (moderatorOnly) {
+    if (!agent)   { toast('Выбери агента','e'); return; }
+    if (!ability) { toast('Выбери способность','e'); return; }
+    if (!status)  { toast('Выбери статус','e'); return; }
+  } else if (!map) { toast('Выбери карту','e'); return; }
   if (needsAgent && !agent)    { toast('Выбери агента','e'); return; }
   if (needsAbility && !ability)  { toast('Выбери способность','e'); return; }
-  if (category === 'wallbang' && !_checkedValues('add-wallbang-weapons').length) { toast('Выбери оружие для прострела','e'); return; }
+  if (!moderatorOnly && category === 'wallbang' && !_checkedValues('add-wallbang-weapons').length) { toast('Выбери оружие для прострела','e'); return; }
   const defenseSite = (document.getElementById('add-defense-site')?.value ?? '').trim();
   const defenseNumber = _numOrNull('add-defense-number');
-  if (category === 'defense' && !defenseSite) { toast('Укажи зону защиты','e'); return; }
-  if (category === 'defense' && (!defenseNumber || defenseNumber < 1)) { toast('Укажи номер сетапа защиты','e'); return; }
+  if (!moderatorOnly && category === 'defense' && !defenseSite) { toast('Укажи зону защиты','e'); return; }
+  if (!moderatorOnly && category === 'defense' && (!defenseNumber || defenseNumber < 1)) { toast('Укажи номер сетапа защиты','e'); return; }
   const slotIds = Object.keys(addSlotSessions);
   for (const id of slotIds) {
     const s = addSlotSessions[id];
     const n = slotIds.indexOf(id)+1;
-    if (!document.getElementById('slot-'+id+'-title')?.value.trim()) { toast(`Слот #${n}: заполни название`,'e'); return; }
-    if (s.markerX===null) { toast(`Слот #${n}: поставь ${category === 'defense' ? 'метку сетапа' : 'точку на карте'}`,'e'); return; }
-    if (category === 'defense' && !Number.isFinite(s.siteMarkerX)) { toast(`Слот #${n}: поставь метку зоны`,'e'); return; }
-    if (category === 'defense' && !(s.zoomArea?.width >= .01 && s.zoomArea?.height >= .01)) { toast(`Слот #${n}: выдели область зума`,'e'); return; }
-    if (category === 'defense' && !s.defenseAbilities?.length) { toast(`Слот #${n}: расставь хотя бы одну абилку`,'e'); return; }
-    if (category === 'wallbang' && (s.targetX === null || s.targetX === undefined)) { toast(`Слот #${n}: поставь точку прострела`,'e'); return; }
+    if (!moderatorOnly && !document.getElementById('slot-'+id+'-title')?.value.trim()) { toast(`Слот #${n}: заполни название`,'e'); return; }
+    if (!moderatorOnly && s.markerX===null) { toast(`Слот #${n}: поставь ${category === 'defense' ? 'метку сетапа' : 'точку на карте'}`,'e'); return; }
+    if (!moderatorOnly && category === 'defense' && !Number.isFinite(s.siteMarkerX)) { toast(`Слот #${n}: поставь метку зоны`,'e'); return; }
+    if (!moderatorOnly && category === 'defense' && !(s.zoomArea?.width >= .01 && s.zoomArea?.height >= .01)) { toast(`Слот #${n}: выдели область зума`,'e'); return; }
+    if (!moderatorOnly && category === 'defense' && !s.defenseAbilities?.length) { toast(`Слот #${n}: расставь хотя бы одну абилку`,'e'); return; }
+    if (!moderatorOnly && category === 'wallbang' && (s.targetX === null || s.targetX === undefined)) { toast(`Слот #${n}: поставь точку прострела`,'e'); return; }
     if (s.videoState.status==='uploading') { toast('Подожди — видео ещё загружается…','i'); return; }
     if (s.screenshots.some(sc=>sc.status==='uploading')) { toast('Подожди — фото ещё загружаются…','i'); return; }
   }
   const btn=document.getElementById('btn-add-lineup');
   btn.disabled=true; btn.textContent='Сохранение…';
   try {
-    const rangeRadius = (category === 'wallbang' || category === 'defense') ? 0 : await getConfiguredRangeRadius(map, agent, ability);
+    const rangeRadius = moderatorOnly || category === 'wallbang' || category === 'defense' ? 0 : await getConfiguredRangeRadius(map, agent, ability);
     const saves=slotIds.map(async id=>{
       const s=addSlotSessions[id];
       const title=document.getElementById('slot-'+id+'-title')?.value.trim()||'';
       const desc =document.getElementById('slot-'+id+'-desc')?.value.trim()||'';
       const videoUrl=s.videoState.status==='done'?(s.videoState.url??''):'';
       const screenshots=s.screenshots.filter(sc=>sc.status==='done').map(sc=>sc.storageUrl);
-      const extras = _contentExtrasForSave(category, category === 'wallbang' ? 'add-wallbang' : 'add-defense', s);
-      const extraAbilities = needsAbility ? await buildAdminExtraAbilitiesPayload(map, agent, s) : [];
+      const extras = moderatorOnly ? {} : _contentExtrasForSave(category, category === 'wallbang' ? 'add-wallbang' : 'add-defense', s);
+      const extraAbilities = !moderatorOnly && needsAbility ? await buildAdminExtraAbilitiesPayload(map, agent, s) : [];
       return addDoc(collection(db,'lineups'),{
-        map,agent:needsAgent ? agent : '',ability:needsAbility ? ability : '',category,content_type:category,schema_version:2,round_side:roundSide,title,description:desc,video_url:videoUrl,screenshots,
+        map,agent:(moderatorOnly || needsAgent) ? agent : '',ability:(moderatorOnly || needsAbility) ? ability : '',category,content_type:category,schema_version:2,round_side:roundSide,title,description:desc,video_url:videoUrl,screenshots,
         position_x:s.markerX??0,position_y:s.markerY??0,trajectory:s.trajectory,
         extra_abilities: extraAbilities,
         range_radius: rangeRadius,
         ...extras,
-        status:document.getElementById('bulk-moderator-only')?.checked ? 'moderator_draft' : status,
-        moderator_only:document.getElementById('bulk-moderator-only')?.checked === true,
+        status:moderatorOnly ? 'moderator_draft' : status,
+        moderator_target_status:moderatorOnly ? status : null,
+        moderator_only:moderatorOnly,
         is_exclusive:excl,submitted_at:serverTimestamp(),
         user_id:selectedAuthor?.uid??currentUser?.uid??'',
         submitted_by:selectedAuthor?.name??currentUser?.displayName??'Admin',
@@ -10182,7 +10188,7 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
     const refs=await Promise.all(saves);
     toast(`Добавлено ${_slotCount(slotIds.length)} ✅`,'s');
     // If saved as approved, increment the author's counter
-    if (status === 'approved') {
+    if (!moderatorOnly && status === 'approved') {
       const authorUid = selectedAuthor?.uid ?? currentUser?.uid ?? '';
       if (authorUid) {
         const counterBatch = writeBatch(db);
@@ -10997,12 +11003,7 @@ restoreAdminAddDraft();
     });
     if (!videoFiles.length) return;
 
-    const available = 12 - Object.keys(addSlotSessions).length;
-    if (available <= 0) { toast('Достигнут лимит 12 слотов', 'e'); return; }
-    const toProcess = videoFiles.slice(0, available);
-    if (videoFiles.length > available) {
-      toast(`Лимит: пропущено ${videoFiles.length - available} видео`, 'i');
-    }
+    const toProcess = videoFiles;
 
     showBulkProgress(toProcess.length);
     let firstScrollId = null;
@@ -11021,10 +11022,6 @@ restoreAdminAddDraft();
       if (emptySlotId !== undefined) {
         targetId = emptySlotId;
       } else {
-        if (Object.keys(addSlotSessions).length >= 12) {
-          toast('Лимит 12 слотов достигнут', 'i');
-          break;
-        }
         const beforeIds = new Set(Object.keys(addSlotSessions));
         document.getElementById('btn-add-slot')?.click();
         await new Promise(r => setTimeout(r, 100));
