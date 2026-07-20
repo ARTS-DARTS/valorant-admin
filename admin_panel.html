@@ -9670,9 +9670,11 @@ function updateSlotCoords(id) {
   const gty = document.getElementById('add-wallbang-target-y');
   if (gtx && s.targetX !== null && s.targetX !== undefined) gtx.value = s.targetX.toFixed(4);
   if (gty && s.targetY !== null && s.targetY !== undefined) gty.value = s.targetY.toFixed(4);
-  if (ch) ch.textContent = s.mapMode === 'target'
-    ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
-    : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
+  if (ch) ch.textContent = s.mapMode === 'trajectory'
+    ? 'Кликай по карте по порядку · перетащи для перемещения'
+    : s.mapMode === 'target'
+      ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
+      : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
 }
 
 function _slotExtraEnabled() {
@@ -9883,7 +9885,7 @@ function initSlotMapWrap(id) {
     s.mapTx = mx*(1-af)+s.mapTx*af; s.mapTy = my*(1-af)+s.mapTy*af;
     s.mapScale = ns; _sClamp(id); _sApply(id);
   }, { passive:false });
-  // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
+  // ЛКМ: drag = пан карты; клик выполняет выбранный режим. ПКМ также добавляет точку траектории.
   wrap.addEventListener('mousedown', e => {
     if (e.button!==0 || !_sCanvas(id)) return; e.preventDefault();
     const category = normalizeContentCategory(document.getElementById('f-category')?.value ?? '');
@@ -9915,7 +9917,14 @@ function initSlotMapWrap(id) {
       if (!s._mapDragging) {
         const ir = _sImgRect(id);
         const p = _eventToMapNorm(up.clientX, up.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
-        if (s.mapMode === 'target') {
+        if (s.mapMode === 'trajectory') {
+          const points = _activeSlotTrajectory(s);
+          if (points.length === 0 && s.markerX !== null) points.push({ x:s.markerX, y:s.markerY });
+          points.push({ x:p.x, y:p.y });
+          _setActiveSlotTrajectory(s, points);
+          renderSlotTraj(id); renderSlotExtraTools(id);
+          queueAdminAddDraftSave();
+        } else if (s.mapMode === 'target') {
           s.targetX = p.x; s.targetY = p.y;
           renderSlotMarker(id); updateSlotCoords(id);
           queueAdminAddDraftSave();
@@ -11692,15 +11701,17 @@ function updateEditCoords(id) {
   const iy = document.getElementById('ce-wallbang-target-y-' + id);
   if (ix && s.targetX !== null && s.targetX !== undefined) ix.value = s.targetX.toFixed(4);
   if (iy && s.targetY !== null && s.targetY !== undefined) iy.value = s.targetY.toFixed(4);
-  if (he) he.textContent = s.mapMode === 'target'
-    ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
-    : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
+  if (he) he.textContent = s.mapMode === 'trajectory'
+    ? 'Кликай по карте по порядку · перетащи для перемещения'
+    : s.mapMode === 'target'
+      ? (s.targetX !== null && s.targetX !== undefined ? '✓ Цель установлена' : 'Кликни точку прострела')
+      : (s.markerX !== null ? '✓ Метка установлена' : 'Кликни на карту');
 }
 
 function renderEditTrajectory(id) {
   const wrap = document.getElementById('ce-map-wrap-' + id); if (!wrap) return;
   const c = wrap.querySelector('.map-canvas'); if (!c) return;
-  c.querySelector('.traj-svg')?.remove();
+  c.querySelectorAll('.traj-svg').forEach(el => el.remove());
   const sess = editSessions[id]; if (!sess) return;
   if (sess.trajectory.length) {
     const path = _trajectoryFromPosition(sess.trajectory, sess.markerX, sess.markerY);
@@ -11749,7 +11760,7 @@ function initEditMapInteraction(id, initialMap) {
     s.mapTx = mx*(1-af) + s.mapTx*af; s.mapTy = my*(1-af) + s.mapTy*af;
     s.mapScale = ns; _eClamp(id); _eApply(id);
   }, { passive: false });
-  // ЛКМ: drag = пан карты, клик = метка; ПКМ = точка траектории
+  // ЛКМ: drag = пан карты; клик выполняет выбранный режим. ПКМ также добавляет точку траектории.
   wrap.addEventListener('mousedown', e => {
     if (e.button !== 0 || !_eCanvas(id)) return; e.preventDefault();
     const category=normalizeContentCategory(document.getElementById('ce-cat-'+id)?.value ?? '');
@@ -11779,7 +11790,13 @@ function initEditMapInteraction(id, initialMap) {
       if (!s.mapDragging) {
         const ir = _eImgRect(id);
         const p = _eventToMapNorm(up.clientX, up.clientY, wrap, ir, s.mapTx, s.mapTy, s.mapScale);
-        if (s.mapMode === 'target') {
+        if (s.mapMode === 'trajectory') {
+          const points = _activeEditTrajectory(s);
+          if (points.length === 0 && s.selectedExtraIndex === null && s.markerX !== null) points.push({ x:s.markerX, y:s.markerY });
+          points.push({ x:p.x, y:p.y });
+          _setActiveEditTrajectory(s, points);
+          renderEditTrajectory(id); renderEditExtraTools(id);
+        } else if (s.mapMode === 'target') {
           s.targetX = p.x; s.targetY = p.y;
           renderEditMarker(id); updateEditCoords(id);
         } else {
