@@ -162,11 +162,16 @@
     .ld-ability-summary { margin-bottom:16px; padding:10px; border:1px solid rgba(82,191,243,.3); border-radius:8px; background:rgba(15,40,58,.48); }
     .ld-ability-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:7px; color:#71c7f3; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; }
     .ld-ability-list { display:grid; gap:6px; }
-    .ld-ability-row { display:grid; grid-template-columns:28px minmax(120px,1fr) auto auto; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--border); border-radius:6px; background:rgba(9,18,31,.72); }
+    .ld-ability-row { display:grid; grid-template-columns:28px minmax(120px,1fr) minmax(110px,180px) 54px; align-items:center; gap:10px; padding:7px 9px; border:1px solid var(--border); border-radius:6px; background:rgba(9,18,31,.72); }
     .ld-ability-order { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:rgba(82,191,243,.13); color:#7dd3fc; font-size:10px; font-weight:900; }
     .ld-ability-name { min-width:0; color:var(--text); font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .ld-arrow-stat { padding:3px 7px; border:1px solid rgba(104,221,197,.28); border-radius:999px; color:#9ee8d9; font-size:10px; white-space:nowrap; }
-    @media(max-width:620px){.ld-ability-row{grid-template-columns:28px 1fr}.ld-arrow-stat{grid-column:2;justify-self:start}}
+    .ld-sova-charge { position:relative;height:16px;border:2px solid rgba(232,244,250,.82);background:rgba(111,126,134,.28);box-shadow:inset 0 0 0 2px rgba(3,15,24,.42);overflow:hidden; }
+    .ld-sova-charge-fill { position:absolute;inset:2px auto 2px 2px;width:max(0px,calc(var(--charge-pct,0%) - 4px));background:#68ddc5; }
+    .ld-sova-charge.is-max .ld-sova-charge-fill{background:#ff4655}.ld-sova-charge::before,.ld-sova-charge::after{content:"";position:absolute;z-index:2;top:0;bottom:0;width:1px;background:rgba(245,250,255,.9)}.ld-sova-charge::before{left:33.333%}.ld-sova-charge::after{left:66.666%}
+    .ld-sova-bounces { display:flex;justify-content:center;gap:9px; }
+    .ld-sova-bounces i { width:14px;height:14px;display:block;transform:rotate(45deg);border:2px solid #65737c;background:rgba(111,126,134,.22); }
+    .ld-sova-bounces i.active { border-color:#efffff;background:#68ddc5;box-shadow:0 0 7px rgba(104,221,197,.65),inset 0 0 0 2px rgba(5,25,31,.32); }
+    @media(max-width:620px){.ld-ability-row{grid-template-columns:28px 1fr}.ld-sova-charge,.ld-sova-bounces{grid-column:2;width:100%;max-width:180px}.ld-sova-bounces{justify-content:flex-start;padding-left:4px}}
 
     .row   { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 11px; }
     .btn   { padding: 8px 15px; border-radius: var(--r); border: none; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: opacity .13s; }
@@ -14343,7 +14348,9 @@ function _lineupAbilitySummaryHtml(lineup) {
       const bounceNumber = shot?.bounces === null || shot?.bounces === undefined ? NaN : Number(shot.bounces);
       const charge = Number.isFinite(chargeNumber) ? String(Math.round(chargeNumber * 100) / 100) : '—';
       const bounces = Number.isInteger(bounceNumber) && bounceNumber >= 0 && bounceNumber <= 2 ? String(bounceNumber) : '—';
-      stats = `<span class="ld-arrow-stat">Натяжение ${charge}/3</span><span class="ld-arrow-stat">Отскоки ${bounces}</span>`;
+      const chargePct = Number.isFinite(chargeNumber) ? Math.max(0, Math.min(100, chargeNumber / 3 * 100)) : 0;
+      const bounceCount = Number.isInteger(bounceNumber) ? Math.max(0, Math.min(2, bounceNumber)) : 0;
+      stats = `<span class="ld-sova-charge${chargeNumber >= 3 ? ' is-max' : ''}" style="--charge-pct:${chargePct}%" title="Натяжение: ${charge}/3" aria-label="Натяжение ${charge} из 3"><i class="ld-sova-charge-fill"></i></span><span class="ld-sova-bounces" title="Отскоки: ${bounces}" aria-label="Отскоки: ${bounces}"><i class="${bounceCount >= 1 ? 'active' : ''}"></i><i class="${bounceCount >= 2 ? 'active' : ''}"></i></span>`;
     }
     return `<div class="ld-ability-row"><span class="ld-ability-order">${index + 1}</span><span class="ld-ability-name">${esc(ability)}</span>${stats}</div>`;
   }).join('');
