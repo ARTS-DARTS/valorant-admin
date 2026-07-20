@@ -6407,11 +6407,17 @@ function lineupNeedsMetadataReview(item = {}) {
   if (!['easy', 'medium', 'hard'].includes(String(item.difficulty || '').trim())) return true;
   if (!['attack', 'defense', 'any'].includes(String(item.round_side || '').trim())) return true;
   const agent = String(item.agent || '').trim().toLowerCase();
-  const ability = String(item.ability || '').trim().toLowerCase();
-  const sovaArrow = (agent === 'sova' || agent === 'сова') && /shock|recon|шок|развед|стрел/.test(ability);
-  if (!sovaArrow) return false;
-  return !(typeof item.sova_charge === 'number' && item.sova_charge >= 0 && item.sova_charge <= 3) ||
-    !(Number.isInteger(item.sova_bounces) && item.sova_bounces >= 0 && item.sova_bounces <= 2);
+  if (agent !== 'sova' && agent !== 'сова') return false;
+  const bowPattern = /shock|recon|hunter|шок|развед|стрел|гнев охотника/;
+  const abilities = [item.ability, ...(Array.isArray(item.extra_abilities) ? item.extra_abilities.map(extra => extra?.ability) : [])]
+    .map(value => String(value || '').trim())
+    .filter(value => value && bowPattern.test(value.toLowerCase()))
+    .slice(0, 3);
+  if (!abilities.length) return false;
+  const shots = Array.isArray(item.sova_shots) ? item.sova_shots : [];
+  const validShots = shots.filter(shot => typeof shot?.charge === 'number' && shot.charge >= 0 && shot.charge <= 3 && Number.isInteger(shot?.bounces) && shot.bounces >= 0 && shot.bounces <= 2);
+  if (validShots.length >= abilities.length) return false;
+  return !(abilities.length === 1 && typeof item.sova_charge === 'number' && item.sova_charge >= 0 && item.sova_charge <= 3 && Number.isInteger(item.sova_bounces) && item.sova_bounces >= 0 && item.sova_bounces <= 2);
 }
 
 function _sortAgentCardsByStatus() {
