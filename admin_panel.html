@@ -16758,8 +16758,20 @@ async function loadLogsTab() {
     const constraints = [orderBy('timestamp', 'desc'), limit(200)];
     if (_logsFilter === 'web') constraints.push(where('platform', '==', 'web'));
     else if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
-    const snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
-    _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let snap;
+    try {
+      snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
+      _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch (error) {
+      const missingIndex = _logsFilter === 'web' && /requires an index|failed-precondition/i.test(String(error?.message || error));
+      if (!missingIndex) throw error;
+      snap = await getDocs(query(collection(db, 'app_errors'), where('platform', '==', 'web'), limit(500)));
+      _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+        const aTime = a.timestamp?.toMillis?.() ?? (new Date(a.timestamp || 0).getTime() || 0);
+        const bTime = b.timestamp?.toMillis?.() ?? (new Date(b.timestamp || 0).getTime() || 0);
+        return bTime - aTime;
+      }).slice(0, 200);
+    }
     await _loadLogUsers();
     _renderLogs();
   } catch (e) {
