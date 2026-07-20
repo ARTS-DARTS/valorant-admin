@@ -8444,7 +8444,8 @@ async function notifyLineupAuthorRejected(uid, lineup, reason) {
     return { ok: false, error: 'no_uid' };
   }
   const title = 'Ваш лайнап отклонён';
-  const body = reason.length > 120 ? reason.slice(0, 117) + '…' : reason;
+  const shortReason = reason.length > 80 ? reason.slice(0, 77) + '…' : reason;
+  const body = `${shortReason} Нажми, чтобы прочитать полностью. На сайте будет более подробная информация.`;
   await addDoc(collection(db, 'feedback'), {
     text: title,
     category: 'причина',
@@ -8471,8 +8472,12 @@ async function notifyLineupAuthorRejected(uid, lineup, reason) {
     title,
     body,
     reason,
+    lineup_title: lineup?.title || '',
     agent: lineup?.agent || '',
     map: lineup?.map || '',
+    ability: lineup?.ability || '',
+    round_side: lineup?.round_side || '',
+    category: lineup?.content_type || lineup?.category || '',
   });
   await sendPushNotification({
     title,
@@ -8481,8 +8486,10 @@ async function notifyLineupAuthorRejected(uid, lineup, reason) {
     targetUid: uid,
     data: {
       lineup_id: lineup?.id || '',
+      lineup_title: lineup?.title || '',
       agent: lineup?.agent || '',
       map: lineup?.map || '',
+      ability: lineup?.ability || '',
     },
   });
   return { ok: true, uid };
