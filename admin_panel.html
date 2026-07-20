@@ -6408,7 +6408,7 @@ function lineupNeedsMetadataReview(item = {}) {
   if (!['attack', 'defense', 'any'].includes(String(item.round_side || '').trim())) return true;
   const agent = String(item.agent || '').trim().toLowerCase();
   if (agent !== 'sova' && agent !== 'сова') return false;
-  const bowPattern = /shock|recon|hunter|шок|развед|стрел|гнев охотника/;
+  const bowPattern = /shock|recon|шок|развед|стрел/;
   const abilities = [item.ability, ...(Array.isArray(item.extra_abilities) ? item.extra_abilities.map(extra => extra?.ability) : [])]
     .map(value => String(value || '').trim())
     .filter(value => value && bowPattern.test(value.toLowerCase()))
