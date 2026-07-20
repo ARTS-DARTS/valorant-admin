@@ -159,6 +159,14 @@
     .dval   { color: var(--text); font-size: 13px; line-height: 1.5; }
     .dgrid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 13px; }
     .dfield { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px; }
+    .ld-ability-summary { margin-bottom:16px; padding:10px; border:1px solid rgba(82,191,243,.3); border-radius:8px; background:rgba(15,40,58,.48); }
+    .ld-ability-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:7px; color:#71c7f3; font-size:10px; font-weight:800; letter-spacing:1px; text-transform:uppercase; }
+    .ld-ability-list { display:grid; gap:6px; }
+    .ld-ability-row { display:grid; grid-template-columns:28px minmax(120px,1fr) auto auto; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--border); border-radius:6px; background:rgba(9,18,31,.72); }
+    .ld-ability-order { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:rgba(82,191,243,.13); color:#7dd3fc; font-size:10px; font-weight:900; }
+    .ld-ability-name { min-width:0; color:var(--text); font-size:12px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ld-arrow-stat { padding:3px 7px; border:1px solid rgba(104,221,197,.28); border-radius:999px; color:#9ee8d9; font-size:10px; white-space:nowrap; }
+    @media(max-width:620px){.ld-ability-row{grid-template-columns:28px 1fr}.ld-arrow-stat{grid-column:2;justify-self:start}}
 
     .row   { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 11px; }
     .btn   { padding: 8px 15px; border-radius: var(--r); border: none; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; transition: opacity .13s; }
@@ -7985,6 +7993,7 @@ ${l.description ? `<div class="section"><div class="dlabel">Описание</di
   <div class="dfield"><div class="dlabel">Эксклюзив</div><div class="dval">${l.is_exclusive ? '👑 Да' : 'Нет'}</div></div>
   ${contentExtraDetailHtml(l)}
 </div>
+${_lineupAbilitySummaryHtml(l)}
 ${lineupMapPreviewHtml('ed', 320)}
 ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
   <video src="${esc(l.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
@@ -14311,6 +14320,36 @@ function _mpGetScreenshots(l) {
   return Array.isArray(l.screenshots) ? l.screenshots : [];
 }
 
+function _lineupAbilitySummaryHtml(lineup) {
+  const agent = String(lineup.agent || '').trim().toLowerCase();
+  if (agent !== 'sova' && agent !== 'сова') return '';
+  const abilities = [
+    String(lineup.ability || '').trim(),
+    ...(Array.isArray(lineup.extra_abilities) ? lineup.extra_abilities.map(item => String(item?.ability || '').trim()) : []),
+  ].filter(Boolean).slice(0, 3);
+  if (!abilities.length) return '';
+  const isArrow = value => /shock|recon|шок|развед|стрел/.test(String(value || '').toLowerCase());
+  const storedShots = (Array.isArray(lineup.sova_shots) ? lineup.sova_shots : []).filter(item => isArrow(item?.ability));
+  let arrowIndex = 0;
+  const rows = abilities.map((ability, index) => {
+    let stats = '';
+    if (isArrow(ability)) {
+      const shot = storedShots[arrowIndex] || (arrowIndex === 0 && isArrow(lineup.ability) ? {
+        charge: lineup.sova_charge,
+        bounces: lineup.sova_bounces,
+      } : null);
+      arrowIndex += 1;
+      const chargeNumber = shot?.charge === null || shot?.charge === undefined ? NaN : Number(shot.charge);
+      const bounceNumber = shot?.bounces === null || shot?.bounces === undefined ? NaN : Number(shot.bounces);
+      const charge = Number.isFinite(chargeNumber) ? String(Math.round(chargeNumber * 100) / 100) : '—';
+      const bounces = Number.isInteger(bounceNumber) && bounceNumber >= 0 && bounceNumber <= 2 ? String(bounceNumber) : '—';
+      stats = `<span class="ld-arrow-stat">Натяжение ${charge}/3</span><span class="ld-arrow-stat">Отскоки ${bounces}</span>`;
+    }
+    return `<div class="ld-ability-row"><span class="ld-ability-order">${index + 1}</span><span class="ld-ability-name">${esc(ability)}</span>${stats}</div>`;
+  }).join('');
+  return `<div class="ld-ability-summary"><div class="ld-ability-head"><span>🏹 Способности Совы</span><span>Использований: ${abilities.length}</span></div><div class="ld-ability-list">${rows}</div></div>`;
+}
+
 function _renderLineupDetail(l) {
   const [bc, bl] = MP_BADGE[l.status] ?? ['b-removed', (l.status ?? '?').toUpperCase()];
   const date     = _mpFmtDate(l.submitted_at) || '—';
@@ -14391,6 +14430,8 @@ function _renderLineupDetail(l) {
               <div class="dval">${esc(String(val??'—'))}</div>
             </div>`).join('')}
       </div>
+
+      ${_lineupAbilitySummaryHtml(l)}
 
       ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
       ${videoHtml}
