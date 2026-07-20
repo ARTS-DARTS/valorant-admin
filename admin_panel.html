@@ -917,6 +917,12 @@
     .list-search-wrap .bi { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 13px; pointer-events: none; }
     .list-search { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px 7px 30px; font-size: 13px; outline: none; font-family: inherit; }
     .list-search:focus { border-color: rgba(255,70,85,.5); }
+    .lineup-filter-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) 30px; gap: 6px; margin-top: 7px; }
+    .lineup-filter-select { min-width: 0; width: 100%; height: 30px; padding: 0 25px 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--text2); font: 600 11px/1 inherit; outline: none; cursor: pointer; text-overflow: ellipsis; }
+    .lineup-filter-select:hover, .lineup-filter-select:focus { border-color: rgba(82,191,243,.6); color: var(--text); }
+    .lineup-filter-select.is-active { border-color: rgba(82,191,243,.7); background: rgba(82,191,243,.09); color: #7dd3fc; }
+    .lineup-filter-reset { width: 30px; height: 30px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 14px; }
+    .lineup-filter-reset:hover { border-color: var(--primary); color: var(--primary); }
     .editor-panel { flex: 1; min-width: 0; min-height: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); display: block; overflow: visible; }
     .editor-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; color: var(--text2); text-align: center; min-height: 0; }
     .editor-empty i { font-size: 52px; opacity: .28; margin-bottom: 14px; display: block; }
@@ -1170,7 +1176,12 @@
           <div class="list-panel-top">
             <div class="list-search-wrap">
               <i class="bi bi-search"></i>
-              <input class="list-search" id="search" placeholder="Поиск по названию, агенту, карте…" type="search">
+              <input class="list-search" id="search" placeholder="Название или способность…" type="search">
+            </div>
+            <div class="lineup-filter-grid" aria-label="Фильтры лайнапов">
+              <select class="lineup-filter-select" id="lineup-map-filter" aria-label="Фильтр по карте"><option value="">Все карты</option></select>
+              <select class="lineup-filter-select" id="lineup-agent-filter" aria-label="Фильтр по агенту"><option value="">Все агенты</option></select>
+              <button class="lineup-filter-reset" id="lineup-filter-reset" type="button" title="Сбросить карту и агента" aria-label="Сбросить фильтры">×</button>
             </div>
             <div id="bulk-selection-bar" style="display:none;gap:5px;align-items:center;margin-top:8px;flex-wrap:wrap;">
               <span id="bulk-selection-count" style="font-size:11px;color:var(--primary);font-weight:700;margin-right:auto;"></span>
@@ -7506,6 +7517,19 @@ document.getElementById('search').addEventListener('input', () => {
   clearTimeout(_searchTimer);
   _searchTimer = setTimeout(renderList, 250);
 });
+document.getElementById('lineup-map-filter')?.addEventListener('change', event => {
+  _lineupMapFilter = event.target.value;
+  renderList();
+});
+document.getElementById('lineup-agent-filter')?.addEventListener('change', event => {
+  _lineupAgentFilter = event.target.value;
+  renderList();
+});
+document.getElementById('lineup-filter-reset')?.addEventListener('click', () => {
+  _lineupMapFilter = '';
+  _lineupAgentFilter = '';
+  renderList();
+});
 
 // ── Lineups list (manual refresh) ─────────────────────────────────────────────
 let _lineupsUnsub = null;
@@ -7575,10 +7599,40 @@ const _selectedIds = new Set();
   let _lastSelectedIndex = -1;
   let _selectionAnchorId = '';
 let _visibleLineups = [];
+let _lineupMapFilter = '';
+let _lineupAgentFilter = '';
+
+function syncLineupDimensionFilters() {
+  const mapSelect = document.getElementById('lineup-map-filter');
+  const agentSelect = document.getElementById('lineup-agent-filter');
+  if (!mapSelect || !agentSelect) return;
+  const source = lineups.filter(item => contentCategoryOf(item) === currentContentCategory);
+  const maps = [...new Set(source.map(item => String(item.map || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+  if (_lineupMapFilter && !maps.includes(_lineupMapFilter)) _lineupMapFilter = '';
+  const agentSource = _lineupMapFilter ? source.filter(item => String(item.map || '').trim() === _lineupMapFilter) : source;
+  const agents = [...new Set(agentSource.map(item => String(item.agent || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'ru'));
+  if (_lineupAgentFilter && !agents.includes(_lineupAgentFilter)) _lineupAgentFilter = '';
+  const fill = (select, values, emptyLabel, selected) => {
+    const signature = values.join('\u001f');
+    if (select.dataset.signature !== signature) {
+      select.replaceChildren(new Option(emptyLabel, ''), ...values.map(value => new Option(value, value)));
+      select.dataset.signature = signature;
+    }
+    select.value = selected;
+    select.classList.toggle('is-active', !!selected);
+  };
+  fill(mapSelect, maps, 'Все карты', _lineupMapFilter);
+  fill(agentSelect, agents, 'Все агенты', _lineupAgentFilter);
+  const reset = document.getElementById('lineup-filter-reset');
+  if (reset) reset.style.visibility = _lineupMapFilter || _lineupAgentFilter ? 'visible' : 'hidden';
+}
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderList() {
   updateStatsBar();
+  syncLineupDimensionFilters();
 
   // Панель "Горячие пирожки" — показываем всегда когда есть hot лайнапы
   const hotCount = lineups.filter(l => contentCategoryOf(l) === currentContentCategory && l.status === 'hot').length;
@@ -7606,6 +7660,8 @@ function renderList() {
     if (contentCategoryOf(l) !== currentContentCategory) return false;
     if (currentFilter === 'all' && (l.status === 'archived' || l.status === 'hot')) return false;
     if (currentFilter !== 'all' && l.status !== currentFilter) return false;
+    if (_lineupMapFilter && String(l.map || '').trim() !== _lineupMapFilter) return false;
+    if (_lineupAgentFilter && String(l.agent || '').trim() !== _lineupAgentFilter) return false;
     if (q) {
       const hay = `${l.title} ${l.agent} ${l.map} ${l.ability} ${l.category} ${l.submitted_by ?? ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
