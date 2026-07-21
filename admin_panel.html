@@ -7471,11 +7471,13 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
   button.disabled = true;
   try {
     const hotNotificationsByAuthor = new Map();
+    const moderationWork = [];
     for (const id of ids) {
       if (action === 'moderate') {
         await updateDoc(doc(db, 'lineups', id), { status: 'moderator_draft', moderator_only: true, submitted_at: serverTimestamp() });
         await writeAudit(id, 'sent_to_moderation');
         patchStatus(id, 'moderator_draft');
+        moderationWork.push(lineups.find(item => item.id === id) || { id });
       } else if (action === 'approve') {
         const lineup = lineups.find(item => item.id === id);
         const result = await confirmLineupHot(id, lineup?.user_id || '', { deferAuthorNotification:true });
@@ -7493,6 +7495,7 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         patchStatus(id, 'archived');
       }
     }
+    if (action === 'moderate') await notifyModeratorsNewWork(moderationWork);
     if (action === 'approve') {
       for (const [uid, group] of hotNotificationsByAuthor) {
         const count = group.lineups.length;
@@ -7671,7 +7674,7 @@ function updateStatsBar() {
   if (!bar) return;
   const all = lineups.filter(l => contentCategoryOf(l) === currentContentCategory);
   const counts = {
-    pending:  all.filter(l => l.status === 'pending').length,
+    pending:  all.filter(l => l.status === 'pending' || l.status === 'moderator_draft').length,
     approved: all.filter(l => l.status === 'approved').length,
     rejected: all.filter(l => l.status === 'rejected').length,
     archived: all.filter(l => l.status === 'archived').length,
@@ -7749,7 +7752,8 @@ function renderList() {
   const fl = lineups.filter(l => {
     if (contentCategoryOf(l) !== currentContentCategory) return false;
     if (currentFilter === 'all' && (l.status === 'archived' || l.status === 'hot')) return false;
-    if (currentFilter !== 'all' && l.status !== currentFilter) return false;
+    if (currentFilter === 'pending' && !['pending', 'moderator_draft'].includes(l.status)) return false;
+    if (currentFilter !== 'all' && currentFilter !== 'pending' && l.status !== currentFilter) return false;
     if (_lineupMapFilter && String(l.map || '').trim() !== _lineupMapFilter) return false;
     if (_lineupAgentFilter && String(l.agent || '').trim() !== _lineupAgentFilter) return false;
     if (q) {
@@ -8255,6 +8259,38 @@ async function loadNotificationStaffUids() {
   ]);
   snaps.forEach(snap => snap.docs.forEach(user => result.add(user.id)));
   return result;
+}
+
+async function notifyModeratorsNewWork(items = []) {
+  const lineupsToReview = items.filter(item => item?.id);
+  if (!lineupsToReview.length) return { moderators:0, pushSent:0 };
+  const moderatorsSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'moderator')));
+  const moderatorUids = moderatorsSnap.docs.map(user => user.id).filter(Boolean);
+  if (!moderatorUids.length) return { moderators:0, pushSent:0 };
+  const count = lineupsToReview.length;
+  const first = lineupsToReview[0] || {};
+  const title = count === 1 ? '🛡 Новая работа на модерации' : `🛡 Новых заданий: ${count}`;
+  const details = [first.map, first.agent, first.ability].filter(Boolean).join(' · ');
+  const body = count === 1
+    ? `${details ? `${details}. ` : ''}Открой раздел «Модерация» и возьми задание в работу.`
+    : `В очереди появилось ${count} новых заданий. Открой раздел «Модерация».`;
+  const lineupIds = lineupsToReview.map(item => item.id);
+  const batch = writeBatch(db);
+  moderatorUids.forEach(uid => {
+    const payload = {
+      type:'moderation_work', title, body,
+      lineup_id:first.id || '', lineup_ids:lineupIds, total:count,
+      read:false, is_read:false, created_at:serverTimestamp(),
+    };
+    batch.set(doc(collection(db, 'users', uid, 'notifications')), payload);
+    batch.set(doc(collection(db, 'notifications', uid, 'items')), payload);
+  });
+  await batch.commit();
+  const pushResults = await Promise.allSettled(moderatorUids.map(uid => sendPushNotification({
+    title, body, type:'moderation_work', targetUid:uid,
+    data:{ lineup_id:first.id || '', lineup_ids:lineupIds.join(','), total:String(count) },
+  })));
+  return { moderators:moderatorUids.length, pushSent:pushResults.filter(result => result.status === 'fulfilled').length };
 }
 
 function rangeConfigId(map, agent, ability) {
@@ -8981,6 +9017,7 @@ async function sendLineupToModeration(id) {
     });
     await writeAudit(id, 'sent_to_moderation', { status: { from: before.status || 'unknown', to: 'moderator_draft' } });
     patchStatus(id, 'moderator_draft');
+    await notifyModeratorsNewWork([{ id, ...before }]);
     toast('Лайнап отправлен модераторам 🛡', 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
@@ -10404,6 +10441,9 @@ document.getElementById('btn-add-lineup').addEventListener('click', async () => 
       });
     });
     const refs=await Promise.all(saves);
+    if (moderatorOnly) {
+      await notifyModeratorsNewWork(refs.map(ref => ({ id:ref.id, map, agent, ability })));
+    }
     toast(`Добавлено ${_slotCount(slotIds.length)} ✅`,'s');
     // If saved as approved, increment the author's counter
     if (!moderatorOnly && status === 'approved') {
