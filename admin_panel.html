@@ -1916,6 +1916,10 @@
             <span><b style="display:block;font-size:12px;">Видимость</b><small style="color:var(--text2);font-size:10px;">Показывать карточку в интерфейсе</small></span>
             <span class="toggle-switch"><input type="checkbox" id="agents-category-visible"><span class="toggle-slider"></span></span>
           </label>
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+            <span><b style="display:block;font-size:12px;">Доступ админу/модеру</b><small style="color:var(--text2);font-size:10px;">Вход и уведомления только для команды</small></span>
+            <span class="toggle-switch"><input type="checkbox" id="agents-category-staff-access"><span class="toggle-slider"></span></span>
+          </label>
         </div>
       </div>
       <div id="agents-config-mode-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
@@ -6627,11 +6631,13 @@ const _agentCategoryLabels = { lineup: 'Лайнапы', combo: 'Комбо', de
 async function _loadAgentCategoryAccess() {
   const checkbox = document.getElementById('agents-category-access');
   const visibleCheckbox = document.getElementById('agents-category-visible');
+  const staffCheckbox = document.getElementById('agents-category-staff-access');
   const title = document.getElementById('agents-category-access-title');
   if (title) title.textContent = `Категория «${_agentCategoryLabels[_selectedAgentCategory]}»`;
-  if (!checkbox || !visibleCheckbox) return;
+  if (!checkbox || !visibleCheckbox || !staffCheckbox) return;
   checkbox.disabled = true;
   visibleCheckbox.disabled = true;
+  staffCheckbox.disabled = true;
   try {
     let snap = await getDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`));
     if (!snap.exists()) snap = await getDoc(doc(db, 'settings', 'category_access'));
@@ -6640,7 +6646,9 @@ async function _loadAgentCategoryAccess() {
       ? data.lineup_enabled !== false
       : data[`${_selectedAgentCategory}_enabled`] === true;
     visibleCheckbox.checked = data[`${_selectedAgentCategory}_visible`] !== false;
-  } finally { checkbox.disabled = false; visibleCheckbox.disabled = false; }
+    const staffValue = data[`${_selectedAgentCategory}_staff_enabled`];
+    staffCheckbox.checked = typeof staffValue === 'boolean' ? staffValue : _selectedAgentCategory === 'defense';
+  } finally { checkbox.disabled = false; visibleCheckbox.disabled = false; staffCheckbox.disabled = false; }
 }
 document.getElementById('agents-category-access')?.addEventListener('change', async function() {
   this.disabled = true;
@@ -6662,6 +6670,18 @@ document.getElementById('agents-category-visible')?.addEventListener('change', a
     await bumpConfigVersions(['category_access']);
     toast(`Категория ${this.checked ? 'показана' : 'скрыта'}`, 's');
     addAuditLog('category_visibility_updated', { target: _selectedAgentTarget, category: _selectedAgentCategory, visible: this.checked });
+  } catch (error) { this.checked = !this.checked; toast('Ошибка: ' + error.message, 'e'); }
+  finally { this.disabled = false; }
+});
+document.getElementById('agents-category-staff-access')?.addEventListener('change', async function() {
+  this.disabled = true;
+  try {
+    const payload = { [`${_selectedAgentCategory}_staff_enabled`]: this.checked };
+    await setDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`), payload, { merge: true });
+    if (_selectedAgentTarget === 'app') await setDoc(doc(db, 'settings', 'category_access'), payload, { merge: true });
+    await bumpConfigVersions(['category_access']);
+    toast(`Служебный доступ ${this.checked ? 'включён' : 'выключен'}`, 's');
+    addAuditLog('category_staff_access_updated', { target: _selectedAgentTarget, category: _selectedAgentCategory, enabled: this.checked });
   } catch (error) { this.checked = !this.checked; toast('Ошибка: ' + error.message, 'e'); }
   finally { this.disabled = false; }
 });
@@ -8210,6 +8230,33 @@ function normalizeLineupForNotification(lineup) {
   return { ...lineup, id, agent, map, title: lineup?.title || '' };
 }
 
+function lineupNotificationCategory(lineup) {
+  const raw = String(lineup?.content_type || lineup?.category || 'lineup').toLowerCase();
+  if (raw === 'combo' || raw === 'wallbang' || raw === 'defense') return raw;
+  return 'lineup';
+}
+
+function categoryNotificationMode(access, category) {
+  const enabled = category === 'lineup'
+    ? access?.lineup_enabled !== false
+    : access?.[`${category}_enabled`] === true;
+  const visible = access?.[`${category}_visible`] !== false;
+  if (enabled && visible) return 'public';
+  const staffValue = access?.[`${category}_staff_enabled`];
+  const staffEnabled = typeof staffValue === 'boolean' ? staffValue : category === 'defense';
+  return staffEnabled ? 'staff' : 'none';
+}
+
+async function loadNotificationStaffUids() {
+  const result = new Set();
+  const snaps = await Promise.all([
+    getDocs(query(collection(db, 'users'), where('role', '==', 'admin'))),
+    getDocs(query(collection(db, 'users'), where('role', '==', 'moderator'))),
+  ]);
+  snaps.forEach(snap => snap.docs.forEach(user => result.add(user.id)));
+  return result;
+}
+
 function rangeConfigId(map, agent, ability) {
   return (String(map || '') + '__' + String(agent || '') + '__' + String(ability || '')).replace(/[\\/. ]/g, '_');
 }
@@ -8289,10 +8336,24 @@ function buildNewLineupsPushBody(items, total) {
 
 async function notifySubscribersBatch(rawLineups) {
   try {
-    const normalized = (Array.isArray(rawLineups) ? rawLineups : [rawLineups])
+    let normalized = (Array.isArray(rawLineups) ? rawLineups : [rawLineups])
       .map(normalizeLineupForNotification)
       .filter(Boolean);
     if (!normalized.length) return { subscribers: 0, pushSent: 0, pushFailed: 0 };
+
+    const accessSnap = await getDoc(doc(db, 'settings', 'category_access'));
+    const access = accessSnap.exists() ? accessSnap.data() : {};
+    const modes = new Map(normalized.map(lineup => {
+      const category = lineupNotificationCategory(lineup);
+      return [lineup.id, categoryNotificationMode(access, category)];
+    }));
+    normalized = normalized.filter(lineup => modes.get(lineup.id) !== 'none');
+    if (!normalized.length) {
+      console.info('notifySubscribers: category access blocks all notifications');
+      return { subscribers: 0, pushSent: 0, pushFailed: 0, suppressed: true };
+    }
+    const staffOnly = normalized.some(lineup => modes.get(lineup.id) === 'staff');
+    const staffUids = staffOnly ? await loadNotificationStaffUids() : new Set();
 
     const agents = [...new Set(normalized.map(lineup => lineup.agent))];
     const agentSubscribers = new Map();
@@ -8304,6 +8365,7 @@ async function notifySubscribersBatch(rawLineups) {
     normalized.forEach(lineup => {
       const uids = agentSubscribers.get(lineup.agent) || [];
       uids.forEach(uid => {
+        if (modes.get(lineup.id) === 'staff' && !staffUids.has(uid)) return;
         if (!byUser.has(uid)) byUser.set(uid, []);
         byUser.get(uid).push(lineup);
       });
