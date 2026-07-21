@@ -1010,6 +1010,16 @@
     .sova-charge-range::-moz-range-thumb{width:5px;height:24px;border:0;border-radius:0;background:#f8ffff}
     .sova-charge-range.is-max::-webkit-slider-runnable-track{background:linear-gradient(90deg,#ff4655 0 var(--charge,100%),rgba(122,139,149,.34) var(--charge,100%) 100%)}
     .sova-charge-range.is-max::-moz-range-progress{background:#ff4655}
+    .duel-suggestions{margin:18px 0 24px;padding:14px;border:1px solid rgba(80,214,255,.28);border-radius:12px;background:linear-gradient(135deg,rgba(80,214,255,.07),rgba(255,70,85,.025) 58%,transparent)}
+    .duel-suggestions-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}.duel-suggestions-head .dlabel{margin:0 0 4px;color:#50d6ff}.duel-suggestions-head p{margin:0;color:var(--text2);font-size:12px}
+    .duel-suggestions-count{display:grid;place-items:center;min-width:34px;height:26px;padding:0 9px;border:1px solid rgba(80,214,255,.38);border-radius:999px;color:#50d6ff;font:800 12px monospace;background:rgba(80,214,255,.08)}
+    .duel-suggestions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:9px;max-height:430px;overflow:auto;padding-right:4px}.duel-suggestions-empty{grid-column:1/-1;padding:22px;border:1px dashed var(--border);border-radius:9px;color:var(--text2);font-size:12px;text-align:center}
+    .duel-suggestion-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"score context action" "score versus action";align-items:center;gap:7px 12px;padding:11px;border:1px solid var(--border);border-radius:9px;background:rgba(11,18,32,.82)}
+    .duel-suggestion-score{grid-area:score;display:grid;place-items:center;width:55px;height:55px;border:1px solid rgba(80,214,255,.32);border-radius:50%;background:radial-gradient(circle,rgba(80,214,255,.12),transparent 68%)}.duel-suggestion-score b{color:#50d6ff;font:800 15px monospace}.duel-suggestion-score span{margin-top:-8px;color:var(--text2);font-size:8px;text-transform:uppercase;letter-spacing:.5px}
+    .duel-suggestion-context{grid-area:context;min-width:0;display:grid;gap:2px}.duel-suggestion-context b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text1)}.duel-suggestion-context span{font:10px monospace;color:var(--text2)}
+    .duel-suggestion-versus{grid-area:versus;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}.duel-suggestion-versus strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.duel-suggestion-versus i{color:var(--primary);font:900 10px monospace;font-style:normal}
+    .duel-suggestion-use{grid-area:action;border:1px solid rgba(80,214,255,.4)!important;color:#8de8ff!important;font-size:11px!important;padding:7px 9px!important}.duel-suggestion-use:hover{background:rgba(80,214,255,.1)!important}
+    @media(max-width:760px){.duel-suggestions-grid{grid-template-columns:1fr}.duel-suggestion-card{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"score context" "versus versus" "action action"}.duel-suggestion-use{width:100%}}
   </style>
 </head>
 <body>
@@ -1812,6 +1822,19 @@
       <button class="btn btn-save" id="duel-create-btn">⚔️ Запустить дуэль</button>
     </div>
     <div id="duel-create-status" style="margin-bottom:16px;font-size:12px;color:var(--green);display:none;"></div>
+
+    <section class="duel-suggestions" aria-labelledby="duel-suggestions-title">
+      <div class="duel-suggestions-head">
+        <div>
+          <div class="dlabel" id="duel-suggestions-title">Предложения для дуэли</div>
+          <p>Одна карта и агент, близкие точки броска и попадания.</p>
+        </div>
+        <span id="duel-suggestions-count" class="duel-suggestions-count">…</span>
+      </div>
+      <div id="duel-suggestions-wrap" class="duel-suggestions-grid">
+        <div class="duel-suggestions-empty">Ищу подходящие пары…</div>
+      </div>
+    </section>
 
     <!-- Active duels list -->
     <div class="dlabel" style="margin-top:20px;margin-bottom:10px;">Активные дуэли</div>
@@ -6816,6 +6839,105 @@ let _duel1 = null; // { id, title, mapName }
 let _duel2 = null;
 let _duelsUnsub = null;
 
+function _duelPoint(lineup, end = false) {
+  const trajectory = Array.isArray(lineup.trajectory) ? lineup.trajectory : [];
+  const source = end ? trajectory[trajectory.length - 1] : {
+    x: lineup.position_x ?? trajectory[0]?.x,
+    y: lineup.position_y ?? trajectory[0]?.y,
+  };
+  const x = Number(source?.x), y = Number(source?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+function _duelPointDistance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function _duelPairKey(id1, id2) {
+  return [id1, id2].sort().join('::');
+}
+
+function _buildDuelSuggestions(srcLineups, duelDocs) {
+  const approved = srcLineups.filter(item => item.status === 'approved');
+  const usedPairs = new Set();
+  const busyIds = new Set();
+  duelDocs.forEach(entry => {
+    const duel = typeof entry.data === 'function' ? entry.data() : entry;
+    if (duel.lineup1Id && duel.lineup2Id) usedPairs.add(_duelPairKey(duel.lineup1Id, duel.lineup2Id));
+    if (duel.status === 'active' || duel.status === 'tied') {
+      if (duel.lineup1Id) busyIds.add(duel.lineup1Id);
+      if (duel.lineup2Id) busyIds.add(duel.lineup2Id);
+    }
+  });
+
+  const groups = new Map();
+  approved.forEach(lineup => {
+    if (busyIds.has(lineup.id)) return;
+    const start = _duelPoint(lineup);
+    const end = _duelPoint(lineup, true);
+    const map = String(lineup.map || '').trim();
+    const agent = String(lineup.agent || '').trim();
+    if (!map || !agent || !start || !end || (lineup.trajectory || []).length < 2) return;
+    const key = `${map.toLocaleLowerCase('ru')}::${agent.toLocaleLowerCase('ru')}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ lineup, start, end, map, agent });
+  });
+
+  const matches = [];
+  groups.forEach(items => {
+    for (let i = 0; i < items.length; i++) {
+      for (let j = i + 1; j < items.length; j++) {
+        const a = items[i], b = items[j];
+        if (usedPairs.has(_duelPairKey(a.lineup.id, b.lineup.id))) continue;
+        const startDistance = _duelPointDistance(a.start, b.start);
+        const endDistance = _duelPointDistance(a.end, b.end);
+        if (startDistance > 0.05 || endDistance > 0.05) continue;
+        const sameAbility = String(a.lineup.ability || '').toLocaleLowerCase('ru') === String(b.lineup.ability || '').toLocaleLowerCase('ru');
+        const sameSide = !a.lineup.round_side || !b.lineup.round_side || a.lineup.round_side === b.lineup.round_side;
+        const score = Math.max(1, Math.min(99, Math.round(100 - ((startDistance + endDistance) / 0.1 * 36) + (sameAbility ? 3 : 0) + (sameSide ? 2 : 0))));
+        matches.push({ ...a, other:b, startDistance, endDistance, score, sameAbility, sameSide });
+      }
+    }
+  });
+  return matches.sort((a, b) => b.score - a.score || (a.startDistance + a.endDistance) - (b.startDistance + b.endDistance)).slice(0, 24);
+}
+
+function _selectDuelSuggestion(first, second) {
+  _duel1 = { id:first.id, title:first.title ?? first.id, mapName:first.map, agent:first.agent };
+  _duel2 = { id:second.id, title:second.title ?? second.id, mapName:second.map, agent:second.agent };
+  document.getElementById('duel-selected1').textContent = `✓ ${_duel1.title} (${_duel1.mapName})`;
+  document.getElementById('duel-selected2').textContent = `✓ ${_duel2.title} (${_duel2.mapName})`;
+  document.getElementById('duel-map-hint').textContent = _duel1.mapName;
+  document.getElementById('duel-create-btn')?.scrollIntoView({ behavior:'smooth', block:'center' });
+  toast('Пара подставлена. Проверь длительность и запускай дуэль', 's');
+}
+
+function renderDuelSuggestions(duelDocs = []) {
+  const wrap = document.getElementById('duel-suggestions-wrap');
+  const count = document.getElementById('duel-suggestions-count');
+  if (!wrap || !count) return;
+  const suggestions = _buildDuelSuggestions(lineups, duelDocs);
+  count.textContent = String(suggestions.length);
+  if (!suggestions.length) {
+    wrap.innerHTML = '<div class="duel-suggestions-empty">Подходящих новых пар среди последних загруженных лайнапов нет.</div>';
+    return;
+  }
+  wrap.innerHTML = suggestions.map((match, index) => {
+    const first = match.lineup, second = match.other.lineup;
+    const ability = match.sameAbility && first.ability ? ` · ${esc(first.ability)}` : '';
+    return `<article class="duel-suggestion-card">
+      <div class="duel-suggestion-score"><b>${match.score}%</b><span>сходство</span></div>
+      <div class="duel-suggestion-context"><b>${esc(match.map)} · ${esc(match.agent)}${ability}</b><span>Старт Δ ${(match.startDistance * 100).toFixed(1)}% · попадание Δ ${(match.endDistance * 100).toFixed(1)}%</span></div>
+      <div class="duel-suggestion-versus"><strong title="${esc(first.title ?? first.id)}">${esc(first.title ?? first.id)}</strong><i>VS</i><strong title="${esc(second.title ?? second.id)}">${esc(second.title ?? second.id)}</strong></div>
+      <button class="btn duel-suggestion-use" type="button" data-duel-suggestion="${index}">Выбрать пару</button>
+    </article>`;
+  }).join('');
+  wrap.querySelectorAll('[data-duel-suggestion]').forEach(button => button.addEventListener('click', () => {
+    const match = suggestions[Number(button.dataset.duelSuggestion)];
+    if (match) _selectDuelSuggestion(match.lineup, match.other.lineup);
+  }));
+}
+
 function stopDuelsRealtime() {
   if (_duelsUnsub) {
     _duelsUnsub();
@@ -7257,10 +7379,12 @@ async function loadDuelsTab() {
   stopDuelsRealtime();
   loadFinishedDuels();
   try {
-    const [activeSnap, tiedSnap] = await Promise.all([
+    const [activeSnap, tiedSnap, recentSnap] = await Promise.all([
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')])),
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'tied'), orderBy('createdAt', 'desc')])),
+      getDocs(query(collection(db, 'duels'), orderBy('createdAt', 'desc'), limit(300))),
     ]);
+    renderDuelSuggestions(recentSnap.docs);
     const docs = [...activeSnap.docs, ...tiedSnap.docs].sort((a, b) => {
       const av = a.data().createdAt?.seconds || 0, bv = b.data().createdAt?.seconds || 0;
       return bv - av;
@@ -7268,6 +7392,7 @@ async function loadDuelsTab() {
     await renderActiveDuelsSnapshot({ empty: docs.length === 0, docs });
   } catch (e) {
     wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+    renderDuelSuggestions([]);
   }
 }
 
