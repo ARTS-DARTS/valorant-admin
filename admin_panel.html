@@ -1019,6 +1019,7 @@
     .duel-suggestion-context{grid-area:context;min-width:0;display:grid;gap:2px}.duel-suggestion-context b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text1)}.duel-suggestion-context span{font:10px monospace;color:var(--text2)}
     .duel-suggestion-versus{grid-area:versus;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}.duel-suggestion-versus strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.duel-suggestion-versus i{color:var(--primary);font:900 10px monospace;font-style:normal}
     .duel-suggestion-use{grid-area:action;border:1px solid rgba(80,214,255,.4)!important;color:#8de8ff!important;font-size:11px!important;padding:7px 9px!important}.duel-suggestion-use:hover{background:rgba(80,214,255,.1)!important}
+    .duel-picked-card{height:100%;display:grid;place-items:center;padding:18px;background:radial-gradient(circle at 50% 20%,rgba(80,214,255,.1),transparent 58%)}.duel-picked-card-inner{width:min(100%,430px);display:grid;gap:10px;padding:17px;border:1px solid rgba(80,214,255,.4);border-radius:11px;background:rgba(11,18,32,.9);box-shadow:0 12px 35px rgba(0,0,0,.22)}.duel-picked-kicker{display:flex;align-items:center;justify-content:space-between;color:#50d6ff;font:800 10px monospace;letter-spacing:.7px;text-transform:uppercase}.duel-picked-kicker span{color:var(--green)}.duel-picked-title{overflow-wrap:anywhere;color:var(--text1);font-size:18px;line-height:1.2}.duel-picked-meta{display:flex;gap:6px;flex-wrap:wrap}.duel-picked-meta span{padding:4px 7px;border:1px solid var(--border);border-radius:999px;color:var(--text2);font-size:10px}.duel-picked-change{justify-self:start;border:0;background:none;color:#7ddcf8;font-size:11px;cursor:pointer;padding:2px 0}.duel-picked-change:hover{text-decoration:underline}
     @media(max-width:760px){.duel-suggestions-grid{grid-template-columns:1fr}.duel-suggestion-card{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"score context" "versus versus" "action action"}.duel-suggestion-use{width:100%}}
   </style>
 </head>
@@ -6908,8 +6909,31 @@ function _selectDuelSuggestion(first, second) {
   document.getElementById('duel-selected1').textContent = `✓ ${_duel1.title} (${_duel1.mapName})`;
   document.getElementById('duel-selected2').textContent = `✓ ${_duel2.title} (${_duel2.mapName})`;
   document.getElementById('duel-map-hint').textContent = _duel1.mapName;
+  _renderPickedDuelCard('duel-picker1', first, 1);
+  _renderPickedDuelCard('duel-picker2', second, 2);
   document.getElementById('duel-create-btn')?.scrollIntoView({ behavior:'smooth', block:'center' });
   toast('Пара подставлена. Проверь длительность и запускай дуэль', 's');
+}
+
+function _renderPickedDuelCard(containerId, lineup, number) {
+  const host = document.getElementById(containerId);
+  if (!host) return;
+  const side = lineup.round_side === 'attack' ? 'Атака' : lineup.round_side === 'defense' ? 'Защита' : lineup.round_side === 'any' ? 'Любая сторона' : '';
+  const meta = [lineup.map, lineup.agent, lineup.ability, side].filter(Boolean);
+  host.innerHTML = `<div class="duel-picked-card"><div class="duel-picked-card-inner">
+    <div class="duel-picked-kicker">Лайнап #${number}<span>✓ выбран</span></div>
+    <strong class="duel-picked-title">${esc(lineup.title ?? lineup.id)}</strong>
+    <div class="duel-picked-meta">${meta.map(value => `<span>${esc(value)}</span>`).join('')}</div>
+    <button class="duel-picked-change" type="button">Изменить пару вручную</button>
+  </div></div>`;
+  host.querySelector('.duel-picked-change')?.addEventListener('click', async () => {
+    _duel1 = null;
+    _duel2 = null;
+    document.getElementById('duel-selected1').textContent = '';
+    document.getElementById('duel-selected2').textContent = '';
+    document.getElementById('duel-map-hint').textContent = '';
+    await _initDuelPickers();
+  });
 }
 
 function renderDuelSuggestions(duelDocs = []) {
