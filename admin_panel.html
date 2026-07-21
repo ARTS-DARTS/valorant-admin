@@ -1829,10 +1829,11 @@
 
     <section class="duel-suggestions" aria-labelledby="duel-suggestions-title">
       <div class="duel-suggestions-head">
-        <div>
+        <div style="flex:1;">
           <div class="dlabel" id="duel-suggestions-title">Предложения для дуэли</div>
-          <p>Одна карта и агент, близкие точки броска и попадания.</p>
+          <p id="duel-suggestions-hint">Одна карта и агент, близкие точки броска и попадания.</p>
         </div>
+        <select class="fselect" id="duel-suggestions-mode" style="width:190px;"><option value="similar">Похожие лайнапы</option><option value="different">Разные лайнапы</option></select>
         <span id="duel-suggestions-count" class="duel-suggestions-count">…</span>
       </div>
       <div id="duel-suggestions-wrap" class="duel-suggestions-grid">
@@ -6845,6 +6846,9 @@ document.getElementById('agents-save-btn').addEventListener('click', async () =>
 let _duel1 = null; // { id, title, mapName }
 let _duel2 = null;
 let _duelsUnsub = null;
+let _duelSuggestionMode = 'similar';
+let _duelSuggestionDocs = [];
+let _selectedDuelMatchType = 'manual';
 
 function _duelPoint(lineup, end = false) {
   const trajectory = Array.isArray(lineup.trajectory) ? lineup.trajectory : [];
@@ -6864,7 +6868,7 @@ function _duelPairKey(id1, id2) {
   return [id1, id2].sort().join('::');
 }
 
-function _buildDuelSuggestions(srcLineups, duelDocs) {
+function _buildDuelSuggestions(srcLineups, duelDocs, mode = 'similar') {
   const approved = srcLineups.filter(item => item.status === 'approved');
   const usedPairs = new Set();
   const busyIds = new Set();
@@ -6898,10 +6902,18 @@ function _buildDuelSuggestions(srcLineups, duelDocs) {
         if (usedPairs.has(_duelPairKey(a.lineup.id, b.lineup.id))) continue;
         const startDistance = _duelPointDistance(a.start, b.start);
         const endDistance = _duelPointDistance(a.end, b.end);
-        if (startDistance > 0.05 || endDistance > 0.05) continue;
         const sameAbility = String(a.lineup.ability || '').toLocaleLowerCase('ru') === String(b.lineup.ability || '').toLocaleLowerCase('ru');
         const sameSide = !a.lineup.round_side || !b.lineup.round_side || a.lineup.round_side === b.lineup.round_side;
-        const score = Math.max(1, Math.min(99, Math.round(100 - ((startDistance + endDistance) / 0.1 * 36) + (sameAbility ? 3 : 0) + (sameSide ? 2 : 0))));
+        const sameTitle = String(a.lineup.title || '').trim().toLocaleLowerCase('ru') === String(b.lineup.title || '').trim().toLocaleLowerCase('ru');
+        const sameCategory = String(a.lineup.content_type || a.lineup.category || '') === String(b.lineup.content_type || b.lineup.category || '');
+        let score;
+        if (mode === 'different') {
+          score = Math.min(99, Math.round((sameTitle ? 0 : 30) + (sameAbility ? 0 : 25) + (sameSide ? 0 : 15) + (sameCategory ? 0 : 10) + Math.min(25, endDistance * 250) + Math.min(10, startDistance * 100)));
+          if (score < 30) continue;
+        } else {
+          if (startDistance > 0.05 || endDistance > 0.05) continue;
+          score = Math.max(1, Math.min(99, Math.round(100 - ((startDistance + endDistance) / 0.1 * 36) + (sameAbility ? 3 : 0) + (sameSide ? 2 : 0))));
+        }
         matches.push({ ...a, other:b, startDistance, endDistance, score, sameAbility, sameSide });
       }
     }
@@ -6910,6 +6922,7 @@ function _buildDuelSuggestions(srcLineups, duelDocs) {
 }
 
 function _selectDuelSuggestion(first, second) {
+  _selectedDuelMatchType = _duelSuggestionMode;
   _duel1 = { id:first.id, title:first.title ?? first.id, mapName:first.map, agent:first.agent };
   _duel2 = { id:second.id, title:second.title ?? second.id, mapName:second.map, agent:second.agent };
   document.getElementById('duel-selected1').textContent = `✓ ${_duel1.title} (${_duel1.mapName})`;
@@ -6962,7 +6975,8 @@ function renderDuelSuggestions(duelDocs = []) {
   const wrap = document.getElementById('duel-suggestions-wrap');
   const count = document.getElementById('duel-suggestions-count');
   if (!wrap || !count) return;
-  const suggestions = _buildDuelSuggestions(lineups, duelDocs);
+  _duelSuggestionDocs = duelDocs;
+  const suggestions = _buildDuelSuggestions(lineups, duelDocs, _duelSuggestionMode);
   count.textContent = String(suggestions.length);
   if (!suggestions.length) {
     wrap.innerHTML = '<div class="duel-suggestions-empty">Подходящих новых пар среди последних загруженных лайнапов нет.</div>';
@@ -6971,8 +6985,9 @@ function renderDuelSuggestions(duelDocs = []) {
   wrap.innerHTML = suggestions.map((match, index) => {
     const first = match.lineup, second = match.other.lineup;
     const ability = match.sameAbility && first.ability ? ` · ${esc(first.ability)}` : '';
+    const scoreLabel = _duelSuggestionMode === 'different' ? 'контраст' : 'сходство';
     return `<article class="duel-suggestion-card">
-      <div class="duel-suggestion-score"><b>${match.score}%</b><span>сходство</span></div>
+      <div class="duel-suggestion-score"><b>${match.score}%</b><span>${scoreLabel}</span></div>
       <div class="duel-suggestion-context"><b>${esc(match.map)} · ${esc(match.agent)}${ability}</b><span>Старт Δ ${(match.startDistance * 100).toFixed(1)}% · попадание Δ ${(match.endDistance * 100).toFixed(1)}%</span></div>
       <div class="duel-suggestion-versus"><strong title="${esc(first.title ?? first.id)}">${esc(first.title ?? first.id)}</strong><i>VS</i><strong title="${esc(second.title ?? second.id)}">${esc(second.title ?? second.id)}</strong></div>
       <button class="btn duel-suggestion-use" type="button" data-duel-suggestion="${index}">Выбрать пару</button>
@@ -6983,6 +6998,14 @@ function renderDuelSuggestions(duelDocs = []) {
     if (match) _selectDuelSuggestion(match.lineup, match.other.lineup);
   }));
 }
+
+document.getElementById('duel-suggestions-mode')?.addEventListener('change', event => {
+  _duelSuggestionMode = event.target.value === 'different' ? 'different' : 'similar';
+  document.getElementById('duel-suggestions-hint').textContent = _duelSuggestionMode === 'different'
+    ? 'Одна карта и агент, но разное назначение, результат, способность или сторона.'
+    : 'Одна карта и агент, близкие точки броска и попадания.';
+  renderDuelSuggestions(_duelSuggestionDocs);
+});
 
 function stopDuelsRealtime() {
   if (_duelsUnsub) {
@@ -7135,6 +7158,7 @@ async function _initDuelPickers() {
   const approved = lineups.filter(l => l.status === 'approved');
 
   _dpRender('duel-picker1', approved, r => {
+    _selectedDuelMatchType = 'manual';
     _duel1 = r;
     _duel2 = null;
     document.getElementById('duel-selected1').textContent = `✓ ${r.title} (${r.mapName})`;
@@ -7189,6 +7213,7 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
       lineup1Id: _duel1.id,
       lineup2Id: _duel2.id,
       mapName: _duel1.mapName,
+      comparisonType: _selectedDuelMatchType,
       votes1: 0,
       votes2: 0,
       status: isScheduled ? 'scheduled' : 'active',
