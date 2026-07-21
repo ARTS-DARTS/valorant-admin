@@ -12730,7 +12730,7 @@ document.getElementById('nu-user-modal').addEventListener('click', e => {
 // ── Toast ─────────────────────────────────────────────────────────────────────
 async function refreshTranslationStats() {
   const el = document.getElementById('translation-stats'); if (!el) return;
-  try { const { data } = await getTranslationStats(); el.textContent = `Всего текстов: ${data.total}. Требуют перевода: ${data.pending}. Символов: ${data.characters}.`; }
+  try { const { data } = await getTranslationStats(); el.textContent = `Всего текстов: ${data.total}. Требуют автоперевода: ${data.pending}. Сложных шаблонов вручную: ${data.manual || 0}. Символов в очереди: ${data.characters}.`; }
   catch (e) { el.textContent = 'Не удалось загрузить статистику: ' + (e?.message || e); }
 }
 document.getElementById('btn-sync-translations')?.addEventListener('click', async () => {
@@ -12748,6 +12748,7 @@ document.getElementById('btn-translate-content')?.addEventListener('click', asyn
     const result = await translatePendingContent();
     const data = result.data || {};
     toast(`Переводы обновлены: ${data.translated || 0} записей, ${data.characters || 0} символов`, 's');
+    await refreshTranslationStats();
   } catch (error) {
     console.error('[translations]', error);
     toast('Не удалось обновить переводы: ' + (error?.message || error), 'e');
