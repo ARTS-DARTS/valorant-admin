@@ -14431,36 +14431,33 @@ async function loadActivityAnalytics(days, d30, today) {
   const d7 = new Date(now - 7 * 864e5);
   const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
   const usersRef = collection(db, 'users');
-  const [dau, wau, mau, sessionCount, ...dailyLastSeen] = await Promise.all([
+  const [dau, wau, mau, sessionCount, dailySnap] = await Promise.all([
     countDocsSafe(usersRef, [where('last_seen', '>=', todayStart)]),
     countDocsSafe(usersRef, [where('last_seen', '>=', d7)]),
     countDocsSafe(usersRef, [where('last_seen', '>=', d30)]),
     countDocsSafe(collection(db, 'user_sessions'), [where('ts', '>=', d30)]),
-    ...days.map(day => {
-      const from = new Date(`${day}T00:00:00`);
-      const to = new Date(from);
-      to.setDate(to.getDate() + 1);
-      return countDocsSafe(usersRef, [where('last_seen', '>=', from), where('last_seen', '<', to)], 0);
-    }),
+    getDocs(query(collection(db, 'activity_daily'), where('date', '>=', days[0]), limit(40))),
   ]);
 
-  const dauArr  = dailyLastSeen.map(value => Number(value || 0));
-  const peakDau = Math.max(0, ...dauArr);
-  const avgDau  = Math.round(dauArr.reduce((a, b) => a + b, 0) / 30);
+  const savedByDay = new Map(dailySnap.docs.map(entry => [entry.data().date || entry.id, Number(entry.data().dau || 0)]));
+  const dauArr = days.map(day => day === today ? Math.max(Number(dau || 0), savedByDay.get(day) || 0) : (savedByDay.has(day) ? savedByDay.get(day) : null));
+  const recordedDau = dauArr.filter(Number.isFinite);
+  const peakDau = recordedDau.length ? Math.max(...recordedDau) : '—';
+  const avgDau = recordedDau.length ? Math.round(recordedDau.reduce((a, b) => a + b, 0) / recordedDau.length) : '—';
 
   document.getElementById('ses-stat-cards').innerHTML = [
     [dau, 'DAU last_seen'],
     [wau, 'WAU last_seen'],
     [mau, 'MAU last_seen'],
     [sessionCount, 'Сессий count(30д)'],
-    [peakDau,      'Пик last_seen'],
-    [avgDau,       'Среднее last_seen'],
+    [peakDau,      'Пик сохранённого DAU'],
+    [avgDau,       'Среднее сохранённого DAU'],
   ].map(([v, l]) =>
     `<div class="an-card"><div class="an-val">${v}</div><div class="an-lbl">${l}</div></div>`
   ).join('');
 
   drawInteractiveChart('dau-chart', 'dau-tip', [
-    { name: 'last_seen', data: dauArr, color: '#4FC3F7' },
+    { name: 'сохранённый DAU', data: dauArr, color: '#4FC3F7' },
   ], days);
 }
 
@@ -14504,13 +14501,16 @@ function drawInteractiveChart(svgId, tipId, series, days) {
   html += `<line id="${svgId}-guide" x1="0" y1="${pad.t}" x2="0" y2="${pad.t + cH}" stroke="var(--text2)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>`;
 
   for (const s of series) {
-    let area = `M ${xp(0).toFixed(1)},${yp(s.data[0]).toFixed(1)}`;
-    for (let i = 1; i < n; i++) area += ` L ${xp(i).toFixed(1)},${yp(s.data[i]).toFixed(1)}`;
-    area += ` L ${xp(n - 1).toFixed(1)},${(pad.t + cH).toFixed(1)} L ${xp(0).toFixed(1)},${(pad.t + cH).toFixed(1)} Z`;
-    html += `<path d="${area}" fill="${s.color}" fill-opacity="0.10"/>`;
-    let line = `M ${xp(0).toFixed(1)},${yp(s.data[0]).toFixed(1)}`;
-    for (let i = 1; i < n; i++) line += ` L ${xp(i).toFixed(1)},${yp(s.data[i]).toFixed(1)}`;
-    html += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    let segment = [];
+    const flushSegment = () => {
+      if (!segment.length) return;
+      const line = segment.map((point, index) => `${index ? 'L' : 'M'} ${xp(point.i).toFixed(1)},${yp(point.v).toFixed(1)}`).join(' ');
+      const area = `${line} L ${xp(segment[segment.length - 1].i).toFixed(1)},${(pad.t + cH).toFixed(1)} L ${xp(segment[0].i).toFixed(1)},${(pad.t + cH).toFixed(1)} Z`;
+      html += `<path d="${area}" fill="${s.color}" fill-opacity="0.10"/><path d="${line}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      segment = [];
+    };
+    s.data.forEach((value, i) => { if (Number.isFinite(value)) segment.push({ i, v:value }); else flushSegment(); });
+    flushSegment();
   }
   // hover highlight dots (one per series, hidden initially)
   series.forEach((s, si) => {
@@ -14529,17 +14529,19 @@ function drawInteractiveChart(svgId, tipId, series, days) {
     const gx = xp(idx);
     guide.setAttribute('x1', gx); guide.setAttribute('x2', gx); guide.setAttribute('opacity', '0.5');
     series.forEach((s, si) => {
+      const hasValue = Number.isFinite(s.data[idx]);
       dots[si].setAttribute('cx', gx);
       dots[si].setAttribute('cy', yp(s.data[idx]));
-      dots[si].setAttribute('opacity', '1');
+      dots[si].setAttribute('opacity', hasValue ? '1' : '0');
     });
     if (tip) {
       const rows = series.map(s =>
-        `<div class="an-tip-row"><span class="an-tip-dot" style="background:${s.color}"></span>${s.name}<span class="an-tip-val">${s.data[idx]}</span></div>`
+        `<div class="an-tip-row"><span class="an-tip-dot" style="background:${s.color}"></span>${s.name}<span class="an-tip-val">${Number.isFinite(s.data[idx]) ? s.data[idx] : 'нет снимка'}</span></div>`
       ).join('');
       tip.innerHTML = `<div class="an-tip-date">${days[idx]}</div>${rows}`;
       const pxX = gx / W * rect.width;
-      const pxY = yp(Math.max(...series.map(s => s.data[idx]))) / H * rect.height;
+      const hoveredValues = series.map(s => s.data[idx]).filter(Number.isFinite);
+      const pxY = yp(hoveredValues.length ? Math.max(...hoveredValues) : 0) / H * rect.height;
       tip.style.display = 'block';
       const tipW = tip.offsetWidth || 160;
       const tipH = tip.offsetHeight || 70;
