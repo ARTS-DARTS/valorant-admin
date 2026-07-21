@@ -7426,6 +7426,7 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
   if (!confirm(`Отправить ${ids.length} лайнапов ${label}?`)) return;
   button.disabled = true;
   try {
+    const hotNotificationsByAuthor = new Map();
     for (const id of ids) {
       if (action === 'moderate') {
         await updateDoc(doc(db, 'lineups', id), { status: 'moderator_draft', moderator_only: true, submitted_at: serverTimestamp() });
@@ -7433,13 +7434,44 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         patchStatus(id, 'moderator_draft');
       } else if (action === 'approve') {
         const lineup = lineups.find(item => item.id === id);
-        await confirmLineupHot(id, lineup?.user_id || '');
+        const result = await confirmLineupHot(id, lineup?.user_id || '', { deferAuthorNotification:true });
+        if (result.shouldNotify && result.uid) {
+          const group = hotNotificationsByAuthor.get(result.uid) || { lineups:[], cooldownReset:false };
+          group.lineups.push(result.lineup);
+          group.cooldownReset ||= result.cooldownReset;
+          hotNotificationsByAuthor.set(result.uid, group);
+        }
         await writeAudit(id, 'hot');
         patchStatus(id, 'hot');
       } else {
         await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
         await writeAudit(id, 'archived');
         patchStatus(id, 'archived');
+      }
+    }
+    if (action === 'approve') {
+      for (const [uid, group] of hotNotificationsByAuthor) {
+        const count = group.lineups.length;
+        const first = group.lineups[0] || {};
+        const title = count === 1 ? 'Лайнап подтверждён 🔥' : `${count} лайнапов отправлены в «Пирожки» 🔥`;
+        const body = count === 1
+          ? `${[first.agent, first.map].filter(Boolean).join(' · ')}${first.agent || first.map ? '. ' : ''}Лайнап подтверждён и перемещён в «Пирожки», но пока ещё не опубликован.${group.cooldownReset ? ' КД на новую отправку сброшено.' : ''}`
+          : `${count} выбранных лайнапов подтверждены одной пачкой и перемещены в «Пирожки», но пока ещё не опубликованы.${group.cooldownReset ? ' КД на новую отправку сброшено.' : ''}`;
+        await writeUserNotification(uid, {
+          type: count === 1 ? 'lineup_hot' : 'lineups_hot_batch',
+          lineup_id: first.id || '',
+          lineup_ids: group.lineups.map(item => item.id),
+          lineup_count: count,
+          title,
+          body,
+          cooldown_reset: group.cooldownReset,
+        });
+        const markerBatch = writeBatch(db);
+        group.lineups.forEach(item => markerBatch.update(doc(db, 'lineups', item.id), {
+          hot_author_notified_at:serverTimestamp(),
+          hot_cooldown_reset:group.cooldownReset,
+        }));
+        await markerBatch.commit();
       }
     }
     _selectedIds.clear(); _lastSelectedIndex = -1; _selectionAnchorId = ''; renderList();
@@ -15342,7 +15374,8 @@ function hotCooldownMinutes(approved) {
   return HOT_REWARD_LEVELS.reduce((current, level) => approved >= level.min ? level : current, HOT_REWARD_LEVELS[0]).cooldownMinutes;
 }
 
-async function confirmLineupHot(lineupId, fallbackUid = '') {
+async function confirmLineupHot(lineupId, fallbackUid = '', options = {}) {
+  const deferAuthorNotification = options.deferAuthorNotification === true;
   const lineupRef = doc(db, 'lineups', lineupId);
   const result = await runTransaction(db, async tx => {
     const lineupSnap = await tx.get(lineupRef);
@@ -15369,8 +15402,10 @@ async function confirmLineupHot(lineupId, fallbackUid = '') {
       const lastAt = rateSnap.data()?.last_lineup_at?.toMillis?.() || 0;
       cooldownReset = rateSnap.exists() && cooldownMs > 0 && lastAt + cooldownMs > Date.now();
       if (cooldownReset) tx.delete(rateRef);
-      notificationRef = doc(collection(db, 'notifications', uid, 'items'));
-      userNotificationRef = doc(collection(db, 'users', uid, 'notifications'));
+      if (!deferAuthorNotification) {
+        notificationRef = doc(collection(db, 'notifications', uid, 'items'));
+        userNotificationRef = doc(collection(db, 'users', uid, 'notifications'));
+      }
     }
 
     const moderatorName = currentUser?.displayName || currentUser?.email || 'Admin';
@@ -15384,7 +15419,7 @@ async function confirmLineupHot(lineupId, fallbackUid = '') {
       hot_confirmed_by_name:moderatorName,
       hot_confirmed_by_role:currentUserRole || 'admin',
       hot_confirmed_at:serverTimestamp(),
-      ...(!alreadyNotified && uid ? { hot_author_notified_at:serverTimestamp(), hot_cooldown_reset:cooldownReset } : {}),
+      ...(!deferAuthorNotification && !alreadyNotified && uid ? { hot_author_notified_at:serverTimestamp(), hot_cooldown_reset:cooldownReset } : {}),
     });
 
     if (notificationRef && userNotificationRef) {
@@ -15398,7 +15433,7 @@ async function confirmLineupHot(lineupId, fallbackUid = '') {
       tx.set(notificationRef, { ...payload, is_read:false });
       tx.set(userNotificationRef, { ...payload, read:false });
     }
-    return { uid, cooldownReset, alreadyNotified };
+    return { uid, cooldownReset, alreadyNotified, shouldNotify:!!uid && !alreadyNotified, lineup };
   });
   return result;
 }
