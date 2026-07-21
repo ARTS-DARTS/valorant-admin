@@ -7197,18 +7197,23 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
       createdAt: serverTimestamp(),
       createdBy: uid,
     });
-    try {
-      await sendPushNotification({
-        title: '⚔️ Новая дуэль!',
-        body: 'Проголосуй за лучший лайнап — дуэль уже идёт',
-        type: 'duel',
-        allowAll: true,
-      });
-      st.textContent = '✅ Дуэль запущена, push отправлен!';
-      toast('Дуэль создана, push отправлен', 's');
-    } catch (pushErr) {
-      st.textContent = '✅ Дуэль запущена, но push не ушёл: ' + pushErr.message;
-      toast('Дуэль создана, но push не ушёл: ' + pushErr.message, 'e');
+    if (isScheduled) {
+      st.textContent = `✅ Дуэль запланирована на ${startsAt.toLocaleString('ru-RU')}. Push будет отправлен при старте.`;
+      toast('Дуэль добавлена в расписание без отправки push', 's');
+    } else {
+      try {
+        await sendPushNotification({
+          title: '⚔️ Новая дуэль!',
+          body: 'Проголосуй за лучший лайнап — дуэль уже идёт',
+          type: 'duel',
+          allowAll: true,
+        });
+        st.textContent = '✅ Дуэль запущена, push отправлен!';
+        toast('Дуэль создана, push отправлен', 's');
+      } catch (pushErr) {
+        st.textContent = '✅ Дуэль запущена, но push не ушёл: ' + pushErr.message;
+        toast('Дуэль создана, но push не ушёл: ' + pushErr.message, 'e');
+      }
     }
     _duel1 = null; _duel2 = null;
     document.getElementById('duel-selected1').textContent = '';
@@ -17205,7 +17210,7 @@ async function loadLogsTab() {
     if (_logsFilter === 'web') constraints.push(where('platform', '==', 'web'));
     else if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
     let snap;
-    if (!isScheduled) try {
+    try {
       snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
       _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
@@ -17217,9 +17222,6 @@ async function loadLogsTab() {
         const bTime = b.timestamp?.toMillis?.() ?? (new Date(b.timestamp || 0).getTime() || 0);
         return bTime - aTime;
       }).slice(0, 200);
-    } else {
-      st.textContent = `✅ Дуэль запланирована на ${startsAt.toLocaleString('ru-RU')}`;
-      toast('Дуэль добавлена в расписание', 's');
     }
     await _loadLogUsers();
     _renderLogs();
