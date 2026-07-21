@@ -1018,7 +1018,7 @@
     .duel-suggestion-score{grid-area:score;display:grid;place-items:center;width:55px;height:55px;border:1px solid rgba(80,214,255,.32);border-radius:50%;background:radial-gradient(circle,rgba(80,214,255,.12),transparent 68%)}.duel-suggestion-score b{color:#50d6ff;font:800 15px monospace}.duel-suggestion-score span{margin-top:-8px;color:var(--text2);font-size:8px;text-transform:uppercase;letter-spacing:.5px}
     .duel-suggestion-context{grid-area:context;min-width:0;display:grid;gap:2px}.duel-suggestion-context b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;color:var(--text1)}.duel-suggestion-context span{font:10px monospace;color:var(--text2)}
     .duel-suggestion-versus{grid-area:versus;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}.duel-suggestion-versus strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.duel-suggestion-versus i{color:var(--primary);font:900 10px monospace;font-style:normal}
-    .duel-suggestion-use{grid-area:action;border:1px solid rgba(80,214,255,.4)!important;color:#8de8ff!important;font-size:11px!important;padding:7px 9px!important}.duel-suggestion-use:hover{background:rgba(80,214,255,.1)!important}
+    .duel-suggestion-actions{grid-area:action;display:grid;gap:5px}.duel-suggestion-use{border:1px solid rgba(80,214,255,.4)!important;color:#8de8ff!important;font-size:11px!important;padding:7px 9px!important}.duel-suggestion-use:hover{background:rgba(80,214,255,.1)!important}.duel-suggestion-dismiss{border:0;background:none;color:#77869d;font-size:10px;cursor:pointer;padding:3px}.duel-suggestion-dismiss:hover{color:#ff7c86;text-decoration:underline}
     .duel-picked-card{height:100%;display:grid;place-items:center;padding:12px;background:radial-gradient(circle at 50% 20%,rgba(80,214,255,.1),transparent 58%)}.duel-picked-card-inner{width:min(100%,520px);display:grid;grid-template-columns:minmax(150px,42%) minmax(0,1fr);grid-template-areas:"media kicker" "media title" "media meta" "media change";gap:7px 14px;padding:12px;border:1px solid rgba(80,214,255,.4);border-radius:11px;background:rgba(11,18,32,.9);box-shadow:0 12px 35px rgba(0,0,0,.22)}.duel-picked-kicker{grid-area:kicker;display:flex;align-items:center;justify-content:space-between;color:#50d6ff;font:800 10px monospace;letter-spacing:.7px;text-transform:uppercase}.duel-picked-kicker span{color:var(--green)}.duel-picked-title{grid-area:title;overflow-wrap:anywhere;color:var(--text1);font-size:18px;line-height:1.2}.duel-picked-meta{grid-area:meta;display:flex;gap:6px;flex-wrap:wrap}.duel-picked-meta span{padding:4px 7px;border:1px solid var(--border);border-radius:999px;color:var(--text2);font-size:10px}.duel-picked-change{grid-area:change;justify-self:start;border:0;background:none;color:#7ddcf8;font-size:11px;cursor:pointer;padding:2px 0}.duel-picked-change:hover{text-decoration:underline}.duel-picked-media{grid-area:media;min-width:0;height:150px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#070b13}.duel-picked-media video,.duel-picked-media img{width:100%;height:100%;display:block;object-fit:cover}.duel-picked-media-empty{height:100%;display:grid;place-items:center;padding:12px;text-align:center;color:var(--text2);font-size:11px}.duel-picked-shots{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;height:100%;padding:3px}.duel-picked-shots img{border-radius:5px;cursor:pointer}.duel-picked-shots img:first-child:last-child{grid-column:1/-1}.duel-picked-shots img:first-child:nth-last-child(2){grid-column:span 2}
     @media(max-width:1100px){.duel-picked-card-inner{grid-template-columns:1fr;grid-template-areas:"media" "kicker" "title" "meta" "change"}.duel-picked-media{height:120px}}
     @media(max-width:760px){.duel-suggestions-grid{grid-template-columns:1fr}.duel-suggestion-card{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"score context" "versus versus" "action action"}.duel-suggestion-use{width:100%}}
@@ -6849,6 +6849,7 @@ let _duelsUnsub = null;
 let _duelSuggestionMode = 'similar';
 let _duelSuggestionDocs = [];
 let _selectedDuelMatchType = 'manual';
+let _duelExcludedPairs = new Set();
 
 function _duelPoint(lineup, end = false) {
   const trajectory = Array.isArray(lineup.trajectory) ? lineup.trajectory : [];
@@ -6899,7 +6900,8 @@ function _buildDuelSuggestions(srcLineups, duelDocs, mode = 'similar') {
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
         const a = items[i], b = items[j];
-        if (usedPairs.has(_duelPairKey(a.lineup.id, b.lineup.id))) continue;
+        const pairKey = _duelPairKey(a.lineup.id, b.lineup.id);
+        if (usedPairs.has(pairKey) || _duelExcludedPairs.has(pairKey)) continue;
         const startDistance = _duelPointDistance(a.start, b.start);
         const endDistance = _duelPointDistance(a.end, b.end);
         const sameAbility = String(a.lineup.ability || '').toLocaleLowerCase('ru') === String(b.lineup.ability || '').toLocaleLowerCase('ru');
@@ -6990,12 +6992,36 @@ function renderDuelSuggestions(duelDocs = []) {
       <div class="duel-suggestion-score"><b>${match.score}%</b><span>${scoreLabel}</span></div>
       <div class="duel-suggestion-context"><b>${esc(match.map)} · ${esc(match.agent)}${ability}</b><span>Старт Δ ${(match.startDistance * 100).toFixed(1)}% · попадание Δ ${(match.endDistance * 100).toFixed(1)}%</span></div>
       <div class="duel-suggestion-versus"><strong title="${esc(first.title ?? first.id)}">${esc(first.title ?? first.id)}</strong><i>VS</i><strong title="${esc(second.title ?? second.id)}">${esc(second.title ?? second.id)}</strong></div>
-      <button class="btn duel-suggestion-use" type="button" data-duel-suggestion="${index}">Выбрать пару</button>
+      <div class="duel-suggestion-actions"><button class="btn duel-suggestion-use" type="button" data-duel-suggestion="${index}">Выбрать пару</button><button class="duel-suggestion-dismiss" type="button" data-duel-dismiss="${index}">Не актуальна</button></div>
     </article>`;
   }).join('');
   wrap.querySelectorAll('[data-duel-suggestion]').forEach(button => button.addEventListener('click', () => {
     const match = suggestions[Number(button.dataset.duelSuggestion)];
     if (match) _selectDuelSuggestion(match.lineup, match.other.lineup);
+  }));
+  wrap.querySelectorAll('[data-duel-dismiss]').forEach(button => button.addEventListener('click', async () => {
+    const match = suggestions[Number(button.dataset.duelDismiss)];
+    if (!match) return;
+    const pairKey = _duelPairKey(match.lineup.id, match.other.lineup.id);
+    button.disabled = true;
+    try {
+      await setDoc(doc(db, 'duel_suggestion_exclusions', pairKey), {
+        pair_key: pairKey,
+        lineup1Id: match.lineup.id,
+        lineup2Id: match.other.lineup.id,
+        map: match.map,
+        agent: match.agent,
+        reason: 'different_purpose',
+        createdAt: serverTimestamp(),
+        createdBy: auth.currentUser?.uid || '',
+      });
+      _duelExcludedPairs.add(pairKey);
+      renderDuelSuggestions(_duelSuggestionDocs);
+      toast('Пара больше не будет предлагаться', 's');
+    } catch (error) {
+      button.disabled = false;
+      toast('Не удалось скрыть пару: ' + error.message, 'e');
+    }
   }));
 }
 
@@ -7509,12 +7535,14 @@ async function loadDuelsTab() {
   stopDuelsRealtime();
   loadFinishedDuels();
   try {
-    const [activeSnap, tiedSnap, scheduledSnap, recentSnap] = await Promise.all([
+    const [activeSnap, tiedSnap, scheduledSnap, recentSnap, excludedSnap] = await Promise.all([
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')])),
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'tied'), orderBy('createdAt', 'desc')])),
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'scheduled'), orderBy('createdAt', 'desc')])),
       getDocs(query(collection(db, 'duels'), orderBy('createdAt', 'desc'), limit(300))),
+      getDocs(query(collection(db, 'duel_suggestion_exclusions'), limit(500))),
     ]);
+    _duelExcludedPairs = new Set(excludedSnap.docs.map(entry => entry.data().pair_key || entry.id));
     renderDuelSuggestions(recentSnap.docs);
     renderScheduledDuels(scheduledSnap.docs);
     const docs = [...activeSnap.docs, ...tiedSnap.docs].sort((a, b) => {
