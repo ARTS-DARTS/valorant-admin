@@ -1905,9 +1905,18 @@
         <button class="btn" data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
         <button class="btn" data-cat="wallbang" id="agents-tab-wallbang" style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
-        <div><b id="agents-category-access-title">Категория «Лайнапы»</b><div style="font-size:11px;color:var(--text2);margin-top:3px;">Выключение скрывает категорию, но сохраняет все настройки.</div></div>
-        <label class="toggle-switch"><input type="checkbox" id="agents-category-access"><span class="toggle-slider"></span></label>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
+        <div style="margin-bottom:10px;"><b id="agents-category-access-title">Категория «Лайнапы»</b><div style="font-size:11px;color:var(--text2);margin-top:3px;">Доступ и видимость настраиваются независимо. Все настройки категории сохраняются.</div></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+            <span><b style="display:block;font-size:12px;">Доступ</b><small style="color:var(--text2);font-size:10px;">Можно открыть категорию</small></span>
+            <span class="toggle-switch"><input type="checkbox" id="agents-category-access"><span class="toggle-slider"></span></span>
+          </label>
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+            <span><b style="display:block;font-size:12px;">Видимость</b><small style="color:var(--text2);font-size:10px;">Показывать карточку в интерфейсе</small></span>
+            <span class="toggle-switch"><input type="checkbox" id="agents-category-visible"><span class="toggle-slider"></span></span>
+          </label>
+        </div>
       </div>
       <div id="agents-config-mode-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
         <button type="button" class="btn btn-save" data-agent-mode="visibility">Видимость агентов</button>
@@ -6617,10 +6626,12 @@ document.querySelectorAll('#agents-target-tabs [data-agent-target]').forEach(but
 const _agentCategoryLabels = { lineup: 'Лайнапы', combo: 'Комбо', defense: 'Защита', wallbang: 'Прострелы' };
 async function _loadAgentCategoryAccess() {
   const checkbox = document.getElementById('agents-category-access');
+  const visibleCheckbox = document.getElementById('agents-category-visible');
   const title = document.getElementById('agents-category-access-title');
   if (title) title.textContent = `Категория «${_agentCategoryLabels[_selectedAgentCategory]}»`;
-  if (!checkbox) return;
+  if (!checkbox || !visibleCheckbox) return;
   checkbox.disabled = true;
+  visibleCheckbox.disabled = true;
   try {
     let snap = await getDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`));
     if (!snap.exists()) snap = await getDoc(doc(db, 'settings', 'category_access'));
@@ -6628,7 +6639,8 @@ async function _loadAgentCategoryAccess() {
     checkbox.checked = _selectedAgentCategory === 'lineup'
       ? data.lineup_enabled !== false
       : data[`${_selectedAgentCategory}_enabled`] === true;
-  } finally { checkbox.disabled = false; }
+    visibleCheckbox.checked = data[`${_selectedAgentCategory}_visible`] !== false;
+  } finally { checkbox.disabled = false; visibleCheckbox.disabled = false; }
 }
 document.getElementById('agents-category-access')?.addEventListener('change', async function() {
   this.disabled = true;
@@ -6638,6 +6650,18 @@ document.getElementById('agents-category-access')?.addEventListener('change', as
     if (_selectedAgentTarget === 'app') await setDoc(doc(db, 'settings', 'category_access'), payload, { merge: true });
     await bumpConfigVersions(['category_access']);
     toast(`Категория ${this.checked ? 'включена' : 'выключена'}`, 's');
+  } catch (error) { this.checked = !this.checked; toast('Ошибка: ' + error.message, 'e'); }
+  finally { this.disabled = false; }
+});
+document.getElementById('agents-category-visible')?.addEventListener('change', async function() {
+  this.disabled = true;
+  try {
+    const payload = { [`${_selectedAgentCategory}_visible`]: this.checked };
+    await setDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`), payload, { merge: true });
+    if (_selectedAgentTarget === 'app') await setDoc(doc(db, 'settings', 'category_access'), payload, { merge: true });
+    await bumpConfigVersions(['category_access']);
+    toast(`Категория ${this.checked ? 'показана' : 'скрыта'}`, 's');
+    addAuditLog('category_visibility_updated', { target: _selectedAgentTarget, category: _selectedAgentCategory, visible: this.checked });
   } catch (error) { this.checked = !this.checked; toast('Ошибка: ' + error.message, 'e'); }
   finally { this.disabled = false; }
 });
