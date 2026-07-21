@@ -1821,6 +1821,8 @@
           <option value="604800" selected>7 дней</option>
         </select>
       </div>
+      <div><label class="flabel">Начало</label><select class="fselect" id="duel-start-mode" style="width:160px;"><option value="now">Сейчас</option><option value="scheduled">Отложить</option></select></div>
+      <div id="duel-start-at-wrap" style="display:none;"><label class="flabel">Дата и время старта</label><input class="finput" id="duel-start-at" type="datetime-local" style="width:210px;"></div>
       <button class="btn btn-save" id="duel-create-btn">⚔️ Запустить дуэль</button>
     </div>
     <div id="duel-create-status" style="margin-bottom:16px;font-size:12px;color:var(--green);display:none;"></div>
@@ -1837,6 +1839,9 @@
         <div class="duel-suggestions-empty">Ищу подходящие пары…</div>
       </div>
     </section>
+
+    <div class="dlabel" style="margin-top:20px;margin-bottom:10px;">Запланированные дуэли</div>
+    <div id="duel-scheduled-wrap"><div style="color:var(--text2);font-size:13px;">Загрузка…</div></div>
 
     <!-- Active duels list -->
     <div class="dlabel" style="margin-top:20px;margin-bottom:10px;">Активные дуэли</div>
@@ -6866,7 +6871,7 @@ function _buildDuelSuggestions(srcLineups, duelDocs) {
   duelDocs.forEach(entry => {
     const duel = typeof entry.data === 'function' ? entry.data() : entry;
     if (duel.lineup1Id && duel.lineup2Id) usedPairs.add(_duelPairKey(duel.lineup1Id, duel.lineup2Id));
-    if (duel.status === 'active' || duel.status === 'tied') {
+    if (duel.status === 'active' || duel.status === 'tied' || duel.status === 'scheduled') {
       if (duel.lineup1Id) busyIds.add(duel.lineup1Id);
       if (duel.lineup2Id) busyIds.add(duel.lineup2Id);
     }
@@ -7148,22 +7153,46 @@ async function _initDuelPickers() {
   if (p2) p2.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:12px;text-align:center;padding:16px;">Сначала выбери лайнап #1</div>';
 }
 
+function _setDefaultDuelStartAt() {
+  const input = document.getElementById('duel-start-at');
+  if (!input || input.value) return;
+  const date = new Date(Date.now() + 60 * 60 * 1000);
+  date.setMinutes(Math.ceil(date.getMinutes() / 5) * 5, 0, 0);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  input.value = local.toISOString().slice(0, 16);
+  input.min = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+document.getElementById('duel-start-mode')?.addEventListener('change', event => {
+  const scheduled = event.target.value === 'scheduled';
+  document.getElementById('duel-start-at-wrap').style.display = scheduled ? 'block' : 'none';
+  document.getElementById('duel-create-btn').textContent = scheduled ? '🗓 Запланировать дуэль' : '⚔️ Запустить дуэль';
+  if (scheduled) _setDefaultDuelStartAt();
+});
+
 document.getElementById('duel-create-btn').addEventListener('click', async () => {
   if (!_duel1 || !_duel2) { toast('Выбери оба лайнапа', 'e'); return; }
   const duration = parseInt(document.getElementById('duel-duration').value, 10);
+  const isScheduled = document.getElementById('duel-start-mode')?.value === 'scheduled';
+  const startInput = document.getElementById('duel-start-at')?.value || '';
+  const startsAt = isScheduled ? new Date(startInput) : new Date();
+  if (isScheduled && (!startInput || Number.isNaN(startsAt.getTime()) || startsAt.getTime() < Date.now() + 60000)) {
+    toast('Выбери время старта минимум через одну минуту', 'e'); return;
+  }
   const uid = auth.currentUser?.uid;
   if (!uid) { toast('Не авторизован', 'e'); return; }
   const st = document.getElementById('duel-create-status');
   st.style.display = 'block'; st.textContent = 'Создание…';
   try {
-    const endsAt = new Date(Date.now() + duration * 1000);
+    const endsAt = new Date(startsAt.getTime() + duration * 1000);
     await addDoc(collection(db, 'duels'), {
       lineup1Id: _duel1.id,
       lineup2Id: _duel2.id,
       mapName: _duel1.mapName,
       votes1: 0,
       votes2: 0,
-      status: 'active',
+      status: isScheduled ? 'scheduled' : 'active',
+      startsAt,
       endsAt,
       createdAt: serverTimestamp(),
       createdBy: uid,
@@ -7413,6 +7442,36 @@ async function loadFinishedDuels(append = false) {
 
 document.getElementById('duel-load-more-btn')?.addEventListener('click', () => loadFinishedDuels(true));
 
+function renderScheduledDuels(docs) {
+  const wrap = document.getElementById('duel-scheduled-wrap');
+  if (!wrap) return;
+  const sorted = [...docs].sort((a, b) => (a.data().startsAt?.seconds || 0) - (b.data().startsAt?.seconds || 0));
+  if (!sorted.length) { wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Запланированных дуэлей нет.</div>'; return; }
+  wrap.innerHTML = `<div style="display:grid;gap:7px;">${sorted.map(entry => {
+    const duel = entry.data();
+    const l1 = lineups.find(item => item.id === duel.lineup1Id), l2 = lineups.find(item => item.id === duel.lineup2Id);
+    const starts = duel.startsAt?.toDate ? duel.startsAt.toDate().toLocaleString('ru-RU') : '—';
+    return `<div style="display:grid;grid-template-columns:150px minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
+      <b style="color:#50d6ff;">${esc(starts)}</b><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(l1?.title || duel.lineup1Id)} <b style="color:var(--primary);">VS</b> ${esc(l2?.title || duel.lineup2Id)} · ${esc(duel.mapName || '')}</span>
+      <span style="display:flex;gap:6px;"><button class="btn" data-scheduled-start="${entry.id}" style="font-size:11px;padding:5px 8px;border:1px solid var(--green);">Запустить сейчас</button><button class="btn" data-scheduled-cancel="${entry.id}" style="font-size:11px;padding:5px 8px;border:1px solid var(--primary);">Отменить</button></span></div>`;
+  }).join('')}</div>`;
+  wrap.querySelectorAll('[data-scheduled-start]').forEach(button => button.addEventListener('click', async () => {
+    const entry = sorted.find(item => item.id === button.dataset.scheduledStart);
+    if (!entry || !confirm('Запустить эту дуэль сейчас?')) return;
+    const duel = entry.data();
+    const durationMs = Math.max(60000, (duel.endsAt?.toMillis?.() || Date.now()) - (duel.startsAt?.toMillis?.() || Date.now()));
+    await updateDoc(entry.ref, { status:'active', startsAt:new Date(), endsAt:new Date(Date.now() + durationMs), activatedAt:serverTimestamp() });
+    await sendPushNotification({ title:'⚔️ Новая дуэль!', body:'Проголосуй за лучший лайнап — дуэль уже идёт', type:'duel', allowAll:true }).catch(error => toast('Дуэль запущена, но push не ушёл: ' + error.message, 'e'));
+    toast('Дуэль запущена', 's'); loadDuelsTab();
+  }));
+  wrap.querySelectorAll('[data-scheduled-cancel]').forEach(button => button.addEventListener('click', async () => {
+    const entry = sorted.find(item => item.id === button.dataset.scheduledCancel);
+    if (!entry || !confirm('Отменить запланированную дуэль?')) return;
+    await updateDoc(entry.ref, { status:'cancelled', finalized:true, cancelledAt:serverTimestamp() });
+    toast('Запланированная дуэль отменена', 'i'); loadDuelsTab();
+  }));
+}
+
 async function loadDuelsTab() {
   await _initDuelPickers();
   const wrap = document.getElementById('duel-list-wrap'); if (!wrap) return;
@@ -7420,12 +7479,14 @@ async function loadDuelsTab() {
   stopDuelsRealtime();
   loadFinishedDuels();
   try {
-    const [activeSnap, tiedSnap, recentSnap] = await Promise.all([
+    const [activeSnap, tiedSnap, scheduledSnap, recentSnap] = await Promise.all([
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'active'), orderBy('createdAt', 'desc')])),
       getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'tied'), orderBy('createdAt', 'desc')])),
+      getDocs(window._buildQuery(collection(db, 'duels'), [where('status', '==', 'scheduled'), orderBy('createdAt', 'desc')])),
       getDocs(query(collection(db, 'duels'), orderBy('createdAt', 'desc'), limit(300))),
     ]);
     renderDuelSuggestions(recentSnap.docs);
+    renderScheduledDuels(scheduledSnap.docs);
     const docs = [...activeSnap.docs, ...tiedSnap.docs].sort((a, b) => {
       const av = a.data().createdAt?.seconds || 0, bv = b.data().createdAt?.seconds || 0;
       return bv - av;
@@ -7433,6 +7494,7 @@ async function loadDuelsTab() {
     await renderActiveDuelsSnapshot({ empty: docs.length === 0, docs });
   } catch (e) {
     wrap.innerHTML = `<div style="color:#ef4444;font-size:13px;">Ошибка: ${esc(e.message)}</div>`;
+    renderScheduledDuels([]);
     renderDuelSuggestions([]);
   }
 }
@@ -17143,7 +17205,7 @@ async function loadLogsTab() {
     if (_logsFilter === 'web') constraints.push(where('platform', '==', 'web'));
     else if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
     let snap;
-    try {
+    if (!isScheduled) try {
       snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
       _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
@@ -17155,6 +17217,9 @@ async function loadLogsTab() {
         const bTime = b.timestamp?.toMillis?.() ?? (new Date(b.timestamp || 0).getTime() || 0);
         return bTime - aTime;
       }).slice(0, 200);
+    } else {
+      st.textContent = `✅ Дуэль запланирована на ${startsAt.toLocaleString('ru-RU')}`;
+      toast('Дуэль добавлена в расписание', 's');
     }
     await _loadLogUsers();
     _renderLogs();
