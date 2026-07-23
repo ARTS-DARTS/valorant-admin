@@ -1,0 +1,1718 @@
+[
+  {
+    "key": "appSubtitle",
+    "ru": "Интерактивные лайнапы для всех"
+  },
+  {
+    "key": "tabMaps",
+    "ru": "Главная"
+  },
+  {
+    "key": "tabFavorites",
+    "ru": "Избранное"
+  },
+  {
+    "key": "tabCollections",
+    "ru": "Коллекции"
+  },
+  {
+    "key": "tabProfile",
+    "ru": "Профиль"
+  },
+  {
+    "key": "cancel",
+    "ru": "Отмена"
+  },
+  {
+    "key": "viewSetup",
+    "ru": "Посмотреть"
+  },
+  {
+    "key": "ok",
+    "ru": "OK"
+  },
+  {
+    "key": "or",
+    "ru": "или"
+  },
+  {
+    "key": "back",
+    "ru": "← Назад"
+  },
+  {
+    "key": "continueBtn",
+    "ru": "ПРОДОЛЖИТЬ"
+  },
+  {
+    "key": "start",
+    "ru": "НАЧАТЬ"
+  },
+  {
+    "key": "comingSoon",
+    "ru": "Скоро"
+  },
+  {
+    "key": "noInternet",
+    "ru": "Нет подключения к интернету"
+  },
+  {
+    "key": "errorOccurred",
+    "ru": "Произошла ошибка. Попробуйте позже"
+  },
+  {
+    "key": "connectionError",
+    "ru": "Ошибка соединения. Проверь интернет."
+  },
+  {
+    "key": "welcome",
+    "ru": "Добро пожаловать!"
+  },
+  {
+    "key": "loginToAccount",
+    "ru": "Войди в аккаунт"
+  },
+  {
+    "key": "signIn",
+    "ru": "ВОЙТИ"
+  },
+  {
+    "key": "register",
+    "ru": "РЕГИСТРАЦИЯ"
+  },
+  {
+    "key": "nickname",
+    "ru": "Никнейм"
+  },
+  {
+    "key": "password",
+    "ru": "Пароль"
+  },
+  {
+    "key": "email",
+    "ru": "Email"
+  },
+  {
+    "key": "signInWithGoogle",
+    "ru": "Войти через Google"
+  },
+  {
+    "key": "enterNickname",
+    "ru": "Введи никнейм"
+  },
+  {
+    "key": "enterPassword",
+    "ru": "Введи пароль"
+  },
+  {
+    "key": "userNotFound",
+    "ru": "Пользователь с таким ником не найден"
+  },
+  {
+    "key": "wrongPassword",
+    "ru": "Неверный пароль"
+  },
+  {
+    "key": "loginFailed",
+    "ru": "Не удалось войти. Попробуйте позже"
+  },
+  {
+    "key": "googleLoginFailed",
+    "ru": "Не удалось войти через Google. Попробуйте ещё раз"
+  },
+  {
+    "key": "chooseAppTheme",
+    "ru": "Выбери тему приложения"
+  },
+  {
+    "key": "canChangeInProfile",
+    "ru": "Её можно будет изменить в профиле"
+  },
+  {
+    "key": "createNicknameDesc",
+    "ru": "Придумай уникальный никнейм чтобы начать"
+  },
+  {
+    "key": "checkingNickname",
+    "ru": "Проверяем никнейм..."
+  },
+  {
+    "key": "nicknameFree",
+    "ru": "Никнейм свободен!"
+  },
+  {
+    "key": "nicknameTaken",
+    "ru": "Никнейм уже занят"
+  },
+  {
+    "key": "mustAcceptTerms",
+    "ru": "Необходимо принять пользовательское соглашение"
+  },
+  {
+    "key": "nameRules",
+    "ru": "Имя должно быть от 2 до 20 символов.\nТолько буквы, цифры, _ и -"
+  },
+  {
+    "key": "nameTaken",
+    "ru": "Это имя уже занято. Попробуй другое!"
+  },
+  {
+    "key": "nameCheckError",
+    "ru": "Ошибка проверки имени. Нет соединения?"
+  },
+  {
+    "key": "nameHint",
+    "ru": "• От 2 до 20 символов\n• Буквы, цифры, _ и -\n• Имя уникально — его никто не сможет взять"
+  },
+  {
+    "key": "iAgreePrefix",
+    "ru": "Я прочитал и принимаю "
+  },
+  {
+    "key": "termsOfService",
+    "ru": "Пользовательское соглашение"
+  },
+  {
+    "key": "changeTheme",
+    "ru": "← Изменить тему"
+  },
+  {
+    "key": "createPassword",
+    "ru": "Создай пароль"
+  },
+  {
+    "key": "passwordNeeded",
+    "ru": "Понадобится для входа в аккаунт"
+  },
+  {
+    "key": "passwordHint",
+    "ru": "Пароль (минимум 6 символов)"
+  },
+  {
+    "key": "repeatPassword",
+    "ru": "Повтори пароль"
+  },
+  {
+    "key": "passwordMinSix",
+    "ru": "Пароль должен быть минимум 6 символов"
+  },
+  {
+    "key": "passwordsMismatch",
+    "ru": "Пароли не совпадают"
+  },
+  {
+    "key": "accountCreationFailed",
+    "ru": "Не удалось создать аккаунт. Попробуйте позже"
+  },
+  {
+    "key": "passwordTooSimple",
+    "ru": "Пароль слишком простой. Минимум 6 символов"
+  },
+  {
+    "key": "emailAlreadyInUse",
+    "ru": "Этот email уже используется"
+  },
+  {
+    "key": "suggestLineup",
+    "ru": "Предложить лайнап"
+  },
+  {
+    "key": "newsTooltip",
+    "ru": "Новости"
+  },
+  {
+    "key": "ratingMapPool",
+    "ru": "МАППУЛ РЕЙТИНГА"
+  },
+  {
+    "key": "otherMaps",
+    "ru": "ОСТАЛЬНЫЕ КАРТЫ"
+  },
+  {
+    "key": "categoryLineups",
+    "ru": "Лайнапы"
+  },
+  {
+    "key": "categoryLineupsDesc",
+    "ru": "Заставь противника врасплох!"
+  },
+  {
+    "key": "categoryCombo",
+    "ru": "Комбо"
+  },
+  {
+    "key": "categoryComboDesc",
+    "ru": "Удачные комбо агентов!"
+  },
+  {
+    "key": "categorySmoky",
+    "ru": "Прострелы"
+  },
+  {
+    "key": "categorySmokyDesc",
+    "ru": "Представь, что ты читер, но без читов"
+  },
+  {
+    "key": "categoryDefense",
+    "ru": "Защита"
+  },
+  {
+    "key": "categoryDefenseDesc",
+    "ru": "Не дай врагу зайти на сайт так легко!"
+  },
+  {
+    "key": "noLineupsYet",
+    "ru": "Пока что тут нет лайнапов, но скоро они будут добавлены!"
+  },
+  {
+    "key": "lineupCountLabel",
+    "ru": "{count, plural, =0{Нет лайнапов} one{{count} лайнап} few{{count} лайнапа} many{{count} лайнапов} other{{count} лайнапов}}"
+  },
+  {
+    "key": "exclusiveAccessActive",
+    "ru": "Эксклюзивный доступ активен на 1 час"
+  },
+  {
+    "key": "patchLabel",
+    "ru": "Патч {patch}"
+  },
+  {
+    "key": "accountDeleted",
+    "ru": "Аккаунт удалён"
+  },
+  {
+    "key": "accountDeletedDesc",
+    "ru": "Все данные удалены. Ты можешь создать новый аккаунт."
+  },
+  {
+    "key": "mainMenu",
+    "ru": "ГЛАВНОЕ МЕНЮ"
+  },
+  {
+    "key": "profileTitle",
+    "ru": "ПРОФИЛЬ"
+  },
+  {
+    "key": "topAuthors",
+    "ru": "Топ авторов"
+  },
+  {
+    "key": "signOutDialogTitle",
+    "ru": "Выйти из аккаунта?"
+  },
+  {
+    "key": "signOutDialogMessage",
+    "ru": "Для входа снова потребуется никнейм и пароль."
+  },
+  {
+    "key": "signOutBtn",
+    "ru": "Выйти"
+  },
+  {
+    "key": "deleteAccountTitle",
+    "ru": "Удалить аккаунт?"
+  },
+  {
+    "key": "deleteAccountIrreversible",
+    "ru": "Это действие необратимо!"
+  },
+  {
+    "key": "deleteAccountContent",
+    "ru": "Будут удалены:\n• Ваш никнейм\n• Уровень и прогресс\n• Все лайнапы на проверке\n\nОдобренные лайнапы останутся."
+  },
+  {
+    "key": "deleteAccountConfirmationInstruction",
+    "ru": "Чтобы удалить аккаунт, введи ПОДТВЕРДИТЬ."
+  },
+  {
+    "key": "deleteAccountConfirmationKeyword",
+    "ru": "ПОДТВЕРДИТЬ"
+  },
+  {
+    "key": "deleteForever",
+    "ru": "Удалить навсегда"
+  },
+  {
+    "key": "linkEmailPassword",
+    "ru": "Привязать email и пароль"
+  },
+  {
+    "key": "linkEmailDesc",
+    "ru": "Привяжи email и пароль к своему Яндекс ID, чтобы входить любым способом."
+  },
+  {
+    "key": "newPassword",
+    "ru": "Новый пароль"
+  },
+  {
+    "key": "fillAllFields",
+    "ru": "Заполни все поля"
+  },
+  {
+    "key": "enterValidEmail",
+    "ru": "Введи корректный email"
+  },
+  {
+    "key": "passwordMinSixSymbols",
+    "ru": "Пароль — минимум 6 символов"
+  },
+  {
+    "key": "emailPasswordLinked",
+    "ru": "Email и пароль привязаны ✅"
+  },
+  {
+    "key": "emailAlreadyUsedByOther",
+    "ru": "Этот email уже используется другим аккаунтом"
+  },
+  {
+    "key": "emailAlreadyLinked",
+    "ru": "Этот email уже привязан к другому аккаунту"
+  },
+  {
+    "key": "changePassword",
+    "ru": "Сменить пароль"
+  },
+  {
+    "key": "currentPassword",
+    "ru": "Текущий пароль"
+  },
+  {
+    "key": "repeatNewPassword",
+    "ru": "Повтори новый пароль"
+  },
+  {
+    "key": "newPasswordMinSix",
+    "ru": "Новый пароль должен быть минимум 6 символов"
+  },
+  {
+    "key": "passwordChanged",
+    "ru": "Пароль изменён ✅"
+  },
+  {
+    "key": "currentPasswordWrong",
+    "ru": "Текущий пароль неверный"
+  },
+  {
+    "key": "appTheme",
+    "ru": "Тема приложения"
+  },
+  {
+    "key": "approvedCount",
+    "ru": "Одобренных: {count}"
+  },
+  {
+    "key": "toNextLevel",
+    "ru": "До {name}: {count}"
+  },
+  {
+    "key": "maximum",
+    "ru": "МАКСИМУМ"
+  },
+  {
+    "key": "levelPrivileges",
+    "ru": "Привилегии уровня"
+  },
+  {
+    "key": "cooldownMinutes",
+    "ru": "КД отправки: {minutes} минут"
+  },
+  {
+    "key": "borderColor",
+    "ru": "Цвет рамки: {name}"
+  },
+  {
+    "key": "animatedProfile",
+    "ru": "Анимированный профиль"
+  },
+  {
+    "key": "topAuthorPosition",
+    "ru": "Позиция в топе авторов"
+  },
+  {
+    "key": "allLevels",
+    "ru": "Все уровни"
+  },
+  {
+    "key": "currentLevel",
+    "ru": "Текущий"
+  },
+  {
+    "key": "levelRequirements",
+    "ru": "{lineups} лайнапов • КД {cd}м"
+  },
+  {
+    "key": "aboutApp",
+    "ru": "О приложении"
+  },
+  {
+    "key": "aboutAppContent",
+    "ru": "Бесплатное приложение с интерактивными лайнапами для Valorant.\n\nНе аффилировано с Riot Games."
+  },
+  {
+    "key": "feedback",
+    "ru": "Обратная связь"
+  },
+  {
+    "key": "viewTutorial",
+    "ru": "Посмотреть обучение"
+  },
+  {
+    "key": "signOutMenuTitle",
+    "ru": "Выйти из аккаунта"
+  },
+  {
+    "key": "dangerZone",
+    "ru": "Опасная зона"
+  },
+  {
+    "key": "dangerZoneDesc",
+    "ru": "Удаление аккаунта необратимо. Весь прогресс и уровень будут потеряны."
+  },
+  {
+    "key": "deleteMyAccount",
+    "ru": "УДАЛИТЬ МОЙ АККАУНТ"
+  },
+  {
+    "key": "notifications",
+    "ru": "Уведомления"
+  },
+  {
+    "key": "noNotifications",
+    "ru": "Уведомлений нет"
+  },
+  {
+    "key": "nextLineupIn",
+    "ru": "Следующий лайнап через {minutes} мин."
+  },
+  {
+    "key": "approvedStat",
+    "ru": "Одобрено"
+  },
+  {
+    "key": "totalStat",
+    "ru": "Всего"
+  },
+  {
+    "key": "cooldownStat",
+    "ru": "КД"
+  },
+  {
+    "key": "newCount",
+    "ru": "{count} новых"
+  },
+  {
+    "key": "link",
+    "ru": "Привязать"
+  },
+  {
+    "key": "change",
+    "ru": "Сменить"
+  },
+  {
+    "key": "defaultPlayer",
+    "ru": "Игрок"
+  },
+  {
+    "key": "favorites",
+    "ru": "Избранное"
+  },
+  {
+    "key": "addToCollection",
+    "ru": "В коллекцию"
+  },
+  {
+    "key": "removeFromFavorites",
+    "ru": "Убрать из избранного"
+  },
+  {
+    "key": "addToFavorites",
+    "ru": "В избранное"
+  },
+  {
+    "key": "lineupFrom",
+    "ru": "Лайнап от:"
+  },
+  {
+    "key": "description",
+    "ru": "Описание"
+  },
+  {
+    "key": "screenshots",
+    "ru": "Скриншоты"
+  },
+  {
+    "key": "possiblyOutdated",
+    "ru": "Возможно устарело — пользователи отмечают неактуальность"
+  },
+  {
+    "key": "isRelevant",
+    "ru": "Актуально?"
+  },
+  {
+    "key": "needLevel2",
+    "ru": "Нужен 2-й уровень"
+  },
+  {
+    "key": "loginRequired",
+    "ru": "Войдите в аккаунт"
+  },
+  {
+    "key": "votingFromLevel2",
+    "ru": "Голосование доступно с 2-го уровня.\n\nНо вы можете посмотреть рекламу — и ваш голос засчитается!"
+  },
+  {
+    "key": "howToGetLevel2",
+    "ru": "Как получить 2-й уровень? →"
+  },
+  {
+    "key": "loginToVote",
+    "ru": "Войдите в аккаунт чтобы голосовать."
+  },
+  {
+    "key": "watchAd",
+    "ru": "📺 Смотреть рекламу"
+  },
+  {
+    "key": "yourVote",
+    "ru": "Ваш голос"
+  },
+  {
+    "key": "isLineupRelevant",
+    "ru": "Лайнап актуален?"
+  },
+  {
+    "key": "outdated",
+    "ru": "Устарело"
+  },
+  {
+    "key": "relevant",
+    "ru": "Актуально"
+  },
+  {
+    "key": "authorProfileUnavailable",
+    "ru": "Профиль автора недоступен"
+  },
+  {
+    "key": "alreadyVoted",
+    "ru": "Вы уже голосовали за этот лайнап"
+  },
+  {
+    "key": "adLoading",
+    "ru": "Реклама загружается, попробуй через секунду..."
+  },
+  {
+    "key": "voteAccepted",
+    "ru": "✅ Голос засчитан!"
+  },
+  {
+    "key": "voteSaveError",
+    "ru": "Ошибка при сохранении голоса"
+  },
+  {
+    "key": "watchAdFull",
+    "ru": "Досмотри рекламу до конца"
+  },
+  {
+    "key": "adUnavailable",
+    "ru": "Реклама недоступна, попробуй позже"
+  },
+  {
+    "key": "watchAdForAccess",
+    "ru": "Досмотри рекламу до конца чтобы получить доступ"
+  },
+  {
+    "key": "adLabel",
+    "ru": "📺 реклама"
+  },
+  {
+    "key": "downloadingPercent",
+    "ru": "Загрузка {percent}%..."
+  },
+  {
+    "key": "loadingAd",
+    "ru": "Загружаем рекламу..."
+  },
+  {
+    "key": "savingVideo",
+    "ru": "Сохраняем видео..."
+  },
+  {
+    "key": "savedOffline",
+    "ru": "Сохранено — доступно без интернета"
+  },
+  {
+    "key": "onlineOnly",
+    "ru": "Только онлайн"
+  },
+  {
+    "key": "openFullscreen",
+    "ru": "На полный экран"
+  },
+  {
+    "key": "saveOffline",
+    "ru": "Сохранить оффлайн"
+  },
+  {
+    "key": "videoSaved",
+    "ru": "Видео сохранено"
+  },
+  {
+    "key": "videoLoadError",
+    "ru": "Не удалось загрузить видео"
+  },
+  {
+    "key": "videoComingSoon",
+    "ru": "Видео скоро появится"
+  },
+  {
+    "key": "videoSavedSuccess",
+    "ru": "✅ Видео сохранено — доступно без интернета!"
+  },
+  {
+    "key": "downloadError",
+    "ru": "Ошибка загрузки, попробуй ещё раз"
+  },
+  {
+    "key": "needExclusiveForLike",
+    "ru": "Для лайка нужен эксклюзивный доступ"
+  },
+  {
+    "key": "exclusiveLineup",
+    "ru": "Эксклюзивный лайнап"
+  },
+  {
+    "key": "watchAdForExclusive",
+    "ru": "Посмотри рекламу чтобы открыть все эксклюзивные лайнапы на 1 час"
+  },
+  {
+    "key": "watchAdAccessBtn",
+    "ru": "▶ Смотреть рекламу → доступ на 1 час"
+  },
+  {
+    "key": "watchAdForSave",
+    "ru": "Досмотри рекламу до конца чтобы сохранить видео"
+  },
+  {
+    "key": "thanksForAd",
+    "ru": "Спасибо за просмотр рекламы!"
+  },
+  {
+    "key": "adHelpsUs",
+    "ru": "Это помогает нам развивать приложение 💪"
+  },
+  {
+    "key": "patchVersion",
+    "ru": "Патч {version}"
+  },
+  {
+    "key": "difficultyEasy",
+    "ru": "Легко"
+  },
+  {
+    "key": "difficultyMedium",
+    "ru": "Средне"
+  },
+  {
+    "key": "difficultyHard",
+    "ru": "Сложно"
+  },
+  {
+    "key": "screenshotN",
+    "ru": "Скриншот {n}"
+  },
+  {
+    "key": "exclusiveTag",
+    "ru": "⭐ ЭКСКЛЮЗИВ"
+  },
+  {
+    "key": "howToGetLevel2Title",
+    "ru": "Как получить 2-й уровень?"
+  },
+  {
+    "key": "xpDesc",
+    "ru": "Выкладывай лайнапы в приложение — за каждый начисляется опыт. Набери достаточно XP, и уровень повысится."
+  },
+  {
+    "key": "lineupRequirementsTitle",
+    "ru": "📋 ТЗ для лайнапов"
+  },
+  {
+    "key": "gotItWillPost",
+    "ru": "Понятно, буду выкладывать!"
+  },
+  {
+    "key": "tabMolly",
+    "ru": "Молики"
+  },
+  {
+    "key": "tabReveal",
+    "ru": "Ревил"
+  },
+  {
+    "key": "tabSmoky",
+    "ru": "Прострелы"
+  },
+  {
+    "key": "timingsSectionTitle",
+    "ru": "⏱ Тайминги"
+  },
+  {
+    "key": "searchLineups",
+    "ru": "Поиск лайнапов..."
+  },
+  {
+    "key": "nothingFound",
+    "ru": "Ничего не найдено 🔍"
+  },
+  {
+    "key": "language",
+    "ru": "Язык"
+  },
+  {
+    "key": "languageTitle",
+    "ru": "Language / Язык"
+  },
+  {
+    "key": "favoritesLoadError",
+    "ru": "Не удалось загрузить данные. Проверьте интернет и попробуйте ещё раз"
+  },
+  {
+    "key": "favoritesEmpty",
+    "ru": "Нет сохранённых лайнапов"
+  },
+  {
+    "key": "favoritesEmptyDesc",
+    "ru": "Нажми на закладку на любом лайнапе чтобы сохранить"
+  },
+  {
+    "key": "mySubscriptions",
+    "ru": "Мои уведомления"
+  },
+  {
+    "key": "subscribeToAgent",
+    "ru": "Подписаться на агента"
+  },
+  {
+    "key": "agentsTitle",
+    "ru": "Агенты"
+  },
+  {
+    "key": "subscribeToAgents",
+    "ru": "Подписаться на агентов"
+  },
+  {
+    "key": "newsNotificationsDescription",
+    "ru": "Баннеры новостей, обновления и важные объявления"
+  },
+  {
+    "key": "duelNotificationsDescription",
+    "ru": "Баннер активной дуэли и напоминания о голосовании"
+  },
+  {
+    "key": "unsubscribe",
+    "ru": "Отписаться"
+  },
+  {
+    "key": "subscriptionsEmpty",
+    "ru": "Нет подписок"
+  },
+  {
+    "key": "subscriptionsEmptyDesc",
+    "ru": "Нажми 🔔 на любом лайнапе чтобы получать уведомления о новых лайнапах этого агента"
+  },
+  {
+    "key": "newLineupsArrived",
+    "ru": "Новые лайнапы!"
+  },
+  {
+    "key": "viewOnMap",
+    "ru": "Посмотреть на карте"
+  },
+  {
+    "key": "newLineupsCount",
+    "ru": "{count, plural, =1{1 новый лайнап} few{{count} новых лайнапа} many{{count} новых лайнапов} other{{count} новых лайнапа}}"
+  },
+  {
+    "key": "feedbackTitle",
+    "ru": "ОБРАТНАЯ СВЯЗЬ"
+  },
+  {
+    "key": "feedbackSendTab",
+    "ru": "Отправить"
+  },
+  {
+    "key": "feedbackMyMessages",
+    "ru": "Мои сообщения"
+  },
+  {
+    "key": "signInMethods",
+    "ru": "Способы входа"
+  },
+  {
+    "key": "linkYandex",
+    "ru": "Привязать Яндекс ID"
+  },
+  {
+    "key": "yandexLinked",
+    "ru": "Яндекс ID привязан"
+  },
+  {
+    "key": "yandexNotLinked",
+    "ru": "Яндекс не привязан"
+  },
+  {
+    "key": "unlinkYandex",
+    "ru": "Отвязать Яндекс ID"
+  },
+  {
+    "key": "yandexLinkSuccess",
+    "ru": "Яндекс ID привязан ✓"
+  },
+  {
+    "key": "yandexUnlinkSuccess",
+    "ru": "Яндекс ID отвязан"
+  },
+  {
+    "key": "yandexLinkCancel",
+    "ru": "Привязка отменена"
+  },
+  {
+    "key": "aboutMe",
+    "ru": "Обо мне"
+  },
+  {
+    "key": "security",
+    "ru": "Безопасность"
+  },
+  {
+    "key": "privacy",
+    "ru": "Конфиденциальность"
+  },
+  {
+    "key": "uidCopied",
+    "ru": "UID скопирован"
+  },
+  {
+    "key": "role",
+    "ru": "Роль"
+  },
+  {
+    "key": "registrationDate",
+    "ru": "Дата регистрации"
+  },
+  {
+    "key": "linkedProviders",
+    "ru": "Привязанные аккаунты"
+  },
+  {
+    "key": "emailPassword",
+    "ru": "Email и пароль"
+  },
+  {
+    "key": "accountBanned",
+    "ru": "Аккаунт заблокирован"
+  },
+  {
+    "key": "privacyNote",
+    "ru": "Эти данные хранятся на нашем сервере и используются для авторизации. UID уникален и не меняется."
+  },
+  {
+    "key": "abilityPointsCount",
+    "ru": "Точки абилок: {count}"
+  },
+  {
+    "key": "feedbackDescribe",
+    "ru": "Опиши проблему или идею подробно..."
+  },
+  {
+    "key": "adminChat",
+    "ru": "Чат с администрацией"
+  },
+  {
+    "key": "messagePlaceholder",
+    "ru": "Сообщение…"
+  },
+  {
+    "key": "nicknameOrEmail",
+    "ru": "Никнейм или почта"
+  },
+  {
+    "key": "send",
+    "ru": "Отправить"
+  },
+  {
+    "key": "passwordResetSent",
+    "ru": "Письмо для смены пароля отправлено"
+  },
+  {
+    "key": "newNickname",
+    "ru": "Новый ник"
+  },
+  {
+    "key": "account",
+    "ru": "Аккаунт"
+  },
+  {
+    "key": "myNotifications",
+    "ru": "Мои уведомления"
+  },
+  {
+    "key": "appSection",
+    "ru": "Приложение"
+  },
+  {
+    "key": "understood",
+    "ru": "Понятно"
+  },
+  {
+    "key": "deleteAction",
+    "ru": "Удалить"
+  },
+  {
+    "key": "loadingScene",
+    "ru": "Загрузка сцены…"
+  },
+  {
+    "key": "loadingMaps",
+    "ru": "Загрузка карт…"
+  },
+  {
+    "key": "nicknameExample",
+    "ru": "Например: SovaKing"
+  },
+  {
+    "key": "changeNickname",
+    "ru": "Сменить никнейм"
+  },
+  {
+    "key": "nicknameUpdated",
+    "ru": "Никнейм обновлён"
+  },
+  {
+    "key": "nicknameCooldown",
+    "ru": "Никнейм можно сменить {date}."
+  },
+  {
+    "key": "nicknameChangeRules",
+    "ru": "Раз в 7 дней. Используй только русские или только английские буквы; цифры и _ разрешены."
+  },
+  {
+    "key": "save",
+    "ru": "Сохранить"
+  },
+  {
+    "key": "saving",
+    "ru": "Сохранение..."
+  },
+  {
+    "key": "categoryMeta",
+    "ru": "Мета"
+  },
+  {
+    "key": "passwordRecovery",
+    "ru": "Восстановление пароля"
+  },
+  {
+    "key": "passwordRecoveryDescription",
+    "ru": "Введи никнейм или резервный email. Мы отправим письмо для сброса пароля."
+  },
+  {
+    "key": "forgotPassword",
+    "ru": "Забыли пароль?"
+  },
+  {
+    "key": "googleLoginDisabled",
+    "ru": "Вход через Google сейчас недоступен. Используйте Яндекс ID или никнейм и пароль."
+  },
+  {
+    "key": "googleRegistrationDisabled",
+    "ru": "Аккаунт не найден. Зарегистрируйтесь через Яндекс ID или email."
+  },
+  {
+    "key": "yandexLoginFailed",
+    "ru": "Не удалось войти через Яндекс ID."
+  },
+  {
+    "key": "invalidLoginOrEmail",
+    "ru": "Введи никнейм или корректный email."
+  },
+  {
+    "key": "noRecoveryEmail",
+    "ru": "У аккаунта нет резервного email. Войди через Google или Яндекс ID и привяжи email в профиле."
+  },
+  {
+    "key": "failedToSendEmail",
+    "ru": "Не удалось отправить письмо."
+  },
+  {
+    "key": "signInWithYandex",
+    "ru": "Войти через Яндекс ID"
+  },
+  {
+    "key": "retry",
+    "ru": "Повторить"
+  },
+  {
+    "key": "pioneerDescription",
+    "ru": "Ты стоял у истоков. Ты один из немногих, кого пригласили в закрытое тестирование ещё до того, как мир узнал об этом приложении."
+  },
+  {
+    "key": "pioneerIssuedForever",
+    "ru": "Выдано навсегда · Сейчас получить нельзя"
+  },
+  {
+    "key": "telegramCommunity",
+    "ru": "Сообщество Telegram · @Vlineups"
+  },
+  {
+    "key": "downloadLineupOnWebsite",
+    "ru": "Скачать лайнап на сайте"
+  },
+  {
+    "key": "duelAvailable",
+    "ru": "Вас ждёт дуэль"
+  },
+  {
+    "key": "newFightOnMap",
+    "ru": "Новая битва на карте {map} уже собирает голоса"
+  },
+  {
+    "key": "hide",
+    "ru": "Скрыть"
+  },
+  {
+    "key": "backToVoting",
+    "ru": "Вернуться к голосованию"
+  },
+  {
+    "key": "lineupNumber",
+    "ru": "Лайнап #{number}"
+  },
+  {
+    "key": "swipeToHide",
+    "ru": "Смахните вверх или в сторону, чтобы скрыть"
+  },
+  {
+    "key": "open",
+    "ru": "Открыть"
+  },
+  {
+    "key": "duelQuestion",
+    "ru": "Какой лайнап понравился больше?"
+  },
+  {
+    "key": "duelVoteDescription",
+    "ru": "Ваш голос помогает сообществу"
+  },
+  {
+    "key": "rewatchQuestion",
+    "ru": "Хотите посмотреть ещё раз?"
+  },
+  {
+    "key": "reconsiderLineup",
+    "ru": "Посмотреть\nлайнап #{number}"
+  },
+  {
+    "key": "duel",
+    "ru": "Дуэль"
+  },
+  {
+    "key": "vote",
+    "ru": "Голосование"
+  },
+  {
+    "key": "ready",
+    "ru": "Готово"
+  },
+  {
+    "key": "updateAvailable",
+    "ru": "Доступна версия {version} — рекомендуем обновить приложение."
+  },
+  {
+    "key": "update",
+    "ru": "Обновить"
+  },
+  {
+    "key": "later",
+    "ru": "Позже"
+  },
+  {
+    "key": "transferLoginToYandex",
+    "ru": "Перенос входа на Яндекс ID"
+  },
+  {
+    "key": "currentlyLinked",
+    "ru": "Сейчас привязано:"
+  },
+  {
+    "key": "googleLoginMigrationNotice",
+    "ru": "Вход через Google отключён. Привяжите Яндекс ID, чтобы сохранить доступ к аккаунту."
+  },
+  {
+    "key": "googleUnlinked",
+    "ru": "Аккаунт Google отвязан"
+  },
+  {
+    "key": "confirmSkipMigration",
+    "ru": "Вы уверены, что хотите пропустить этот шаг? Аккаунты Google отключены."
+  },
+  {
+    "key": "skip",
+    "ru": "Пропустить"
+  },
+  {
+    "key": "selectMapWithNewLineups",
+    "ru": "Выберите карту с новыми лайнапами"
+  },
+  {
+    "key": "openLineups",
+    "ru": "Открыть лайнапы"
+  },
+  {
+    "key": "backToAgents",
+    "ru": "К агентам"
+  },
+  {
+    "key": "viewed",
+    "ru": "Просмотрено"
+  },
+  {
+    "key": "categoryDuels",
+    "ru": "Дуэли"
+  },
+  {
+    "key": "categoryDuelsDesc",
+    "ru": "Голосуй за лучший лайнап"
+  },
+  {
+    "key": "closed",
+    "ru": "Закрыто"
+  },
+  {
+    "key": "chapter",
+    "ru": "РАЗДЕЛ"
+  },
+  {
+    "key": "levelRookie",
+    "ru": "Новичок"
+  },
+  {
+    "key": "levelScout",
+    "ru": "Разведчик"
+  },
+  {
+    "key": "levelAgent",
+    "ru": "Агент"
+  },
+  {
+    "key": "levelSpecialist",
+    "ru": "Специалист"
+  },
+  {
+    "key": "levelVeteran",
+    "ru": "Ветеран"
+  },
+  {
+    "key": "levelElite",
+    "ru": "Элита"
+  },
+  {
+    "key": "levelLegend",
+    "ru": "Легенда"
+  },
+  {
+    "key": "roundSideHintTitle",
+    "ru": "Новое: сторона раунда"
+  },
+  {
+    "key": "roundSideHintBody",
+    "ru": "Используй переключатель внизу экрана: «Атака», «Защита» или «Нейтрально». В режиме защиты карта развернётся, и останутся только защитные лайнапы."
+  },
+  {
+    "key": "gotIt",
+    "ru": "Понятно"
+  },
+  {
+    "key": "roundSideAttack",
+    "ru": "АТАКА"
+  },
+  {
+    "key": "roundSideDefense",
+    "ru": "ЗАЩИТА"
+  },
+  {
+    "key": "roundSideNeutral",
+    "ru": "НЕЙТРАЛЬНО"
+  },
+  {
+    "key": "roundSideAttackLineups",
+    "ru": "ЛАЙНАПЫ АТАКИ"
+  },
+  {
+    "key": "roundSideDefenseLineups",
+    "ru": "ЛАЙНАПЫ ЗАЩИТЫ"
+  },
+  {
+    "key": "roundSideAllLineups",
+    "ru": "ВСЕ ЛАЙНАПЫ"
+  },
+  {
+    "key": "roundSideAnyTag",
+    "ru": "СТОРОНА: ЛЮБАЯ"
+  },
+  {
+    "key": "mapModeFull",
+    "ru": "ВСЕ"
+  },
+  {
+    "key": "mapModeMain",
+    "ru": "ОСНОВНЫЕ"
+  },
+  {
+    "key": "mapModeClean",
+    "ru": "БЕЗ ПОДПИСЕЙ"
+  },
+  {
+    "key": "swipeToChangeMode",
+    "ru": "Проведи влево или вправо, чтобы сменить режим"
+  },
+  {
+    "key": "chooseAbility",
+    "ru": "Выбери способность:"
+  },
+  {
+    "key": "clickOnAbility",
+    "ru": "Нажми на способность"
+  },
+  {
+    "key": "lineupFromAuthor",
+    "ru": "Лайнап от {author}"
+  },
+  {
+    "key": "defenseScreenTitle",
+    "ru": "ЗАЩИТА – {agent} – {map}"
+  },
+  {
+    "key": "rotateMap90",
+    "ru": "Повернуть карту на 90°"
+  },
+  {
+    "key": "selectDefenseZone",
+    "ru": "Выберите зону защиты"
+  },
+  {
+    "key": "zoneSetups",
+    "ru": "Расстановки зоны {zone}"
+  },
+  {
+    "key": "goBack",
+    "ru": "Назад"
+  },
+  {
+    "key": "openGuide",
+    "ru": "Открыть гайд"
+  },
+  {
+    "key": "browserOpenFailed",
+    "ru": "Не удалось открыть браузер"
+  },
+  {
+    "key": "tapAgainOnAbility",
+    "ru": "Нажми ещё раз на"
+  },
+  {
+    "key": "toOpenGuideHint",
+    "ru": "чтобы открыть гайд"
+  },
+  {
+    "key": "submitFromComputer",
+    "ru": "Загрузите лайнап\nс компьютера"
+  },
+  {
+    "key": "submitWebsiteDescription",
+    "ru": "На сайте удобнее: видеоредактор, автоматический скриншот из видео и траектория на карте."
+  },
+  {
+    "key": "openWebsite",
+    "ru": "Открыть сайт"
+  },
+  {
+    "key": "websiteLoginHint",
+    "ru": "Войдите через Яндекс ID или почту\n(тот же аккаунт, что и в приложении)"
+  },
+  {
+    "key": "writeSomething",
+    "ru": "Напишите сообщение!"
+  },
+  {
+    "key": "messageTooLong",
+    "ru": "Сообщение слишком длинное (максимум {max} символов)"
+  },
+  {
+    "key": "feedbackSent",
+    "ru": "Сообщение отправлено!"
+  },
+  {
+    "key": "feedbackThanks",
+    "ru": "Спасибо за обратную связь"
+  },
+  {
+    "key": "writeMore",
+    "ru": "Написать ещё"
+  },
+  {
+    "key": "agentsLoadFailed",
+    "ru": "Не удалось загрузить агентов"
+  },
+  {
+    "key": "agentsIncluded",
+    "ru": "Включено: {enabled} из {total}"
+  },
+  {
+    "key": "configure",
+    "ru": "Настроить"
+  },
+  {
+    "key": "profileLoadFailed",
+    "ru": "Не удалось загрузить профиль"
+  },
+  {
+    "key": "duelIsOver",
+    "ru": "Дуэль завершена"
+  },
+  {
+    "key": "next",
+    "ru": "ДАЛЕЕ"
+  },
+  {
+    "key": "onboardingChooseMapTitle",
+    "ru": "Выберите карту"
+  },
+  {
+    "key": "onboardingChooseMapDescription",
+    "ru": "Откройте любую карту из маппула и выберите категорию: лайнапы, прострелы, защита или другую. Навигация простая и понятная."
+  },
+  {
+    "key": "onboardingFindLineupTitle",
+    "ru": "Найдите лайнап"
+  },
+  {
+    "key": "onboardingFindLineupDescription",
+    "ru": "На интерактивной карте отмечены точки броска. Выберите способность и нажмите на маркер, чтобы открыть подробный гайд."
+  },
+  {
+    "key": "onboardingWatchVideoTitle",
+    "ru": "Посмотрите видео"
+  },
+  {
+    "key": "onboardingWatchVideoDescription",
+    "ru": "В каждом лайнапе есть видео с точными позициями. Сохраните его офлайн, чтобы смотреть без интернета прямо во время матча."
+  },
+  {
+    "key": "onboardingBecomeAuthorTitle",
+    "ru": "Станьте автором"
+  },
+  {
+    "key": "onboardingBecomeAuthorDescription",
+    "ru": "Предлагайте свои лайнапы кнопкой «+» на главном экране. За каждый одобренный лайнап вы получаете опыт и повышаете уровень!"
+  },
+  {
+    "key": "sovaChargePower",
+    "ru": "НАТЯЖЕНИЕ"
+  },
+  {
+    "key": "sovaBounces",
+    "ru": "ОТСКОКИ"
+  },
+  {
+    "key": "confirmAction",
+    "ru": "Подтвердить"
+  },
+  {
+    "key": "areYouSure",
+    "ru": "Вы уверены?"
+  },
+  {
+    "key": "duelVoteFor",
+    "ru": "Ваш голос — за"
+  },
+  {
+    "key": "duelVoteCannotChange",
+    "ru": "Изменить голос будет нельзя."
+  },
+  {
+    "key": "watchAgain",
+    "ru": "Посмотреть ещё раз"
+  },
+  {
+    "key": "loginToLikeNews",
+    "ru": "Войдите, чтобы ставить лайки новостям"
+  },
+  {
+    "key": "loginToSeeMessages",
+    "ru": "Войдите, чтобы увидеть сообщения"
+  },
+  {
+    "key": "appExitTitle",
+    "ru": "Закрыть приложение?"
+  },
+  {
+    "key": "appExitMessage",
+    "ru": "Вы уверены, что хотите выйти?"
+  },
+  {
+    "key": "replyToUser",
+    "ru": "Ответ пользователю"
+  },
+  {
+    "key": "writeYourAnswer",
+    "ru": "Напишите ответ..."
+  },
+  {
+    "key": "replySent",
+    "ru": "Ответ отправлен ✅"
+  },
+  {
+    "key": "moderatorTitle",
+    "ru": "МОДЕРАТОР"
+  },
+  {
+    "key": "moderatorLineupsTab",
+    "ru": "ЛАЙНАПЫ"
+  },
+  {
+    "key": "moderatorSupportTab",
+    "ru": "ПОДДЕРЖКА"
+  },
+  {
+    "key": "duelFinishedNotificationBody",
+    "ru": "Дуэль, в которой вы участвовали, завершилась. Посмотрите результат!"
+  },
+  {
+    "key": "lineupApprovedSuccess",
+    "ru": "Лайнап одобрен ✅"
+  },
+  {
+    "key": "lineupRejectedSuccess",
+    "ru": "Лайнап отклонён"
+  },
+  {
+    "key": "blockUserTitle",
+    "ru": "Заблокировать пользователя?"
+  },
+  {
+    "key": "blockUserMessage",
+    "ru": "Пользователь больше не сможет отправлять лайнапы."
+  },
+  {
+    "key": "userBlocked",
+    "ru": "Пользователь заблокирован"
+  },
+  {
+    "key": "userUnblocked",
+    "ru": "Пользователь разблокирован"
+  },
+  {
+    "key": "adminDeleteUserMessage",
+    "ru": "Аккаунт и ожидающие лайнапы будут удалены. Одобренные лайнапы останутся."
+  },
+  {
+    "key": "duelNotifications",
+    "ru": "Уведомления о дуэлях"
+  },
+  {
+    "key": "duelNotificationsEnabled",
+    "ru": "Вы первыми узнаете о новых дуэлях"
+  },
+  {
+    "key": "duelNotificationsDisabled",
+    "ru": "Получать уведомления о новых дуэлях"
+  },
+  {
+    "key": "categorySection",
+    "ru": "Раздел"
+  },
+  {
+    "key": "categoryNowClosed",
+    "ru": "сейчас закрыт"
+  },
+  {
+    "key": "defenseModeratorOnly",
+    "ru": "Режим защиты временно доступен только модераторам и администраторам"
+  },
+  {
+    "key": "nicknameLengthError",
+    "ru": "Никнейм должен содержать от 3 до 18 символов."
+  },
+  {
+    "key": "nicknameAlphabetError",
+    "ru": "Используйте только русские или только английские буквы. Цифры и _ разрешены."
+  },
+  {
+    "key": "nicknameLetterRequired",
+    "ru": "Добавьте хотя бы одну букву."
+  },
+  {
+    "key": "notificationLineupApproved",
+    "ru": "Лайнап одобрен"
+  },
+  {
+    "key": "notificationLineupRejected",
+    "ru": "Лайнап отклонён"
+  },
+  {
+    "key": "notificationLike",
+    "ru": "Лайк"
+  },
+  {
+    "key": "notificationModeration",
+    "ru": "Модерация"
+  },
+  {
+    "key": "notificationSupportResponse",
+    "ru": "Ответ поддержки"
+  },
+  {
+    "key": "notificationNewLineups",
+    "ru": "Новые лайнапы"
+  },
+  {
+    "key": "notificationExclusive",
+    "ru": "Эксклюзив"
+  },
+  {
+    "key": "notificationNews",
+    "ru": "Новости"
+  },
+  {
+    "key": "notificationUpdate",
+    "ru": "Обновление"
+  },
+  {
+    "key": "notificationGeneric",
+    "ru": "Уведомление"
+  },
+  {
+    "key": "duelWelcomeTitle",
+    "ru": "Добро пожаловать в дуэль лайнапов!"
+  },
+  {
+    "key": "duelWelcomeDescription",
+    "ru": "Два лайнапа для одной позиции — сообщество выбирает лучший. Голосование помогает находить самые эффективные решения и улучшать качество контента."
+  },
+  {
+    "key": "noActiveDuels",
+    "ru": "Активных дуэлей пока нет"
+  },
+  {
+    "key": "activeDuelsCount",
+    "ru": "Сейчас активно: {count}"
+  },
+  {
+    "key": "likesCount",
+    "ru": "❤️ Лайков: {count}"
+  },
+  {
+    "key": "notificationEaster1",
+    "ru": "Ох, проказник!"
+  },
+  {
+    "key": "notificationEaster2",
+    "ru": "Всё, хватит дразнить кнопку!"
+  },
+  {
+    "key": "notificationEaster3",
+    "ru": "Ай-яй-яй, какой ты шалун."
+  },
+  {
+    "key": "notificationEaster4",
+    "ru": "Кнопка уже поняла, что она тебе нравится."
+  },
+  {
+    "key": "notificationEaster5",
+    "ru": "Ладно, ты победил. Почти."
+  },
+  {
+    "key": "claimReward",
+    "ru": "Забираю"
+  },
+  {
+    "key": "withUsFrom",
+    "ru": "С нами с {date}"
+  },
+  {
+    "key": "newLineup",
+    "ru": "Новый лайнап"
+  },
+  {
+    "key": "ability",
+    "ru": "Способность"
+  },
+  {
+    "key": "all",
+    "ru": "Все"
+  },
+  {
+    "key": "upToLineups",
+    "ru": "до {count} лайнапов"
+  },
+  {
+    "key": "notificationApprovedBody",
+    "ru": "Ваш лайнап «{title}» опубликован"
+  },
+  {
+    "key": "notificationRejectedBody",
+    "ru": "Ваш лайнап «{title}» не прошёл модерацию"
+  },
+  {
+    "key": "notificationLikedBody",
+    "ru": "Пользователям нравится ваш лайнап «{title}»"
+  },
+  {
+    "key": "untitled",
+    "ru": "Без названия"
+  },
+  {
+    "key": "anySide",
+    "ru": "Любая"
+  },
+  {
+    "key": "lineupRejectedReasonTitle",
+    "ru": "Почему лайнап отклонён"
+  },
+  {
+    "key": "lineup",
+    "ru": "Лайнап"
+  },
+  {
+    "key": "map",
+    "ru": "Карта"
+  },
+  {
+    "key": "agentAndAbility",
+    "ru": "Агент и способность"
+  },
+  {
+    "key": "roundSide",
+    "ru": "Сторона раунда"
+  },
+  {
+    "key": "fullReason",
+    "ru": "Полная причина"
+  },
+  {
+    "key": "fullLineupAvailableOnWebsite",
+    "ru": "На сайте доступна полная карточка лайнапа и его доработка."
+  },
+  {
+    "key": "close",
+    "ru": "Закрыть"
+  },
+  {
+    "key": "openOnWebsite",
+    "ru": "Открыть на сайте"
+  },
+  {
+    "key": "tapToReadFull",
+    "ru": "Нажмите, чтобы прочитать полностью"
+  }
+]
