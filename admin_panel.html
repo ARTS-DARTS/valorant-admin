@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-23-poll-audience-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-23-poll-library-v1">
 </head>
 <body>
 
@@ -912,7 +912,23 @@
         <p class="poll-preview-note">Так опрос увидят пользователи до голосования.</p>
       </aside>
     </div>
-    <div class="dlabel" style="margin-bottom:10px;">Последние опросы</div>
+    <section class="poll-library" aria-label="Библиотека опросов">
+      <div class="poll-library-head">
+        <div>
+          <div class="dlabel">Библиотека опросов</div>
+          <p>Рабочие опросы, архив результатов и сохранённые находки.</p>
+        </div>
+        <label class="poll-search">
+          <i class="bi bi-search"></i>
+          <input id="poll-search-input" type="search" placeholder="Найти опрос">
+        </label>
+      </div>
+      <div class="poll-folders" role="tablist" aria-label="Папки опросов">
+        <button class="poll-folder active" data-poll-folder="active" role="tab"><i class="bi bi-broadcast"></i>Активные <b id="poll-count-active">0</b></button>
+        <button class="poll-folder" data-poll-folder="finished" role="tab"><i class="bi bi-archive"></i>Завершённые <b id="poll-count-finished">0</b></button>
+        <button class="poll-folder" data-poll-folder="featured" role="tab"><i class="bi bi-bookmark-star"></i>Интересные <b id="poll-count-featured">0</b></button>
+      </div>
+    </section>
     <div id="poll-list-wrap"><div style="color:var(--text2);font-size:13px;">Загрузка…</div></div>
   </div>
 
@@ -5797,11 +5813,53 @@ function pollDateLabel(value) {
   return date && !Number.isNaN(date.getTime()) ? date.toLocaleString('ru-RU') : '—';
 }
 
-function renderPolls(docs) {
+function pollIsCurrentlyActive(poll) {
+  if (poll.status !== 'active') return false;
+  const endsAt = poll.endsAt?.toDate ? poll.endsAt.toDate() : (poll.endsAt ? new Date(poll.endsAt) : null);
+  return !endsAt || Number.isNaN(endsAt.getTime()) || endsAt > new Date();
+}
+
+let _pollDocs = [];
+let _pollFolder = 'active';
+let _pollSearch = '';
+
+function pollMatchesFolder(poll) {
+  if (_pollFolder === 'featured') return poll.featured === true;
+  if (_pollFolder === 'active') return pollIsCurrentlyActive(poll);
+  return !pollIsCurrentlyActive(poll);
+}
+
+function updatePollFolderCounts() {
+  const values = _pollDocs.map(entry => entry.data());
+  const counts = {
+    active: values.filter(pollIsCurrentlyActive).length,
+    finished: values.filter(poll => !pollIsCurrentlyActive(poll)).length,
+    featured: values.filter(poll => poll.featured === true).length,
+  };
+  Object.entries(counts).forEach(([key, value]) => {
+    const target = document.getElementById(`poll-count-${key}`);
+    if (target) target.textContent = String(value);
+  });
+}
+
+function renderPolls() {
   const wrap = document.getElementById('poll-list-wrap');
   if (!wrap) return;
+  updatePollFolderCounts();
+  const search = _pollSearch.toLocaleLowerCase('ru-RU');
+  const docs = _pollDocs.filter(entry => {
+    const poll = entry.data();
+    if (!pollMatchesFolder(poll)) return false;
+    if (!search) return true;
+    return `${poll.question || ''} ${poll.description || ''}`.toLocaleLowerCase('ru-RU').includes(search);
+  });
   if (!docs.length) {
-    wrap.innerHTML = '<div style="padding:22px;border:1px dashed var(--border);border-radius:10px;color:var(--text2);text-align:center;">Опросов пока нет</div>';
+    const empty = _pollSearch ? 'По этому запросу ничего не найдено' : ({
+      active:'Активных опросов сейчас нет',
+      finished:'Архив пока пуст',
+      featured:'Здесь появятся отмеченные результаты',
+    })[_pollFolder];
+    wrap.innerHTML = `<div class="poll-empty"><i class="bi bi-folder2-open" style="display:block;margin-bottom:8px;font-size:24px;"></i>${esc(empty)}</div>`;
     return;
   }
   wrap.innerHTML = docs.map(entry => {
@@ -5817,16 +5875,22 @@ function renderPolls(docs) {
         <div style="height:7px;margin-top:5px;border-radius:999px;background:var(--surface2);overflow:hidden;"><div style="width:${percent}%;height:100%;background:var(--primary);border-radius:inherit;"></div></div>
       </div>`;
     }).join('');
-    const active = poll.status === 'active';
+    const active = pollIsCurrentlyActive(poll);
+    const statusLabel = poll.status === 'active' && !active ? 'Истёк' : pollStatusLabel(poll.status);
     const audienceLabel = poll.audience === 'admins' ? 'Только администраторы' : 'Все пользователи';
-    return `<article style="padding:16px;margin-bottom:10px;border:1px solid ${active ? 'rgba(255,70,85,.5)' : 'var(--border)'};border-radius:11px;background:var(--surface);">
+    const featured = poll.featured === true;
+    return `<article class="poll-admin-card${active ? ' is-active' : ''}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
         <div style="min-width:0;"><strong style="font-size:16px;color:var(--text1);">${esc(poll.question || 'Без вопроса')}</strong>${poll.description ? `<div style="margin-top:4px;color:var(--text2);font-size:12px;">${esc(poll.description)}</div>` : ''}</div>
-        <span style="flex:none;color:${active ? 'var(--green)' : 'var(--text2)'};font:800 11px monospace;">${esc(pollStatusLabel(poll.status))}</span>
+        <span style="flex:none;color:${active ? 'var(--green)' : 'var(--text2)'};font:800 11px monospace;">${esc(statusLabel)}</span>
       </div>
       <div style="margin-top:7px;color:var(--text2);font-size:10px;">${total} голосов · ${esc(audienceLabel)} · до ${esc(pollDateLabel(poll.endsAt))}</div>
       ${rows}
-      ${active ? `<button class="btn" data-finish-poll="${entry.id}" style="margin-top:13px;border:1px solid var(--border);color:var(--text2);">Завершить опрос</button>` : ''}
+      <div class="poll-admin-actions">
+        ${active ? `<button class="btn" data-finish-poll="${entry.id}" style="border:1px solid var(--border);color:var(--text2);"><i class="bi bi-stop-circle"></i>Завершить</button>` : ''}
+        <button class="btn" data-feature-poll="${entry.id}" data-feature-value="${featured ? '0' : '1'}" style="border:1px solid var(--border);color:${featured ? '#ffc857' : 'var(--text2)'};"><i class="bi bi-${featured ? 'bookmark-star-fill' : 'bookmark-star'}"></i>${featured ? 'В интересных' : 'Сохранить результат'}</button>
+        <button class="btn poll-delete-btn" data-delete-poll="${entry.id}" data-delete-active="${active ? '1' : '0'}"><i class="bi bi-trash3"></i>Удалить</button>
+      </div>
     </article>`;
   }).join('');
   wrap.querySelectorAll('[data-finish-poll]').forEach(button => button.addEventListener('click', async () => {
@@ -5840,18 +5904,66 @@ function renderPolls(docs) {
       button.disabled = false;
     }
   }));
+  wrap.querySelectorAll('[data-feature-poll]').forEach(button => button.addEventListener('click', async () => {
+    button.disabled = true;
+    try {
+      await updateDoc(doc(db, 'polls', button.dataset.featurePoll), {
+        featured: button.dataset.featureValue === '1',
+        updatedAt: serverTimestamp(),
+      });
+      await loadPollsTab();
+    } catch (error) {
+      alert('Не удалось изменить папку: ' + error.message);
+      button.disabled = false;
+    }
+  }));
+  wrap.querySelectorAll('[data-delete-poll]').forEach(button => button.addEventListener('click', async () => {
+    const activeWarning = button.dataset.deleteActive === '1' ? '\n\nОпрос активен и сразу исчезнет у пользователей.' : '';
+    if (!confirm(`Удалить опрос навсегда вместе со всеми голосами?${activeWarning}\n\nЭто действие нельзя отменить.`)) return;
+    button.disabled = true;
+    try {
+      await deletePollWithVotes(button.dataset.deletePoll);
+      await loadPollsTab();
+    } catch (error) {
+      alert('Не удалось удалить опрос: ' + error.message);
+      button.disabled = false;
+    }
+  }));
+}
+
+async function deletePollWithVotes(pollId) {
+  const pollRef = doc(db, 'polls', pollId);
+  while (true) {
+    const votes = await getDocs(query(collection(pollRef, 'votes'), limit(400)));
+    if (votes.empty) break;
+    const batch = writeBatch(db);
+    votes.docs.forEach(vote => batch.delete(vote.ref));
+    await batch.commit();
+  }
+  await deleteDoc(pollRef);
 }
 
 async function loadPollsTab() {
   const wrap = document.getElementById('poll-list-wrap');
   if (wrap) wrap.innerHTML = '<div style="color:var(--text2);font-size:13px;">Загрузка…</div>';
   try {
-    const snapshot = await getDocs(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(20)));
-    renderPolls(snapshot.docs);
+    const snapshot = await getDocs(query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(100)));
+    _pollDocs = snapshot.docs;
+    renderPolls();
   } catch (error) {
     if (wrap) wrap.innerHTML = `<div style="color:var(--primary);">Ошибка загрузки: ${esc(error.message)}</div>`;
   }
 }
+
+document.querySelectorAll('[data-poll-folder]').forEach(button => button.addEventListener('click', () => {
+  _pollFolder = button.dataset.pollFolder;
+  document.querySelectorAll('[data-poll-folder]').forEach(item => item.classList.toggle('active', item === button));
+  renderPolls();
+}));
+document.getElementById('poll-search-input')?.addEventListener('input', event => {
+  _pollSearch = event.target.value.trim();
+  renderPolls();
+});
 
 function updatePollPreview() {
   const questionInput = document.getElementById('poll-question');
