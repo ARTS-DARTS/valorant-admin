@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-23-poll-library-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-23-poll-library-v2">
 </head>
 <body>
 
@@ -5867,6 +5867,12 @@ function renderPolls() {
     const options = Array.isArray(poll.options) ? poll.options : [];
     const counts = poll.counts && typeof poll.counts === 'object' ? poll.counts : {};
     const total = Number(poll.totalVotes || 0);
+    const rankedOptions = options.map(option => ({
+      ...option,
+      votes:Number(counts[option.id] || 0),
+    })).sort((a, b) => b.votes - a.votes);
+    const leader = rankedOptions[0];
+    const leaderPercent = leader && total > 0 ? Math.round(leader.votes / total * 100) : 0;
     const rows = options.map(option => {
       const votes = Number(counts[option.id] || 0);
       const percent = total > 0 ? Math.round(votes / total * 100) : 0;
@@ -5881,14 +5887,21 @@ function renderPolls() {
     const featured = poll.featured === true;
     return `<article class="poll-admin-card${active ? ' is-active' : ''}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
-        <div style="min-width:0;"><strong style="font-size:16px;color:var(--text1);">${esc(poll.question || 'Без вопроса')}</strong>${poll.description ? `<div style="margin-top:4px;color:var(--text2);font-size:12px;">${esc(poll.description)}</div>` : ''}</div>
+        <div style="min-width:0;"><div class="poll-admin-title" title="${esc(poll.question || 'Без вопроса')}"><strong>${esc(poll.question || 'Без вопроса')}</strong></div>${poll.description ? `<div class="poll-admin-description" title="${esc(poll.description)}">${esc(poll.description)}</div>` : ''}</div>
         <span style="flex:none;color:${active ? 'var(--green)' : 'var(--text2)'};font:800 11px monospace;">${esc(statusLabel)}</span>
       </div>
-      <div style="margin-top:7px;color:var(--text2);font-size:10px;">${total} голосов · ${esc(audienceLabel)} · до ${esc(pollDateLabel(poll.endsAt))}</div>
-      ${rows}
+      <div class="poll-admin-meta">${total} голосов · ${esc(audienceLabel)}<br>до ${esc(pollDateLabel(poll.endsAt))}</div>
+      <div class="poll-leader">
+        <span><i class="bi bi-trophy" style="margin-right:7px;color:#ffc857;"></i>${esc(leader?.title || 'Голосов пока нет')}</span>
+        <b>${leader ? `${leader.votes} · ${leaderPercent}%` : '—'}</b>
+      </div>
+      <details class="poll-results-details">
+        <summary>Все варианты (${options.length})</summary>
+        ${rows}
+      </details>
       <div class="poll-admin-actions">
         ${active ? `<button class="btn" data-finish-poll="${entry.id}" style="border:1px solid var(--border);color:var(--text2);"><i class="bi bi-stop-circle"></i>Завершить</button>` : ''}
-        <button class="btn" data-feature-poll="${entry.id}" data-feature-value="${featured ? '0' : '1'}" style="border:1px solid var(--border);color:${featured ? '#ffc857' : 'var(--text2)'};"><i class="bi bi-${featured ? 'bookmark-star-fill' : 'bookmark-star'}"></i>${featured ? 'В интересных' : 'Сохранить результат'}</button>
+        <button class="btn" data-feature-poll="${entry.id}" data-feature-value="${featured ? '0' : '1'}" style="border:1px solid var(--border);color:${featured ? '#ffc857' : 'var(--text2)'};"><i class="bi bi-${featured ? 'bookmark-star-fill' : 'bookmark-star'}"></i>${featured ? 'Сохранён' : 'Сохранить'}</button>
         <button class="btn poll-delete-btn" data-delete-poll="${entry.id}" data-delete-active="${active ? '1' : '0'}"><i class="bi bi-trash3"></i>Удалить</button>
       </div>
     </article>`;

@@ -1258,18 +1258,70 @@ body.desc-panel-open #add-slots-container { padding-right: 316px; transition: pa
   background: rgba(255,70,85,.08);
 }
 .poll-folder.active i, .poll-folder.active b { color: var(--primary); }
+#poll-list-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  align-items: start;
+  gap: 12px;
+}
 .poll-admin-card {
-  padding: 16px;
-  margin-bottom: 10px;
+  display: flex;
+  min-width: 0;
+  padding: 14px;
   border: 1px solid var(--border);
   border-radius: 11px;
   background: var(--surface);
+  flex-direction: column;
 }
 .poll-admin-card.is-active { border-color: rgba(255,70,85,.5); }
-.poll-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.poll-admin-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
+.poll-admin-title {
+  overflow: hidden;
+  color: var(--text1);
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.poll-admin-description {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--text2);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.poll-admin-meta { margin-top: 7px; color: var(--text2); font-size: 10px; }
+.poll-leader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: var(--surface2);
+}
+.poll-leader span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.poll-results-details { margin-top: 8px; }
+.poll-results-details summary {
+  padding: 7px 2px;
+  color: var(--text2);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+.poll-results-details[open] summary { color: var(--text1); }
+.poll-admin-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.poll-admin-actions .btn {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
 .poll-delete-btn { color: #ff8791 !important; border-color: rgba(255,70,85,.32) !important; }
 .poll-empty {
+  grid-column: 1 / -1;
   padding: 30px 22px;
   border: 1px dashed var(--border);
   border-radius: 10px;
@@ -1279,6 +1331,7 @@ body.desc-panel-open #add-slots-container { padding-right: 316px; transition: pa
 @media (max-width: 700px) {
   .poll-library-head { align-items: stretch; flex-direction: column; }
   .poll-search { width: 100%; }
+  #poll-list-wrap { grid-template-columns: 1fr; }
 }
 @media (max-width: 1280px) {
   .poll-editor-layout { grid-template-columns: minmax(480px, 1fr) 350px; gap: 18px; }
