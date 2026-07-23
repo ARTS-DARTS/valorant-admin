@@ -1011,6 +1011,7 @@
         <button class="btn" data-cat="combo" id="agents-tab-combo" style="border:1px solid var(--border);color:var(--text2);">⚡ Комбо</button>
         <button class="btn" data-cat="defense" id="agents-tab-defense" style="border:1px solid var(--border);color:var(--text2);">🛡 Защита</button>
         <button class="btn" data-cat="wallbang" id="agents-tab-wallbang" style="border:1px solid var(--border);color:var(--text2);">💥 Прострелы</button>
+        <button class="btn" data-cat="polls" id="agents-tab-polls" style="border:1px solid var(--border);color:var(--text2);">🗳️ Опросы</button>
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:12px;">
         <div style="margin-bottom:10px;"><b id="agents-category-access-title">Категория «Лайнапы»</b><div style="font-size:11px;color:var(--text2);margin-top:3px;">Доступ и видимость настраиваются независимо. Все настройки категории сохраняются.</div></div>
@@ -1034,6 +1035,7 @@
         <button type="button" class="btn" data-agent-mode="abilities">Настройка абилок</button>
       </div>
       <div id="agents-wallbang-note" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;color:var(--text2);margin-bottom:14px;">В прострелах агенты не используются. Здесь настраивается только доступность категории; список оружия находится ниже.</div>
+      <div id="agents-polls-note" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;color:var(--text2);margin-bottom:14px;">Опросы не зависят от агентов. Здесь настраиваются доступ, видимость карточки и служебный доступ категории «Голосование».</div>
       <div id="agents-category-status" style="font-size:11px;color:var(--text2);margin:-7px 0 12px;">Загрузка статусов…</div>
       <div id="agents-bulk-controls" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;">
         <button type="button" class="btn" id="agents-select-all">Выбрать всех</button>
@@ -5556,6 +5558,10 @@ async function _refreshSelectedAgentCategoryStatuses() {
   const token = ++_agentCategoryLoadToken;
   const category = _selectedAgentCategory;
   const status = document.getElementById('agents-category-status');
+  if (category === 'wallbang' || category === 'polls') {
+    if (status) status.textContent = '';
+    return;
+  }
   if (status) status.textContent = 'Загрузка статусов выбранной категории…';
   document.querySelectorAll('[data-agent-category-toggle]').forEach(button => { button.disabled = true; button.textContent = 'Загрузка…'; });
   let loaded = 0;
@@ -5619,7 +5625,7 @@ document.querySelectorAll('#agents-target-tabs [data-agent-target]').forEach(but
   button.addEventListener('click', () => _setAgentTarget(button.dataset.agentTarget));
 });
 
-const _agentCategoryLabels = { lineup: 'Лайнапы', combo: 'Комбо', defense: 'Защита', wallbang: 'Прострелы' };
+const _agentCategoryLabels = { lineup: 'Лайнапы', combo: 'Комбо', defense: 'Защита', wallbang: 'Прострелы', polls: 'Голосование' };
 async function _loadAgentCategoryAccess() {
   const checkbox = document.getElementById('agents-category-access');
   const visibleCheckbox = document.getElementById('agents-category-visible');
@@ -5636,6 +5642,8 @@ async function _loadAgentCategoryAccess() {
     const data = snap.exists() ? snap.data() : {};
     checkbox.checked = _selectedAgentCategory === 'lineup'
       ? data.lineup_enabled !== false
+      : _selectedAgentCategory === 'polls'
+      ? data.polls_enabled === true
       : data[`${_selectedAgentCategory}_enabled`] === true;
     visibleCheckbox.checked = data[`${_selectedAgentCategory}_visible`] !== false;
     const staffValue = data[`${_selectedAgentCategory}_staff_enabled`];
@@ -5696,7 +5704,7 @@ function _setAgentCategoryTab(cat) {
   _selectedAgentCategory = cat;
   _setAgentBulkAction(null);
   _loadAgentCategoryAccess();
-  ['lineup','combo','wallbang','defense'].forEach(c => {
+  ['lineup','combo','wallbang','defense','polls'].forEach(c => {
     const btn = document.getElementById('agents-tab-'+c); if (!btn) return;
     const active = c === cat;
     btn.className      = active ? 'btn btn-save' : 'btn';
@@ -5704,12 +5712,16 @@ function _setAgentCategoryTab(cat) {
   });
   _refreshSelectedAgentCategoryStatuses();
   const isWallbang = cat === 'wallbang';
+  const isPolls = cat === 'polls';
+  const hasAgentSettings = !isWallbang && !isPolls;
   document.getElementById('tab-contentcfg').style.display = isWallbang ? 'block' : 'none';
   if (isWallbang) loadContentConfigTab();
-  document.getElementById('agents-config-mode-tabs').style.display = isWallbang ? 'none' : 'flex';
+  document.getElementById('agents-config-mode-tabs').style.display = hasAgentSettings ? 'flex' : 'none';
   document.getElementById('agents-wallbang-note').style.display = isWallbang ? 'block' : 'none';
-  document.getElementById('agents-card-grid').style.display = isWallbang ? 'none' : 'grid';
-  document.getElementById('agents-bulk-controls').style.display = isWallbang ? 'none' : 'flex';
+  document.getElementById('agents-polls-note').style.display = isPolls ? 'block' : 'none';
+  document.getElementById('agents-category-status').style.display = hasAgentSettings ? 'block' : 'none';
+  document.getElementById('agents-card-grid').style.display = hasAgentSettings ? 'grid' : 'none';
+  document.getElementById('agents-bulk-controls').style.display = hasAgentSettings ? 'flex' : 'none';
   if (_selectedAgentName) _loadAgentAbilitiesForCategory();
 }
 
