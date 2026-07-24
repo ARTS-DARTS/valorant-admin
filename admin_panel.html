@@ -600,6 +600,7 @@
           <button class="an-tab-btn" data-an-tab="activity">👥 Активность</button>
           <button class="an-tab-btn" data-an-tab="users">🆕 Пользователи</button>
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
+          <button class="an-tab-btn" data-an-tab="notifications">🔔 Уведомления</button>
           <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
           <span id="site-online-pill" style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:8px 13px;border:1px solid rgba(34,197,94,.35);border-radius:20px;color:var(--green);font-size:12px;font-weight:700;">🟢 Онлайн: —</span>
         </div>
@@ -743,6 +744,40 @@
           <div class="dlabel" style="margin-bottom:10px;">Топ-10 лайнапов <span style="font-size:10px;color:var(--text2);font-weight:400;">(нажми чтобы открыть)</span></div>
           <div id="top-lineups-list" style="display:flex;flex-direction:column;gap:6px;"></div>
         </div>
+      </div>
+
+      <!-- ── Уведомления ── -->
+      <div id="an-section-notifications" class="an-section" style="display:none;">
+        <div class="notif-an-head">
+          <div>
+            <div class="form-title" style="margin:0 0 5px;">🔔 УВЕДОМЛЕНИЯ — последние 30 дней</div>
+            <div class="notif-an-sub">От отправки до фактического открытия нужного раздела приложения.</div>
+          </div>
+          <button class="btn" id="notification-sync-btn">↻ Синхронизировать OneSignal</button>
+        </div>
+        <div id="notification-funnel" class="notif-funnel">
+          <div class="notif-stage"><span>01</span><b>—</b><small>Отправлено</small></div>
+          <i>→</i><div class="notif-stage"><span>02</span><b>—</b><small>Доставлено</small></div>
+          <i>→</i><div class="notif-stage"><span>03</span><b>—</b><small>Нажато</small></div>
+          <i>→</i><div class="notif-stage"><span>04</span><b>—</b><small>Открыта цель</small></div>
+        </div>
+        <div class="notif-an-grid">
+          <section class="an-chart-box">
+            <div class="dlabel">Эффективность категорий</div>
+            <div id="notification-category-list" class="notif-category-list"><div class="state">Загрузка…</div></div>
+          </section>
+          <section class="an-chart-box notif-health">
+            <div class="dlabel">Что делать</div>
+            <div id="notification-recommendations"><div class="state">Недостаточно данных</div></div>
+          </section>
+        </div>
+        <section class="an-chart-box" style="margin-top:14px;">
+          <div class="notif-table-head"><div class="dlabel">Последние отправки</div><span>CTR = нажатия / доставка</span></div>
+          <div class="notif-table-wrap">
+            <table class="notif-table"><thead><tr><th>Уведомление</th><th>Категория</th><th>Отправлено</th><th>Доставлено</th><th>Нажато</th><th>Цель</th><th>CTR</th></tr></thead>
+            <tbody id="notification-campaign-rows"><tr><td colspan="7" class="state">Загрузка…</td></tr></tbody></table>
+          </div>
+        </section>
       </div>
 
       <!-- ── Хранилища ── -->
@@ -12966,11 +13001,12 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
     const tab = btn.dataset.anTab;
     document.querySelectorAll('[data-an-tab]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['ads','activity','users','content','storage'].forEach(id => {
+    ['ads','activity','users','content','notifications','storage'].forEach(id => {
       const el = document.getElementById('an-section-' + id);
       if (el) el.style.display = (id === tab) ? 'block' : 'none';
     });
     if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
+    if (tab === 'notifications') loadNotificationAnalytics();
   });
 });
 
@@ -13006,6 +13042,11 @@ document.getElementById('analytics-refresh-btn')?.addEventListener('click', asyn
   if (usersVisible) {
     _nuLoaded = false;
     await loadNewUsersAnalytics();
+  }
+  const notificationsVisible = document.getElementById('an-section-notifications')?.style.display !== 'none';
+  if (notificationsVisible) {
+    _notificationAnalyticsLoaded = false;
+    await loadNotificationAnalytics(true);
   }
 });
 document.getElementById('ad-backfill-30d-btn')?.addEventListener('click', rebuildAdStats30d);
@@ -15045,17 +15086,122 @@ async function sendPushNotification({ title, body, translations, type, targetUid
     throw new Error('Выбери конкретного получателя или явно включи режим "Все пользователи"');
   }
   const localizedTexts = translations || await buildPushTranslations(title, body);
+  const campaignId = data?.campaign_id || crypto.randomUUID();
+  const pushData = { ...(data || {}), campaign_id: campaignId, target: notificationTargetForType(type) };
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
-    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data, minAndroidVersionCode, maxAndroidVersionCode, requiredTag }),
+    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data: pushData, minAndroidVersionCode, maxAndroidVersionCode, requiredTag }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || (err.errors ?? []).join(', ') || `HTTP ${res.status}`);
   }
-  return res.json();
+  const result = await res.json();
+  await setDoc(doc(db, 'notification_campaigns', campaignId), {
+    campaign_id: campaignId,
+    onesignal_id: result.id || null,
+    title, body, type: type || 'general',
+    category: notificationCategoryForType(type),
+    target: pushData.target,
+    audience: uid ? 'personal' : 'broadcast',
+    recipients: Number(result.recipients || 0),
+    sent_at: serverTimestamp(),
+    created_by: currentUser?.uid || null,
+  }, { merge:true });
+  return { ...result, campaign_id: campaignId };
 }
+
+function notificationCategoryForType(type) {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('poll')) return 'Опросы';
+  if (t.includes('duel')) return 'Дуэли';
+  if (t.includes('news') || t === 'changelog') return 'Новости';
+  if (t.includes('lineup')) return 'Лайнапы';
+  if (t.includes('feedback') || t.includes('message')) return 'Сообщения';
+  if (t.includes('moderator') || t.includes('moderation')) return 'Модерация';
+  return 'Общее';
+}
+
+function notificationTargetForType(type) {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('poll')) return 'polls';
+  if (t.includes('duel')) return 'duels';
+  if (t.includes('news') || t === 'changelog') return 'news';
+  if (t.includes('lineup')) return 'profile';
+  if (t.includes('feedback') || t.includes('message')) return 'profile';
+  if (t.includes('moderator') || t.includes('moderation')) return 'profile';
+  return 'home';
+}
+
+const syncNotificationAnalytics = httpsCallable(functions, 'syncNotificationAnalytics');
+let _notificationAnalyticsLoaded = false;
+
+function _notificationPct(a, b) { return b > 0 ? Math.round(a * 1000 / b) / 10 : 0; }
+function _notificationNumber(value) { return Number(value || 0).toLocaleString('ru-RU'); }
+
+async function loadNotificationAnalytics(force = false) {
+  if (_notificationAnalyticsLoaded && !force) return;
+  _notificationAnalyticsLoaded = true;
+  try {
+    const cutoff = new Date(Date.now() - 30 * 864e5);
+    const snap = await getDocs(query(collection(db, 'notification_campaigns'), where('sent_at', '>=', cutoff), orderBy('sent_at', 'desc'), limit(100)));
+    const rows = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    const sums = rows.reduce((a, r) => {
+      a.sent += Number(r.recipients || r.successful || 0);
+      a.delivered += Number(r.received || 0);
+      a.clicked += Number(r.clicked || r.converted || 0);
+      a.opened += Number(r.target_opened || 0);
+      return a;
+    }, {sent:0, delivered:0, clicked:0, opened:0});
+    const funnel = document.getElementById('notification-funnel');
+    const vals = [sums.sent, sums.delivered, sums.clicked, sums.opened];
+    funnel.querySelectorAll('.notif-stage b').forEach((el,i) => el.textContent = _notificationNumber(vals[i]));
+
+    const grouped = {};
+    rows.forEach(r => {
+      const key = r.category || notificationCategoryForType(r.type);
+      const g = grouped[key] ||= {sent:0, delivered:0, clicked:0, opened:0};
+      g.sent += Number(r.recipients || r.successful || 0);
+      g.delivered += Number(r.received || 0);
+      g.clicked += Number(r.clicked || r.converted || 0);
+      g.opened += Number(r.target_opened || 0);
+    });
+    document.getElementById('notification-category-list').innerHTML = Object.entries(grouped)
+      .sort((a,b) => b[1].clicked-a[1].clicked).map(([name,g]) => {
+        const ctr = _notificationPct(g.clicked, g.delivered);
+        return `<div class="notif-category"><div><b>${esc(name)}</b><small>${_notificationNumber(g.delivered)} доставлено · ${_notificationNumber(g.clicked)} кликов</small></div><div class="notif-meter"><i style="width:${Math.min(ctr,100)}%"></i></div><strong>${ctr}%</strong></div>`;
+      }).join('') || '<div class="state">Отправок пока нет</div>';
+
+    const recommendations = Object.entries(grouped).map(([name,g]) => ({name, ctr:_notificationPct(g.clicked,g.delivered), delivered:g.delivered}))
+      .filter(x => x.delivered >= 20).sort((a,b) => a.ctr-b.ctr);
+    const advice = [];
+    if (recommendations[0]) advice.push(`<div class="notif-advice warn"><b>Пересмотреть «${esc(recommendations[0].name)}»</b><span>CTR ${recommendations[0].ctr}% — поменять текст, время или отключить частые рассылки.</span></div>`);
+    const best = recommendations.at(-1);
+    if (best && best !== recommendations[0]) advice.push(`<div class="notif-advice good"><b>Усилить «${esc(best.name)}»</b><span>Лучший CTR: ${best.ctr}%. Этот формат возвращает пользователей.</span></div>`);
+    if (sums.clicked > sums.opened) advice.push(`<div class="notif-advice warn"><b>Проверить переходы</b><span>${sums.clicked-sums.opened} нажатий не завершились открытием целевого экрана.</span></div>`);
+    document.getElementById('notification-recommendations').innerHTML = advice.join('') || '<div class="notif-advice good"><b>Сбор данных включён</b><span>Рекомендации появятся после первых 20 доставок.</span></div>';
+
+    document.getElementById('notification-campaign-rows').innerHTML = rows.map(r => {
+      const sent=Number(r.recipients||r.successful||0), delivered=Number(r.received||0), clicked=Number(r.clicked||r.converted||0), opened=Number(r.target_opened||0);
+      return `<tr><td><b>${esc(r.title||'Без названия')}</b><small>${esc(r.body||'')}</small></td><td><span class="notif-chip">${esc(r.category||notificationCategoryForType(r.type))}</span></td><td>${_notificationNumber(sent)}</td><td>${_notificationNumber(delivered)}</td><td>${_notificationNumber(clicked)}</td><td>${_notificationNumber(opened)}</td><td><strong>${_notificationPct(clicked,delivered)}%</strong></td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="state">Отправок пока нет</td></tr>';
+  } catch (e) {
+    _notificationAnalyticsLoaded = false;
+    document.getElementById('notification-campaign-rows').innerHTML = `<tr><td colspan="7" class="state">Ошибка: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+document.getElementById('notification-sync-btn')?.addEventListener('click', async e => {
+  const button=e.currentTarget; button.disabled=true; button.textContent='Синхронизация…';
+  try {
+    const result=await syncNotificationAnalytics();
+    _notificationAnalyticsLoaded=false;
+    await loadNotificationAnalytics(true);
+    toast(`OneSignal обновлён: ${result.data.synced || 0}`, 's');
+  } catch(err) { toast('Ошибка синхронизации: '+err.message, 'e'); }
+  finally { button.disabled=false; button.textContent='↻ Синхронизировать OneSignal'; }
+});
 
 async function writeUserNotification(uid, payload) {
   if (!uid) return;
