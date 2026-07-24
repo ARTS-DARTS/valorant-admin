@@ -6032,6 +6032,33 @@ function updatePollPreview() {
 });
 updatePollPreview();
 
+async function sendPollCreatedPush({ pollId, question, audience }) {
+  const payload = {
+    title:'🗳️ Новый опрос',
+    body:question,
+    type:'poll',
+    data:{ poll_id:pollId },
+  };
+  if (audience !== 'admins') {
+    await sendPushNotification({
+      ...payload,
+      allowAll:true,
+      // OneSignal supports an exclusive ">" app-version filter.
+      minAndroidVersionCode:736791,
+    });
+    return;
+  }
+
+  const admins = await getDocs(query(collection(db, 'users'), where('role', '==', 'admin')));
+  const results = await Promise.allSettled(admins.docs.map(user =>
+    sendPushNotification({ ...payload, targetUid:user.id })
+  ));
+  const failed = results.filter(result => result.status === 'rejected');
+  if (failed.length) {
+    throw new Error(`не доставлено администраторам: ${failed.length}`);
+  }
+}
+
 document.getElementById('poll-create-btn')?.addEventListener('click', async () => {
   const button = document.getElementById('poll-create-btn');
   const status = document.getElementById('poll-create-status');
@@ -6069,11 +6096,27 @@ document.getElementById('poll-create-btn')?.addEventListener('click', async () =
       createdBy:currentUser?.uid || '',
     });
     await batch.commit();
+    let pushError = null;
+    try {
+      await sendPollCreatedPush({
+        pollId:pollRef.id,
+        question,
+        audience,
+      });
+    } catch (error) {
+      pushError = error;
+    }
     document.getElementById('poll-question').value = '';
     document.getElementById('poll-description').value = '';
     document.getElementById('poll-options').value = '';
     updatePollPreview();
-    status.style.color = 'var(--green)'; status.textContent = 'Опрос запущен и добавлен в стопку активных опросов.';
+    if (pushError) {
+      status.style.color = 'var(--primary)';
+      status.textContent = 'Опрос запущен, но push не ушёл: ' + pushError.message;
+    } else {
+      status.style.color = 'var(--green)';
+      status.textContent = 'Опрос запущен, push отправлен.';
+    }
     await loadPollsTab();
   } catch (error) {
     status.style.color = 'var(--primary)'; status.textContent = 'Ошибка: ' + error.message;
@@ -10119,19 +10162,19 @@ const AGENTS = {
   'Veto':      ['Interceptor', 'Crosscut', 'Evolution', 'Chokehold'],
 };
 const MAP_IMAGES = {
-  'Ascent':   'https://media.valorant-api.com/maps/7eaecc1b-4337-bbf6-6ab9-04b8f06b3319/displayicon.png',
-  'Haven':    'https://media.valorant-api.com/maps/2bee0dc9-4ffe-519b-1cbd-7fbe763a6047/displayicon.png',
-  'Bind':     'https://media.valorant-api.com/maps/2c9d57ec-4431-9c5e-2939-8f9ef6dd5cba/displayicon.png',
-  'Split':    'https://media.valorant-api.com/maps/d960549e-485c-e861-8d71-aa9d1aed12a2/displayicon.png',
-  'Fracture': 'https://media.valorant-api.com/maps/b529448b-4d60-346e-e89e-00a4c527a405/displayicon.png',
-  'Breeze':   'https://media.valorant-api.com/maps/2fb9a4fd-47b8-4e7d-a969-74b4046ebd53/displayicon.png',
-  'Icebox':   'https://media.valorant-api.com/maps/e2ad5c54-4114-a870-9641-8ea21279579a/displayicon.png',
-  'Pearl':    'https://media.valorant-api.com/maps/fd267378-4d1d-484f-ff52-77821ed10dc2/displayicon.png',
-  'Lotus':    'https://media.valorant-api.com/maps/2fe4ed3a-450a-948b-6d6b-e89a78e680a9/displayicon.png',
-  'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png',
-  'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/displayicon.png',
-  'Corrode':  'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/displayicon.png',
-  'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png',
+  'Ascent':   './assets/maps/Ascent_minimap.png',
+  'Haven':    './assets/maps/Haven_minimap.png',
+  'Bind':     './assets/maps/Bind_minimap.png',
+  'Split':    './assets/maps/Split_minimap.png',
+  'Fracture': './assets/maps/Fracture_minimap.png',
+  'Breeze':   './assets/maps/Breeze_minimap.png',
+  'Icebox':   './assets/maps/Icebox_minimap.png',
+  'Pearl':    './assets/maps/Pearl_minimap.png',
+  'Lotus':    './assets/maps/Lotus_minimap.png',
+  'Sunset':   './assets/maps/Sunset_minimap.png',
+  'Abyss':    './assets/maps/Abyss_minimap.png',
+  'Corrode':  './assets/maps/Corrode_minimap.png',
+  'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png?v=20260721',
 };
 const MAP_SITE_LABELS = {
   Ascent:   [{ label:'A', x:.34, y:.30 }, { label:'B', x:.75, y:.47 }],
@@ -10214,6 +10257,11 @@ const ABILITY_NAME_FALLBACKS = {
   },
   Sage: {
     'Slow Orb': 'Сфера замедления',
+  },
+  Sova: {
+    'Recon Bolt': 'Разведстрела',
+    'Recon Dart': 'Разведстрела',
+    'Shock Bolt': 'Шоковая стрела',
   },
   Vyse: {
     'Razorvine': 'Острая лоза',
@@ -10342,11 +10390,25 @@ async function loadMapImages() {
       _apiCacheSet('_api_maps', maps);
     }
     for (const m of maps) {
-      if (m.displayName) MAP_IMAGES[m.displayName] = m.displayIcon || m.listViewIcon || '';
+      if (m.displayName) {
+        const url = m.displayIcon || m.listViewIcon || '';
+        if (!MAP_IMAGES[m.displayName]) {
+          MAP_IMAGES[m.displayName] = m.displayName === 'Summit' && url
+            ? `${url}${url.includes('?') ? '&' : '?'}v=20260721`
+            : url;
+        }
+      }
     }
   } catch (_) {
     for (const m of _apiCacheGetStale('_api_maps') ?? []) {
-      if (m.displayName) MAP_IMAGES[m.displayName] = m.displayIcon || m.listViewIcon || '';
+      if (m.displayName) {
+        const url = m.displayIcon || m.listViewIcon || '';
+        if (!MAP_IMAGES[m.displayName]) {
+          MAP_IMAGES[m.displayName] = m.displayName === 'Summit' && url
+            ? `${url}${url.includes('?') ? '&' : '?'}v=20260721`
+            : url;
+        }
+      }
     }
   }
   const sel = document.getElementById('f-map')?.value;
@@ -14234,7 +14296,7 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
     'Sunset':   'https://media.valorant-api.com/maps/92584fbe-486a-b1b2-9faa-39b0f486b498/displayicon.png',
     'Abyss':    'https://media.valorant-api.com/maps/224b0a95-48b9-f703-1bd8-67aca101a61f/displayicon.png',
     'Corrode':  'https://media.valorant-api.com/maps/1c18ab1f-420d-0d8b-71d0-77ad3c439115/displayicon.png',
-    'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png',
+    'Summit':   'https://media.valorant-api.com/maps/756da597-416b-c0f2-f47b-afbdf28670bc/displayicon.png?v=20260721',
   };
 
   const el = suffix => document.getElementById(prefix + suffix);
@@ -14325,6 +14387,30 @@ function renderInteractiveMap(lineup, prefix = 'dc') {
     const abilityPoint = hasTarget
       ? toCanvas(parseFloat(traj[traj.length - 1].x), parseFloat(traj[traj.length - 1].y))
       : start;
+    const rangeRadius = Number(lineup.range_radius || 0);
+
+    if (rangeRadius > 0 && !isNaN(abilityPoint.x) && !isNaN(abilityPoint.y)) {
+      const radiusPx = rangeRadius * rendW;
+      const gradient = ctx.createRadialGradient(
+        abilityPoint.x,
+        abilityPoint.y,
+        0,
+        abilityPoint.x,
+        abilityPoint.y,
+        radiusPx,
+      );
+      gradient.addColorStop(0, 'rgba(79,195,247,0.25)');
+      gradient.addColorStop(1, 'rgba(79,195,247,0.03)');
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(abilityPoint.x, abilityPoint.y, radiusPx, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(79,195,247,0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    }
 
     if (abilityMarker && !isNaN(abilityPoint.x) && !isNaN(abilityPoint.y)) {
       abilityMarker.style.display = abilityText ? 'flex' : 'none';
@@ -14953,7 +15039,7 @@ function initNotifCategories() {
 }
 initNotifCategories();
 
-async function sendPushNotification({ title, body, translations, type, targetUid, data, maxAndroidVersionCode, requiredTag, allowAll = false }) {
+async function sendPushNotification({ title, body, translations, type, targetUid, data, minAndroidVersionCode, maxAndroidVersionCode, requiredTag, allowAll = false }) {
   const uid = targetUid ?? _ncTargetUid;
   if (!uid && !allowAll) {
     throw new Error('Выбери конкретного получателя или явно включи режим "Все пользователи"');
@@ -14962,7 +15048,7 @@ async function sendPushNotification({ title, body, translations, type, targetUid
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
-    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data, maxAndroidVersionCode, requiredTag }),
+    body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data, minAndroidVersionCode, maxAndroidVersionCode, requiredTag }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
