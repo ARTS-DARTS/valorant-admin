@@ -1161,7 +1161,8 @@
           <!-- Применить -->
           <div id="rng-apply-wrap" style="display:none;">
             <div id="rng-apply-info" style="font-size:11px;color:var(--text2);margin-bottom:8px;padding:8px 10px;border-radius:var(--r);background:var(--surface2);border:1px solid var(--border);"></div>
-            <button class="btn btn-save" id="rng-apply-btn" style="width:100%;padding:10px;">💾 Применить к лайнапам</button>
+            <button class="btn btn-save" id="rng-apply-btn" style="width:100%;padding:10px;">💾 Применить на этой карте</button>
+            <button class="btn" id="rng-apply-all-maps-btn" style="width:100%;padding:10px;margin-top:6px;border:1px solid var(--primary);color:var(--primary);">🌐 Применить ко всем картам</button>
             <button class="btn" id="rng-preview-lineup-btn" style="width:100%;margin-top:6px;border:1px solid var(--border);color:var(--text2);">👁 Только посмотреть (не сохранять)</button>
           </div>
 
@@ -1180,7 +1181,7 @@
             <svg id="rng-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:auto;" xmlns="http://www.w3.org/2000/svg">
               <circle id="rng-circle-fill"   cx="50%" cy="50%" r="0" fill="rgba(255,70,85,0.18)"/>
               <circle id="rng-circle-border" cx="50%" cy="50%" r="0" fill="none" stroke="rgba(255,70,85,0.75)" stroke-width="1.5" stroke-dasharray="5,3"/>
-              <circle id="rng-center-dot"    cx="50%" cy="50%" r="4"  fill="rgba(255,70,85,1)" stroke="rgba(0,0,0,0.4)" stroke-width="1"/>
+              <circle id="rng-center-dot"    cx="50%" cy="50%" r="7"  fill="rgba(255,70,85,1)" stroke="rgba(255,255,255,0.85)" stroke-width="1.5" style="pointer-events:all;cursor:move;touch-action:none;"/>
               <g id="rng-sensor-shape" style="display:none;">
                 <rect id="rng-sensor-rect" x="0" y="0" width="0" height="0" rx="1" fill="rgba(54,89,173,.38)" stroke="#65dcff" stroke-width="2" style="pointer-events:none;"/>
                 <line id="rng-sensor-axis" x1="0" y1="0" x2="0" y2="0" stroke="transparent" stroke-width="1" style="pointer-events:none;"/>
@@ -1243,6 +1244,12 @@
           <button id="rng-list-reload" class="btn" style="font-size:12px;padding:5px 12px;border:1px solid var(--border);color:var(--text2);">↻ Обновить</button>
           <button id="rng-backfill-missing" class="btn btn-save" style="font-size:12px;padding:5px 12px;">Синхронизировать радиусы</button>
           <span id="rng-backfill-status" style="font-size:12px;color:var(--text2);"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(150px,220px) minmax(150px,220px) auto;gap:8px;margin-bottom:14px;">
+          <input id="rng-list-search" class="finput" type="search" placeholder="Поиск способности…" oninput="rngApplyFilters()">
+          <select id="rng-list-map-filter" class="fselect" onchange="rngApplyFilters()"><option value="">Все карты</option></select>
+          <select id="rng-list-agent-filter" class="fselect" onchange="rngApplyFilters()"><option value="">Все агенты</option></select>
+          <button class="btn" style="border:1px solid var(--border);color:var(--text2);white-space:nowrap;" onclick="rngResetFilters()">Сбросить</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 260px;gap:20px;align-items:start;">
           <div id="rng-list-body" style="min-height:40px;">
@@ -18240,6 +18247,7 @@ function _rngWireEvents() {
 
   // Drag screenshot overlay; fall through to circle-move on plain click
   let _shotDragging = false, _shotDragged = false;
+  let _circleDragging = false, _circleDragged = false;
   let _shotDragStartX = 0, _shotDragStartY = 0;
   let _shotValX = 0, _shotValY = 0;
   const _shotActive = () => {
@@ -18247,8 +18255,33 @@ function _rngWireEvents() {
     return si && si.src && si.style.display !== 'none';
   };
   const mapCont = document.getElementById('rng-map-container');
+  document.getElementById('rng-center-dot').addEventListener('pointerdown', function(e) {
+    if (_rngIsSonicSensor()) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _circleDragging = true;
+    _circleDragged = false;
+    document.body.style.userSelect = 'none';
+    this.setPointerCapture?.(e.pointerId);
+  });
+  window.addEventListener('pointermove', function(e) {
+    if (!_circleDragging) return;
+    const r = mapCont.getBoundingClientRect();
+    _circleDragged = true;
+    _rngCx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    _rngCy = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+    rngUpdateCircle();
+  });
+  const finishCircleDrag = () => {
+    if (!_circleDragging) return;
+    _circleDragging = false;
+    document.body.style.userSelect = '';
+    _rngUpdateApplyInfo();
+  };
+  window.addEventListener('pointerup', finishCircleDrag);
+  window.addEventListener('pointercancel', finishCircleDrag);
   mapCont.addEventListener('mousedown', function(e) {
-    if (e.target.closest?.('#rng-sensor-pivot,#rng-sensor-rotate')) return;
+    if (e.target.closest?.('#rng-center-dot,#rng-sensor-pivot,#rng-sensor-rotate')) return;
     if (!_shotActive()) return;
     e.preventDefault();
     _shotDragging = true; _shotDragged = false;
@@ -18276,6 +18309,7 @@ function _rngWireEvents() {
   });
 
   mapCont.addEventListener('click', function(e) {
+    if (_circleDragged) { _circleDragged=false; return; }
     if (_rngShapeDragged) { _rngShapeDragged=false; return; }
     if (_shotDragged) { _shotDragged = false; return; }
     const r = this.getBoundingClientRect();
@@ -18287,6 +18321,7 @@ function _rngWireEvents() {
   });
 
   document.getElementById('rng-apply-btn').addEventListener('click', rngApplyToLineups);
+  document.getElementById('rng-apply-all-maps-btn').addEventListener('click', rngApplyToAllMaps);
 
   document.getElementById('rng-preview-lineup-btn').addEventListener('click', function() {
     const map = document.getElementById('rng-map').value;
@@ -18535,9 +18570,9 @@ async function rngApplyToLineups() {
       const batch = writeBatch(db);
       matched.forEach(ref => batch.update(ref, { range_radius: val, ...shapeData }));
       await batch.commit();
-      toast('✅ Сохранено + обновлено ' + matched.length + ' лайнапов');
+      toast('✅ Сохранено + обновлено ' + matched.length + ' материалов во всех категориях');
     } else {
-      toast('✅ Заготовка сохранена (без лайнапов)');
+      toast('✅ Настройка сохранена (материалов пока нет)');
     }
     if (typeof addAuditLog === 'function') addAuditLog('range_radius_apply', { map, agent: _rngAgent, ability: _rngAbility, value: val, count: matched.length });
     await rngLoadList();
@@ -18545,7 +18580,68 @@ async function rngApplyToLineups() {
     console.error('rngApplyToLineups', e);
     toast('Ошибка: ' + e.message, 'e');
   } finally {
-    btn.disabled = false; btn.textContent = '💾 Применить к лайнапам';
+    btn.disabled = false; btn.textContent = '💾 Применить на этой карте';
+  }
+}
+
+async function rngApplyToAllMaps() {
+  const val = parseFloat(document.getElementById('rng-slider').value) || 0;
+  if (!_rngAgent || !_rngAbility) return toast('Выбери агента и способность', 'e');
+  const maps = Object.keys(MAP_IMAGES);
+  if (!maps.length) return toast('Список карт не загружен', 'e');
+  if (!confirm(`Применить настройку ${_rngAgent} · ${_rngAbility} ко всем ${maps.length} картам?`)) return;
+  const btn = document.getElementById('rng-apply-all-maps-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Применяю ко всем картам…';
+  try {
+    const sensor = _rngIsSonicSensor();
+    const sharedShape = sensor ? {
+      shape_kind:'sensor_rect',
+      shape_anchor:'edge_midpoints',
+      shape_width:_rngShapeWidth,
+      shape_height:_rngShapeHeight,
+      shape_rotation:_rngShapeRotation
+    } : {};
+    await Promise.all(maps.map(map => {
+      const cfgKey=(map+'__'+_rngAgent+'__'+_rngAbility).replace(/[\\/. ]/g,'_');
+      return setDoc(doc(db,'range_config',cfgKey), {
+        map,
+        agent:_rngAgent,
+        ability:_rngAbility,
+        range_radius:val,
+        ...sharedShape,
+        updatedAt:serverTimestamp()
+      }, {merge:true});
+    }));
+    const refs=[];
+    for (const map of maps) {
+      const snap=await getDocs(query(
+        collection(db,'lineups'),
+        where('map','==',map),
+        where('agent','==',_rngAgent),
+        where('ability','==',_rngAbility)
+      ));
+      snap.forEach(entry=>refs.push(entry.ref));
+    }
+    for (let i=0;i<refs.length;i+=450) {
+      const batch=writeBatch(db);
+      refs.slice(i,i+450).forEach(ref=>batch.update(ref,{range_radius:val,...sharedShape}));
+      await batch.commit();
+    }
+    _defShapeConfigCache.clear();
+    if (typeof addAuditLog==='function') {
+      addAuditLog('range_radius_apply_all_maps',{
+        agent:_rngAgent,ability:_rngAbility,value:val,maps:maps.length,count:refs.length
+      });
+    }
+    toast(`✅ Применено ко всем картам · обновлено материалов: ${refs.length}`,'s');
+    await rngLoadList();
+  } catch(e) {
+    console.error('rngApplyToAllMaps',e);
+    toast('Ошибка применения ко всем картам: '+e.message,'e');
+  } finally {
+    btn.disabled=false;
+    btn.textContent='🌐 Применить ко всем картам';
   }
 }
 async function rngLoadList() {
@@ -18555,11 +18651,12 @@ async function rngLoadList() {
   try {
     const snap = await getDocs(collection(db, 'range_config'));
     if (snap.empty) {
-      body.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:12px 0;">Нет настроенных радиусов — нажми «Применить к лайнапам» выше</div>';
+      body.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:12px 0;">Нет настроенных радиусов — примени настройку выше</div>';
       return;
     }
     _rngRows = [];
     snap.forEach(d => _rngRows.push({ cfgId: d.id, ...d.data() }));
+    _rngRefreshFilters();
     _rngRenderList();
   } catch(e) {
     console.error('rngLoadList', e);
@@ -18648,7 +18745,19 @@ function _rngRenderList() {
   const body = document.getElementById('rng-list-body');
   if (!body || !_rngRows.length) return;
 
-  const sorted = [..._rngRows].sort((a, b) => {
+  const search=(document.getElementById('rng-list-search')?.value||'').trim().toLowerCase();
+  const mapFilter=document.getElementById('rng-list-map-filter')?.value||'';
+  const agentFilter=document.getElementById('rng-list-agent-filter')?.value||'';
+  const filtered=_rngRows.filter(row =>
+    (!mapFilter || row.map===mapFilter) &&
+    (!agentFilter || row.agent===agentFilter) &&
+    (!search || `${row.map||''} ${row.agent||''} ${row.ability||''}`.toLowerCase().includes(search))
+  );
+  if (!filtered.length) {
+    body.innerHTML='<div style="padding:18px;color:var(--text2);font-size:13px;border:1px solid var(--border);border-radius:var(--r);">По выбранным фильтрам ничего не найдено</div>';
+    return;
+  }
+  const sorted = [...filtered].sort((a, b) => {
     const numeric = _rngSortCol === 'radius' || _rngSortCol === 'meters';
     const av = numeric ? (a.range_radius || 0) : (a[_rngSortCol] || '').toLowerCase();
     const bv = numeric ? (b.range_radius || 0) : (b[_rngSortCol] || '').toLowerCase();
@@ -18712,6 +18821,27 @@ function _rngRenderList() {
   html += '</tbody></table>';
   body.innerHTML = html;
 }
+
+function _rngRefreshFilters() {
+  const fill=(id,values,label)=>{
+    const select=document.getElementById(id);if(!select)return;
+    const current=select.value;
+    select.innerHTML=`<option value="">${label}</option>`+
+      [...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b))
+        .map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('');
+    if ([...select.options].some(option=>option.value===current)) select.value=current;
+  };
+  fill('rng-list-map-filter',_rngRows.map(row=>row.map),'Все карты');
+  fill('rng-list-agent-filter',_rngRows.map(row=>row.agent),'Все агенты');
+}
+
+window.rngApplyFilters=function(){_rngRenderList();};
+window.rngResetFilters=function(){
+  const search=document.getElementById('rng-list-search');if(search)search.value='';
+  const map=document.getElementById('rng-list-map-filter');if(map)map.value='';
+  const agent=document.getElementById('rng-list-agent-filter');if(agent)agent.value='';
+  _rngRenderList();
+};
 window.rngListSelect = function(map,agent,ability,radius,idx,cfgId='') {
   const img       = document.getElementById('rng-lp-img');
   const hint      = document.getElementById('rng-lp-hint');
@@ -18810,9 +18940,9 @@ window.rngApplyEntry = async function(map, agent, ability, idx, cfgId) {
       const batch = writeBatch(db);
       refs.forEach(ref => batch.update(ref, { range_radius: val }));
       await batch.commit();
-      toast('✅ Сохранено + обновлено ' + refs.length + ' лайнапов');
+      toast('✅ Сохранено + обновлено ' + refs.length + ' материалов во всех категориях');
     } else {
-      toast('✅ Заготовка сохранена (без лайнапов)');
+      toast('✅ Настройка сохранена (материалов пока нет)');
     }
     if (typeof addAuditLog === 'function') addAuditLog('range_radius_apply', { map, agent, ability, value: val, count: refs.length });
     document.getElementById('rng-edit-' + idx).style.display = 'none';
