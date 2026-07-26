@@ -15198,7 +15198,7 @@ document.getElementById('notification-sync-btn')?.addEventListener('click', asyn
     const result=await syncNotificationAnalytics();
     _notificationAnalyticsLoaded=false;
     await loadNotificationAnalytics(true);
-    toast(`OneSignal обновлён: ${result.data.synced || 0}`, 's');
+    toast(`OneSignal обновлён: ${result.data.synced || 0}, импортировано: ${result.data.imported || 0}`, 's');
   } catch(err) { toast('Ошибка синхронизации: '+err.message, 'e'); }
   finally { button.disabled=false; button.textContent='↻ Синхронизировать OneSignal'; }
 });
