@@ -18695,7 +18695,10 @@ function _rngRenderList() {
     html += `<td style="padding:9px 10px;font-size:13px;">${bImg}${esc(r.ability || '')}${sensor ? '<div style="font-size:10px;color:#65dcff;margin-top:2px;">Сенсор · 2 точки</div>' : ''}</td>`;
     html += `<td id="rng-rv-${i}" style="padding:9px 10px;font-size:13px;color:var(--primary);font-weight:600;white-space:nowrap;">${valueHtml}</td>`;
     html += `<td id="rng-rm-${i}" style="padding:9px 10px;font-size:13px;color:var(--text2);white-space:nowrap;">${detailHtml}</td>`;
-    html += `<td style="padding:9px 10px;text-align:right;"><button class="btn" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();${sensor ? `rngOpenSensorConfig('${ci}',${i})` : `rngListToggleEdit(${i},'${ms}','${as2}','${bs}',${radius},'${ci}')`}">${sensor ? '✎ Открыть' : '✎ Изменить'}</button></td>`;
+    html += `<td style="padding:9px 10px;text-align:right;white-space:nowrap;">`;
+    html += `<button class="btn" style="font-size:11px;padding:4px 10px;border:1px solid var(--primary);color:var(--primary);margin-right:5px;" onclick="event.stopPropagation();rngOpenConfig('${ci}',${i})">↑ Загрузить в редактор</button>`;
+    if (!sensor) html += `<button class="btn" style="font-size:11px;padding:4px 10px;border:1px solid var(--border);color:var(--text2);" onclick="event.stopPropagation();rngListToggleEdit(${i},'${ms}','${as2}','${bs}',${radius},'${ci}')">✎ Быстро изменить</button>`;
+    html += `</td>`;
     html += '</tr>';
     if (!sensor) {
       html += `<tr id="rng-edit-${i}" style="display:none;"><td colspan="6" style="padding:14px 10px;background:var(--surface2);border-bottom:1px solid var(--border);"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">`;
@@ -18754,14 +18757,16 @@ window.rngListSelect = function(map,agent,ability,radius,idx,cfgId='') {
   const row = document.getElementById('rng-row-'+idx); if (row) row.style.background = 'var(--surface2)';
 };
 
-window.rngOpenSensorConfig = async function(cfgId,idx) {
+window.rngOpenConfig = async function(cfgId,idx) {
   const config=_rngRows.find(row=>row.cfgId===cfgId);if(!config)return;
   rngListSelect(config.map,config.agent,config.ability,Number(config.range_radius)||0,idx,cfgId);
   const mapSelect=document.getElementById('rng-map');
   rngSelectAgent(config.agent);
   mapSelect.value=config.map;mapSelect.dispatchEvent(new Event('change'));
   await rngSelectAbility(config.ability);
-  document.getElementById('rng-sensor-editor')?.scrollIntoView({behavior:'smooth',block:'center'});
+  document.getElementById(config.shape_kind==='sensor_rect'?'rng-sensor-editor':'rng-radius-editor')
+    ?.scrollIntoView({behavior:'smooth',block:'center'});
+  toast(`Загружено в редактор: ${config.map} · ${config.agent} · ${config.ability}`, 's');
 };
 
 window.rngListToggleEdit = function(idx,map,agent,ability,radius,cfgId='') {
