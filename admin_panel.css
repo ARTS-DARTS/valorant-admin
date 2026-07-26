@@ -727,6 +727,7 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
 .log-type { flex-shrink: 0; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
 .log-type-flutter { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.4); }
 .log-type-dart    { background: rgba(249,115,22,.15);  color: var(--orange); border: 1px solid var(--orange); }
+.log-type-caught  { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.45); }
 .log-type-web     { background: rgba(14,165,233,.15);  color: #7dd3fc; border: 1px solid rgba(14,165,233,.45); }
 .log-type-manual  { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.4); }
 .log-msg  { flex: 1; min-width: 0; font-size: 13px; color: var(--text); line-height: 1.4; word-break: break-word; }

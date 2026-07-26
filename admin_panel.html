@@ -1795,6 +1795,7 @@
     <button class="filter-btn active" data-log-filter="all">Все</button>
     <button class="filter-btn" data-log-filter="flutter">Flutter</button>
     <button class="filter-btn" data-log-filter="dart">Dart</button>
+    <button class="filter-btn" data-log-filter="caught">Операции</button>
     <button class="filter-btn" data-log-filter="web">Web</button>
     <button class="filter-btn" data-log-filter="manual">Другие</button>
   </div>
@@ -16753,6 +16754,7 @@ function _logQuickDetails(log) {
   const rate = ctx.rate_limit || {};
   const rules = ctx.rules_expectation || {};
   const details = [];
+  if (log.operation) details.push(`operation: ${log.operation}`);
   const action = ctx.action || '';
   const stage = ctx.stage || '';
   if (action) details.push(`action: ${action}${stage ? ` / ${stage}` : ''}`);
