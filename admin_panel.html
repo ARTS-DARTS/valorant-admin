@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-23-poll-library-v2">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-27-site-online-v1">
 </head>
 <body>
 
@@ -56,7 +56,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">round-side-any-v1 | 2026-07-19 21:05</span>
+      <span class="admin-version" id="admin-build-version">site-online-v1 | 2026-07-27 08:10</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -602,7 +602,11 @@
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
           <button class="an-tab-btn" data-an-tab="notifications">🔔 Уведомления</button>
           <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
-          <span id="site-online-pill" style="display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:8px 13px;border:1px solid rgba(34,197,94,.35);border-radius:20px;color:var(--green);font-size:12px;font-weight:700;">🟢 Онлайн: —</span>
+          <button type="button" class="site-online-button" id="site-online-pill" data-an-tab="activity" aria-label="Открыть статистику онлайна сайта">
+            <span class="site-online-button__dot" aria-hidden="true"></span>
+            <span>Онлайн сайта:</span>
+            <strong id="site-online-pill-value">—</strong>
+          </button>
         </div>
         <button class="btn" id="analytics-refresh-btn" style="border:1px solid var(--border);color:var(--text2);">Обновить</button>
       </div>
@@ -645,8 +649,27 @@
       <div id="an-section-activity" class="an-section" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
           <div class="form-title" style="margin:0;">👥 ОНЛАЙН / АКТИВНОСТЬ — последние 30 дней</div>
-          <div class="an-live">ручное обновление</div>
+          <div class="an-live"><span class="an-live-dot"></span>обновляется автоматически</div>
         </div>
+        <section class="site-live-panel" aria-labelledby="site-live-title">
+          <div class="site-live-panel__main">
+            <div class="site-live-panel__eyebrow"><span class="site-live-panel__pulse"></span>СЕЙЧАС НА САЙТЕ</div>
+            <div class="site-live-panel__value" id="site-live-value">—</div>
+            <h3 id="site-live-title">пользователей онлайн</h3>
+            <p>Считаются уникальные авторизованные посетители, активные за последние 2 минуты.</p>
+          </div>
+          <div class="site-live-panel__signal">
+            <div class="site-live-panel__signal-head">
+              <span>ЖИВОЙ СИГНАЛ</span>
+              <span id="site-live-updated">ожидание данных</span>
+            </div>
+            <div class="site-live-bars" id="site-live-bars" aria-hidden="true"></div>
+            <div class="site-live-panel__legend">
+              <span><i></i> данные API сайта</span>
+              <span id="site-live-window">окно активности: 120 сек.</span>
+            </div>
+          </div>
+        </section>
         <div class="an-cards" id="ses-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">DAU (сегодня)</div></div>
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">WAU (7 дней)</div></div>
@@ -3833,6 +3856,18 @@ document.getElementById('ms-rotate-save')?.addEventListener('click', async funct
 });
 
 let _siteOnlineTimer = null;
+let _siteOnlineSamples = [];
+function renderSiteOnlineBars() {
+  const host = document.getElementById('site-live-bars');
+  if (!host) return;
+  const samples = _siteOnlineSamples.length ? _siteOnlineSamples : [0];
+  const max = Math.max(1, ...samples);
+  const padded = [...Array(Math.max(0, 18 - samples.length)).fill(null), ...samples].slice(-18);
+  host.innerHTML = padded.map(value => {
+    const height = value === null ? 8 : Math.max(12, Math.round((value / max) * 100));
+    return `<span class="${value === null ? 'is-empty' : ''}" style="height:${height}%" title="${value === null ? '' : `${value} онлайн`}"></span>`;
+  }).join('');
+}
 async function loadSiteOnlineCount() {
   const pill = document.getElementById('site-online-pill');
   if (!pill || !auth.currentUser) return;
@@ -3841,14 +3876,36 @@ async function loadSiteOnlineCount() {
     const response = await fetch('https://vlineups.ru/api/site-presence', { headers:{ Authorization:`Bearer ${token}` }, cache:'no-store' });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || 'Ошибка');
-    pill.textContent = `🟢 Онлайн: ${Number(body.online || 0)}`;
+    const online = Number(body.online || 0);
+    const pillValue = document.getElementById('site-online-pill-value');
+    const liveValue = document.getElementById('site-live-value');
+    if (pillValue) pillValue.textContent = online;
+    if (liveValue) liveValue.textContent = online;
+    pill.classList.toggle('has-users', online > 0);
+    _siteOnlineSamples.push(online);
+    _siteOnlineSamples = _siteOnlineSamples.slice(-18);
+    renderSiteOnlineBars();
+    const updated = document.getElementById('site-live-updated');
+    const windowLabel = document.getElementById('site-live-window');
+    const seconds = Number(body.window_seconds || 120);
+    if (updated) updated.textContent = `обновлено ${new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}`;
+    if (windowLabel) windowLabel.textContent = `окно активности: ${seconds} сек.`;
     pill.title = `Уникальные авторизованные пользователи за последние ${body.window_seconds || 120} секунд`;
-  } catch (error) { pill.textContent = '🟢 Онлайн: —'; pill.title = error.message; }
+  } catch (error) {
+    const pillValue = document.getElementById('site-online-pill-value');
+    const liveValue = document.getElementById('site-live-value');
+    const updated = document.getElementById('site-live-updated');
+    if (pillValue) pillValue.textContent = '—';
+    if (liveValue) liveValue.textContent = '—';
+    if (updated) updated.textContent = 'нет связи';
+    pill.classList.remove('has-users');
+    pill.title = error.message;
+  }
 }
 function startSiteOnlineCounter() {
   clearInterval(_siteOnlineTimer);
   loadSiteOnlineCount();
-  _siteOnlineTimer = setInterval(loadSiteOnlineCount, 45_000);
+  _siteOnlineTimer = setInterval(loadSiteOnlineCount, 30_000);
 }
 
 ['ms-site-label-x','ms-site-label-y'].forEach(id => {
