@@ -56,7 +56,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">site-online-split-v1 | 2026-07-27 08:48</span>
+  <span class="admin-version" id="admin-build-version">site-daily-activity-v1 | 2026-07-27 08:54</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -603,9 +603,9 @@
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
           <button class="an-tab-btn" data-an-tab="notifications">🔔 Уведомления</button>
           <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
-          <button type="button" class="site-online-button" id="site-online-pill" data-an-tab="online" aria-label="Открыть статистику онлайна сайта">
+          <button type="button" class="site-online-button" id="site-online-pill" data-an-tab="online" aria-label="Открыть статистику активности сайта">
             <span class="site-online-button__dot" aria-hidden="true"></span>
-            <span>Онлайн сайта:</span>
+            <span>Активность сайта:</span>
             <strong id="site-online-pill-value">—</strong>
           </button>
         </div>
@@ -649,25 +649,25 @@
       <!-- ── Онлайн сайта ── -->
       <div id="an-section-online" class="an-section" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-          <div class="form-title" style="margin:0;">🟢 ОНЛАЙН САЙТА</div>
-          <div class="an-live"><span class="an-live-dot"></span>обновляется автоматически</div>
+          <div class="form-title" style="margin:0;">🟢 АКТИВНОСТЬ САЙТА</div>
+          <div class="an-live"><span class="an-live-dot"></span>обновляется при открытии</div>
         </div>
         <section class="site-live-panel" aria-labelledby="site-live-title">
           <div class="site-live-panel__main">
-            <div class="site-live-panel__eyebrow"><span class="site-live-panel__pulse"></span>СЕЙЧАС НА САЙТЕ</div>
+            <div class="site-live-panel__eyebrow"><span class="site-live-panel__pulse"></span>АКТИВНЫ СЕГОДНЯ</div>
             <div class="site-live-panel__value" id="site-live-value">—</div>
-            <h3 id="site-live-title">пользователей онлайн</h3>
-            <p>Считаются уникальные авторизованные посетители, активные за последние 2 минуты.</p>
+            <h3 id="site-live-title">активных пользователей</h3>
+            <p>Уникальные авторизованные посетители за текущий день. Каждый пользователь учитывается один раз.</p>
           </div>
           <div class="site-live-panel__signal">
             <div class="site-live-panel__signal-head">
-              <span>ЖИВОЙ СИГНАЛ</span>
+              <span>АКТИВНОСТЬ САЙТА</span>
               <span id="site-live-updated">ожидание данных</span>
             </div>
             <div class="site-live-bars" id="site-live-bars" aria-hidden="true"></div>
             <div class="site-live-panel__legend">
               <span><i></i> данные API сайта</span>
-              <span id="site-live-window">окно активности: 120 сек.</span>
+              <span id="site-live-window">период: текущий день</span>
             </div>
           </div>
         </section>
@@ -3907,7 +3907,6 @@ document.getElementById('ms-rotate-save')?.addEventListener('click', async funct
   }
 });
 
-let _siteOnlineTimer = null;
 let _siteOnlineSamples = [];
 function renderSiteOnlineBars() {
   const host = document.getElementById('site-live-bars');
@@ -3939,10 +3938,9 @@ async function loadSiteOnlineCount() {
     renderSiteOnlineBars();
     const updated = document.getElementById('site-live-updated');
     const windowLabel = document.getElementById('site-live-window');
-    const seconds = Number(body.window_seconds || 120);
     if (updated) updated.textContent = `обновлено ${new Date().toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}`;
-    if (windowLabel) windowLabel.textContent = `окно активности: ${seconds} сек.`;
-    pill.title = `Уникальные авторизованные пользователи за последние ${body.window_seconds || 120} секунд`;
+    if (windowLabel) windowLabel.textContent = 'период: текущий день';
+    pill.title = 'Уникальные авторизованные пользователи за текущий день';
   } catch (error) {
     const pillValue = document.getElementById('site-online-pill-value');
     const liveValue = document.getElementById('site-live-value');
@@ -3955,9 +3953,7 @@ async function loadSiteOnlineCount() {
   }
 }
 function startSiteOnlineCounter() {
-  clearInterval(_siteOnlineTimer);
   loadSiteOnlineCount();
-  _siteOnlineTimer = setInterval(loadSiteOnlineCount, 30_000);
 }
 
 ['ms-site-label-x','ms-site-label-y'].forEach(id => {
@@ -13139,6 +13135,7 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
     if (tab === 'training' && !trainingAnalyticsLoaded) loadTrainingAnalytics();
     if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
     if (tab === 'notifications') loadNotificationAnalytics();
+    if (tab === 'online') loadSiteOnlineCount();
   });
 });
 
@@ -13185,6 +13182,8 @@ document.getElementById('analytics-refresh-btn')?.addEventListener('click', asyn
     _notificationAnalyticsLoaded = false;
     await loadNotificationAnalytics(true);
   }
+  const onlineVisible = document.getElementById('an-section-online')?.style.display !== 'none';
+  if (onlineVisible) await loadSiteOnlineCount();
 });
 document.getElementById('ad-backfill-30d-btn')?.addEventListener('click', rebuildAdStats30d);
 
