@@ -4874,7 +4874,8 @@ window._msgOpenReply = function(id) {
   const cat  = m.category || 'другое';
   const date = m.created_at?.toDate ? m.created_at.toDate().toLocaleString('ru-RU') : '—';
   const name = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
-  const closed = m.status === 'closed';
+  const permanent = !!m.user_id && id === `moderator_application_${m.user_id}`;
+  const closed = !permanent && m.status === 'closed';
   const thread = _msgThread(m);
 
   // Отметить прочитанным админом
@@ -4923,8 +4924,10 @@ window._msgOpenReply = function(id) {
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--text2);">
           <input type="checkbox" id="msg-reply-push" ${m.user_id ? 'checked' : 'disabled'} style="accent-color:var(--primary);"> 🔔 Push
         </label>
-        <button onclick="_msgCloseDialog('${id}')" title="Закрыть диалог"
-          style="margin-left:auto;padding:5px 9px;background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:7px;font-size:11px;cursor:pointer;">🔒 Закрыть диалог</button>
+        ${permanent
+          ? '<span style="margin-left:auto;color:var(--primary);font-size:11px;font-weight:700;">◆ Постоянный чат</span>'
+          : `<button onclick="_msgCloseDialog('${id}')" title="Закрыть диалог"
+              style="margin-left:auto;padding:5px 9px;background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:7px;font-size:11px;cursor:pointer;">🔒 Закрыть диалог</button>`}
       </div>
     `}
   `;
@@ -4986,8 +4989,12 @@ window._msgSendReply = async function(id) {
 };
 
 window._msgCloseDialog = async function(id) {
-  if (!confirm('Закрыть диалог? Пользователь больше не сможет отвечать. Диалог удалится через неделю.')) return;
   const m = _msgAll.find(x => x.id === id);
+  if (m?.user_id && id === `moderator_application_${m.user_id}`) {
+    toast('Главный чат с администрацией нельзя закрыть', 'i');
+    return;
+  }
+  if (!confirm('Закрыть диалог? Пользователь больше не сможет отвечать. Диалог удалится через неделю.')) return;
   try {
     await updateDoc(doc(db, 'feedback', id), {
       status: 'closed', closed_at: serverTimestamp(), admin_unread: false,
