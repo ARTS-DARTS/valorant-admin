@@ -5692,7 +5692,9 @@ async function _loadAgentCategoryAccess() {
   staffCheckbox.disabled = true;
   try {
     let snap = await getDoc(doc(db, 'settings', `category_access_${_selectedAgentTarget}`));
-    if (!snap.exists()) snap = await getDoc(doc(db, 'settings', 'category_access'));
+    if (!snap.exists() && _selectedAgentTarget === 'app') {
+      snap = await getDoc(doc(db, 'settings', 'category_access'));
+    }
     const data = snap.exists() ? snap.data() : {};
     checkbox.checked = _selectedAgentCategory === 'lineup'
       ? data.lineup_enabled !== false
