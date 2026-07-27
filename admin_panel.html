@@ -6743,7 +6743,20 @@ async function finalizeDuel(duelId, forcedWinnerId = '') {
     const duel = duelSnap.data();
     if (duel.finalized === true) { result = { alreadyFinalized: true, ...duel }; return; }
     const votes1 = Number(duel.votes1 || 0), votes2 = Number(duel.votes2 || 0);
-    if (!forcedWinnerId && votes1 === votes2) throw new Error('Ничья — продли голосование или выбери победителя вручную');
+    if (!forcedWinnerId) {
+      const decision = duelResultDecision(votes1, votes2);
+      if (decision.tie) {
+        tx.update(duelRef, {
+          status:'finished', finalized:true, result:'tie', tie:true,
+          tieReason:decision.reason, totalVotes:decision.totalVotes,
+          voteGapPercent:decision.gapPercent,
+          winnerLineupId:null, loserLineupId:null,
+          likesAwarded:0, pointsAwarded:0, finalizedAt:serverTimestamp(), visible:true,
+        });
+        result = { tie:true, ...decision };
+        return;
+      }
+    }
     const winnerId = forcedWinnerId || (votes1 > votes2 ? duel.lineup1Id : duel.lineup2Id);
     if (![duel.lineup1Id, duel.lineup2Id].includes(winnerId)) throw new Error('Некорректный победитель');
     const loserId = winnerId === duel.lineup1Id ? duel.lineup2Id : duel.lineup1Id;
@@ -6801,6 +6814,28 @@ async function finalizeDuel(duelId, forcedWinnerId = '') {
       data: { duel_id: duelId, lineup_id: result.winnerId, points: '5' } }).catch(e => console.warn('duel push:', e.message));
   }
   return result;
+}
+
+function duelResultDecision(votes1, votes2) {
+  const v1 = Math.max(0, Number(votes1) || 0);
+  const v2 = Math.max(0, Number(votes2) || 0);
+  const totalVotes = v1 + v2;
+  const gapPercent = totalVotes ? Math.abs(v1 - v2) / totalVotes * 100 : 0;
+  const tieThreshold = totalVotes < 20 ? 20 : 5;
+  return {
+    tie: gapPercent <= tieThreshold,
+    totalVotes,
+    gapPercent,
+    tieThreshold,
+    reason: totalVotes < 20 ? 'insufficient_votes' : 'close_result',
+  };
+}
+
+function lineupRoundSideLabel(value) {
+  if (value === 'attack') return 'Атака';
+  if (value === 'defense') return 'Защита';
+  if (value === 'any') return 'Любая сторона';
+  return '';
 }
 
 window._maOpenChat = async function(uid) {
@@ -6908,8 +6943,10 @@ async function loadFinishedDuels(append = false) {
       const p2 = total ? Math.round(v2 / total * 100) : 50;
 
       let winnerCell = '<span style="color:var(--text2);">Ничья</span>';
-      if (v1 > v2) winnerCell = `<span style="color:var(--green);font-weight:700;">Лайнап #1</span>`;
-      else if (v2 > v1) winnerCell = `<span style="color:var(--green);font-weight:700;">Лайнап #2</span>`;
+      if (data.tie !== true && data.result !== 'tie') {
+        if (data.winnerLineupId === data.lineup1Id) winnerCell = `<span style="color:var(--green);font-weight:700;">Лайнап #1</span>`;
+        else if (data.winnerLineupId === data.lineup2Id) winnerCell = `<span style="color:var(--green);font-weight:700;">Лайнап #2</span>`;
+      }
 
       const isVisible = data.visible !== false;
       const dateStr = data.createdAt?.toDate
@@ -7040,8 +7077,12 @@ async function renderActiveDuelsSnapshot(snap) {
         getDoc(doc(db, 'lineups', data.lineup1Id)),
         getDoc(doc(db, 'lineups', data.lineup2Id)),
       ]);
-      const t1 = l1snap.data()?.title ?? data.lineup1Id;
-      const t2 = l2snap.data()?.title ?? data.lineup2Id;
+      const lineup1 = l1snap.data() || {};
+      const lineup2 = l2snap.data() || {};
+      const t1 = lineup1.title ?? data.lineup1Id;
+      const t2 = lineup2.title ?? data.lineup2Id;
+      const meta1 = [lineup1.agent, lineup1.ability, lineupRoundSideLabel(lineup1.round_side)].filter(Boolean).join(' · ');
+      const meta2 = [lineup2.agent, lineup2.ability, lineupRoundSideLabel(lineup2.round_side)].filter(Boolean).join(' · ');
       const v1 = data.votes1 ?? 0, v2 = data.votes2 ?? 0;
       const total = v1 + v2;
       const p1 = total ? Math.round(v1 / total * 100) : 50;
@@ -7054,9 +7095,9 @@ async function renderActiveDuelsSnapshot(snap) {
       tr.style.borderBottom = '1px solid var(--border)';
       tr.innerHTML = `
         <td style="padding:8px 6px;color:var(--text2);">${esc(data.mapName ?? '—')}</td>
-        <td style="padding:8px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(t1)}">${esc(t1)}</td>
+        <td style="padding:8px 6px;max-width:220px;" title="${esc([t1, meta1].filter(Boolean).join(' · '))}"><b>${esc(t1)}</b>${meta1 ? `<small style="display:block;margin-top:3px;color:var(--text2);white-space:normal;">${esc(meta1)}</small>` : ''}</td>
         <td style="padding:8px 6px;text-align:center;">${duelPressureBarHtml(v1, v2)}</td>
-        <td style="padding:8px 6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(t2)}">${esc(t2)}</td>
+        <td style="padding:8px 6px;max-width:220px;" title="${esc([t2, meta2].filter(Boolean).join(' · '))}"><b>${esc(t2)}</b>${meta2 ? `<small style="display:block;margin-top:3px;color:var(--text2);white-space:normal;">${esc(meta2)}</small>` : ''}</td>
         <td style="padding:8px 6px;text-align:right;color:var(--text2);">${esc(remaining)}</td>
         <td style="padding:8px 6px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;">
           <button class="btn" data-duel-finish="${d.id}" style="border:1px solid var(--border);font-size:11px;padding:4px 8px;">Завершить</button>
@@ -7070,8 +7111,8 @@ async function renderActiveDuelsSnapshot(snap) {
       tr.querySelector('[data-duel-finish]').addEventListener('click', async btn => {
         const id = btn.currentTarget.dataset.duelFinish;
         if (!confirm('Завершить дуэль досрочно?')) return;
-        await finalizeDuel(id);
-        toast('Дуэль завершена, награды начислены', 's');
+        const result = await finalizeDuel(id);
+        toast(result?.tie ? 'Ничья — изменения и награды не применялись' : 'Дуэль завершена, награды начислены', result?.tie ? 'i' : 's');
         loadDuelsTab();
       });
       tr.querySelector('[data-duel-extend]').addEventListener('click', async btn => {
