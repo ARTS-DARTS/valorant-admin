@@ -480,10 +480,9 @@
     <div id="tab-translations" style="display:none;">
       <div class="form-wrap" style="max-width:760px;">
         <div class="form-title"><i class="bi bi-translate"></i> ПЕРЕВОДЫ</div>
-        <p style="color:var(--text2);line-height:1.5;">Русский текст является источником. Система переводит только новые и изменённые записи и сохраняет результат в Firestore.</p>
+        <p style="color:var(--text2);line-height:1.5;">Русский текст является источником. Одна кнопка находит новые и изменённые записи, переводит только их и сохраняет результат в Firestore.</p>
         <div id="translation-stats" class="state">Проверка состояния…</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-          <button class="btn" id="btn-sync-translations"><i class="bi bi-cloud-arrow-up"></i> Синхронизировать русские тексты</button>
           <button class="btn btn-save" id="btn-translate-content"><i class="bi bi-translate"></i> Обновить переводы</button>
         </div>
       </div>
@@ -12586,40 +12585,28 @@ async function refreshTranslationStats() {
   try { const { data } = await getTranslationStats(); el.textContent = `Всего текстов: ${data.total}. Требуют автоперевода: ${data.pending}. Сложных шаблонов вручную: ${data.manual || 0}. Символов в очереди: ${data.characters}.`; }
   catch (e) { el.textContent = 'Не удалось загрузить статистику: ' + (e?.message || e); }
 }
-document.getElementById('btn-sync-translations')?.addEventListener('click', async () => {
-  const button = document.getElementById('btn-sync-translations');
-  if (!button || button.disabled) return;
-  button.disabled = true;
-  const original = button.innerHTML;
-  try {
-    const sources = await fetch('./localization_sources_ru.json', { cache: 'no-store' }).then(response => {
-      if (!response.ok) throw new Error(`Не удалось загрузить тексты: HTTP ${response.status}`);
-      return response.json();
-    });
-    const batchSize = 200;
-    let synced = 0;
-    for (let offset = 0; offset < sources.length; offset += batchSize) {
-      const batch = sources.slice(offset, offset + batchSize);
-      button.innerHTML = `<i class="bi bi-cloud-arrow-up"></i> Синхронизация ${Math.min(offset + batch.length, sources.length)} / ${sources.length}`;
-      const { data } = await syncTranslationSources({ sources: batch });
-      synced += Number(data?.synced || batch.length);
-    }
-    toast(`Синхронизировано русских текстов: ${synced}`, 's');
-    await refreshTranslationStats();
-  } catch (e) {
-    toast('Ошибка синхронизации: ' + (e?.message || e), 'e');
-  } finally {
-    button.disabled = false;
-    button.innerHTML = original;
+async function syncAllTranslationSources(onProgress) {
+  const sources = await fetch('./localization_sources_ru.json', { cache: 'no-store' }).then(response => {
+    if (!response.ok) throw new Error(`Не удалось загрузить тексты: HTTP ${response.status}`);
+    return response.json();
+  });
+  const batchSize = 200;
+  for (let offset = 0; offset < sources.length; offset += batchSize) {
+    const batch = sources.slice(offset, offset + batchSize);
+    onProgress?.(Math.min(offset + batch.length, sources.length), sources.length);
+    await syncTranslationSources({ sources: batch });
   }
-});
+}
 document.getElementById('btn-translate-content')?.addEventListener('click', async () => {
   const button = document.getElementById('btn-translate-content');
   if (!button || button.disabled) return;
   button.disabled = true;
   const original = button.innerHTML;
-  button.innerHTML = '<i class="bi bi-hourglass-split"></i><span>Переводим…</span>';
   try {
+    await syncAllTranslationSources((completed, total) => {
+      button.innerHTML = `<i class="bi bi-cloud-arrow-up"></i><span>Проверяем ${completed} / ${total}</span>`;
+    });
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i><span>Переводим новое…</span>';
     const result = await translatePendingContent();
     const data = result.data || {};
     toast(`Переводы обновлены: ${data.translated || 0} записей, ${data.characters || 0} символов`, 's');
