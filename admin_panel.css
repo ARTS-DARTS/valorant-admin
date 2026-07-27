@@ -757,6 +757,57 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
   .site-live-panel { grid-template-columns: 1fr; }
   .site-online-button { margin-left: 0; }
 }
+.training-an-head {
+  display: flex; align-items: end; justify-content: space-between; gap: 16px;
+  margin-bottom: 14px;
+}
+.training-an-head p { margin: 5px 0 0; color: var(--text2); font-size: 12px; }
+.training-depth-cards { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+.training-depth-card { position: relative; overflow: hidden; }
+.training-depth-card::after {
+  content: ""; position: absolute; right: -24px; bottom: -34px; width: 76px; height: 76px;
+  border: 1px solid rgba(79,195,247,.16); transform: rotate(45deg);
+}
+.training-depth-card small { display: block; margin-top: 9px; color: var(--text2); font-size: 10px; }
+.training-an-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.training-chart-title {
+  display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 18px;
+}
+.training-chart-title .dlabel { margin: 0 0 4px; }
+.training-chart-title small { color: var(--text2); font-size: 10px; }
+.training-chart-title > strong { color: #4fc3f7; font: 800 13px monospace; white-space: nowrap; }
+.training-depth-bars, .training-category-bars { display: grid; gap: 15px; }
+.training-metric-label {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 6px; color: var(--text1); font-size: 12px; font-weight: 700;
+}
+.training-metric-label strong { color: var(--training-color, #4fc3f7); font: 800 15px monospace; }
+.training-metric-track {
+  height: 9px; overflow: hidden; border: 1px solid rgba(111,137,177,.24);
+  background: #08111e;
+}
+.training-metric-track i {
+  display: block; height: 100%; background:
+    linear-gradient(90deg, color-mix(in srgb, var(--training-color) 65%, #111827), var(--training-color));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--training-color) 45%, transparent);
+  transition: width .38s ease;
+}
+.training-metric-row > small {
+  display: block; margin-top: 5px; color: var(--text2); font-size: 9px; text-align: right;
+}
+.training-an-note {
+  display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 11px 13px;
+  border: 1px solid rgba(79,195,247,.18); color: var(--text2); font-size: 10px;
+}
+.training-an-note i { color: #4fc3f7; }
+@media (max-width: 1000px) {
+  .training-depth-cards { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+  .training-an-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .training-an-head { align-items: start; flex-direction: column; }
+  .training-depth-cards { grid-template-columns: 1fr; }
+}
 .notif-an-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}.notif-an-sub{font-size:12px;color:var(--text2)}
 .notif-funnel{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:10px;margin-bottom:14px}.notif-funnel>i{color:var(--text2);font-style:normal}.notif-stage{position:relative;background:linear-gradient(135deg,var(--surface),#0b1728);border:1px solid var(--border);border-radius:12px;padding:15px 16px;overflow:hidden}.notif-stage span{position:absolute;right:10px;top:7px;color:rgba(79,195,247,.18);font:700 24px monospace}.notif-stage b{display:block;color:#4fc3f7;font:800 25px monospace}.notif-stage small{color:var(--text2)}
 .notif-an-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.8fr);gap:14px}.notif-category-list{display:grid;gap:10px;margin-top:12px}.notif-category{display:grid;grid-template-columns:minmax(150px,1fr) minmax(100px,2fr) 54px;gap:12px;align-items:center}.notif-category b,.notif-category small{display:block}.notif-category small{font-size:10px;color:var(--text2);margin-top:3px}.notif-category strong{text-align:right;font-family:monospace;color:#4fc3f7}.notif-meter{height:6px;background:#19253a;border-radius:9px;overflow:hidden}.notif-meter i{display:block;height:100%;background:linear-gradient(90deg,#4fc3f7,#2ed47a);border-radius:inherit}

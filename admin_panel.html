@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-27-site-online-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-27-training-analytics-v1">
 </head>
 <body>
 
@@ -56,7 +56,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">site-online-v1 | 2026-07-27 08:10</span>
+      <span class="admin-version" id="admin-build-version">training-analytics-v1 | 2026-07-27 08:35</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -598,6 +598,7 @@
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="an-tab-btn active" data-an-tab="ads">📺 Реклама</button>
           <button class="an-tab-btn" data-an-tab="activity">👥 Активность</button>
+          <button class="an-tab-btn" data-an-tab="training">🎓 Обучение</button>
           <button class="an-tab-btn" data-an-tab="users">🆕 Пользователи</button>
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
           <button class="an-tab-btn" data-an-tab="notifications">🔔 Уведомления</button>
@@ -690,6 +691,48 @@
             <div class="an-tip" id="dau-tip" style="display:none;"></div>
           </div>
           <div style="font-size:11px;color:var(--text2);margin-top:8px;text-align:center;">наведи на график, чтобы увидеть цифры за день</div>
+        </div>
+      </div>
+
+      <!-- ── Обучение ── -->
+      <div id="an-section-training" class="an-section" style="display:none;">
+        <div class="training-an-head">
+          <div>
+            <div class="form-title" style="margin:0;">🎓 ОБУЧЕНИЕ АВТОРОВ</div>
+            <p>Завершённые инструктажи и глубина прохождения пользователями.</p>
+          </div>
+          <div class="an-live">агрегированные count-запросы</div>
+        </div>
+        <div class="an-cards training-depth-cards" id="training-depth-cards">
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Прошли 1 из 4</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Прошли 2 из 4</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Прошли 3 из 4</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Прошли все 4</div></div>
+        </div>
+        <div class="training-an-grid">
+          <section class="an-chart-box training-depth-chart">
+            <div class="training-chart-title">
+              <div>
+                <div class="dlabel">Глубина прохождения</div>
+                <small>Сколько пользователей остановились на каждом уровне</small>
+              </div>
+              <strong id="training-users-total">—</strong>
+            </div>
+            <div class="training-depth-bars" id="training-depth-bars"></div>
+          </section>
+          <section class="an-chart-box training-category-chart">
+            <div class="training-chart-title">
+              <div>
+                <div class="dlabel">Какие обучения пройдены</div>
+                <small>Сравнение четырёх учебных направлений</small>
+              </div>
+            </div>
+            <div class="training-category-bars" id="training-category-bars"></div>
+          </section>
+        </div>
+        <div class="training-an-note">
+          <i class="bi bi-info-circle"></i>
+          Учитываются только подтверждённые прохождения с начисленной наградой. Повторное прохождение не увеличивает статистику.
         </div>
       </div>
 
@@ -2765,6 +2808,7 @@ let _activeTab = null;
 // Авторизация может вызвать switchTab(), пока module-скрипт ещё продолжает
 // инициализацию. Эти состояния должны существовать до первого переключения.
 let analyticsLoaded = false;
+let trainingAnalyticsLoaded = false;
 let _allUsers = [];
 let _userSearchQuery = '';
 let _userAuthFilter = 'all';
@@ -13080,10 +13124,11 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
     const tab = btn.dataset.anTab;
     document.querySelectorAll('[data-an-tab]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['ads','activity','users','content','notifications','storage'].forEach(id => {
+    ['ads','activity','training','users','content','notifications','storage'].forEach(id => {
       const el = document.getElementById('an-section-' + id);
       if (el) el.style.display = (id === tab) ? 'block' : 'none';
     });
+    if (tab === 'training' && !trainingAnalyticsLoaded) loadTrainingAnalytics();
     if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
     if (tab === 'notifications') loadNotificationAnalytics();
   });
@@ -13121,6 +13166,11 @@ document.getElementById('analytics-refresh-btn')?.addEventListener('click', asyn
   if (usersVisible) {
     _nuLoaded = false;
     await loadNewUsersAnalytics();
+  }
+  const trainingVisible = document.getElementById('an-section-training')?.style.display !== 'none';
+  if (trainingVisible) {
+    trainingAnalyticsLoaded = false;
+    await loadTrainingAnalytics(true);
   }
   const notificationsVisible = document.getElementById('an-section-notifications')?.style.display !== 'none';
   if (notificationsVisible) {
@@ -15189,6 +15239,94 @@ async function sendPushNotification({ title, body, translations, type, targetUid
     created_by: currentUser?.uid || null,
   }, { merge:true });
   return { ...result, campaign_id: campaignId };
+}
+
+const TRAINING_ANALYTICS_CATEGORIES = [
+  { key: 'lineup', label: 'Лайнапы', color: '#38bdf8' },
+  { key: 'defense', label: 'Защита', color: '#ff4655' },
+  { key: 'combo', label: 'Комбо', color: '#ffb23f' },
+  { key: 'wallbang', label: 'Прострелы', color: '#ff5e91' },
+];
+
+function renderTrainingMetricBars(hostId, rows, maxValue) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const safeMax = Math.max(1, Number(maxValue || 0));
+  host.innerHTML = rows.map(row => {
+    const value = Number(row.value || 0);
+    const width = Math.max(value > 0 ? 3 : 0, Math.round(value / safeMax * 100));
+    return `<div class="training-metric-row">
+      <div class="training-metric-label"><span>${esc(row.label)}</span><strong>${value}</strong></div>
+      <div class="training-metric-track"><i style="width:${width}%;--training-color:${row.color}"></i></div>
+      <small>${row.hint ? esc(row.hint) : `${width}% от максимума`}</small>
+    </div>`;
+  }).join('');
+}
+
+async function loadTrainingAnalytics(force = false) {
+  if (trainingAnalyticsLoaded && !force) return;
+  trainingAnalyticsLoaded = true;
+  const depthHost = document.getElementById('training-depth-cards');
+  if (depthHost) depthHost.querySelectorAll('.an-val').forEach(el => {
+    el.textContent = '…';
+    el.classList.add('an-loading');
+  });
+  try {
+    const [depthCounts, categoryCounts] = await Promise.all([
+      Promise.all([1, 2, 3, 4].map(count =>
+        countDocs(collection(db, 'users'), [
+          where('author_training_points', '==', count * 5),
+        ])
+      )),
+      Promise.all(TRAINING_ANALYTICS_CATEGORIES.map(category =>
+        countDocs(collection(db, 'user_private'), [
+          where(`author_training_completed.${category.key}.reward_points`, '>=', 5),
+        ])
+      )),
+    ]);
+
+    if (depthHost) {
+      depthHost.innerHTML = depthCounts.map((value, index) =>
+        `<div class="an-card training-depth-card">
+          <div class="an-val">${Number(value || 0)}</div>
+          <div class="an-lbl">Прошли ${index + 1} из 4</div>
+          <small>${(index + 1) * 5} очков за обучение</small>
+        </div>`
+      ).join('');
+    }
+
+    const totalWithTraining = depthCounts.reduce((sum, value) => sum + Number(value || 0), 0);
+    const totalLabel = document.getElementById('training-users-total');
+    if (totalLabel) totalLabel.textContent = `${totalWithTraining} пользователей`;
+
+    renderTrainingMetricBars(
+      'training-depth-bars',
+      depthCounts.map((value, index) => ({
+        label: `${index + 1} из 4`,
+        value,
+        color: ['#38bdf8', '#8b7cf6', '#ff7ba9', '#22c55e'][index],
+        hint: index === 3 ? 'завершили весь цикл' : `остановились на ${index + 1}-м уровне`,
+      })),
+      Math.max(...depthCounts, 1),
+    );
+
+    renderTrainingMetricBars(
+      'training-category-bars',
+      TRAINING_ANALYTICS_CATEGORIES.map((category, index) => ({
+        ...category,
+        value: categoryCounts[index],
+        hint: totalWithTraining > 0
+          ? `${Math.round(Number(categoryCounts[index] || 0) / totalWithTraining * 100)}% обучавшихся`
+          : 'пока нет прохождений',
+      })),
+      Math.max(...categoryCounts, 1),
+    );
+  } catch (error) {
+    trainingAnalyticsLoaded = false;
+    console.error('Training analytics error:', error);
+    if (depthHost) depthHost.innerHTML = `<div class="state" style="grid-column:1/-1;color:var(--red)">Не удалось загрузить статистику обучения: ${esc(error.message)}</div>`;
+    toast('Ошибка статистики обучения: ' + error.message, 'e');
+  }
 }
 
 function notificationCategoryForType(type) {
