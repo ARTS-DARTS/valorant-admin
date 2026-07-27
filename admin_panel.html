@@ -2553,6 +2553,7 @@ const translatePendingContent = httpsCallable(functions, 'translatePendingConten
 const syncTranslationSources = httpsCallable(functions, 'syncTranslationSources');
 const getTranslationStats = httpsCallable(functions, 'getTranslationStats');
 const createSelectelVideoUpload = httpsCallable(functions, 'createSelectelVideoUpload');
+const adminSetAuthorTrainingProgress = httpsCallable(functions, 'adminSetAuthorTrainingProgress');
 
 const ADMIN_USERS_ANALYTICS_PAGE_SIZE = 1000;
 const ADMIN_USERS_ANALYTICS_MAX = 20000;
@@ -17422,6 +17423,21 @@ async function openUserProfilePanel(uid) {
   await _renderUserProfileInto(uid, panel);
 }
 
+async function adminToggleTrainingTask(uid, category, completed, panelId) {
+  const action = completed ? 'выдать прохождение и +5 очков' : 'сбросить прохождение и снять 5 очков';
+  if (!confirm(`Тест заданий: ${action}?`)) return;
+  try {
+    await adminSetAuthorTrainingProgress({ uid, category, completed });
+    toast(completed ? 'Задание выполнено, +5 очков начислено' : 'Задание сброшено, 5 очков снято', 'success');
+    const panel = document.getElementById(panelId);
+    if (panel) await _renderUserProfileInto(uid, panel);
+  } catch (error) {
+    console.error('admin training task', error);
+    toast(`Не удалось изменить задание: ${error.message || error}`, 'error');
+  }
+}
+window.adminToggleTrainingTask = adminToggleTrainingTask;
+
 async function _renderUserProfileInto(uid, panel) {
   try {
     const [userDoc, privateDoc, statsDoc, authDoc] = await Promise.all([
@@ -17497,6 +17513,14 @@ async function _renderUserProfileInto(uid, panel) {
         ? `+${countDiff} бонус/ручной счёт`
         : `${countDiff} к факту`;
     const countDiffColor = countDiff === 0 ? 'var(--green)' : countDiff > 0 ? 'var(--orange)' : 'var(--red)';
+    const trainingCategories = [
+      ['lineup', 'Лайнапы'],
+      ['defense', 'Защита'],
+      ['combo', 'Комбо'],
+      ['wallbang', 'Прострелы'],
+    ];
+    const trainingCompleted = privateUser.author_training_completed || {};
+    const trainingCompletedCount = trainingCategories.filter(([key]) => !!trainingCompleted[key]).length;
 
     if (!panel.id) panel.id = 'up-tmp-' + uid;
     const _panelId = panel.id;
@@ -17539,6 +17563,23 @@ async function _renderUserProfileInto(uid, panel) {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div class="form-title" style="margin:0;">👤 ${esc(u.name || '—')}</div>
           <span style="font-size:11px;color:var(--text2);">uid: ${uid.slice(0,8)}…</span>
+        </div>
+
+        <div style="margin-bottom:14px;padding:14px;border:1px solid var(--border);background:var(--surface2);">
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;">
+            <b style="color:var(--cyan);">🎯 Задания и получение очков</b>
+            <span style="color:var(--text2);font-size:11px;">${trainingCompletedCount}/4 · ${trainingCompletedCount * 5}/20 очков</span>
+          </div>
+          <div style="height:8px;margin-bottom:12px;overflow:hidden;background:#101827;border:1px solid var(--border);">
+            <i style="display:block;height:100%;width:${trainingCompletedCount / 4 * 100}%;background:linear-gradient(90deg,#21c8ff,#7a8cff,#ff6685);"></i>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;">
+            ${trainingCategories.map(([key, label]) => {
+              const done = !!trainingCompleted[key];
+              return `<button class="btn ${done ? 'btn-green' : 'btn-secondary'}" onclick="adminToggleTrainingTask('${uid}','${key}',${!done},'${_panelId}')">${done ? '✓' : '○'} ${label} · ${done ? 'сбросить −5' : 'выдать +5'}</button>`;
+            }).join('')}
+          </div>
+          <div style="margin-top:9px;color:var(--text2);font-size:10px;">Тестовый режим изменяет реальный прогресс и очки пользователя. Повторная выдача не начисляет награду дважды.</div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
