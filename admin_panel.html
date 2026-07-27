@@ -4675,6 +4675,10 @@ function _msgConversations(source = _msgAll) {
   return buildMessageConversations(source);
 }
 
+function _msgIsPermanent(m) {
+  return !!m?.user_id && m.id === `moderator_application_${m.user_id}`;
+}
+
 function startMessagesRealtime() {
   const list = document.getElementById('msg-list');
   if (_msgUnsub) return;
@@ -4758,7 +4762,7 @@ async function loadMessagesTabOnce() {
 async function _msgCleanupClosed() {
   const weekAgo = Date.now() - 7 * 864e5;
   const toDel = _msgAll.filter(m =>
-    m.status === 'closed' && m.closed_at?.toDate && m.closed_at.toDate().getTime() < weekAgo);
+    !_msgIsPermanent(m) && m.status === 'closed' && m.closed_at?.toDate && m.closed_at.toDate().getTime() < weekAgo);
   for (const m of toDel) {
     try {
       await auditDeleteDoc('feedback', m.id, { reason: 'closed_feedback_auto_cleanup', snapshot: m });
@@ -4874,7 +4878,7 @@ window._msgOpenReply = function(id) {
   const cat  = m.category || 'другое';
   const date = m.created_at?.toDate ? m.created_at.toDate().toLocaleString('ru-RU') : '—';
   const name = esc(m.username || (m.user_id ? m.user_id.slice(0,8) : 'Аноним'));
-  const permanent = !!m.user_id && id === `moderator_application_${m.user_id}`;
+  const permanent = _msgIsPermanent(m);
   const closed = !permanent && m.status === 'closed';
   const thread = _msgThread(m);
 
@@ -4990,7 +4994,7 @@ window._msgSendReply = async function(id) {
 
 window._msgCloseDialog = async function(id) {
   const m = _msgAll.find(x => x.id === id);
-  if (m?.user_id && id === `moderator_application_${m.user_id}`) {
+  if (_msgIsPermanent(m)) {
     toast('Главный чат с администрацией нельзя закрыть', 'i');
     return;
   }
