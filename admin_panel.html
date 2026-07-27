@@ -681,6 +681,7 @@
             </div>
           </div>
         </section>
+        <div class="site-presence-grid">
         <section class="site-presence-list-panel">
           <div class="site-presence-list-panel__head">
             <div>
@@ -693,6 +694,19 @@
             <div class="state">Ожидание данных…</div>
           </div>
         </section>
+        <section class="site-presence-list-panel site-presence-history-panel">
+          <div class="site-presence-list-panel__head">
+            <div>
+              <strong>ОФЛАЙН — БЫЛИ СЕГОДНЯ</strong>
+              <span>пользователи, которые уже вышли с сайта</span>
+            </div>
+            <span id="site-presence-today-count">—</span>
+          </div>
+          <div id="site-presence-today-list" class="site-presence-list">
+            <div class="state">Ожидание данных…</div>
+          </div>
+        </section>
+        </div>
       </div>
 
       <!-- ── Активность ── -->
@@ -3962,6 +3976,29 @@ function renderSitePresenceUsers(users = []) {
     </div>`;
   }).join('');
 }
+function renderSitePresenceHistory(users = []) {
+  users = users.filter(user => !user.online);
+  const host = document.getElementById('site-presence-today-list');
+  const count = document.getElementById('site-presence-today-count');
+  if (count) count.textContent = `${users.length} офлайн`;
+  if (!host) return;
+  if (!users.length) {
+    host.innerHTML = '<div class="site-presence-empty">Все сегодняшние посетители сейчас онлайн</div>';
+    return;
+  }
+  host.innerHTML = users.map(user => {
+    const name = String(user.display_name || 'Пользователь').trim() || 'Пользователь';
+    const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase().slice(0, 2) || '?';
+    const seenAt = Number(user.last_seen || 0);
+    const seen = seenAt ? new Date(seenAt).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }) : 'до обновления';
+    const page = SITE_PAGE_LABELS[user.page] || user.page || 'Сайт';
+    return `<div class="site-presence-user${user.online ? '' : ' is-offline'}">
+      <div class="site-presence-user__avatar">${esc(initials)}</div>
+      <div class="site-presence-user__identity"><strong>${esc(name)}</strong><span>${esc(page)}</span></div>
+      <div class="site-presence-user__seen"><i></i>${user.online ? 'сейчас онлайн' : `был в ${esc(seen)}`}</div>
+    </div>`;
+  }).join('');
+}
 function renderSiteOnlineBars() {
   const host = document.getElementById('site-live-bars');
   if (!host) return;
@@ -3990,6 +4027,7 @@ async function loadSiteOnlineCount() {
     const todayValue = document.getElementById('site-live-today');
     if (todayValue) todayValue.textContent = activeToday;
     renderSitePresenceUsers(Array.isArray(body.users) ? body.users : []);
+    renderSitePresenceHistory(Array.isArray(body.today_users) ? body.today_users : []);
     pill.classList.toggle('has-users', online > 0);
     _siteOnlineSamples.push(online);
     _siteOnlineSamples = _siteOnlineSamples.slice(-18);
@@ -4008,6 +4046,8 @@ async function loadSiteOnlineCount() {
     if (updated) updated.textContent = 'нет связи';
     const list = document.getElementById('site-presence-list');
     if (list) list.innerHTML = `<div class="site-presence-empty is-error">Ошибка загрузки: ${esc(error.message)}</div>`;
+    const history = document.getElementById('site-presence-today-list');
+    if (history) history.innerHTML = `<div class="site-presence-empty is-error">Ошибка загрузки: ${esc(error.message)}</div>`;
     pill.classList.remove('has-users');
     pill.title = error.message;
   }
