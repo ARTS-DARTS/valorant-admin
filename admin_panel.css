@@ -778,6 +778,10 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
 .site-presence-user {
   display: grid; grid-template-columns: 38px minmax(0,1fr) auto; align-items: center; gap: 11px;
   min-height: 58px; padding: 8px 16px; border-bottom: 1px solid rgba(111,137,177,.12);
+  cursor: pointer; transition: background .15s ease, border-color .15s ease;
+}
+.site-presence-user:hover, .site-presence-user:focus-visible {
+  outline: none; background: rgba(79,195,247,.07); box-shadow: inset 3px 0 0 var(--primary);
 }
 .site-presence-user:last-child { border-bottom: 0; }
 .site-presence-user__avatar {

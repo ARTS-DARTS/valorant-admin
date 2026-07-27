@@ -3969,7 +3969,7 @@ function renderSitePresenceUsers(users = []) {
     const ageSeconds = Math.max(0, Math.round((now - Number(user.last_seen || 0)) / 1000));
     const seen = ageSeconds < 15 ? 'только что' : ageSeconds < 60 ? `${ageSeconds} сек назад` : `${Math.ceil(ageSeconds / 60)} мин назад`;
     const page = SITE_PAGE_LABELS[user.page] || user.page || 'Сайт';
-    return `<div class="site-presence-user">
+    return `<div class="site-presence-user" role="button" tabindex="0" onclick="openUserProfilePanel(decodeURIComponent('${encodeURIComponent(user.uid)}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openUserProfilePanel(decodeURIComponent('${encodeURIComponent(user.uid)}'))}" title="Открыть профиль пользователя">
       <div class="site-presence-user__avatar">${esc(initials)}</div>
       <div class="site-presence-user__identity"><strong>${esc(name)}</strong><span>${esc(page)}</span></div>
       <div class="site-presence-user__seen"><i></i>${esc(seen)}</div>
@@ -3992,7 +3992,7 @@ function renderSitePresenceHistory(users = []) {
     const seenAt = Number(user.last_seen || 0);
     const seen = seenAt ? new Date(seenAt).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }) : 'до обновления';
     const page = SITE_PAGE_LABELS[user.page] || user.page || 'Сайт';
-    return `<div class="site-presence-user${user.online ? '' : ' is-offline'}">
+    return `<div class="site-presence-user${user.online ? '' : ' is-offline'}" role="button" tabindex="0" onclick="openUserProfilePanel(decodeURIComponent('${encodeURIComponent(user.uid)}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openUserProfilePanel(decodeURIComponent('${encodeURIComponent(user.uid)}'))}" title="Открыть профиль пользователя">
       <div class="site-presence-user__avatar">${esc(initials)}</div>
       <div class="site-presence-user__identity"><strong>${esc(name)}</strong><span>${esc(page)}</span></div>
       <div class="site-presence-user__seen"><i></i>${user.online ? 'сейчас онлайн' : `был в ${esc(seen)}`}</div>
