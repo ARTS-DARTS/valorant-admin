@@ -734,6 +734,10 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
 }
 .site-live-panel h3 { margin: 8px 0 4px; color: var(--text1); font-size: 17px; }
 .site-live-panel p { margin: 0; color: var(--text2); font-size: 11px; line-height: 1.55; }
+.site-live-panel__today {
+  margin-top: 14px; color: var(--text2); font-size: 11px;
+}
+.site-live-panel__today strong { color: #83f5aa; font: 800 13px monospace; }
 .site-live-panel__signal { display: flex; flex-direction: column; justify-content: space-between; }
 .site-live-panel__signal-head { justify-content: space-between; }
 .site-live-panel__signal-head span:last-child { color: var(--green); letter-spacing: 0; font-weight: 600; }
@@ -753,6 +757,39 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
   display: inline-block; width: 6px; height: 6px; margin-right: 4px;
   border-radius: 50%; background: var(--green);
 }
+.site-presence-list-panel {
+  overflow: hidden; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface);
+}
+.site-presence-list-panel__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.site-presence-list-panel__head strong { display: block; color: var(--text1); font-size: 12px; letter-spacing: .6px; }
+.site-presence-list-panel__head div span { display: block; margin-top: 3px; color: var(--text2); font-size: 10px; }
+.site-presence-list-panel__head > span {
+  padding: 5px 9px; border: 1px solid rgba(34,197,94,.3); border-radius: 14px;
+  color: #83f5aa; background: rgba(34,197,94,.08); font-size: 10px; font-weight: 800;
+}
+.site-presence-list { max-height: 360px; overflow-y: auto; }
+.site-presence-user {
+  display: grid; grid-template-columns: 38px minmax(0,1fr) auto; align-items: center; gap: 11px;
+  min-height: 58px; padding: 8px 16px; border-bottom: 1px solid rgba(111,137,177,.12);
+}
+.site-presence-user:last-child { border-bottom: 0; }
+.site-presence-user__avatar {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  color: #b8f7cd; background: linear-gradient(135deg, #123824, #17263d); font-size: 12px; font-weight: 900;
+}
+.site-presence-user__identity { min-width: 0; }
+.site-presence-user__identity strong, .site-presence-user__identity span {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.site-presence-user__identity strong { color: var(--text1); font-size: 12px; }
+.site-presence-user__identity span { margin-top: 4px; color: var(--text2); font-size: 10px; }
+.site-presence-user__seen { display: flex; align-items: center; gap: 6px; color: var(--text2); font-size: 10px; white-space: nowrap; }
+.site-presence-user__seen i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px rgba(34,197,94,.7); }
+.site-presence-empty { padding: 28px 16px; color: var(--text2); font-size: 11px; text-align: center; }
+.site-presence-empty.is-error { color: var(--red); }
 @media (max-width: 850px) {
   .site-live-panel { grid-template-columns: 1fr; }
   .site-online-button { margin-left: 0; }
