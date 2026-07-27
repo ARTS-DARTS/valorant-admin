@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-27-site-presence-columns-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-27-presence-profile-modal-v1">
 </head>
 <body>
 
@@ -2591,6 +2591,13 @@
   </div>
 </div>
 
+<div id="presence-profile-modal" class="presence-profile-overlay" aria-hidden="true">
+  <div class="presence-profile-dialog" role="dialog" aria-modal="true" aria-label="Профиль пользователя">
+    <button type="button" class="presence-profile-close" onclick="closePresenceUserProfile()" aria-label="Закрыть">✕</button>
+    <div id="presence-profile-content"></div>
+  </div>
+</div>
+
 <div id="lineup-detail-overlay">
   <div class="ld-card" id="lineup-detail-card"></div>
 </div>
@@ -3953,6 +3960,32 @@ const SITE_PAGE_LABELS = {
   'admin-chat':'Чат с администрацией',
   notifications:'Уведомления',
 };
+async function openPresenceUserProfile(uid) {
+  const modal = document.getElementById('presence-profile-modal');
+  const content = document.getElementById('presence-profile-content');
+  if (!modal || !content || !uid) return;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('presence-profile-open');
+  content.innerHTML = '<div class="state" style="padding:36px;">Загрузка профиля…</div>';
+  await _renderUserProfileInto(uid, content);
+}
+function closePresenceUserProfile() {
+  const modal = document.getElementById('presence-profile-modal');
+  modal?.classList.remove('open');
+  modal?.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('presence-profile-open');
+}
+window.openPresenceUserProfile = openPresenceUserProfile;
+window.closePresenceUserProfile = closePresenceUserProfile;
+document.getElementById('presence-profile-modal')?.addEventListener('click', event => {
+  if (event.target === event.currentTarget) closePresenceUserProfile();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && document.getElementById('presence-profile-modal')?.classList.contains('open')) {
+    closePresenceUserProfile();
+  }
+});
 function renderSitePresenceUsers(users = []) {
   const host = document.getElementById('site-presence-list');
   const count = document.getElementById('site-presence-count');
@@ -3969,7 +4002,7 @@ function renderSitePresenceUsers(users = []) {
     const ageSeconds = Math.max(0, Math.round((now - Number(user.last_seen || 0)) / 1000));
     const seen = ageSeconds < 15 ? 'только что' : ageSeconds < 60 ? `${ageSeconds} сек назад` : `${Math.ceil(ageSeconds / 60)} мин назад`;
     const page = SITE_PAGE_LABELS[user.page] || user.page || 'Сайт';
-    return `<div class="site-presence-user" role="button" tabindex="0" onclick="_nuOpenFullUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();_nuOpenFullUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))}" title="Открыть профиль пользователя">
+    return `<div class="site-presence-user" role="button" tabindex="0" onclick="openPresenceUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPresenceUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))}" title="Открыть профиль пользователя">
       <div class="site-presence-user__avatar">${esc(initials)}</div>
       <div class="site-presence-user__identity"><strong>${esc(name)}</strong><span>${esc(page)}</span></div>
       <div class="site-presence-user__seen"><i></i>${esc(seen)}</div>
@@ -3992,7 +4025,7 @@ function renderSitePresenceHistory(users = []) {
     const seenAt = Number(user.last_seen || 0);
     const seen = seenAt ? new Date(seenAt).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }) : 'до обновления';
     const page = SITE_PAGE_LABELS[user.page] || user.page || 'Сайт';
-    return `<div class="site-presence-user${user.online ? '' : ' is-offline'}" role="button" tabindex="0" onclick="_nuOpenFullUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();_nuOpenFullUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))}" title="Открыть профиль пользователя">
+    return `<div class="site-presence-user${user.online ? '' : ' is-offline'}" role="button" tabindex="0" onclick="openPresenceUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPresenceUserProfile(decodeURIComponent('${encodeURIComponent(user.uid)}'))}" title="Открыть профиль пользователя">
       <div class="site-presence-user__avatar">${esc(initials)}</div>
       <div class="site-presence-user__identity"><strong>${esc(name)}</strong><span>${esc(page)}</span></div>
       <div class="site-presence-user__seen"><i></i>${user.online ? 'сейчас онлайн' : `был в ${esc(seen)}`}</div>
