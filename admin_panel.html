@@ -12587,9 +12587,31 @@ async function refreshTranslationStats() {
   catch (e) { el.textContent = 'Не удалось загрузить статистику: ' + (e?.message || e); }
 }
 document.getElementById('btn-sync-translations')?.addEventListener('click', async () => {
-  const button = document.getElementById('btn-sync-translations'); if (!button) return; button.disabled = true;
-  try { const sources = await fetch('./localization_sources_ru.json', { cache: 'no-store' }).then(r => r.json()); const { data } = await syncTranslationSources({ sources }); toast(`Синхронизировано русских текстов: ${data.synced}`, 's'); await refreshTranslationStats(); }
-  catch (e) { toast('Ошибка синхронизации: ' + (e?.message || e), 'e'); } finally { button.disabled = false; }
+  const button = document.getElementById('btn-sync-translations');
+  if (!button || button.disabled) return;
+  button.disabled = true;
+  const original = button.innerHTML;
+  try {
+    const sources = await fetch('./localization_sources_ru.json', { cache: 'no-store' }).then(response => {
+      if (!response.ok) throw new Error(`Не удалось загрузить тексты: HTTP ${response.status}`);
+      return response.json();
+    });
+    const batchSize = 200;
+    let synced = 0;
+    for (let offset = 0; offset < sources.length; offset += batchSize) {
+      const batch = sources.slice(offset, offset + batchSize);
+      button.innerHTML = `<i class="bi bi-cloud-arrow-up"></i> Синхронизация ${Math.min(offset + batch.length, sources.length)} / ${sources.length}`;
+      const { data } = await syncTranslationSources({ sources: batch });
+      synced += Number(data?.synced || batch.length);
+    }
+    toast(`Синхронизировано русских текстов: ${synced}`, 's');
+    await refreshTranslationStats();
+  } catch (e) {
+    toast('Ошибка синхронизации: ' + (e?.message || e), 'e');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = original;
+  }
 });
 document.getElementById('btn-translate-content')?.addEventListener('click', async () => {
   const button = document.getElementById('btn-translate-content');
