@@ -56,7 +56,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-      <span class="admin-version" id="admin-build-version">training-analytics-v1 | 2026-07-27 08:35</span>
+      <span class="admin-version" id="admin-build-version">site-online-split-v1 | 2026-07-27 08:48</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -603,7 +603,7 @@
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
           <button class="an-tab-btn" data-an-tab="notifications">🔔 Уведомления</button>
           <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
-          <button type="button" class="site-online-button" id="site-online-pill" data-an-tab="activity" aria-label="Открыть статистику онлайна сайта">
+          <button type="button" class="site-online-button" id="site-online-pill" data-an-tab="online" aria-label="Открыть статистику онлайна сайта">
             <span class="site-online-button__dot" aria-hidden="true"></span>
             <span>Онлайн сайта:</span>
             <strong id="site-online-pill-value">—</strong>
@@ -646,10 +646,10 @@
         </div>
       </div>
 
-      <!-- ── Активность ── -->
-      <div id="an-section-activity" class="an-section" style="display:none;">
+      <!-- ── Онлайн сайта ── -->
+      <div id="an-section-online" class="an-section" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
-          <div class="form-title" style="margin:0;">👥 ОНЛАЙН / АКТИВНОСТЬ — последние 30 дней</div>
+          <div class="form-title" style="margin:0;">🟢 ОНЛАЙН САЙТА</div>
           <div class="an-live"><span class="an-live-dot"></span>обновляется автоматически</div>
         </div>
         <section class="site-live-panel" aria-labelledby="site-live-title">
@@ -671,6 +671,14 @@
             </div>
           </div>
         </section>
+      </div>
+
+      <!-- ── Активность ── -->
+      <div id="an-section-activity" class="an-section" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <div class="form-title" style="margin:0;">👥 АКТИВНОСТЬ ПРИЛОЖЕНИЯ — последние 30 дней</div>
+          <div class="an-live">ручное обновление</div>
+        </div>
         <div class="an-cards" id="ses-stat-cards">
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">DAU (сегодня)</div></div>
           <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">WAU (7 дней)</div></div>
@@ -13124,7 +13132,7 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
     const tab = btn.dataset.anTab;
     document.querySelectorAll('[data-an-tab]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['ads','activity','training','users','content','notifications','storage'].forEach(id => {
+    ['ads','activity','online','training','users','content','notifications','storage'].forEach(id => {
       const el = document.getElementById('an-section-' + id);
       if (el) el.style.display = (id === tab) ? 'block' : 'none';
     });
