@@ -527,6 +527,16 @@
               <textarea class="ftextarea" id="cl-result" placeholder="Здесь появится готовый пост…" style="min-height:160px;"></textarea>
             </div>
 
+            <div class="fg" style="margin-bottom:12px;">
+              <label class="flabel">Кнопка в новости (необязательно)</label>
+              <div style="display:grid;grid-template-columns:minmax(130px,.65fr) minmax(180px,1.35fr) auto;gap:8px;">
+                <input class="finput" id="cl-button-text" placeholder="Например: Telegram">
+                <input class="finput" id="cl-button-url" type="url" placeholder="https://t.me/Vlineups">
+                <button class="btn" id="cl-telegram-btn" type="button" title="Заполнить кнопку Telegram" style="white-space:nowrap;">✈ Telegram</button>
+              </div>
+              <div style="font-size:11px;color:var(--text2);margin-top:6px;">Кнопка появится под текстом новости в приложении.</div>
+            </div>
+
             <label id="cl-push-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;cursor:pointer;user-select:none;">
               <input type="checkbox" id="cl-send-push" checked style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
               <span style="font-size:13px;color:var(--text);">🔔 Отправить пуш всем пользователям</span>
@@ -12803,6 +12813,8 @@ function clResetEditor() {
   clEditingId = null;
   document.getElementById('cl-raw').value = '';
   document.getElementById('cl-result').value = '';
+  document.getElementById('cl-button-text').value = '';
+  document.getElementById('cl-button-url').value = '';
   document.getElementById('cl-publish-btn').disabled = true;
   document.getElementById('cl-publish-btn').textContent = '📢 Опубликовать';
   document.getElementById('cl-form-title').textContent = '✍️ НАПИСАТЬ НОВОСТЬ';
@@ -12891,9 +12903,29 @@ document.getElementById('cl-clear-btn')?.addEventListener('click', () => {
 
 document.getElementById('cl-edit-cancel')?.addEventListener('click', clResetEditor);
 
+document.getElementById('cl-telegram-btn')?.addEventListener('click', () => {
+  document.getElementById('cl-button-text').value = 'Telegram';
+  document.getElementById('cl-button-url').value = 'https://t.me/Vlineups';
+});
+
 document.getElementById('cl-publish-btn')?.addEventListener('click', async () => {
   const text = document.getElementById('cl-result')?.value.trim();
   if (!text) { toast('\u041f\u043e\u0441\u0442 \u043f\u0443\u0441\u0442\u043e\u0439', 'e'); return; }
+  const buttonText = document.getElementById('cl-button-text')?.value.trim() || '';
+  const buttonUrl = document.getElementById('cl-button-url')?.value.trim() || '';
+  if ((buttonText && !buttonUrl) || (!buttonText && buttonUrl)) {
+    toast('Для кнопки нужны и название, и ссылка', 'e');
+    return;
+  }
+  if (buttonUrl) {
+    try {
+      const parsedUrl = new URL(buttonUrl);
+      if (!['https:', 'http:'].includes(parsedUrl.protocol)) throw new Error('unsupported protocol');
+    } catch (_) {
+      toast('Укажи полную ссылку, начинающуюся с https://', 'e');
+      return;
+    }
+  }
   const lines     = text.split('\n');
   const firstLine = lines[0] || '';
   const titleMatch = firstLine.match(/^[^\w\u0400-\u04FF]*([\w\u0400-\u04FF].+)$/);
@@ -12906,6 +12938,8 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
     if (clEditingId) {
       await updateDoc(doc(db, 'changelog', clEditingId), {
         title, body: text, type: clType, emoji: tpl.emoji, label: tpl.label,
+        button_text: buttonText,
+        button_url: buttonUrl,
         translations: contentTranslations,
         updated_at: serverTimestamp(),
         edited_by: currentUser?.displayName || currentUser?.email || 'Admin',
@@ -12917,6 +12951,8 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
     }
     await addDoc(collection(db, 'changelog'), {
       title, body: text, type: clType, emoji: tpl.emoji, label: tpl.label,
+      button_text: buttonText,
+      button_url: buttonUrl,
       translations: contentTranslations,
       published_at: serverTimestamp(),
       author: currentUser?.displayName || currentUser?.email || 'Admin',
@@ -12994,6 +13030,7 @@ function clPostHtml(id, d) {
     + '<span>\uD83D\uDC64 ' + esc(d.author || 'Admin') + '</span>'
     + '</div>'
     + '<div class="cl-post-body">' + esc(d.body || '') + '</div>'
+    + (d.button_url ? '<div style="margin-top:10px;font-size:11px;color:var(--cyan);">🔗 ' + esc(d.button_text || 'Открыть') + ' · ' + esc(d.button_url) + '</div>' : '')
     + '</div>';
 }
 
@@ -13004,6 +13041,8 @@ function clEditPost(id) {
   clSelectType(post.type || 'update');
   document.getElementById('cl-raw').value = '';
   document.getElementById('cl-result').value = post.body || '';
+  document.getElementById('cl-button-text').value = post.button_text || '';
+  document.getElementById('cl-button-url').value = post.button_url || '';
   document.getElementById('cl-publish-btn').disabled = !(post.body || '').trim();
   document.getElementById('cl-publish-btn').textContent = '💾 Сохранить изменения';
   document.getElementById('cl-form-title').textContent = '✏️ РЕДАКТИРОВАТЬ НОВОСТЬ';
