@@ -95,6 +95,11 @@ export function buildMessageConversations(source) {
 
   for (const item of source) {
     if (consumed.has(item.id)) continue;
+    if (item.source === 'admin_message') {
+      result.push(item);
+      consumed.add(item.id);
+      continue;
+    }
     const canonical =
       item.user_id && applicationByUser.get(item.user_id);
     if (canonical && canonical.id !== item.id) {
@@ -110,6 +115,7 @@ export function buildMessageConversations(source) {
     const parts = source.filter(
       (other) =>
         other.user_id === canonical.user_id &&
+        other.source !== 'admin_message' &&
         other.status !== 'closed',
     );
     parts.forEach((part) => consumed.add(part.id));

@@ -95,6 +95,31 @@ test('merges moderator application feedback by user and deduplicates thread', ()
   assert.equal(conversations[0].admin_unread, true);
 });
 
+test('keeps a direct admin chat separate from a moderator application', () => {
+  const conversations = buildMessageConversations([
+    {
+      id: 'admin_chat_u1',
+      user_id: 'u1',
+      source: 'admin_message',
+      text: 'Чат с администрацией',
+      thread: [{ from: 'admin', text: 'Привет', ts: 30 }],
+      created_at: 30,
+    },
+    {
+      id: 'moderator_application_u1',
+      user_id: 'u1',
+      source: 'moderator_application',
+      text: 'Хочу помогать',
+      created_at: 10,
+    },
+  ]);
+  assert.deepEqual(
+    conversations.map((item) => item.id),
+    ['admin_chat_u1', 'moderator_application_u1'],
+  );
+  assert.equal(conversations[0].thread[0].text, 'Привет');
+});
+
 test('filters conversations by state and localized search', () => {
   const conversations = [
     {

@@ -4955,7 +4955,7 @@ function startMessagesRealtime() {
   if (_msgUnsub) return;
   _msgHousekeepingDone = false;
   list.innerHTML = '<div class="state" style="padding:20px;color:var(--text2);">Загрузка…</div>';
-  const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(80));
+  const q = query(collection(db, 'feedback'), orderBy('created_at', 'desc'), limit(300));
   _msgUnsub = onSnapshot(q, async snap => {
     if (_msgLoaded && snap.docChanges().length === 0) return;
     const activeBefore = _msgConversations().find(item => item.id === _msgActiveId);
