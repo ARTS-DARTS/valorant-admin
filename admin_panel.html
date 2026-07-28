@@ -803,7 +803,10 @@
               <div class="dlabel" style="margin:0 0 4px;">Подписки на агентов</div>
               <div style="font-size:11px;color:var(--text2);">Считает документы <code>users/{uid}/subscriptions/*</code>. Запускай вручную, чтобы не тратить квоту зря.</div>
             </div>
-            <button class="btn" id="subs-load-btn" style="border:1px solid var(--border);color:var(--text2);">Обновить подписки</button>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;">
+              <button class="btn" id="subs-toggle-btn" type="button" aria-expanded="true" style="border:1px solid var(--border);color:var(--text2);">Скрыть список</button>
+              <button class="btn" id="subs-load-btn" style="border:1px solid var(--border);color:var(--text2);">Обновить подписки</button>
+            </div>
           </div>
           <div class="an-cards" id="subs-stat-cards" style="margin-bottom:12px;">
             <div class="an-card"><div class="an-val" id="subs-users">—</div><div class="an-lbl">Пользователей</div></div>
@@ -13583,6 +13586,27 @@ async function loadAgentSubscriptionAnalytics() {
   }
 }
 document.getElementById('subs-load-btn')?.addEventListener('click', loadAgentSubscriptionAnalytics);
+const SUBS_LIST_COLLAPSED_KEY = 'admin_subscriptions_list_collapsed_v1';
+function setSubscriptionsListCollapsed(collapsed, persist = true) {
+  const list = document.getElementById('subs-agent-list');
+  const button = document.getElementById('subs-toggle-btn');
+  if (!list || !button) return;
+  list.style.display = collapsed ? 'none' : 'grid';
+  button.textContent = collapsed ? 'Показать список' : 'Скрыть список';
+  button.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  if (persist) {
+    try { localStorage.setItem(SUBS_LIST_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch (_) {}
+  }
+}
+document.getElementById('subs-toggle-btn')?.addEventListener('click', () => {
+  const collapsed = document.getElementById('subs-agent-list')?.style.display === 'none';
+  setSubscriptionsListCollapsed(!collapsed);
+});
+try {
+  setSubscriptionsListCollapsed(localStorage.getItem(SUBS_LIST_COLLAPSED_KEY) === '1', false);
+} catch (_) {
+  setSubscriptionsListCollapsed(false, false);
+}
 
 function _nuFmtDuration(sec) {
   if (!sec || sec < 60) return sec ? `${sec} сек` : '—';
