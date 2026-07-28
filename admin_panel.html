@@ -2641,7 +2641,7 @@ import {
   signOut, onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
-  getFirestore, collection, collectionGroup, getDocs, getDoc, doc, setDoc,
+  getFirestore, collection, collectionGroup, getDocs, getDoc, getDocFromServer, doc, setDoc,
   updateDoc, deleteDoc, addDoc, query, orderBy, where, or, limit, startAfter,
   serverTimestamp, increment, getCountFromServer, onSnapshot, writeBatch, arrayUnion, runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -17958,7 +17958,7 @@ async function adminToggleTrainingTask(uid, category, completed, panelId) {
     await adminSetAuthorTrainingProgress({ uid, category, completed });
     toast(completed ? 'Задание выполнено, +5 очков начислено' : 'Задание сброшено, 5 очков снято', 'success');
     const panel = document.getElementById(panelId);
-    if (panel) await _renderUserProfileInto(uid, panel);
+    if (panel) await _renderUserProfileInto(uid, panel, { forceTrainingRefresh: true });
   } catch (error) {
     console.error('admin training task', error);
     toast(`Не удалось изменить задание: ${error.message || error}`, 'error');
@@ -17966,11 +17966,13 @@ async function adminToggleTrainingTask(uid, category, completed, panelId) {
 }
 window.adminToggleTrainingTask = adminToggleTrainingTask;
 
-async function _renderUserProfileInto(uid, panel) {
+async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false } = {}) {
   try {
     const [userDoc, privateDoc, statsDoc, authDoc] = await Promise.all([
       getDoc(doc(db, 'users', uid)),
-      getDoc(doc(db, 'user_private', uid)),
+      forceTrainingRefresh
+        ? getDocFromServer(doc(db, 'user_private', uid))
+        : getDoc(doc(db, 'user_private', uid)),
       getDoc(doc(db, 'user_stats', uid)),
       getDoc(doc(db, 'user_auth_links', uid)),
     ]);
