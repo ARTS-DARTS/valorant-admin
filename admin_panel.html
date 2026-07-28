@@ -4943,7 +4943,10 @@ function _msgConversations(source = _msgAll) {
 }
 
 function _msgIsPermanent(m) {
-  return !!m?.user_id && m.id === `moderator_application_${m.user_id}`;
+  return !!m?.user_id && (
+    m.id === `moderator_application_${m.user_id}` ||
+    m.id === `admin_chat_${m.user_id}`
+  );
 }
 
 function startMessagesRealtime() {
@@ -18611,15 +18614,66 @@ async function deleteUserAccount(uid, name) {
 async function sendMessageToUser(uid, name) {
   const msg = prompt(`Сообщение для ${name}:`);
   if (!msg) return;
+  const text = msg.trim();
+  if (!text) return;
+  if (text.length > 500) {
+    toast('Сообщение должно быть не длиннее 500 символов', 'e');
+    return;
+  }
+  const sentAt = Date.now();
+  const chatId = `admin_chat_${uid}`;
+  const chatRef = doc(db, 'feedback', chatId);
   try {
-    await sendPushNotification({
-      title:     '💬 Сообщение от администратора',
-      body:      msg,
-      type:      'admin_message',
-      targetUid: uid,
+    await runTransaction(db, async tx => {
+      const snapshot = await tx.get(chatRef);
+      const adminMessage = { from:'admin', text, ts:sentAt };
+      if (snapshot.exists()) {
+        tx.update(chatRef, {
+          username: name || snapshot.data().username || uid.slice(0, 8),
+          thread: arrayUnion(adminMessage),
+          reply: text,
+          reply_read: false,
+          user_unread: true,
+          admin_unread: false,
+          is_read: true,
+          last_from: 'admin',
+          status: 'open',
+          created_at: serverTimestamp(),
+          replied_at: serverTimestamp(),
+          closed_at: null,
+        });
+      } else {
+        tx.set(chatRef, {
+          text,
+          category: 'администрация',
+          username: name || uid.slice(0, 8),
+          user_id: uid,
+          source: 'admin_message',
+          thread: [adminMessage],
+          reply: text,
+          reply_read: false,
+          user_unread: true,
+          admin_unread: false,
+          is_read: true,
+          last_from: 'admin',
+          status: 'open',
+          created_at: serverTimestamp(),
+          replied_at: serverTimestamp(),
+        });
+      }
     });
-    toast(`Сообщение отправлено ${name} ✅`, 's');
-    addAuditLog(`Отправлено сообщение пользователю ${name}: ${msg.slice(0, 50)}`);
+    try {
+      await sendPushNotification({
+        title:     '💬 Сообщение от администратора',
+        body:      text,
+        type:      'admin_message',
+        targetUid: uid,
+      });
+      toast(`Сообщение сохранено в диалоге и отправлено ${name} ✅`, 's');
+    } catch (pushError) {
+      toast(`Сообщение сохранено в диалоге, но push не ушёл: ${pushError.message}`, 'e');
+    }
+    addAuditLog(`Отправлено сообщение пользователю ${name}: ${text.slice(0, 50)}`);
   } catch (e) {
     toast(`Ошибка отправки: ${e.message}`, 'e');
   }
