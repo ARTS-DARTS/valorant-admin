@@ -5229,7 +5229,8 @@ window._msgSendReply = async function(id) {
     await updateDoc(doc(db, 'feedback', id), {
       thread: arrayUnion(adminMsg),
       reply, reply_read: false, user_unread: true, is_read: true,
-      last_from: 'admin', admin_unread: false, replied_at: serverTimestamp(),
+      last_from: 'admin', admin_unread: false, status: 'open',
+      created_at: serverTimestamp(), replied_at: serverTimestamp(),
     });
     if (m) {
       m.reply = reply; m.is_read = true; m.admin_unread = false;
@@ -18612,70 +18613,45 @@ async function deleteUserAccount(uid, name) {
 }
 
 async function sendMessageToUser(uid, name) {
-  const msg = prompt(`Сообщение для ${name}:`);
-  if (!msg) return;
-  const text = msg.trim();
-  if (!text) return;
-  if (text.length > 500) {
-    toast('Сообщение должно быть не длиннее 500 символов', 'e');
-    return;
-  }
-  const sentAt = Date.now();
   const chatId = `admin_chat_${uid}`;
   const chatRef = doc(db, 'feedback', chatId);
   try {
-    await runTransaction(db, async tx => {
-      const snapshot = await tx.get(chatRef);
-      const adminMessage = { from:'admin', text, ts:sentAt };
-      if (snapshot.exists()) {
-        tx.update(chatRef, {
-          username: name || snapshot.data().username || uid.slice(0, 8),
-          thread: arrayUnion(adminMessage),
-          reply: text,
-          reply_read: false,
-          user_unread: true,
-          admin_unread: false,
-          is_read: true,
-          last_from: 'admin',
-          status: 'open',
-          created_at: serverTimestamp(),
-          replied_at: serverTimestamp(),
-          closed_at: null,
-        });
-      } else {
-        tx.set(chatRef, {
-          text,
-          category: 'администрация',
-          username: name || uid.slice(0, 8),
-          user_id: uid,
-          source: 'admin_message',
-          thread: [adminMessage],
-          reply: text,
-          reply_read: false,
-          user_unread: true,
-          admin_unread: false,
-          is_read: true,
-          last_from: 'admin',
-          status: 'open',
-          created_at: serverTimestamp(),
-          replied_at: serverTimestamp(),
-        });
-      }
-    });
-    try {
-      await sendPushNotification({
-        title:     '💬 Сообщение от администратора',
-        body:      text,
-        type:      'admin_message',
-        targetUid: uid,
+    let snapshot = await getDoc(chatRef);
+    if (!snapshot.exists()) {
+      await setDoc(chatRef, {
+        text: 'Чат с администрацией',
+        category: 'администрация',
+        username: name || uid.slice(0, 8),
+        user_id: uid,
+        source: 'admin_message',
+        thread: [],
+        reply: null,
+        reply_read: true,
+        user_unread: false,
+        admin_unread: false,
+        is_read: true,
+        last_from: 'admin',
+        status: 'open',
+        created_at: serverTimestamp(),
       });
-      toast(`Сообщение сохранено в диалоге и отправлено ${name} ✅`, 's');
-    } catch (pushError) {
-      toast(`Сообщение сохранено в диалоге, но push не ушёл: ${pushError.message}`, 'e');
+      snapshot = await getDoc(chatRef);
+    } else if (snapshot.data().status === 'closed') {
+      await updateDoc(chatRef, {
+        status: 'open',
+        closed_at: null,
+        username: name || snapshot.data().username || uid.slice(0, 8),
+      });
+      snapshot = await getDoc(chatRef);
     }
-    addAuditLog(`Отправлено сообщение пользователю ${name}: ${text.slice(0, 50)}`);
+    const chat = { id:chatId, ...snapshot.data() };
+    const existing = _msgAll.findIndex(item => item.id === chatId);
+    if (existing >= 0) _msgAll[existing] = chat;
+    else _msgAll.unshift(chat);
+    switchTab('messages');
+    _msgOpenReply(chatId);
+    document.getElementById('msg-reply-text')?.focus();
   } catch (e) {
-    toast(`Ошибка отправки: ${e.message}`, 'e');
+    toast(`Не удалось открыть чат: ${e.message}`, 'e');
   }
 }
 

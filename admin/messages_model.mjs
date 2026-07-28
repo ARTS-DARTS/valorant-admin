@@ -26,6 +26,13 @@ export function messageThread(message) {
       ts: message.replied_at || message.updated_at,
     }) || createdAt;
 
+  if (
+    message.source === 'admin_message' &&
+    (!Array.isArray(message.thread) || message.thread.length === 0)
+  ) {
+    return [];
+  }
+
   if (Array.isArray(message.thread) && message.thread.length) {
     const thread = [...message.thread];
     const originalText = String(message.text || '').trim();

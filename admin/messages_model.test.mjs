@@ -58,6 +58,14 @@ test('does not invent a user message for an admin-initiated chat', () => {
   assert.deepEqual(thread, [
     { from: 'admin', text: 'Сообщение от администратора', ts: 10 },
   ]);
+  assert.deepEqual(
+    messageThread({
+      source: 'admin_message',
+      text: 'Чат с администрацией',
+      thread: [],
+    }),
+    [],
+  );
 });
 
 test('merges moderator application feedback by user and deduplicates thread', () => {
