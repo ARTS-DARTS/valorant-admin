@@ -12943,19 +12943,6 @@ function _admCardHtml(a, panelTarget) {
       ${isSelf ? `<span style="color:var(--text2);font-size:11px;">(вы)</span>` : ''}
     </div>
   </div>
-  <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;flex-wrap:wrap;" onclick="event.stopPropagation()">
-    <button class="btn-pioneer ${isPioneer ? 'active' : ''}"
-        data-pioneer-uid="${esc(a.uid)}"
-        data-pioneer-name="${esc(nameVal)}"
-        data-pioneer-current="${isPioneer}">
-      ${isPioneer ? '⚡ Снять Pioneer' : '⚡ Выдать Pioneer'}
-    </button>
-    ${!isSelf
-      ? `<button class="btn btn-delete" style="flex-shrink:0;"
-           data-adm-uid="${esc(a.uid)}"
-           data-adm-name="${esc(nameVal)}">Удалить доступ</button>`
-      : ''}
-  </div>
 </div>`;
 }
 
@@ -12966,12 +12953,6 @@ function _bindAdmListEvents(el) {
       card.classList.add('selected');
       openUserProfileInPanel(card.dataset.openUid, card.dataset.openPanel);
     });
-  });
-  el.querySelectorAll('[data-adm-uid]').forEach(btn => {
-    btn.addEventListener('click', () => removeAdminAccess(btn.dataset.admUid, btn.dataset.admName));
-  });
-  el.querySelectorAll('[data-pioneer-uid]').forEach(btn => {
-    btn.addEventListener('click', () => togglePioneer(btn.dataset.pioneerUid, btn.dataset.pioneerCurrent === 'true', btn.dataset.pioneerName));
   });
 }
 
@@ -12999,14 +12980,18 @@ async function openUserProfileInPanel(uid, panelId) {
   await _renderUserProfileInto(uid, panel);
 }
 
-async function togglePioneer(uid, currentIsBeta, name) {
+async function togglePioneer(uid, currentIsBeta, name, panelId) {
   const newVal = !currentIsBeta;
-  if (!confirm(`${newVal ? 'Выдать' : 'Снять'} бейдж Pioneer для ${name}?`)) return;
+  if (!confirm(`${newVal ? 'Выдать' : 'Снять'} награду Pioneer для ${name}?`)) return;
   try {
     await updateDoc(doc(db, 'users', uid), { is_beta: newVal });
-    const idx = admins.findIndex(a => a.uid === uid);
-    if (idx !== -1) admins[idx].is_beta = newVal;
+    const admin = admins.find(item => item.uid === uid);
+    if (admin) admin.is_beta = newVal;
     renderAdmins();
+    renderModerators();
+    const panel = document.getElementById(panelId);
+    if (panel) await _renderUserProfileInto(uid, panel);
+    addAuditLog(`${newVal ? 'Выдана' : 'Снята'} награда Pioneer пользователю ${uid}`);
     toast(`${newVal ? '⚡ Pioneer выдан' : 'Pioneer снят'} для ${name}`, 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
@@ -18245,6 +18230,9 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
             ? `<button class="btn btn-reject" onclick="banUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🚫 Заблокировать</button>`
             : `<button class="btn btn-approve" onclick="unbanUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">✅ Разблокировать</button>`
           }
+          ${['admin', 'moderator'].includes(u.role) && uid !== currentUser?.uid
+            ? `<button class="btn btn-delete" onclick="removeAdminAccess('${uid}','${esc(u.name||u.displayName||'')}')" style="font-size:12px;padding:7px 12px;">Удалить доступ</button>`
+            : ''}
           <button class="btn btn-delete" onclick="deleteUserAccount('${uid}','${esc(u.name||'')}')" style="font-size:12px;padding:7px 12px;">🗑 Удалить аккаунт</button>
         </div>
 
@@ -18252,7 +18240,11 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
           <div style="font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Бейджи</div>
           <div id="badges-list-${uid}" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;min-height:28px;"></div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            ${['pioneer','youtuber','twitch','tiktok','sponsor'].map(type => {
+            <button class="btn-pioneer ${u.is_beta === true ? 'active' : ''}"
+                    onclick="togglePioneer('${uid}',${u.is_beta === true},'${esc(u.name||u.displayName||'')}','${_panelId}')">
+              ${u.is_beta === true ? '⚡ Снять Pioneer' : '⚡ Выдать Pioneer'}
+            </button>
+            ${['youtuber','twitch','tiktok','sponsor'].map(type => {
               const col = BADGE_COLOR[type] || '#888';
               const emo = BADGE_EMOJI[type] || '⭐';
               return `<button onclick="grantBadge('${uid}','${type}')"
@@ -18354,7 +18346,9 @@ async function verifyUserAccount(uid, name, panelId) {
 
 async function loadUserBadges(uid) {
   const snap = await getDoc(doc(db, 'user_badges', uid));
-  const badges = snap.exists() ? (snap.data().badges || []) : [];
+  const badges = snap.exists()
+    ? (snap.data().badges || []).filter(badge => badge.type !== 'pioneer')
+    : [];
   renderUserBadges(uid, badges);
   return badges;
 }
@@ -18379,6 +18373,10 @@ function renderUserBadges(uid, badges) {
 }
 
 async function grantBadge(uid, type) {
+  if (type === 'pioneer') {
+    toast('Pioneer выдаётся главной кнопкой в панели пользователя', 'w');
+    return;
+  }
   await requireUsableUserName(uid);
   let url = null;
   if (['youtuber','twitch','tiktok'].includes(type)) {
@@ -18761,6 +18759,8 @@ window.unbanUserAccount   = unbanUserAccount;
 window.deleteUserAccount  = deleteUserAccount;
 window.sendMessageToUser  = sendMessageToUser;
 window.switchUserCat      = switchUserCat;
+window.togglePioneer      = togglePioneer;
+window.removeAdminAccess  = removeAdminAccess;
 window.publishAllHot      = publishAllHot;
 window._msSwitchTheme     = _msSwitchTheme;
 window._deleteLog         = _deleteLog;
