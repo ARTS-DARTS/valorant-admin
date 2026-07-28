@@ -4922,6 +4922,7 @@ let _msgHousekeepingDone = false;
 let _msgActiveId = null;
 let _msgSoundReady = false;
 let _msgLastUnreadCount = 0;
+const _msgDirectChatUsers = new Map();
 const _msgSound = new Audio('https://vlineups.ru/assets/audio/chat-message.mp3');
 _msgSound.preload = 'auto';
 _msgSound.volume = .55;
@@ -5216,7 +5217,10 @@ window._msgOpenReply = function(id) {
 };
 
 window._msgSendReply = async function(id) {
-  const m = _msgAll.find(x => x.id === id);
+  let m = _msgConversations().find(x => x.id === id);
+  const directUid = id.startsWith('admin_chat_') ? id.slice('admin_chat_'.length) : '';
+  const directUser = directUid ? _msgDirectChatUsers.get(directUid) : null;
+  const targetUid = m?.user_id || directUid || null;
   const reply = document.getElementById('msg-reply-text').value.trim();
   if (!reply) { toast('Введи текст ответа', 'e'); return; }
   const sendPush = document.getElementById('msg-reply-push')?.checked;
@@ -5226,20 +5230,38 @@ window._msgSendReply = async function(id) {
   const adminMsg = { from: 'admin', text: reply, ts: sentAt };
   const previousThread = m ? _msgThread(m) : [];
   try {
-    await updateDoc(doc(db, 'feedback', id), {
+    await setDoc(doc(db, 'feedback', id), {
+      text: m?.text || 'Чат с администрацией',
+      category: m?.category || 'администрация',
+      username: m?.username || directUser?.name || (targetUid ? targetUid.slice(0, 8) : 'Пользователь'),
+      user_id: targetUid,
+      source: m?.source || 'admin_message',
       thread: arrayUnion(adminMsg),
       reply, reply_read: false, user_unread: true, is_read: true,
       last_from: 'admin', admin_unread: false, status: 'open',
       created_at: serverTimestamp(), replied_at: serverTimestamp(),
-    });
+    }, { merge: true });
+    if (!m) {
+      m = {
+        id,
+        text: 'Чат с администрацией',
+        category: 'администрация',
+        username: directUser?.name || (targetUid ? targetUid.slice(0, 8) : 'Пользователь'),
+        user_id: targetUid,
+        source: 'admin_message',
+        status: 'open',
+        thread: [],
+      };
+      _msgAll.unshift(m);
+    }
     if (m) {
       m.reply = reply; m.is_read = true; m.admin_unread = false;
       m.last_from = 'admin';
       m.replied_at = { toDate: () => new Date(sentAt), toMillis: () => sentAt };
       m.thread = [...previousThread, adminMsg];
     }
-    if (sendPush && m?.user_id) {
-      _ncTargetUid = m.user_id;
+    if (sendPush && targetUid) {
+      _ncTargetUid = targetUid;
       try {
         await sendPushNotification({
           title: '💬 Ответ от администратора',
@@ -18615,6 +18637,7 @@ async function deleteUserAccount(uid, name) {
 async function sendMessageToUser(uid, name) {
   const chatId = `admin_chat_${uid}`;
   const chatRef = doc(db, 'feedback', chatId);
+  _msgDirectChatUsers.set(uid, { name:name || uid.slice(0, 8) });
   try {
     let snapshot = await getDoc(chatRef);
     if (!snapshot.exists()) {
