@@ -1219,6 +1219,27 @@
       <div class="form-title">🎯 РАДИУСЫ СПОСОБНОСТЕЙ</div>
       <p style="color:var(--text2);font-size:13px;margin-bottom:20px;">Выбери карту, агента и способность. Настрой размер круга ползунком — он отображается на миникарте когда анимация траектории завершается.</p>
 
+      <div style="margin-bottom:20px;padding:16px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);">🎬 АНИМАЦИЯ НА КАРТЕ</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:4px;">Время прорисовки траектории и появления радиуса после неё.</div>
+          </div>
+          <span id="rng-animation-status" style="font-size:11px;color:var(--text2);white-space:nowrap;"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) auto;gap:12px;align-items:end;">
+          <label>
+            <span style="display:block;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Траектория, мс</span>
+            <input id="rng-trajectory-duration" class="finput" type="number" min="150" max="5000" step="50" value="600">
+          </label>
+          <label>
+            <span style="display:block;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Появление радиуса, мс</span>
+            <input id="rng-range-duration" class="finput" type="number" min="100" max="3000" step="50" value="400">
+          </label>
+          <button id="rng-animation-save" class="btn btn-save" style="height:38px;padding:0 18px;">💾 Сохранить время</button>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:300px 1fr;gap:24px;align-items:start;">
 
         <!-- ── Левая колонка: выборы + контролы ── -->
@@ -18678,10 +18699,64 @@ async function loadRangesTab() {
   _rngBuildMapSelector();
   _rngBuildAgentGrid();
   if (!_rngInited) { _rngWireEvents(); _rngInited = true; }
+  rngLoadAnimationConfig();
   rngLoadList();
 }
 
+function _rngAnimationMs(value, fallback, min, max) {
+  const parsed = Math.round(Number(value));
+  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, parsed)) : fallback;
+}
+
+async function rngLoadAnimationConfig() {
+  const status = document.getElementById('rng-animation-status');
+  if (status) status.textContent = 'загрузка…';
+  try {
+    const snapshot = await getDoc(doc(db, 'settings', 'map_animation'));
+    const data = snapshot.exists() ? snapshot.data() : {};
+    document.getElementById('rng-trajectory-duration').value =
+      _rngAnimationMs(data.trajectory_duration_ms, 600, 150, 5000);
+    document.getElementById('rng-range-duration').value =
+      _rngAnimationMs(data.range_duration_ms, 400, 100, 3000);
+    if (status) status.textContent = snapshot.exists() ? 'настройки загружены' : 'по умолчанию';
+  } catch (error) {
+    console.error('rng animation load', error);
+    if (status) status.textContent = 'не удалось загрузить';
+  }
+}
+
+async function rngSaveAnimationConfig() {
+  const button = document.getElementById('rng-animation-save');
+  const status = document.getElementById('rng-animation-status');
+  const trajectoryMs = _rngAnimationMs(
+    document.getElementById('rng-trajectory-duration').value, 600, 150, 5000);
+  const rangeMs = _rngAnimationMs(
+    document.getElementById('rng-range-duration').value, 400, 100, 3000);
+  document.getElementById('rng-trajectory-duration').value = trajectoryMs;
+  document.getElementById('rng-range-duration').value = rangeMs;
+  button.disabled = true;
+  if (status) status.textContent = 'сохранение…';
+  try {
+    await setDoc(doc(db, 'settings', 'map_animation'), {
+      trajectory_duration_ms: trajectoryMs,
+      range_duration_ms: rangeMs,
+      updated_at: serverTimestamp(),
+      updated_by: currentUser?.email || currentUser?.displayName || 'admin',
+    }, { merge: true });
+    if (status) status.textContent = `сохранено: ${trajectoryMs} / ${rangeMs} мс`;
+    toast('Время анимации сохранено', 's');
+  } catch (error) {
+    console.error('rng animation save', error);
+    if (status) status.textContent = 'ошибка сохранения';
+    toast('Ошибка сохранения времени: ' + error.message, 'e');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function _rngWireEvents() {
+  document.getElementById('rng-animation-save').addEventListener('click', rngSaveAnimationConfig);
+
   document.getElementById('rng-map').addEventListener('change', function() {
     const map = this.value;
     const img  = document.getElementById('rng-map-img');
