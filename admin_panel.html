@@ -4924,6 +4924,7 @@ let _msgSoundReady = false;
 let _msgLastUnreadCount = 0;
 const _msgDirectChatUsers = new Map();
 const _msgReplyDrafts = new Map();
+const _msgRepliesSending = new Set();
 const _msgSound = new Audio('https://vlineups.ru/assets/audio/chat-message.mp3');
 _msgSound.preload = 'auto';
 _msgSound.volume = .55;
@@ -5148,7 +5149,7 @@ window._msgOpenReply = function(id) {
   const restoreFocus = document.activeElement === previousInput;
   const selectionStart = restoreFocus ? previousInput.selectionStart : null;
   const selectionEnd = restoreFocus ? previousInput.selectionEnd : null;
-  if (_msgActiveId && previousInput) {
+  if (_msgActiveId && previousInput && !_msgRepliesSending.has(_msgActiveId)) {
     _msgReplyDrafts.set(_msgActiveId, previousInput.value);
   }
   const m = _msgConversations().find(x => x.id === id);
@@ -5244,6 +5245,9 @@ window._msgSendReply = async function(id) {
   const targetUid = m?.user_id || directUid || null;
   const reply = document.getElementById('msg-reply-text').value.trim();
   if (!reply) { toast('Введи текст ответа', 'e'); return; }
+  _msgRepliesSending.add(id);
+  _msgReplyDrafts.delete(id);
+  document.getElementById('msg-reply-text').value = '';
   const sendPush = document.getElementById('msg-reply-push')?.checked;
   const btn = document.getElementById('msg-reply-send');
   btn.disabled = true; btn.textContent = '⏳ Отправка…';
@@ -5295,6 +5299,7 @@ window._msgSendReply = async function(id) {
       _ncTargetUid = null;
     }
     toast('Ответ отправлен', 's');
+    _msgRepliesSending.delete(id);
     const replyInput = document.getElementById('msg-reply-text');
     if (replyInput) replyInput.value = '';
     _msgReplyDrafts.delete(id);
@@ -5303,6 +5308,14 @@ window._msgSendReply = async function(id) {
     _msgOpenReply(id);
     if (typeof addAuditLog === 'function') addAuditLog('feedback_replied', { id, reply });
   } catch (e) {
+    _msgRepliesSending.delete(id);
+    _msgReplyDrafts.set(id, reply);
+    const replyInput = document.getElementById('msg-reply-text');
+    if (replyInput) {
+      replyInput.value = reply;
+      replyInput.focus();
+      replyInput.setSelectionRange(reply.length, reply.length);
+    }
     console.error('msg reply', e); toast('Ошибка: ' + e.message, 'e');
   } finally {
     btn.disabled = false; btn.textContent = 'Отправить ответ';
