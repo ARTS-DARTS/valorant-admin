@@ -652,12 +652,12 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
 .nu-chart-card.is-chart-focus[data-nu-card-mode="registrations"] .an-val { color: #45dc7c; }
 .nu-chart-card.is-chart-focus[data-nu-card-mode="registrations"] .an-lbl { color: #7ee8a4; }
 .nu-chart-card.is-chart-focus[data-nu-card-mode="deletions"] {
-  border-color: rgba(255,70,85,.8);
-  background: linear-gradient(135deg, rgba(255,70,85,.14), var(--surface) 72%);
-  box-shadow: 0 0 0 1px rgba(255,70,85,.14), 0 10px 26px rgba(255,70,85,.09);
+  border-color: rgba(226,232,240,.9);
+  background: linear-gradient(135deg, rgba(226,232,240,.105), var(--surface) 74%);
+  box-shadow: 0 0 0 1px rgba(226,232,240,.13), 0 10px 26px rgba(0,0,0,.2);
   transform: translateY(-1px);
 }
-.nu-chart-card.is-chart-focus[data-nu-card-mode="deletions"] .an-lbl { color: #ff8290; }
+.nu-chart-card.is-chart-focus[data-nu-card-mode="deletions"] .an-lbl { color: #dbe5f3; }
 .an-val        { font-size: 26px; font-weight: 800; color: var(--primary); margin-bottom: 4px; line-height: 1.1; }
 .an-lbl        { font-size: 11px; color: var(--text2); letter-spacing: .4px; }
 .an-chart-box  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 16px 10px; overflow: visible; }
