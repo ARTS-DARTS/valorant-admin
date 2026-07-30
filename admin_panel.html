@@ -7,9 +7,19 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-30-account-chart-contrast-v3">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-30-site-loader-v1">
 </head>
 <body>
+
+<div class="site-loader" id="site-loader" role="status" aria-live="polite" aria-label="Загрузка сайта">
+  <div class="site-loader__brand">VALORANT <span>LINEUPS</span></div>
+  <div class="site-loader__game" aria-hidden="true">
+    <div class="site-loader__pacman"></div>
+    <div class="site-loader__dots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="site-loader__title">Загрузка сайта</div>
+  <div class="site-loader__hint">Проверяем доступ и готовим админ-панель</div>
+</div>
 
 <!-- Login -->
 <div id="screen-login" class="center-screen">
@@ -2737,17 +2747,19 @@ onAuthStateChanged(auth, async user => {
   if (!user) {
     stopMessagesBadgeRealtime();
     show('login');
+    hideSiteLoader();
     return;
   }
   try {
     const snap = await getDoc(doc(db, 'users', user.uid));
     const role = snap.exists() ? (snap.data().role ?? 'user') : 'user';
-    if (role !== 'admin') { show('denied'); return; }
+    if (role !== 'admin') { show('denied'); hideSiteLoader(); return; }
     currentUserRole = role;
   } catch (e) {
     console.error('[auth] role check failed:', e);
     loginErr('Ошибка проверки прав: ' + e.message);
     show('login');
+    hideSiteLoader();
     return;
   }
   currentUser = user;
@@ -2757,6 +2769,7 @@ onAuthStateChanged(auth, async user => {
   document.getElementById('user-provider-icon').textContent =
     user.uid.startsWith('yandex_') ? 'Я ' : (_prov === 'google.com' ? '🇬 ' : '📧 ');
   show('app');
+  hideSiteLoader();
   adminUpdateWatcher.start();
   loadMapSiteLabelsConfig();
   applyRoleUi(currentUserRole);
@@ -4011,6 +4024,15 @@ window.closePresenceUserProfile = closePresenceUserProfile;
 document.getElementById('presence-profile-modal')?.addEventListener('click', event => {
   if (event.target === event.currentTarget) closePresenceUserProfile();
 });
+
+function hideSiteLoader() {
+  const loader = document.getElementById('site-loader');
+  if (!loader || loader.classList.contains('site-loader--hidden')) return;
+  loader.classList.add('site-loader--hidden');
+  window.setTimeout(() => loader.remove(), 450);
+}
+
+window.setTimeout(hideSiteLoader, 12000);
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && document.getElementById('presence-profile-modal')?.classList.contains('open')) {
     closePresenceUserProfile();
