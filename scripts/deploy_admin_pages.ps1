@@ -24,7 +24,11 @@ $adminHtml = [regex]::Replace(
 )
 Set-Content -LiteralPath (Join-Path $deployPath 'admin_panel.html') -Value $adminHtml -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $deployPath 'index.html') -Value $adminHtml -Encoding UTF8
+Copy-Item -LiteralPath (Join-Path $repoRoot 'admin_panel.css') -Destination (Join-Path $deployPath 'admin_panel.css')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'admin_favicon.svg') -Destination (Join-Path $deployPath 'admin_favicon.svg')
+$adminAssetsPath = Join-Path $deployPath 'admin'
+New-Item -ItemType Directory -Path $adminAssetsPath | Out-Null
+Copy-Item -LiteralPath (Join-Path $repoRoot 'admin\messages_model.mjs') -Destination (Join-Path $adminAssetsPath 'messages_model.mjs')
 $adStatsCache = Join-Path $repoRoot 'ad_stats_daily_public.json'
 if (Test-Path -LiteralPath $adStatsCache) {
   Copy-Item -LiteralPath $adStatsCache -Destination (Join-Path $deployPath 'ad_stats_daily_public.json')
