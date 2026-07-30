@@ -82,6 +82,21 @@ export function lastThreadMessage(message) {
   );
 }
 
+export function isAdminThreadMessageRead(conversation, targetMessage) {
+  if (targetMessage?.from !== 'admin') return false;
+  const targetTs = messageTimestamp(targetMessage);
+  if (!targetTs) return false;
+
+  const readAt = messageTimestamp({ ts: conversation?.user_read_at });
+  if (readAt >= targetTs) return true;
+
+  return messageThread(conversation).some(
+    (message) =>
+      message.from !== 'admin' &&
+      messageTimestamp(message) > targetTs,
+  );
+}
+
 export function buildMessageConversations(source) {
   const consumed = new Set();
   const result = [];
