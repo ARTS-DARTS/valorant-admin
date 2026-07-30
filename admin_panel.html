@@ -19309,6 +19309,9 @@ async function loadStorageStats() {
     });
     const stats = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(stats.error || `Cloudinary API: ${response.status}`);
+    if (!Number.isFinite(Number(stats.screenshot_count)) || !Number.isFinite(Number(stats.storage_bytes))) {
+      throw new Error('Сервер статистики ещё не обновлён');
+    }
 
     const screenshotCount = Number(stats.screenshot_count) || 0;
     const storageBytes = Number(stats.storage_bytes) || 0;
