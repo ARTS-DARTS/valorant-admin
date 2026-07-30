@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">account-chart-contrast-v3 | 2026-07-30 06:37</span>
+  <span class="admin-version" id="admin-build-version">sage-wall-block-editor-v1 | 2026-07-30 08:35</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -422,6 +422,7 @@
                 <option value="verified">Подтверждённые</option>
                 <option value="unverified">Не подтверждённые</option>
                 <option value="warning">Под угрозой</option>
+                <option value="no-name">Без ника</option>
               </select>
             </div>
             <div id="user-search-results" style="max-height:560px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;">
@@ -847,6 +848,7 @@
               <button class="an-tab-btn"        data-nu-filter="yandex" onclick="_nuSetFilter('yandex')">Яндекс</button>
               <button class="an-tab-btn"        data-nu-filter="google" onclick="_nuSetFilter('google')">Google</button>
               <button class="an-tab-btn"        data-nu-filter="email"  onclick="_nuSetFilter('email')">Email/пароль</button>
+              <button class="an-tab-btn"        data-nu-filter="passed" onclick="_nuSetFilter('passed')">Прошли проверку: <span id="nu-passed-24h-count">…</span></button>
             </div>
           </div>
           <div id="nu-recent-list" style="max-height:520px;overflow-y:auto;"></div>
@@ -1300,12 +1302,12 @@
           </div>
 
           <div id="rng-sensor-editor" style="display:none;margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid rgba(79,195,247,.5);background:var(--surface2);">
-            <div style="font-size:10px;color:#65dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Редактор звукового сенсора</div>
-            <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Расстояние между белой и красной точками</label>
+            <div id="rng-shape-editor-title" style="font-size:10px;color:#65dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Редактор звукового сенсора</div>
+            <label id="rng-shape-width-label" style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Расстояние между белой и красной точками</label>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.02" max="0.8" step="0.002" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.02" max="0.8" step="0.002" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
-            <label style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Высота прямоугольника</label>
+            <label id="rng-shape-height-label" style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Высота прямоугольника</label>
             <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-height" type="range" min="0.02" max="0.35" step="0.002" value="0.08" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-height-value" type="number" min="0.02" max="0.35" step="0.002" value="0.08" class="finput" style="width:78px;font-size:12px;"></div>
-            <div style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — середина левой стороны.<br><b style="color:#ff6b78;">Красная точка</b> — середина правой стороны. Прямоугольник всегда строится между точками.</div>
+            <div id="rng-shape-editor-help" style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — середина левой стороны.<br><b style="color:#ff6b78;">Красная точка</b> — середина правой стороны. Прямоугольник всегда строится между точками.</div>
           </div>
 
           <!-- Применить -->
@@ -1334,6 +1336,12 @@
               <circle id="rng-center-dot"    cx="50%" cy="50%" r="7"  fill="rgba(255,70,85,1)" stroke="rgba(255,255,255,0.85)" stroke-width="1.5" style="pointer-events:all;cursor:move;touch-action:none;"/>
               <g id="rng-sensor-shape" style="display:none;">
                 <rect id="rng-sensor-rect" x="0" y="0" width="0" height="0" rx="1" fill="rgba(54,89,173,.38)" stroke="#65dcff" stroke-width="2" style="pointer-events:none;"/>
+                <g id="rng-wall-blocks" style="display:none;pointer-events:none;">
+                  <rect data-rng-wall-block="0" rx="1" fill="rgba(62,214,232,.38)" stroke="#e5fcff" stroke-width="1.5"/>
+                  <rect data-rng-wall-block="1" rx="1" fill="rgba(62,214,232,.38)" stroke="#e5fcff" stroke-width="1.5"/>
+                  <rect data-rng-wall-block="2" rx="1" fill="rgba(62,214,232,.38)" stroke="#e5fcff" stroke-width="1.5"/>
+                  <rect data-rng-wall-block="3" rx="1" fill="rgba(62,214,232,.38)" stroke="#e5fcff" stroke-width="1.5"/>
+                </g>
                 <line id="rng-sensor-axis" x1="0" y1="0" x2="0" y2="0" stroke="transparent" stroke-width="1" style="pointer-events:none;"/>
                 <circle id="rng-sensor-pivot" cx="0" cy="0" r="8" fill="#fff" stroke="#173b52" stroke-width="2" style="pointer-events:all;cursor:move;touch-action:none;"/>
                 <circle id="rng-sensor-rotate" cx="0" cy="0" r="8" fill="#ff5967" stroke="#ffd1d5" stroke-width="2" style="pointer-events:all;cursor:grab;touch-action:none;"/>
@@ -4032,6 +4040,7 @@ function hideSiteLoader() {
   window.setTimeout(() => loader.remove(), 450);
 }
 
+// Не оставляем пользователя на заставке при сетевой ошибке Firebase.
 window.setTimeout(hideSiteLoader, 12000);
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && document.getElementById('presence-profile-modal')?.classList.contains('open')) {
@@ -4648,9 +4657,11 @@ function _defensePayload(session, site, number, fallbackZoom = null) {
     shape_anchor:String(item.shape_anchor || 'edge_midpoints'),
     shape_width:Number(item.shape_width || 0), shape_height:Number(item.shape_height || 0),
     shape_rotation:Number(item.shape_rotation || 0),
-    points:['line_segment','sensor_rect'].includes(item.shape_kind)
+    active_sections:item.shape_kind==='wall_sections'?_defWallSections(item.active_sections):[],
+    section_count:item.shape_kind==='wall_sections'?_defWallSections(item.active_sections).length:0,
+    points:['line_segment','sensor_rect','wall_sections'].includes(item.shape_kind)
       ? (item.points || []).slice(0,2).map((p, pointIndex)=>({
-          ...(item.shape_kind === 'sensor_rect' ? {role:String(p?.role || (pointIndex === 0 ? 'pivot' : 'rotation'))} : {}),
+          ...(['sensor_rect','wall_sections'].includes(item.shape_kind) ? {role:String(p?.role || (pointIndex === 0 ? 'pivot' : 'rotation'))} : {}),
           x:_defClamp(p.x), y:_defClamp(p.y),
         }))
       : [],
@@ -9416,7 +9427,7 @@ function _defShape(agent, ability) {
   if (/viper/.test(key) && /poison cloud|cloud|облак/.test(key)) return { kind:'circle_area', radius:.015275, theme:'viper' };
   if (/viper/.test(key) && /snake bite|укус/.test(key)) return { kind:'circle_area', radius:.0165, theme:'viper' };
   if (/viper/.test(key) && /viper.*pit|pit|гнезд/.test(key)) return { kind:'circle_area', radius:.0475, theme:'viper' };
-  if (/sage/.test(key) && /barrier|стен/.test(key)) return { kind:'line_segment', radius:0 };
+  if (/sage/.test(key) && /barrier|стен/.test(key)) return { kind:'wall_sections', radius:0, width:.16, height:.032 };
   return { kind:'point', radius:0 };
 }
 
@@ -9441,7 +9452,7 @@ function _defNormalizeAbility(item, index, agent) {
   const kind = hasCanonicalGeometry ? canonical.kind : (storedKind || canonical.kind);
   const points = (Array.isArray(item?.points) ? item.points : [])
     .map((p, pointIndex) => ({
-      ...(kind === 'sensor_rect' ? { role:String(p?.role || (pointIndex === 0 ? 'pivot' : 'rotation')) } : {}),
+      ...(['sensor_rect','wall_sections'].includes(kind) ? { role:String(p?.role || (pointIndex === 0 ? 'pivot' : 'rotation')) } : {}),
       x:_defClamp(p?.x), y:_defClamp(p?.y),
     })).slice(0, 2);
   let x = Number(item?.x), y = Number(item?.y);
@@ -9459,8 +9470,16 @@ function _defNormalizeAbility(item, index, agent) {
     shape_width:Number(item?.shape_width ?? item?.shape?.width ?? .12),
     shape_height:Number(item?.shape_height ?? item?.shape?.height ?? .08),
     shape_rotation:Number(item?.shape_rotation ?? item?.shape?.rotation ?? 0),
-    points:['line_segment','sensor_rect'].includes(kind) ? (points.length === 2 ? points : [{...(kind==='sensor_rect'?{role:'pivot'}:{}),x:.44,y:.5},{...(kind==='sensor_rect'?{role:'rotation'}:{}),x:.56,y:.5}]) : [],
+    active_sections:kind==='wall_sections' ? _defWallSections(item?.active_sections) : [],
+    section_count:kind==='wall_sections' ? _defWallSections(item?.active_sections).length : 0,
+    points:['line_segment','sensor_rect','wall_sections'].includes(kind) ? (points.length === 2 ? points : [{...(['sensor_rect','wall_sections'].includes(kind)?{role:'pivot'}:{}),x:.44,y:.5},{...(['sensor_rect','wall_sections'].includes(kind)?{role:'rotation'}:{}),x:.56,y:.5}]) : [],
   };
+}
+
+function _defWallSections(value) {
+  const sections=[...new Set((Array.isArray(value)?value:[1,2,3,4]).map(Number))]
+    .filter(section=>Number.isInteger(section)&&section>=1&&section<=4).sort((a,b)=>a-b);
+  return sections.length?sections:[1];
 }
 
 function _defRepairAbilityInPlace(item, agent) {
@@ -9492,7 +9511,7 @@ function _defMap(ctx) { return ctx.edit ? (document.getElementById(`ce-map-${ctx
 const _defShapeConfigCache = new Map();
 async function _defLoadConfiguredShape(ctx, abilityItem) {
   const map=_defMap(ctx), agent=_defAgent(ctx), ability=abilityItem?.ability;
-  if (!map || !agent || !ability || abilityItem?.shape?.kind !== 'sensor_rect') return abilityItem;
+  if (!map || !agent || !ability || !['sensor_rect','wall_sections'].includes(abilityItem?.shape?.kind)) return abilityItem;
   let data=null;
   for (const candidate of abilityAliases(agent,ability)) {
     const key=rangeConfigId(map,agent,candidate);
@@ -9507,13 +9526,13 @@ async function _defLoadConfiguredShape(ctx, abilityItem) {
     if (data) break;
   }
   if (!data) {
-    const globalKey=`__sensor_shape__${agent}`;
+    const globalKey=`__${abilityItem.shape.kind}_shape__${agent}`;
     data=_defShapeConfigCache.get(globalKey)||null;
     if (!data) {
       try {
         const snap=await getDocs(query(collection(db,'range_config'),where('agent','==',agent),limit(200)));
         const matches=snap.docs.map(item=>item.data())
-          .filter(config=>config.shape_kind==='sensor_rect'&&_defShape(agent,config.ability).kind==='sensor_rect')
+          .filter(config=>config.shape_kind===abilityItem.shape.kind&&_defShape(agent,config.ability).kind===abilityItem.shape.kind)
           .sort((a,b)=>(b.updatedAt?.toMillis?.()||0)-(a.updatedAt?.toMillis?.()||0));
         data=matches[0]||null;
         if(data)_defShapeConfigCache.set(globalKey,data);
@@ -9527,7 +9546,7 @@ async function _defLoadConfiguredShape(ctx, abilityItem) {
   const pointAngle=pivot&&rotation?Math.atan2(Number(rotation.y)-Number(pivot.y),Number(rotation.x)-Number(pivot.x))*180/Math.PI:0;
   abilityItem.shape={
     ...abilityItem.shape,
-    kind:data.shape_kind||'sensor_rect',
+    kind:data.shape_kind||abilityItem.shape.kind,
     anchor:data.shape_anchor||'edge_midpoints',
     width:Math.max(.01,Number(data.shape_width)||.12),
     height:Math.max(.01,Number(data.shape_height)||.08),
@@ -9602,7 +9621,7 @@ function _defPlaceAbility(ctx, point) {
     s.defenseLineStart = point; _defRender(ctx.id, ctx.edit); _defRenderTools(ctx.id, ctx.edit); return;
   }
   let points = selected.shape.kind === 'line_segment' ? [s.defenseLineStart, point] : [];
-  if (selected.shape.kind === 'sensor_rect') {
+  if (['sensor_rect','wall_sections'].includes(selected.shape.kind)) {
     const width=Math.max(.01,Number(selected.shape.width)||.12), angle=(Number(selected.shape.rotation)||0)*Math.PI/180;
     const dx=Math.cos(angle)*width/2, dy=Math.sin(angle)*width/2;
     points=[{role:'pivot',x:_defClamp(point.x-dx),y:_defClamp(point.y-dy)},{role:'rotation',x:_defClamp(point.x+dx),y:_defClamp(point.y+dy)}];
@@ -9612,6 +9631,7 @@ function _defPlaceAbility(ctx, point) {
     ability:selected.ability, icon:selected.icon, x:center.x, y:center.y,
     shape_kind:selected.shape.kind, shape_radius:selected.shape.radius, shape_anchor:selected.shape.anchor,
     shape_width:selected.shape.width, shape_height:selected.shape.height, shape_rotation:selected.shape.rotation, points,
+    active_sections:selected.shape.kind==='wall_sections'?[1,2,3,4]:[],
   }, s.defenseAbilities.length, _defAgent(ctx)));
   s.selectedDefenseIndex = s.defenseAbilities.length - 1;
   s.defenseLineStart = null;
@@ -9619,7 +9639,7 @@ function _defPlaceAbility(ctx, point) {
 }
 
 function _defMoveAbility(item, point) {
-  if (['line_segment','sensor_rect'].includes(item.shape_kind) && item.points?.length === 2) {
+  if (['line_segment','sensor_rect','wall_sections'].includes(item.shape_kind) && item.points?.length === 2) {
     const dx = point.x - item.x, dy = point.y - item.y;
     item.points = item.points.map(p => ({...p, x:_defClamp(p.x + dx), y:_defClamp(p.y + dy)}));
   }
@@ -9672,13 +9692,21 @@ function _defRender(id, edit = false) {
     if (item.shape_kind === 'mesh_burst') {
       const d=radius/Math.sqrt(2); return [[-d,-d],[d,-d],[-d,d],[d,d]].map(([dx,dy]) => `<line class="defense-shape-line-bg" x1="${center.x}%" y1="${center.y}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><line class="defense-shape-mesh" x1="${center.x}%" y1="${center.y}%" x2="${center.x+dx}%" y2="${center.y+dy}%"></line><circle class="defense-shape-node" cx="${center.x+dx}%" cy="${center.y+dy}%" r=".6%"></circle>`).join('');
     }
-    if (item.shape_kind === 'sensor_area' || item.shape_kind === 'sensor_rect') {
+    if (item.shape_kind === 'sensor_area' || item.shape_kind === 'sensor_rect' || item.shape_kind === 'wall_sections') {
       const rawPoints=item.points?.length===2?item.points:null;
       const angle=(Number(item.shape_rotation)||0)*Math.PI/180, width=Math.max(.01,Number(item.shape_width)||.12), height=Math.max(.01,Number(item.shape_height)||.08);
       const a=rawPoints?.[0]||{x:item.x-Math.cos(angle)*width/2,y:item.y-Math.sin(angle)*width/2};
       const b=rawPoints?.[1]||{x:item.x+Math.cos(angle)*width/2,y:item.y+Math.sin(angle)*width/2};
       const vx=b.x-a.x, vy=b.y-a.y, length=Math.max(.001,Math.hypot(vx,vy)), nx=-vy/length*height/2, ny=vx/length*height/2;
       const corners=[{x:a.x+nx,y:a.y+ny},{x:b.x+nx,y:b.y+ny},{x:b.x-nx,y:b.y-ny},{x:a.x-nx,y:a.y-ny}].map(pct);
+      if(item.shape_kind==='wall_sections'){
+        const ux=(b.x-a.x)/4,uy=(b.y-a.y)/4;
+        return _defWallSections(item.active_sections).map(section=>{
+          const offset=section-1,start={x:a.x+ux*offset,y:a.y+uy*offset},end={x:a.x+ux*(offset+1),y:a.y+uy*(offset+1)};
+          const block=[{x:start.x+nx,y:start.y+ny},{x:end.x+nx,y:end.y+ny},{x:end.x-nx,y:end.y-ny},{x:start.x-nx,y:start.y-ny}].map(pct);
+          return `<polygon class="defense-shape-sensor-rect" points="${block.map(p=>`${p.x*ctx.wrap.clientWidth/100},${p.y*ctx.wrap.clientHeight/100}`).join(' ')}"></polygon>`;
+        }).join('');
+      }
       return `<polygon class="defense-shape-sensor-rect" points="${corners.map(p=>`${p.x*ctx.wrap.clientWidth/100},${p.y*ctx.wrap.clientHeight/100}`).join(' ')}"></polygon>`;
     }
     if (item.shape_kind === 'net_area') {
@@ -9697,12 +9725,12 @@ function _defRender(id, edit = false) {
   if (s.zoomArea?.width > 0 && s.zoomArea?.height > 0) { const a=pct(s.zoomArea), b=pct({x:s.zoomArea.x+s.zoomArea.width,y:s.zoomArea.y+s.zoomArea.height}); html += `<div class="defense-zoom-box" style="left:${a.x}%;top:${a.y}%;width:${b.x-a.x}%;height:${b.y-a.y}%"></div>`; }
   (s.defenseAbilities || []).forEach((item,index) => {
     const p=pct(item), sel=s.selectedDefenseIndex===index?' sel':'';
-    if (['line_segment','sensor_rect'].includes(item.shape_kind) && item.points?.length===2) item.points.forEach((pt,pi)=>{ const a=pct(pt), sensorClass=item.shape_kind==='sensor_rect'?(pi===0?' sensor-pivot':' sensor-rotate'):''; html += `<div class="defense-line-anchor${sensorClass}${sel}" data-defense-index="${index}" data-defense-point="${pi}" style="left:${a.x}%;top:${a.y}%"></div>`; });
+    if (['line_segment','sensor_rect','wall_sections'].includes(item.shape_kind) && item.points?.length===2) item.points.forEach((pt,pi)=>{ const a=pct(pt), sensorClass=['sensor_rect','wall_sections'].includes(item.shape_kind)?(pi===0?' sensor-pivot':' sensor-rotate'):''; html += `<div class="defense-line-anchor${sensorClass}${sel}" data-defense-index="${index}" data-defense-point="${pi}" style="left:${a.x}%;top:${a.y}%"></div>`; });
     if ((item.shape_kind === 'mesh_burst' || item.shape_kind === 'sensor_area') && sel) {
       const r=Math.max(0, Number(item.shape_radius || 0)), d=r/Math.sqrt(2);
       [[-d,-d],[d,-d],[-d,d],[d,d]].forEach(([dx,dy],pi)=>{ html += `<div class="defense-line-anchor" data-defense-index="${index}" data-defense-radius-point="${pi}" style="left:${p.x+dx}%;top:${p.y+dy}%"></div>`; });
     }
-    if (!['net_area','sensor_rect'].includes(item.shape_kind)) html += `<div class="defense-ability-point${sel}" data-defense-index="${index}" style="left:${p.x}%;top:${p.y}%">${item.icon?`<img src="${esc(item.icon)}" alt="">`:''}</div>`;
+    if (!['net_area','sensor_rect','wall_sections'].includes(item.shape_kind)) html += `<div class="defense-ability-point${sel}" data-defense-index="${index}" style="left:${p.x}%;top:${p.y}%">${item.icon?`<img src="${esc(item.icon)}" alt="">`:''}</div>`;
   });
   layer.innerHTML = html; ctx.canvas.appendChild(layer); _defWireLayer(ctx, layer);
 }
@@ -9723,13 +9751,13 @@ function _defWireLayer(ctx, layer) {
         item.shape_radius=Math.max(0.005, Math.min(0.45, Math.sqrt(dx*dx+dy*dy)*Math.sqrt(2)));
       } else if (Number.isInteger(index) && pointIndex !== null) {
         const item=ctx.session.defenseAbilities[index];
-        if(item.shape_kind==='sensor_rect' && pointIndex===0){
+        if(['sensor_rect','wall_sections'].includes(item.shape_kind) && pointIndex===0){
           const requestedDx=p.x-item.points[0].x,requestedDy=p.y-item.points[0].y;
           const minX=Math.min(item.points[0].x,item.points[1].x),maxX=Math.max(item.points[0].x,item.points[1].x);
           const minY=Math.min(item.points[0].y,item.points[1].y),maxY=Math.max(item.points[0].y,item.points[1].y);
           const dx=Math.max(-minX,Math.min(1-maxX,requestedDx)),dy=Math.max(-minY,Math.min(1-maxY,requestedDy));
           item.points=item.points.map(point=>({...point,x:_defClamp(point.x+dx),y:_defClamp(point.y+dy)}));
-        } else if(item.shape_kind==='sensor_rect'){
+        } else if(['sensor_rect','wall_sections'].includes(item.shape_kind)){
           const lockedWidth=Math.max(.01,Number(item.shape_width)||.12);
           const dx=p.x-item.points[0].x,dy=p.y-item.points[0].y,length=Math.hypot(dx,dy);
           if(length<.001)return;
@@ -9738,7 +9766,7 @@ function _defWireLayer(ctx, layer) {
           item.points[1]=candidate;
         } else item.points[pointIndex]=p;
         item.x=(item.points[0].x+item.points[1].x)/2; item.y=(item.points[0].y+item.points[1].y)/2;
-        if(item.shape_kind==='sensor_rect'){
+        if(['sensor_rect','wall_sections'].includes(item.shape_kind)){
           const dx=item.points[1].x-item.points[0].x,dy=item.points[1].y-item.points[0].y;
           item.shape_rotation=Math.atan2(dy,dx)*180/Math.PI;
           item.points[0].role='pivot';item.points[1].role='rotation';
@@ -9764,6 +9792,13 @@ function _defRenderTools(id, edit = false) {
   list?.querySelectorAll('[data-defense-select]').forEach(chip=>chip.addEventListener('click',e=>{if(e.target.closest('[data-defense-remove]'))return;ctx.session.selectedDefenseIndex=Number(chip.dataset.defenseSelect);ctx.session.selectedDefenseAbility=null;ctx.session.defenseMode='moveAbility';_defRender(id,edit);_defRenderTools(id,edit);}));
   list?.querySelectorAll('[data-defense-remove]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const i=Number(btn.dataset.defenseRemove);ctx.session.defenseAbilities.splice(i,1);ctx.session.defenseAbilities.forEach((x,j)=>x.order=j+1);ctx.session.selectedDefenseIndex=null;_defRender(id,edit);_defRenderTools(id,edit);queueAdminAddDraftSave();}));
   const selected=ctx.session.defenseAbilities?.[ctx.session.selectedDefenseIndex];
+  const wallControls=root.querySelector('[data-defense-wall-sections]');
+  if(wallControls){
+    wallControls.hidden=selected?.shape_kind!=='wall_sections';
+    const active=_defWallSections(selected?.active_sections);
+    wallControls.querySelectorAll('[data-defense-wall-section]').forEach(button=>button.classList.toggle('active',active.includes(Number(button.dataset.defenseWallSection))));
+    const count=wallControls.querySelector('[data-defense-wall-count]');if(count)count.textContent=`${active.length} из 4`;
+  }
   const radius=root.querySelector('[data-defense-radius]');
   if(radius){radius.disabled=!selected||!['mesh_burst','sensor_area','circle_area','net_area'].includes(selected.shape_kind);radius.value=selected?Number(selected.shape_radius||0).toFixed(4):'';}
   const back=root.querySelector('[data-defense-back]'); if(back) back.hidden=!ctx.session.defensePreview;
@@ -9774,6 +9809,7 @@ function _defInitTools(id, edit = false) {
   root.querySelectorAll('[data-defense-mode]').forEach(btn=>btn.addEventListener('click',()=>_defSetMode(id,edit,btn.dataset.defenseMode)));
   root.querySelector('[data-defense-back]')?.addEventListener('click',()=>_defBack(id,edit));
   root.querySelector('[data-defense-radius]')?.addEventListener('change',e=>{const ctx=_defContext(id,edit),item=ctx?.session.defenseAbilities?.[ctx.session.selectedDefenseIndex];if(!item)return;item.shape_radius=Math.max(0,Math.min(.3,Number(e.target.value)||0));_defRender(id,edit);_defRenderTools(id,edit);queueAdminAddDraftSave();});
+  root.querySelector('[data-defense-wall-sections]')?.addEventListener('click',e=>{const button=e.target.closest('[data-defense-wall-section]');const ctx=_defContext(id,edit),item=ctx?.session.defenseAbilities?.[ctx.session.selectedDefenseIndex];if(!button||item?.shape_kind!=='wall_sections')return;const section=Number(button.dataset.defenseWallSection),active=_defWallSections(item.active_sections),next=active.includes(section)?active.filter(value=>value!==section):[...active,section];if(!next.length)return toast('У стены должна остаться хотя бы одна секция','e');item.active_sections=_defWallSections(next);item.section_count=item.active_sections.length;_defRender(id,edit);_defRenderTools(id,edit);queueAdminAddDraftSave();});
   _defRenderTools(id,edit);
 }
 
@@ -9792,6 +9828,10 @@ function _defToolsHtml(id, edit = false) {
     <div id="${prefix}-${id}-defense-hint" style="font-size:11px;color:var(--text2);line-height:1.4;">Выбери режим разметки</div>
     <div class="defense-ability-picker" data-defense-picker></div>
     <div class="defense-placed-list" data-defense-list></div>
+    <div data-defense-wall-sections hidden style="margin-top:8px;padding:10px;border:1px solid rgba(101,220,255,.35);border-radius:8px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2)"><span>Секции стены</span><b data-defense-wall-count>4 из 4</b></div>
+      <div class="defense-mode-grid" style="margin-top:7px">${[1,2,3,4].map(section=>`<button type="button" class="btn" data-defense-wall-section="${section}">${section}</button>`).join('')}</div>
+    </div>
     <label class="defense-radius-controls"><span style="font-size:11px;color:var(--text2)">Радиус</span><input class="finput" type="number" min="0" max=".3" step=".001" data-defense-radius disabled></label>
   </aside>`;
 }
@@ -13508,6 +13548,7 @@ document.getElementById('ad-backfill-30d-btn')?.addEventListener('click', rebuil
 let _nuLoaded    = false;
 let _nuAllRecent = [];  // все за последние 24ч
 let _nuFilter    = 'all';
+let _nuPassed24hCount = 0;
 
 function _anPad2(n) {
   return String(n).padStart(2, '0');
@@ -13579,8 +13620,14 @@ function _nuRenderList() {
     if (_nuFilter === 'yandex') return method === 'Яндекс';
     if (_nuFilter === 'google') return method === 'Google';
     if (_nuFilter === 'email')  return method === 'Email/пароль' || method === 'Email';
+    if (_nuFilter === 'passed') return Number(r.dat.lineups_viewed || 0) >= USER_REQUIRED_VIEWS;
     return true;
   });
+  const countEl = document.getElementById('nu-24h-count');
+  if (countEl) {
+    if (_nuFilter === 'passed') countEl.textContent = _nuPassed24hCount;
+    else countEl.textContent = filtered.length >= ADMIN_USERS_RECENT_LIST_LIMIT ? `${filtered.length}+` : filtered.length;
+  }
   const listEl = document.getElementById('nu-recent-list');
   if (filtered.length === 0) {
     listEl.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:12px 0;">Нет пользователей с таким фильтром</div>`;
@@ -13888,6 +13935,11 @@ async function loadNewUsersAnalytics() {
       if (!ts) continue;
       _nuAllRecent.push({ uid: docSnap.id, dat, ts });
     }
+    const loadedPassed24h = _nuAllRecent.filter(r => Number(r.dat.lineups_viewed || 0) >= USER_REQUIRED_VIEWS).length;
+    _nuPassed24hCount = await countDocsSafe(usersRef, [
+      where('created_at', '>=', d24h),
+      where('lineups_viewed', '>=', USER_REQUIRED_VIEWS),
+    ], loadedPassed24h);
 
     document.getElementById('nu-today').textContent       = nuToday;
     document.getElementById('nu-week').textContent        = nuWeek;
@@ -13902,6 +13954,7 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-active-30d').textContent  = active30d;
     document.getElementById('nu-by-password').textContent = `${nuPassword} / 24ч`;
     document.getElementById('nu-by-yandex').textContent   = `${nuYandex} / 24ч`;
+    document.getElementById('nu-passed-24h-count').textContent = _nuPassed24hCount;
     document.getElementById('nu-24h-count').textContent   = _nuAllRecent.length >= ADMIN_USERS_RECENT_LIST_LIMIT ? `${_nuAllRecent.length}+` : _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
@@ -17852,6 +17905,7 @@ function applyUserFilters() {
       if (_userVerifFilter === 'verified') return info.verified;
       if (_userVerifFilter === 'unverified') return !info.verified;
       if (_userVerifFilter === 'warning') return info.warning || info.expired;
+      if (_userVerifFilter === 'no-name') return !hasUsableUserName(u);
       return true;
     });
   }
@@ -18966,9 +19020,9 @@ function _rngWireEvents() {
       const v = Math.max(.02, Math.min(max, parseFloat(value) || .02));
       if (key === 'width') {
         _rngShapeWidth = v;
-        const rad=_rngShapeRotation*Math.PI/180;
-        _rngRotateX=Math.max(0,Math.min(1,_rngCx+Math.cos(rad)*v));
-        _rngRotateY=Math.max(0,Math.min(1,_rngCy+Math.sin(rad)*v));
+        const rad=_rngShapeRotation*Math.PI/180,axisWidth=_rngShapeAxisWidth();
+        _rngRotateX=Math.max(0,Math.min(1,_rngCx+Math.cos(rad)*axisWidth));
+        _rngRotateY=Math.max(0,Math.min(1,_rngCy+Math.sin(rad)*axisWidth));
       } else _rngShapeHeight = v;
       slider.value = v; input.value = v.toFixed(3); rngUpdateCircle(); _rngUpdateApplyInfo();
     };
@@ -18989,7 +19043,10 @@ function _rngWireEvents() {
     if (_rngShapeDrag === 'pivot') { _rngCx=p.x; _rngCy=p.y; }
     else { _rngRotateX=p.x; _rngRotateY=p.y; }
     _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
-    _rngShapeWidth=Math.max(.02,Math.min(.8,Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy)));
+    const draggedAxisWidth=Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy);
+    _rngShapeWidth=_rngRectShapeKind()==='wall_sections'
+      ? Math.max(.01,Math.min(.2,draggedAxisWidth/4))
+      : Math.max(.02,Math.min(.8,draggedAxisWidth));
     document.getElementById('rng-shape-width').value=_rngShapeWidth;
     document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
     rngUpdateCircle();
@@ -19202,6 +19259,23 @@ async function rngSelectAbility(ab) {
     d.style.borderColor = d.dataset.ability === ab ? 'var(--primary)' : 'transparent';
   });
   const sensor = _rngIsSonicSensor();
+  const wall = _rngRectShapeKind() === 'wall_sections';
+  if (wall) {
+    _rngShapeWidth = .04;
+    _rngShapeHeight = .032;
+    _rngShapeRotation = 0;
+    _rngCx = .42; _rngCy = .5; _rngRotateX = .58; _rngRotateY = .5;
+    document.getElementById('rng-shape-width').value = _rngShapeWidth;
+    document.getElementById('rng-shape-width-value').value = _rngShapeWidth.toFixed(3);
+    document.getElementById('rng-shape-height').value = _rngShapeHeight;
+    document.getElementById('rng-shape-height-value').value = _rngShapeHeight.toFixed(3);
+  }
+  document.getElementById('rng-shape-editor-title').textContent = wall ? 'Редактор стены Sage' : 'Редактор звукового сенсора';
+  document.getElementById('rng-shape-width-label').textContent = wall ? 'Ширина одного блока стены' : 'Расстояние между белой и красной точками';
+  document.getElementById('rng-shape-height-label').textContent = wall ? 'Толщина одного блока стены' : 'Высота прямоугольника';
+  document.getElementById('rng-shape-editor-help').innerHTML = wall
+    ? '<b style="color:#fff;">Белая точка</b> перемещает всю стену.<br><b style="color:#ff6b78;">Красная точка</b> поворачивает её. Общая длина равна ширине одного блока × 4.'
+    : '<b style="color:#fff;">Белая точка</b> — середина левой стороны.<br><b style="color:#ff6b78;">Красная точка</b> — середина правой стороны. Прямоугольник всегда строится между точками.';
   document.getElementById('rng-radius-editor').style.display = sensor ? 'none' : '';
   document.getElementById('rng-sensor-editor').style.display = sensor ? '' : 'none';
   document.getElementById('rng-map-help').textContent = sensor
@@ -19213,7 +19287,16 @@ async function rngSelectAbility(ab) {
 }
 
 function _rngIsSonicSensor() {
-  return /deadlock/i.test(_rngAgent) && /sonic|sensor|звуков|сенсор|датчик/i.test(_rngAbility);
+  return (/deadlock/i.test(_rngAgent) && /sonic|sensor|звуков|сенсор|датчик/i.test(_rngAbility))
+    || (/sage/i.test(_rngAgent) && /barrier|стен/i.test(_rngAbility));
+}
+
+function _rngRectShapeKind() {
+  return /sage/i.test(_rngAgent) && /barrier|стен/i.test(_rngAbility) ? 'wall_sections' : 'sensor_rect';
+}
+
+function _rngShapeAxisWidth() {
+  return _rngRectShapeKind() === 'wall_sections' ? _rngShapeWidth * 4 : _rngShapeWidth;
 }
 
 async function _rngLoadSelectedConfig() {
@@ -19225,7 +19308,9 @@ async function _rngLoadSelectedConfig() {
     if (!snap.exists()) return;
     const data=snap.data();
     if (_rngIsSonicSensor()) {
-      _rngShapeWidth=Math.max(.02,Math.min(.8,Number(data.shape_width)||.12));
+      _rngShapeWidth=_rngRectShapeKind()==='wall_sections'
+        ? Math.max(.01,Math.min(.2,Number(data.shape_block_width)||Number(data.shape_width)/4||.04))
+        : Math.max(.02,Math.min(.8,Number(data.shape_width)||.12));
       _rngShapeHeight=Math.max(.02,Math.min(.35,Number(data.shape_height)||.08));
       _rngShapeRotation=Number(data.shape_rotation)||0;
       const pivot=Array.isArray(data.points)?data.points.find(p=>p?.role==='pivot')||data.points[0]:null;
@@ -19233,9 +19318,12 @@ async function _rngLoadSelectedConfig() {
       if (pivot && Number.isFinite(Number(pivot.x)) && Number.isFinite(Number(pivot.y))) { _rngCx=Number(pivot.x); _rngCy=Number(pivot.y); }
       if (rotation && Number.isFinite(Number(rotation.x)) && Number.isFinite(Number(rotation.y))) {
         _rngRotateX=Number(rotation.x); _rngRotateY=Number(rotation.y);
-        _rngShapeWidth=Math.max(.02,Math.min(.8,Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy)));
+        const storedAxisWidth=Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy);
+        _rngShapeWidth=_rngRectShapeKind()==='wall_sections'
+          ? Math.max(.01,Math.min(.2,storedAxisWidth/4))
+          : Math.max(.02,Math.min(.8,storedAxisWidth));
         _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
-      } else { const rad=_rngShapeRotation*Math.PI/180; _rngRotateX=_rngCx+Math.cos(rad)*_rngShapeWidth; _rngRotateY=_rngCy+Math.sin(rad)*_rngShapeWidth; }
+      } else { const rad=_rngShapeRotation*Math.PI/180, axisWidth=_rngShapeAxisWidth(); _rngRotateX=_rngCx+Math.cos(rad)*axisWidth; _rngRotateY=_rngCy+Math.sin(rad)*axisWidth; }
       document.getElementById('rng-shape-width').value=_rngShapeWidth;
       document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
       document.getElementById('rng-shape-height').value=_rngShapeHeight;
@@ -19271,9 +19359,21 @@ function rngUpdateCircle() {
   if (sensor) {
     const ax=_rngCx*w, ay=_rngCy*w, bx=_rngRotateX*w, by=_rngRotateY*w;
     const cx=(ax+bx)/2, cy=(ay+by)/2, rw=Math.max(1,Math.hypot(bx-ax,by-ay)), rh=_rngShapeHeight*w;
+    const wall=_rngRectShapeKind()==='wall_sections';
     const rect=document.getElementById('rng-sensor-rect');
+    rect.style.display=wall?'none':'';
     rect.setAttribute('x',cx-rw/2); rect.setAttribute('y',cy-rh/2); rect.setAttribute('width',rw); rect.setAttribute('height',rh);
     rect.setAttribute('transform',`rotate(${_rngShapeRotation} ${cx} ${cy})`);
+    const wallBlocks=document.getElementById('rng-wall-blocks');
+    wallBlocks.style.display=wall?'':'none';
+    if(wall){
+      const blockWidth=rw/4;
+      wallBlocks.querySelectorAll('[data-rng-wall-block]').forEach((block,index)=>{
+        block.setAttribute('x',ax+blockWidth*index+.8);block.setAttribute('y',ay-rh/2);
+        block.setAttribute('width',Math.max(1,blockWidth-1.6));block.setAttribute('height',rh);
+        block.setAttribute('transform',`rotate(${_rngShapeRotation} ${ax} ${ay})`);
+      });
+    }
     const axis=document.getElementById('rng-sensor-axis'); axis.setAttribute('x1',ax); axis.setAttribute('y1',ay); axis.setAttribute('x2',bx); axis.setAttribute('y2',by);
     const pivot=document.getElementById('rng-sensor-pivot'); pivot.setAttribute('cx',ax); pivot.setAttribute('cy',ay);
     const rotate=document.getElementById('rng-sensor-rotate'); rotate.setAttribute('cx',bx); rotate.setAttribute('cy',by);
@@ -19289,7 +19389,9 @@ function _rngUpdateApplyInfo() {
   const val    = parseFloat(document.getElementById('rng-slider').value) || 0;
   const meters = (val / 0.007).toFixed(1);
   info.textContent = _rngIsSonicSensor()
-    ? `${_rngAgent} · ${_rngAbility} · ${map} — прямоугольник ${_rngShapeWidth.toFixed(3)} × ${_rngShapeHeight.toFixed(3)}, угол ${_rngShapeRotation.toFixed(1)}°`
+    ? (_rngRectShapeKind()==='wall_sections'
+      ? `${_rngAgent} · ${_rngAbility} · ${map} — 1 блок ${_rngShapeWidth.toFixed(3)} × ${_rngShapeHeight.toFixed(3)}, вся стена ${(_rngShapeWidth*4).toFixed(3)}, угол ${_rngShapeRotation.toFixed(1)}°`
+      : `${_rngAgent} · ${_rngAbility} · ${map} — прямоугольник ${_rngShapeWidth.toFixed(3)} × ${_rngShapeHeight.toFixed(3)}, угол ${_rngShapeRotation.toFixed(1)}°`)
     : `${_rngAgent} · ${_rngAbility} · ${map} — радиус ${val.toFixed(3)} (≈ ${meters} м)`;
 }
 
@@ -19303,14 +19405,14 @@ async function rngApplyToLineups() {
     const cfgKey = (map + '__' + _rngAgent + '__' + _rngAbility).replace(/[\\/. ]/g, '_');
     const sensor=_rngIsSonicSensor();
     const shapeData=sensor ? {
-      shape_kind:'sensor_rect', shape_anchor:'edge_midpoints', shape_width:_rngShapeWidth, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
+      shape_kind:_rngRectShapeKind(), shape_anchor:'edge_midpoints', shape_width:_rngShapeAxisWidth(), shape_block_width:_rngRectShapeKind()==='wall_sections'?_rngShapeWidth:0, shape_height:_rngShapeHeight, shape_rotation:_rngShapeRotation,
       points:[{role:'pivot',x:_rngCx,y:_rngCy},{role:'rotation',x:_rngRotateX,y:_rngRotateY}]
     } : {};
     await setDoc(doc(db, 'range_config', cfgKey), {
       map, agent: _rngAgent, ability: _rngAbility, range_radius: val, ...shapeData, updatedAt: serverTimestamp()
     });
     _defShapeConfigCache.delete(cfgKey);
-    if(sensor)_defShapeConfigCache.delete(`__sensor_shape__${_rngAgent}`);
+    if(sensor)_defShapeConfigCache.delete(`__${_rngRectShapeKind()}_shape__${_rngAgent}`);
     const snap = await getDocs(query(
       collection(db, 'lineups'),
       where('map', '==', map),
@@ -19349,9 +19451,10 @@ async function rngApplyToAllMaps() {
   try {
     const sensor = _rngIsSonicSensor();
     const sharedShape = sensor ? {
-      shape_kind:'sensor_rect',
+      shape_kind:_rngRectShapeKind(),
       shape_anchor:'edge_midpoints',
-      shape_width:_rngShapeWidth,
+      shape_width:_rngShapeAxisWidth(),
+      shape_block_width:_rngRectShapeKind()==='wall_sections'?_rngShapeWidth:0,
       shape_height:_rngShapeHeight,
       shape_rotation:_rngShapeRotation
     } : {};
@@ -19541,7 +19644,7 @@ function _rngRenderList() {
   sorted.forEach((r, i) => {
     const radius = Number(r.range_radius) || 0;
     const meters = (radius / 0.007).toFixed(1);
-    const sensor = r.shape_kind === 'sensor_rect';
+    const sensor = ['sensor_rect','wall_sections'].includes(r.shape_kind);
     const shapeWidth = Number(r.shape_width) || 0;
     const shapeHeight = Number(r.shape_height) || 0;
     const shapeRotation = Number(r.shape_rotation) || 0;
@@ -19554,7 +19657,7 @@ function _rngRenderList() {
     html += `<tr id="rng-row-${i}" style="border-bottom:1px solid var(--border);cursor:pointer;" onclick="rngListSelect('${ms}','${as2}','${bs}',${radius},${i},'${ci}')">`;
     html += `<td style="padding:9px 10px;font-size:13px;">${esc(r.map || '')}</td>`;
     html += `<td style="padding:9px 10px;font-size:13px;">${aImg}${esc(r.agent || '')}</td>`;
-    html += `<td style="padding:9px 10px;font-size:13px;">${bImg}${esc(r.ability || '')}${sensor ? '<div style="font-size:10px;color:#65dcff;margin-top:2px;">Сенсор · 2 точки</div>' : ''}</td>`;
+    html += `<td style="padding:9px 10px;font-size:13px;">${bImg}${esc(r.ability || '')}${sensor ? `<div style="font-size:10px;color:#65dcff;margin-top:2px;">${r.shape_kind==='wall_sections'?'Стена · 4 секции':'Сенсор · 2 точки'}</div>` : ''}</td>`;
     html += `<td id="rng-rv-${i}" style="padding:9px 10px;font-size:13px;color:var(--primary);font-weight:600;white-space:nowrap;">${valueHtml}</td>`;
     html += `<td id="rng-rm-${i}" style="padding:9px 10px;font-size:13px;color:var(--text2);white-space:nowrap;">${detailHtml}</td>`;
     html += `<td style="padding:9px 10px;text-align:right;white-space:nowrap;">`;
@@ -19601,7 +19704,7 @@ window.rngListSelect = function(map,agent,ability,radius,idx,cfgId='') {
   const info      = document.getElementById('rng-lp-info');
   const container = document.getElementById('rng-lp-container');
   const config = _rngRows.find(row => row.cfgId === cfgId);
-  const sensor = config?.shape_kind === 'sensor_rect';
+  const sensor = ['sensor_rect','wall_sections'].includes(config?.shape_kind);
   if (img && MAP_IMAGES[map]) { img.src = MAP_IMAGES[map]; }
   if (hint) hint.style.display = MAP_IMAGES[map] ? 'none' : '';
   const pxR = radius * ((container ? container.offsetWidth : 0) || 260);
@@ -19647,7 +19750,7 @@ window.rngOpenConfig = async function(cfgId,idx) {
   rngSelectAgent(config.agent);
   mapSelect.value=config.map;mapSelect.dispatchEvent(new Event('change'));
   await rngSelectAbility(config.ability);
-  document.getElementById(config.shape_kind==='sensor_rect'?'rng-sensor-editor':'rng-radius-editor')
+  document.getElementById(['sensor_rect','wall_sections'].includes(config.shape_kind)?'rng-sensor-editor':'rng-radius-editor')
     ?.scrollIntoView({behavior:'smooth',block:'center'});
   toast(`Загружено в редактор: ${config.map} · ${config.agent} · ${config.ability}`, 's');
 };
