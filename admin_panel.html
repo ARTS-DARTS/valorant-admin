@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">credential-expiry-registry-v1 | 2026-07-30 14:30</span>
+  <span class="admin-version" id="admin-build-version">firebase-admin-auth-v1 | 2026-07-30 14:45</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -5874,9 +5874,10 @@ window._maDecide = async function(uid, action) {
       ? `Одобрить заявку ${a.username}? Пользователь станет модератором.`
       : `Отклонить заявку ${a.username}?`)) return;
   try {
+    const token = await auth.currentUser.getIdToken();
     const res = await fetch('https://vlineups.ru/api/moderator-application', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+      headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
       body: JSON.stringify({
         uid,
         action,
@@ -8647,9 +8648,10 @@ async function findAgentSubscriberUids(agent) {
 }
 
 async function notifySubscribersViaServer(lineup) {
-  const res = await fetch('https://valorant-upload.vercel.app/api/notify-agent-subscribers', {
+  const token = await auth.currentUser.getIdToken();
+  const res = await fetch('https://vlineups.ru/api/notify-agent-subscribers', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+    headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
     body: JSON.stringify({ lineup }),
   });
   const data = await res.json().catch(() => ({}));
@@ -15618,10 +15620,8 @@ function initMapInteraction(container) {
   });
 }
 
-// ── Push proxy (Vercel serverless → OneSignal, обходит CORS) ─────────────────
-// Установить в Vercel: ONESIGNAL_APP_ID, ONESIGNAL_REST_KEY, ADMIN_SECRET=значение ниже
-const _PUSH_PROXY   = 'https://valorant-upload.vercel.app/api/send-push';
-const _ADMIN_SECRET = 'vl_adm_8f2k9p4x7q3m';
+// ── Push proxy (server → OneSignal, browser authenticates with Firebase) ──────
+const _PUSH_PROXY = 'https://vlineups.ru/api/send-push';
 
 const _PUSH_LOCALES = ['ru', 'en', 'tr', 'es', 'pt'];
 
@@ -16094,9 +16094,10 @@ async function sendPushNotification({ title, body, translations, type, targetUid
   const localizedTexts = translations || await buildPushTranslations(title, body);
   const campaignId = data?.campaign_id || crypto.randomUUID();
   const pushData = { ...(data || {}), campaign_id: campaignId, target: notificationTargetForType(type) };
+  const token = await auth.currentUser.getIdToken();
   const res = await fetch(_PUSH_PROXY, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'x-admin-key': _ADMIN_SECRET },
+    headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
     body:    JSON.stringify({ title, body, translations: localizedTexts, type, targetUid: uid || undefined, data: pushData, minAndroidVersionCode, maxAndroidVersionCode, requiredTag }),
   });
   if (!res.ok) {
