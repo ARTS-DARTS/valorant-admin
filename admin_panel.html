@@ -2698,7 +2698,7 @@ import {
   messageThread as _msgThread,
   messageTimestamp as _msgThreadTs,
   pendingModeratorApplications,
-} from './admin/messages_model.mjs?v=2026-07-23-selectel-signer-v1';
+} from './admin/messages_model.mjs?v=2026-07-30-feedback-restore-v1';
 import {
   clamp01 as _msClamp01,
   cloneCollisionObjects as _mgCloneObjects,
@@ -5308,7 +5308,7 @@ window._msgSendReply = async function(id) {
       category: m?.category || 'администрация',
       username: m?.username || directUser?.name || (targetUid ? targetUid.slice(0, 8) : 'Пользователь'),
       user_id: targetUid,
-      source: m?.source || 'admin_message',
+      ...(m?.source ? { source: m.source } : (!m ? { source: 'admin_message' } : {})),
       thread: arrayUnion(adminMsg),
       reply, reply_read: false, user_unread: true, is_read: true,
       last_from: 'admin', admin_unread: false, status: 'open',

@@ -11,6 +11,10 @@ export function messageTimestamp(message) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isDirectAdminChat(message) {
+  return String(message?.id || '').startsWith('admin_chat_');
+}
+
 export function isMessageNew(message) {
   if (message.admin_unread === true) return true;
   if (message.admin_unread === false) return false;
@@ -27,7 +31,7 @@ export function messageThread(message) {
     }) || createdAt;
 
   if (
-    message.source === 'admin_message' &&
+    isDirectAdminChat(message) &&
     (!Array.isArray(message.thread) || message.thread.length === 0)
   ) {
     return [];
@@ -37,7 +41,7 @@ export function messageThread(message) {
     const thread = [...message.thread];
     const originalText = String(message.text || '').trim();
     const hasOriginal =
-      message.source === 'admin_message' ||
+      isDirectAdminChat(message) ||
       !originalText ||
       thread.some(
         (item) =>
@@ -95,7 +99,7 @@ export function buildMessageConversations(source) {
 
   for (const item of source) {
     if (consumed.has(item.id)) continue;
-    if (item.source === 'admin_message') {
+    if (isDirectAdminChat(item)) {
       result.push(item);
       consumed.add(item.id);
       continue;
@@ -115,7 +119,7 @@ export function buildMessageConversations(source) {
     const parts = source.filter(
       (other) =>
         other.user_id === canonical.user_id &&
-        other.source !== 'admin_message' &&
+        !isDirectAdminChat(other) &&
         other.status !== 'closed',
     );
     parts.forEach((part) => consumed.add(part.id));
