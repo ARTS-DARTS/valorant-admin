@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-30-pacman-dots-v2">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-30-pacman-dots-v3">
 </head>
 <body>
 
@@ -2656,6 +2656,15 @@
 <!-- Toasts -->
 <div class="toasts" id="toasts"></div>
 
+<script>
+  // Работает независимо от основного module-скрипта: даже ошибка импорта не оставит вечную заставку.
+  window.setTimeout(() => {
+    const loader = document.getElementById('site-loader');
+    if (!loader || loader.classList.contains('site-loader--hidden')) return;
+    loader.classList.add('site-loader--hidden');
+    window.setTimeout(() => loader.remove(), 450);
+  }, 12000);
+</script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import {

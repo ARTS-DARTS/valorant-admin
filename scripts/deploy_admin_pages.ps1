@@ -28,7 +28,11 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'admin_panel.css') -Destination (Joi
 Copy-Item -LiteralPath (Join-Path $repoRoot 'admin_favicon.svg') -Destination (Join-Path $deployPath 'admin_favicon.svg')
 $adminAssetsPath = Join-Path $deployPath 'admin'
 New-Item -ItemType Directory -Path $adminAssetsPath | Out-Null
+Copy-Item -LiteralPath (Join-Path $repoRoot 'admin\content_categories.mjs') -Destination (Join-Path $adminAssetsPath 'content_categories.mjs')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'admin\html_utils.mjs') -Destination (Join-Path $adminAssetsPath 'html_utils.mjs')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'admin\map_geometry.mjs') -Destination (Join-Path $adminAssetsPath 'map_geometry.mjs')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'admin\messages_model.mjs') -Destination (Join-Path $adminAssetsPath 'messages_model.mjs')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'admin\update_watcher.mjs') -Destination (Join-Path $adminAssetsPath 'update_watcher.mjs')
 $adStatsCache = Join-Path $repoRoot 'ad_stats_daily_public.json'
 if (Test-Path -LiteralPath $adStatsCache) {
   Copy-Item -LiteralPath $adStatsCache -Destination (Join-Path $deployPath 'ad_stats_daily_public.json')
