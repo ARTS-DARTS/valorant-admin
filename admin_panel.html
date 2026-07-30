@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-27-presence-profile-modal-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-07-30-account-chart-focus-v2">
 </head>
 <body>
 
@@ -56,7 +56,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">account-deletions-v1 | 2026-07-30 06:20</span>
+  <span class="admin-version" id="admin-build-version">account-chart-focus-v2 | 2026-07-30 06:31</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -784,18 +784,17 @@
       <div id="an-section-users" class="an-section" style="display:none;">
         <div class="form-title">🆕 НОВЫЕ ПОЛЬЗОВАТЕЛИ</div>
         <div class="an-cards" id="nu-stat-cards">
-          <div class="an-card"><div class="an-val an-loading" id="nu-today">…</div><div class="an-lbl">Новые сегодня</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">Новые 7д</div></div>
-          <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">Новые 30д</div></div>
+          <div class="an-card nu-chart-card is-chart-focus" data-nu-card-mode="registrations"><div class="an-val an-loading" id="nu-today">…</div><div class="an-lbl">Новые сегодня</div></div>
+          <div class="an-card nu-chart-card is-chart-focus" data-nu-card-mode="registrations"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">Новые 7д</div></div>
+          <div class="an-card nu-chart-card is-chart-focus" data-nu-card-mode="registrations"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">Новые 30д</div></div>
           <div class="an-card" title="Только существующие документы users. Удалённые аккаунты уже исключены"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего профилей</div></div>
-          <div class="an-card" title="Количество зафиксированных удалений в deleted_accounts за весь период"><div class="an-val an-loading" id="nu-deleted-total">…</div><div class="an-lbl">Удалено за всё время</div></div>
+          <div class="an-card nu-chart-card" data-nu-card-mode="deletions" title="Количество зафиксированных удалений в deleted_accounts за весь период"><div class="an-val an-loading" id="nu-deleted-total">…</div><div class="an-lbl">Удалено за всё время</div></div>
           <div class="an-card" title="Профили, получившие подтверждение: ручная отметка или 5+ просмотренных лайнапов"><div class="an-val an-loading" id="nu-confirmed-profiles">…</div><div class="an-lbl">Подтверждённые профили</div></div>
           <div class="an-card" title="Всего профилей минус подтверждённые"><div class="an-val an-loading" id="nu-account-gap">…</div><div class="an-lbl">Акки / неактив</div></div>
           <div class="an-card" title="Профили с last_seen за 24 часа"><div class="an-val an-loading" id="nu-active-24h">…</div><div class="an-lbl">Актив 24ч</div></div>
           <div class="an-card" title="Профили с last_seen за 7 дней"><div class="an-val an-loading" id="nu-active-7d">…</div><div class="an-lbl">Актив 7д</div></div>
           <div class="an-card" title="Профили с last_seen за 30 дней"><div class="an-val an-loading" id="nu-active-30d">…</div><div class="an-lbl">Актив 30д</div></div>
           <div class="an-card" title="Новые регистрации за 24 часа через логин + пароль"><div class="an-val an-loading" id="nu-by-password">…</div><div class="an-lbl">🔑 Пароль 24ч</div></div>
-          <div class="an-card" title="Новые регистрации за 24 часа через Google Sign-In"><div class="an-val an-loading" id="nu-by-google">…</div><div class="an-lbl">🔴 Google 24ч</div></div>
           <div class="an-card" title="Новые аккаунты Яндекс ID за 24 часа"><div class="an-val an-loading" id="nu-by-yandex">…</div><div class="an-lbl">🟡 Яндекс 24ч</div></div>
         </div>
         <div class="an-chart-box" style="margin-top:14px;">
@@ -13763,6 +13762,9 @@ window._nuSetChartMode = function(mode) {
   document.querySelectorAll('[data-nu-chart-mode]').forEach(button => {
     button.classList.toggle('active', button.dataset.nuChartMode === _nuChartMode);
   });
+  document.querySelectorAll('[data-nu-card-mode]').forEach(card => {
+    card.classList.toggle('is-chart-focus', card.dataset.nuCardMode === _nuChartMode);
+  });
   const title = document.getElementById('nu-chart-title');
   if (title) {
     title.textContent = _nuChartMode === 'deletions'
@@ -13877,7 +13879,6 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-active-7d').textContent   = active7d;
     document.getElementById('nu-active-30d').textContent  = active30d;
     document.getElementById('nu-by-password').textContent = `${nuPassword} / 24ч`;
-    document.getElementById('nu-by-google').textContent   = `${nuGoogle} / 24ч`;
     document.getElementById('nu-by-yandex').textContent   = `${nuYandex} / 24ч`;
     document.getElementById('nu-24h-count').textContent   = _nuAllRecent.length >= ADMIN_USERS_RECENT_LIST_LIMIT ? `${_nuAllRecent.length}+` : _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
