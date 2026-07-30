@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">robokassa-billing-admin-v1 | 2026-07-30 12:20</span>
+  <span class="admin-version" id="admin-build-version">billing-operations-v2 | 2026-07-30 13:05</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -957,6 +957,12 @@
       <div class="an-card"><div class="an-val" id="billing-reversals">—</div><div class="an-lbl">Возвратов</div></div>
       <div class="an-card"><div class="an-val" id="billing-net">—</div><div class="an-lbl">Итого</div></div>
     </div>
+    <div class="billing-health-grid" aria-label="Состояние платёжного контура">
+      <div><span class="billing-health-dot" id="billing-health-dot"></span><strong id="billing-health-label">Проверяем контур…</strong><small id="billing-health-detail">—</small></div>
+      <div><span>Зависшие</span><strong id="billing-stuck">—</strong><small>pending более 35 минут</small></div>
+      <div><span>Ручная проверка</span><strong id="billing-review-count">—</strong><small>конфликт активного тарифа</small></div>
+      <div><span>Дубликаты callback</span><strong id="billing-duplicates">—</strong><small>без повторной выдачи прав</small></div>
+    </div>
     <div class="billing-admin-toolbar">
       <select class="finput" id="billing-status-filter" aria-label="Статус платежа">
         <option value="all">Все статусы</option>
@@ -967,6 +973,12 @@
         <option value="reversed">Возвращён</option>
       </select>
       <span>Последние 40 заказов · без realtime и полного сканирования</span>
+      <button class="btn" id="billing-export" type="button"><i class="bi bi-download"></i> CSV</button>
+    </div>
+    <div class="billing-pagination">
+      <button class="btn" id="billing-prev" type="button" disabled>← Назад</button>
+      <span id="billing-page-label">Страница 1</span>
+      <button class="btn" id="billing-next" type="button" disabled>Вперёд →</button>
     </div>
     <div class="billing-admin-table-wrap">
       <table class="billing-admin-table">
@@ -3046,6 +3058,15 @@ const BILLING_STATUS_LABELS = {
   pending:'Ожидает', succeeded:'Оплачен', failed:'Не прошёл',
   requires_review:'Нужна проверка', reversed:'Возвращён',
 };
+const BILLING_REVIEW_LABELS = {
+  active_plan_conflict:'У пользователя уже активен другой тариф. Платёж сохранён, права не заменены.',
+  account_deleted_before_settlement:'Аккаунт удалён до завершения оплаты. Не выдавать права автоматически.',
+};
+let billingPage = 1;
+let billingCursor = '';
+let billingNextCursor = '';
+let billingCursorHistory = [];
+let billingVisibleOrders = [];
 
 function billingMoney(value) {
   return new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB' })
@@ -3059,16 +3080,23 @@ function billingDate(value, withTime = false) {
     : { day:'2-digit', month:'2-digit', year:'numeric' }).format(new Date(value));
 }
 
-async function loadBillingAdmin() {
+async function loadBillingAdmin({ reset = false } = {}) {
   const body = document.getElementById('billing-orders-body');
   const refresh = document.getElementById('billing-refresh');
   if (!body || !auth.currentUser) return;
+  if (reset) {
+    billingPage = 1;
+    billingCursor = '';
+    billingNextCursor = '';
+    billingCursorHistory = [];
+  }
   body.innerHTML = '<tr><td colspan="6" class="billing-admin-state">Загрузка серверных данных…</td></tr>';
   if (refresh) refresh.disabled = true;
   try {
     const token = await auth.currentUser.getIdToken();
     const status = document.getElementById('billing-status-filter')?.value || 'all';
-    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/billing?limit=40&status=${encodeURIComponent(status)}`, {
+    const cursorPart = billingCursor ? `&cursor=${encodeURIComponent(billingCursor)}` : '';
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/billing?limit=40&status=${encodeURIComponent(status)}${cursorPart}`, {
       headers:{ Authorization:`Bearer ${token}` }, cache:'no-store',
     });
     const payload = await response.json().catch(() => ({}));
@@ -3078,19 +3106,36 @@ async function loadBillingAdmin() {
     document.getElementById('billing-gross').textContent = billingMoney(overview.gross_minor);
     document.getElementById('billing-reversals').textContent = Number(overview.reversals_total) || 0;
     document.getElementById('billing-net').textContent = billingMoney(overview.net_minor);
+    const monitoring = payload.monitoring || {};
+    const problems = (Number(monitoring.stuck_pending) || 0) + (Number(monitoring.requires_review) || 0);
+    const healthDot = document.getElementById('billing-health-dot');
+    healthDot?.classList.toggle('warn', problems > 0);
+    document.getElementById('billing-health-label').textContent = problems ? 'Требуется внимание' : 'Контур в норме';
+    document.getElementById('billing-health-detail').textContent = monitoring.last_webhook_error_at
+      ? `Последняя ошибка: ${billingDate(monitoring.last_webhook_error_at, true)}`
+      : `Проверено заказов: ${Number(monitoring.scanned_orders) || 0}`;
+    document.getElementById('billing-stuck').textContent = Number(monitoring.stuck_pending) || 0;
+    document.getElementById('billing-review-count').textContent = Number(monitoring.requires_review) || 0;
+    document.getElementById('billing-duplicates').textContent = Number(monitoring.duplicate_callbacks_total) || 0;
     const orders = Array.isArray(payload.orders) ? payload.orders : [];
+    billingVisibleOrders = orders;
+    billingNextCursor = payload.next_cursor || '';
+    document.getElementById('billing-prev').disabled = billingPage <= 1;
+    document.getElementById('billing-next').disabled = !billingNextCursor;
+    document.getElementById('billing-page-label').textContent = `Страница ${billingPage}`;
     body.innerHTML = orders.length ? orders.map(order => {
       const person = order.user_name || order.user_email || order.uid || '—';
       const secondary = order.user_email && order.user_email !== person ? order.user_email : order.uid;
       const access = order.access_until
         ? `${esc(order.entitlement_plan_id || order.plan_id)} · до ${billingDate(order.access_until)}`
         : 'Не выдан';
+      const review = BILLING_REVIEW_LABELS[order.review_reason] || order.review_reason || '';
       return `<tr>
         <td><strong>№ ${esc(order.id)}</strong><small>${billingDate(order.created_at, true)}${order.test_mode ? ' · TEST' : ''}</small></td>
         <td><strong>${esc(person)}</strong><small>${esc(secondary || '')}</small></td>
         <td><strong>${esc(order.plan_id)}</strong><small>${Number(order.months) || 0} мес.</small></td>
         <td><strong>${billingMoney(order.amount_minor)}</strong></td>
-        <td><span class="billing-status billing-status-${esc(order.status)}">${esc(BILLING_STATUS_LABELS[order.status] || order.status)}</span></td>
+        <td><span class="billing-status billing-status-${esc(order.status)}">${esc(BILLING_STATUS_LABELS[order.status] || order.status)}</span>${review ? `<small class="billing-review-note">${esc(review)}</small>` : ''}</td>
         <td><strong>${access}</strong><small>${esc(order.entitlement_status || '')}</small></td>
       </tr>`;
     }).join('') : '<tr><td colspan="6" class="billing-admin-state">Заказов с таким статусом нет</td></tr>';
@@ -3101,8 +3146,43 @@ async function loadBillingAdmin() {
   }
 }
 
-document.getElementById('billing-refresh')?.addEventListener('click', loadBillingAdmin);
-document.getElementById('billing-status-filter')?.addEventListener('change', loadBillingAdmin);
+function billingCsvCell(value) {
+  return `"${String(value ?? '').replaceAll('"', '""')}"`;
+}
+
+function exportBillingCsv() {
+  if (!billingVisibleOrders.length) return toast('На текущей странице нет заказов', 'i');
+  const header = ['Заказ','Дата','UID','Пользователь','Email','Тариф','Месяцы','Сумма, коп.','Статус','Причина проверки','Доступ до'];
+  const rows = billingVisibleOrders.map(order => [
+    order.id, order.created_at, order.uid, order.user_name, order.user_email,
+    order.plan_id, order.months, order.amount_minor, order.status,
+    order.review_reason, order.access_until,
+  ]);
+  const csv = '\uFEFF' + [header, ...rows].map(row => row.map(billingCsvCell).join(';')).join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `vlineups-payments-page-${billingPage}.csv`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+document.getElementById('billing-refresh')?.addEventListener('click', () => loadBillingAdmin({ reset:true }));
+document.getElementById('billing-status-filter')?.addEventListener('change', () => loadBillingAdmin({ reset:true }));
+document.getElementById('billing-export')?.addEventListener('click', exportBillingCsv);
+document.getElementById('billing-next')?.addEventListener('click', () => {
+  if (!billingNextCursor) return;
+  billingCursorHistory.push(billingCursor);
+  billingCursor = billingNextCursor;
+  billingPage += 1;
+  loadBillingAdmin();
+});
+document.getElementById('billing-prev')?.addEventListener('click', () => {
+  if (billingPage <= 1) return;
+  billingCursor = billingCursorHistory.pop() || '';
+  billingPage -= 1;
+  loadBillingAdmin();
+});
 
 // ── Экономия квоты Firestore: приостанавливаем live-listeners, когда вкладка
 // браузера скрыта (админ ушёл / AFK). Пока вкладка открыта на 'list'/'messages'/
