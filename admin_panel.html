@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">sage-wall-block-editor-v1 | 2026-07-30 08:35</span>
+  <span class="admin-version" id="admin-build-version">robokassa-billing-admin-v1 | 2026-07-30 12:20</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -97,6 +97,7 @@
         <button class="tab"        id="tab-btn-changelog"><i class="bi bi-newspaper"></i><span>Новости</span></button>
         <button class="tab"        id="tab-btn-events"><i class="bi bi-calendar-event"></i><span>События</span></button>
         <button class="tab"        id="tab-btn-admins"><i class="bi bi-people"></i><span>Пользователи</span></button>
+        <button class="tab"        id="tab-btn-billing"><i class="bi bi-credit-card"></i><span>Платежи</span></button>
         <button class="tab"        id="tab-btn-analytics"><i class="bi bi-bar-chart-line"></i><span>Аналитика</span></button>
       </div>
       <div class="sidebar-divider"></div>
@@ -940,6 +941,40 @@
       </div>
 
     </div>
+
+  <!-- Billing tab -->
+  <div id="tab-billing" style="display:none;">
+    <div class="billing-admin-head">
+      <div>
+        <div class="form-title">ПЛАТЕЖИ И ПОДПИСКИ</div>
+        <p>Серверные данные Robokassa. Финансовые коллекции недоступны браузеру напрямую.</p>
+      </div>
+      <button class="btn" id="billing-refresh" type="button"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
+    </div>
+    <div class="billing-admin-stats">
+      <div class="an-card"><div class="an-val" id="billing-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
+      <div class="an-card"><div class="an-val" id="billing-gross">—</div><div class="an-lbl">Получено</div></div>
+      <div class="an-card"><div class="an-val" id="billing-reversals">—</div><div class="an-lbl">Возвратов</div></div>
+      <div class="an-card"><div class="an-val" id="billing-net">—</div><div class="an-lbl">Итого</div></div>
+    </div>
+    <div class="billing-admin-toolbar">
+      <select class="finput" id="billing-status-filter" aria-label="Статус платежа">
+        <option value="all">Все статусы</option>
+        <option value="pending">Ожидает</option>
+        <option value="succeeded">Оплачен</option>
+        <option value="requires_review">Нужна проверка</option>
+        <option value="failed">Не прошёл</option>
+        <option value="reversed">Возвращён</option>
+      </select>
+      <span>Последние 40 заказов · без realtime и полного сканирования</span>
+    </div>
+    <div class="billing-admin-table-wrap">
+      <table class="billing-admin-table">
+        <thead><tr><th>Заказ</th><th>Пользователь</th><th>Тариф</th><th>Сумма</th><th>Платёж</th><th>Доступ</th></tr></thead>
+        <tbody id="billing-orders-body"><tr><td colspan="6" class="billing-admin-state">Открой вкладку для загрузки</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 
   <!-- Duels tab -->
   <div id="tab-duels" style="display:none;">
@@ -2948,6 +2983,7 @@ function switchTab(t) {
   document.getElementById('tab-translations').style.display = t === 'translations' ? 'block' : 'none';
   document.getElementById('tab-events').style.display    = t === 'events'    ? 'block' : 'none';
   document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
+  document.getElementById('tab-billing').style.display   = t === 'billing'   ? 'block' : 'none';
   document.getElementById('tab-duels').style.display     = t === 'duels'     ? 'block' : 'none';
   document.getElementById('tab-polls').style.display     = t === 'polls'     ? 'block' : 'none';
   document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
@@ -2968,6 +3004,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-translations').classList.toggle('active', t === 'translations');
   document.getElementById('tab-btn-events').classList.toggle('active',    t === 'events');
   document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
+  document.getElementById('tab-btn-billing').classList.toggle('active',   t === 'billing');
   document.getElementById('tab-btn-duels').classList.toggle('active',     t === 'duels');
   document.getElementById('tab-btn-polls').classList.toggle('active',     t === 'polls');
   document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
@@ -2985,6 +3022,7 @@ function switchTab(t) {
   if (t === 'changelog') loadChangelogPosts();
   if (t === 'events') loadUpdateEvents();
   if (t === 'analytics') loadAnalytics();
+  if (t === 'billing') loadBillingAdmin();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
   if (t === 'polls') loadPollsTab();
@@ -3001,6 +3039,69 @@ function switchTab(t) {
 }
 window.switchTab = switchTab;
 window.switchUserCat = switchUserCat;
+
+const BILLING_API_ORIGIN = 'https://vlineups.ru';
+const BILLING_STATUS_LABELS = {
+  pending:'Ожидает', succeeded:'Оплачен', failed:'Не прошёл',
+  requires_review:'Нужна проверка', reversed:'Возвращён',
+};
+
+function billingMoney(value) {
+  return new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB' })
+    .format((Number(value) || 0) / 100);
+}
+
+function billingDate(value, withTime = false) {
+  if (!value) return '—';
+  return new Intl.DateTimeFormat('ru-RU', withTime
+    ? { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }
+    : { day:'2-digit', month:'2-digit', year:'numeric' }).format(new Date(value));
+}
+
+async function loadBillingAdmin() {
+  const body = document.getElementById('billing-orders-body');
+  const refresh = document.getElementById('billing-refresh');
+  if (!body || !auth.currentUser) return;
+  body.innerHTML = '<tr><td colspan="6" class="billing-admin-state">Загрузка серверных данных…</td></tr>';
+  if (refresh) refresh.disabled = true;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const status = document.getElementById('billing-status-filter')?.value || 'all';
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/billing?limit=40&status=${encodeURIComponent(status)}`, {
+      headers:{ Authorization:`Bearer ${token}` }, cache:'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    const overview = payload.overview || {};
+    document.getElementById('billing-purchases').textContent = Number(overview.purchases_total) || 0;
+    document.getElementById('billing-gross').textContent = billingMoney(overview.gross_minor);
+    document.getElementById('billing-reversals').textContent = Number(overview.reversals_total) || 0;
+    document.getElementById('billing-net').textContent = billingMoney(overview.net_minor);
+    const orders = Array.isArray(payload.orders) ? payload.orders : [];
+    body.innerHTML = orders.length ? orders.map(order => {
+      const person = order.user_name || order.user_email || order.uid || '—';
+      const secondary = order.user_email && order.user_email !== person ? order.user_email : order.uid;
+      const access = order.access_until
+        ? `${esc(order.entitlement_plan_id || order.plan_id)} · до ${billingDate(order.access_until)}`
+        : 'Не выдан';
+      return `<tr>
+        <td><strong>№ ${esc(order.id)}</strong><small>${billingDate(order.created_at, true)}${order.test_mode ? ' · TEST' : ''}</small></td>
+        <td><strong>${esc(person)}</strong><small>${esc(secondary || '')}</small></td>
+        <td><strong>${esc(order.plan_id)}</strong><small>${Number(order.months) || 0} мес.</small></td>
+        <td><strong>${billingMoney(order.amount_minor)}</strong></td>
+        <td><span class="billing-status billing-status-${esc(order.status)}">${esc(BILLING_STATUS_LABELS[order.status] || order.status)}</span></td>
+        <td><strong>${access}</strong><small>${esc(order.entitlement_status || '')}</small></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="6" class="billing-admin-state">Заказов с таким статусом нет</td></tr>';
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="6" class="billing-admin-state billing-admin-error">Ошибка: ${esc(error.message)}</td></tr>`;
+  } finally {
+    if (refresh) refresh.disabled = false;
+  }
+}
+
+document.getElementById('billing-refresh')?.addEventListener('click', loadBillingAdmin);
+document.getElementById('billing-status-filter')?.addEventListener('change', loadBillingAdmin);
 
 // ── Экономия квоты Firestore: приостанавливаем live-listeners, когда вкладка
 // браузера скрыта (админ ушёл / AFK). Пока вкладка открыта на 'list'/'messages'/
@@ -3051,6 +3152,7 @@ document.getElementById('tab-btn-admins').addEventListener('click',    () => swi
 document.getElementById('tab-btn-changelog').addEventListener('click', () => switchTab('changelog'));
 document.getElementById('tab-btn-events').addEventListener('click',    () => switchTab('events'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
+document.getElementById('tab-btn-billing').addEventListener('click',   () => switchTab('billing'));
 document.getElementById('tab-btn-duels').addEventListener('click',     () => switchTab('duels'));
 document.getElementById('tab-btn-polls').addEventListener('click',     () => switchTab('polls'));
 document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
