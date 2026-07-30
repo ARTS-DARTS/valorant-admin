@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">billing-operations-v2 | 2026-07-30 13:05</span>
+  <span class="admin-version" id="admin-build-version">credential-expiry-registry-v1 | 2026-07-30 14:30</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -104,6 +104,7 @@
       <div class="sidebar-section-label">Система</div>
       <div class="tabs">
         <button class="tab"        id="tab-btn-notif"><i class="bi bi-bell"></i><span>Уведомления</span></button>
+        <button class="tab"        id="tab-btn-expirations"><i class="bi bi-hourglass-split"></i><span>Сроки</span><span class="expiry-nav-badge" id="expiry-nav-badge" hidden>0</span></button>
         <button class="tab"        id="tab-btn-logs"><i class="bi bi-exclamation-triangle"></i><span>Логи</span></button>
         <button class="tab"        id="tab-btn-mapstyle"><i class="bi bi-map"></i><span>Стиль карт</span></button>
         <button class="tab"        id="tab-btn-agentcolors"><i class="bi bi-palette"></i><span>Стиль абилок</span></button>
@@ -624,6 +625,7 @@
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
           <button class="an-tab-btn" data-an-tab="notifications">🔔 Уведомления</button>
           <button class="an-tab-btn" data-an-tab="storage">☁️ Хранилища</button>
+          <button class="an-tab-btn" data-an-tab="vps">🖥 VPS</button>
           <button type="button" class="site-online-button" id="site-online-pill" data-an-tab="online" aria-label="Открыть статистику активности сайта">
             <span class="site-online-button__dot" aria-hidden="true"></span>
             <span>Активность сайта:</span>
@@ -940,6 +942,46 @@
         </div>
       </div>
 
+      <!-- ── VPS ── -->
+      <div id="an-section-vps" class="an-section" style="display:none;">
+        <div class="vps-an-head">
+          <div>
+            <div class="form-title" style="margin:0;">🖥 VPS — СЕРВЕР САЙТА</div>
+            <p>Инфраструктура, на которой работают vlineups.ru и серверные API.</p>
+          </div>
+          <span class="vps-an-source">локальная конфигурация</span>
+        </div>
+        <article class="vps-an-card" id="vps-an-card">
+          <div class="vps-an-identity">
+            <div class="vps-an-machine" aria-hidden="true"><i class="bi bi-hdd-rack"></i></div>
+            <div>
+              <div class="vps-an-kicker">ONEDASH · МОСКВА</div>
+              <h3>VM-177262 <span>№257199</span></h3>
+              <div class="vps-an-status"><i></i> Работает</div>
+            </div>
+          </div>
+          <div class="vps-an-specs">
+            <div><small>IP-адрес</small><strong>212.15.49.68</strong></div>
+            <div><small>Система</small><strong>Ubuntu 24</strong></div>
+            <div><small>Тариф</small><strong>First · 1 vCPU / 1 GB</strong></div>
+            <div><small>Назначение</small><strong>Сайт · API · PM2 · Nginx</strong></div>
+          </div>
+          <div class="vps-an-renewal">
+            <small>ДО ПРОДЛЕНИЯ</small>
+            <strong id="vps-days-left">—</strong>
+            <span>31.01.2027</span>
+            <div class="vps-an-meter" aria-hidden="true"><i id="vps-renewal-meter"></i></div>
+            <a href="https://rdp-onedash.ru/account" target="_blank" rel="noopener noreferrer">
+              Открыть OneDash <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+          </div>
+        </article>
+        <div class="vps-an-note" id="vps-an-note">
+          <i class="bi bi-shield-check"></i>
+          <span><strong>Что зависит от VPS:</strong> vlineups.ru, Яндекс-вход, push, серверные API и обработка дуэлей.</span>
+        </div>
+      </div>
+
     </div>
 
   <!-- Billing tab -->
@@ -975,17 +1017,42 @@
       <span>Последние 40 заказов · без realtime и полного сканирования</span>
       <button class="btn" id="billing-export" type="button"><i class="bi bi-download"></i> CSV</button>
     </div>
-    <div class="billing-pagination">
-      <button class="btn" id="billing-prev" type="button" disabled>← Назад</button>
-      <span id="billing-page-label">Страница 1</span>
-      <button class="btn" id="billing-next" type="button" disabled>Вперёд →</button>
-    </div>
     <div class="billing-admin-table-wrap">
       <table class="billing-admin-table">
         <thead><tr><th>Заказ</th><th>Пользователь</th><th>Тариф</th><th>Сумма</th><th>Платёж</th><th>Доступ</th></tr></thead>
         <tbody id="billing-orders-body"><tr><td colspan="6" class="billing-admin-state">Открой вкладку для загрузки</td></tr></tbody>
       </table>
     </div>
+    <div class="billing-pagination">
+      <button class="btn" id="billing-prev" type="button" disabled>← Назад</button>
+      <span id="billing-page-label">Страница 1</span>
+      <button class="btn" id="billing-next" type="button" disabled>Вперёд →</button>
+    </div>
+  </div>
+
+  <!-- Credentials and expirations tab -->
+  <div id="tab-expirations" style="display:none;">
+    <div class="expiry-head">
+      <div>
+        <div class="form-title">СРОКИ И ДОСТУПЫ</div>
+        <p>Календарь продлений и ротаций. Секретные значения здесь не хранятся и не показываются.</p>
+      </div>
+      <button class="btn" id="expiry-refresh" type="button"><i class="bi bi-arrow-clockwise"></i> Проверить сейчас</button>
+    </div>
+    <div class="expiry-summary" id="expiry-summary" aria-label="Сводка по срокам">
+      <article data-tone="danger"><strong id="expiry-count-danger">—</strong><span>Срочно</span><small>истекло, отсутствует или ≤ 14 дней</small></article>
+      <article data-tone="warning"><strong id="expiry-count-warning">—</strong><span>Скоро</span><small>до 45 дней</small></article>
+      <article data-tone="unknown"><strong id="expiry-count-unknown">—</strong><span>Без даты</span><small>нужно заполнить</small></article>
+      <article data-tone="ok"><strong id="expiry-count-ok">—</strong><span>В норме</span><small>больше 45 дней</small></article>
+    </div>
+    <div class="expiry-callout">
+      <i class="bi bi-shield-lock"></i>
+      <div><strong>Правило безопасности</strong><span>Вносите только дату, отметку наличия и заметку. Никогда не вставляйте сюда ключ, пароль или токен.</span></div>
+    </div>
+    <div id="expiry-groups" class="expiry-groups">
+      <div class="expiry-loading">Открой вкладку для проверки сроков…</div>
+    </div>
+    <div class="expiry-checked" id="expiry-checked">—</div>
   </div>
 
   <!-- Duels tab -->
@@ -2997,6 +3064,7 @@ function switchTab(t) {
   document.getElementById('tab-events').style.display    = t === 'events'    ? 'block' : 'none';
   document.getElementById('tab-analytics').style.display = t === 'analytics' ? 'block' : 'none';
   document.getElementById('tab-billing').style.display   = t === 'billing'   ? 'block' : 'none';
+  document.getElementById('tab-expirations').style.display = t === 'expirations' ? 'block' : 'none';
   document.getElementById('tab-duels').style.display     = t === 'duels'     ? 'block' : 'none';
   document.getElementById('tab-polls').style.display     = t === 'polls'     ? 'block' : 'none';
   document.getElementById('tab-guides').style.display    = t === 'guides'    ? 'block' : 'none';
@@ -3018,6 +3086,7 @@ function switchTab(t) {
   document.getElementById('tab-btn-events').classList.toggle('active',    t === 'events');
   document.getElementById('tab-btn-analytics').classList.toggle('active', t === 'analytics');
   document.getElementById('tab-btn-billing').classList.toggle('active',   t === 'billing');
+  document.getElementById('tab-btn-expirations').classList.toggle('active', t === 'expirations');
   document.getElementById('tab-btn-duels').classList.toggle('active',     t === 'duels');
   document.getElementById('tab-btn-polls').classList.toggle('active',     t === 'polls');
   document.getElementById('tab-btn-guides').classList.toggle('active',    t === 'guides');
@@ -3036,6 +3105,7 @@ function switchTab(t) {
   if (t === 'events') loadUpdateEvents();
   if (t === 'analytics') loadAnalytics();
   if (t === 'billing') loadBillingAdmin();
+  if (t === 'expirations') loadExpirationsAdmin();
   if (t === 'admins')   loadAllUsers();
   if (t === 'duels') loadDuelsTab();
   if (t === 'polls') loadPollsTab();
@@ -3184,6 +3254,130 @@ document.getElementById('billing-prev')?.addEventListener('click', () => {
   loadBillingAdmin();
 });
 
+const EXPIRY_STATUS_LABELS = {
+  critical:'Срочно', expired:'Истёк', missing:'Не найден',
+  warning:'Скоро', unknown:'Нет даты', ok:'В норме',
+};
+let expiryItems = [];
+
+function expiryDateInput(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+}
+
+function expiryRemaining(item) {
+  if (item.days_left === null || item.days_left === undefined) return 'Срок не задан';
+  if (item.days_left < 0) return `Просрочено на ${Math.abs(item.days_left)} дн.`;
+  if (item.days_left === 0) return 'Истекает сегодня';
+  return `Осталось ${item.days_left} дн.`;
+}
+
+function renderExpiryItems(payload) {
+  expiryItems = Array.isArray(payload.items) ? payload.items : [];
+  const counts = payload.counts || {};
+  const danger = (counts.critical || 0) + (counts.expired || 0) + (counts.missing || 0);
+  document.getElementById('expiry-count-danger').textContent = danger;
+  document.getElementById('expiry-count-warning').textContent = counts.warning || 0;
+  document.getElementById('expiry-count-unknown').textContent = counts.unknown || 0;
+  document.getElementById('expiry-count-ok').textContent = counts.ok || 0;
+  const badge = document.getElementById('expiry-nav-badge');
+  badge.textContent = danger;
+  badge.hidden = danger === 0;
+  document.getElementById('expiry-checked').textContent =
+    `Проверено ${billingDate(payload.checked_at, true)} · автоматические даты домена и SSL обновляются при каждой проверке`;
+  const groups = new Map();
+  expiryItems.forEach(item => {
+    if (!groups.has(item.group)) groups.set(item.group, []);
+    groups.get(item.group).push(item);
+  });
+  document.getElementById('expiry-groups').innerHTML = [...groups.entries()].map(([group, items]) => `
+    <section class="expiry-group">
+      <div class="expiry-group-title"><span>${esc(group)}</span><small>${items.length}</small></div>
+      <div class="expiry-list">${items.map(item => `
+        <article class="expiry-item expiry-item-${esc(item.status)}" data-expiry-id="${esc(item.id)}">
+          <div class="expiry-item-main">
+            <span class="expiry-status">${esc(EXPIRY_STATUS_LABELS[item.status] || item.status)}</span>
+            <div class="expiry-name"><strong>${esc(item.name)}</strong><small>${esc(item.action || '')}</small></div>
+            <div class="expiry-due"><strong>${expiryRemaining(item)}</strong><small>${item.expires_at ? `до ${billingDate(item.expires_at)}` : 'дата не указана'}</small></div>
+            <div class="expiry-presence ${item.configured === false ? 'is-missing' : ''}">
+              ${item.configured === null ? 'Наличие не отмечено' : item.configured ? 'Настроено' : 'Не настроено'}
+            </div>
+            <button class="btn expiry-edit" type="button" data-expiry-edit="${esc(item.id)}">Изменить</button>
+          </div>
+          <form class="expiry-form" data-expiry-form="${esc(item.id)}" hidden>
+            <label><span>Дата окончания / проверки</span><input class="finput" name="expires_at" type="date" value="${esc(expiryDateInput(item.expires_at))}" ${item.automatic ? 'disabled title="Определяется автоматически"' : ''}></label>
+            <label><span>Последняя ротация</span><input class="finput" name="last_rotated_at" type="date" value="${esc(expiryDateInput(item.last_rotated_at))}"></label>
+            <label class="expiry-configured"><input name="configured" type="checkbox" ${item.configured === true ? 'checked' : ''} ${item.env ? 'disabled title="Определяется сервером"' : ''}><span>Настроено / доступ есть</span></label>
+            <label class="expiry-notes"><span>Заметка без секретных данных</span><input class="finput" name="notes" maxlength="500" value="${esc(item.notes || '')}" placeholder="Например: продлевается вручную в REG.RU"></label>
+            <div class="expiry-form-actions"><button class="btn btn-save" type="submit">Сохранить</button><button class="btn expiry-cancel" type="button">Отмена</button></div>
+          </form>
+        </article>`).join('')}</div>
+    </section>`).join('');
+}
+
+async function loadExpirationsAdmin() {
+  const wrap = document.getElementById('expiry-groups');
+  const refresh = document.getElementById('expiry-refresh');
+  if (!wrap || !auth.currentUser) return;
+  refresh.disabled = true;
+  wrap.classList.add('is-refreshing');
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/expirations`, {
+      headers:{ Authorization:`Bearer ${token}` }, cache:'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    renderExpiryItems(payload);
+  } catch (error) {
+    wrap.innerHTML = `<div class="expiry-loading expiry-error">Не удалось проверить сроки: ${esc(error.message)}</div>`;
+  } finally {
+    refresh.disabled = false;
+    wrap.classList.remove('is-refreshing');
+  }
+}
+
+document.getElementById('expiry-refresh')?.addEventListener('click', loadExpirationsAdmin);
+document.getElementById('expiry-groups')?.addEventListener('click', event => {
+  const edit = event.target.closest('[data-expiry-edit]');
+  if (edit) {
+    const form = document.querySelector(`[data-expiry-form="${CSS.escape(edit.dataset.expiryEdit)}"]`);
+    if (form) form.hidden = !form.hidden;
+  }
+  if (event.target.closest('.expiry-cancel')) event.target.closest('.expiry-form').hidden = true;
+});
+document.getElementById('expiry-groups')?.addEventListener('submit', async event => {
+  const form = event.target.closest('[data-expiry-form]');
+  if (!form) return;
+  event.preventDefault();
+  const item = expiryItems.find(entry => entry.id === form.dataset.expiryForm);
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const body = {
+      id:item.id,
+      expires_at:item.automatic ? undefined : (form.elements.expires_at.value || null),
+      last_rotated_at:form.elements.last_rotated_at.value || null,
+      notes:form.elements.notes.value,
+    };
+    if (!item.env) body.configured = form.elements.configured.checked;
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/expirations`, {
+      method:'POST',
+      headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
+      body:JSON.stringify(body),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    renderExpiryItems(payload);
+    toast('Данные о сроке сохранены', 's');
+  } catch (error) {
+    toast(`Не удалось сохранить: ${error.message}`, 'e');
+    submit.disabled = false;
+  }
+});
+
 // ── Экономия квоты Firestore: приостанавливаем live-listeners, когда вкладка
 // браузера скрыта (админ ушёл / AFK). Пока вкладка открыта на 'list'/'messages'/
 // 'analytics', onSnapshot читает каждое изменение (лайки/голоса от живых юзеров) —
@@ -3234,6 +3428,7 @@ document.getElementById('tab-btn-changelog').addEventListener('click', () => swi
 document.getElementById('tab-btn-events').addEventListener('click',    () => switchTab('events'));
 document.getElementById('tab-btn-analytics').addEventListener('click', () => switchTab('analytics'));
 document.getElementById('tab-btn-billing').addEventListener('click',   () => switchTab('billing'));
+document.getElementById('tab-btn-expirations').addEventListener('click', () => switchTab('expirations'));
 document.getElementById('tab-btn-duels').addEventListener('click',     () => switchTab('duels'));
 document.getElementById('tab-btn-polls').addEventListener('click',     () => switchTab('polls'));
 document.getElementById('tab-btn-guides').addEventListener('click',    () => switchTab('guides'));
@@ -13678,13 +13873,14 @@ document.querySelectorAll('[data-an-tab]').forEach(btn => {
     const tab = btn.dataset.anTab;
     document.querySelectorAll('[data-an-tab]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['ads','activity','online','training','users','content','notifications','storage'].forEach(id => {
+    ['ads','activity','online','training','users','content','notifications','storage','vps'].forEach(id => {
       const el = document.getElementById('an-section-' + id);
       if (el) el.style.display = (id === tab) ? 'block' : 'none';
     });
     if (tab === 'training' && !trainingAnalyticsLoaded) loadTrainingAnalytics();
     if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
     if (tab === 'notifications') loadNotificationAnalytics();
+    if (tab === 'vps') renderVpsAnalytics();
     setSiteOnlineAutoRefresh(tab === 'online');
     if (tab === 'online') loadSiteOnlineCount();
   });
@@ -13735,8 +13931,50 @@ document.getElementById('analytics-refresh-btn')?.addEventListener('click', asyn
   }
   const onlineVisible = document.getElementById('an-section-online')?.style.display !== 'none';
   if (onlineVisible) await loadSiteOnlineCount();
+  const vpsVisible = document.getElementById('an-section-vps')?.style.display !== 'none';
+  if (vpsVisible) renderVpsAnalytics();
 });
 document.getElementById('ad-backfill-30d-btn')?.addEventListener('click', rebuildAdStats30d);
+
+const VPS_ANALYTICS_CONFIG = Object.freeze({
+  renewalDate: '2027-01-31T00:00:00+03:00',
+  paidPeriodDays: 185,
+});
+
+function _vpsRuPlural(value, one, few, many) {
+  const n = Math.abs(Number(value)) % 100;
+  const last = n % 10;
+  if (n > 10 && n < 20) return many;
+  if (last > 1 && last < 5) return few;
+  if (last === 1) return one;
+  return many;
+}
+
+function renderVpsAnalytics() {
+  const daysEl = document.getElementById('vps-days-left');
+  const meterEl = document.getElementById('vps-renewal-meter');
+  const cardEl = document.getElementById('vps-an-card');
+  const noteEl = document.getElementById('vps-an-note');
+  if (!daysEl || !meterEl || !cardEl || !noteEl) return;
+
+  const renewalAt = new Date(VPS_ANALYTICS_CONFIG.renewalDate).getTime();
+  const daysLeft = Math.max(0, Math.ceil((renewalAt - Date.now()) / 864e5));
+  const ratio = Math.max(0, Math.min(1, daysLeft / VPS_ANALYTICS_CONFIG.paidPeriodDays));
+  daysEl.textContent = `${daysLeft} ${_vpsRuPlural(daysLeft, 'день', 'дня', 'дней')}`;
+  meterEl.style.width = `${Math.round(ratio * 100)}%`;
+
+  const urgent = daysLeft <= 7;
+  const warning = !urgent && daysLeft <= 30;
+  cardEl.classList.toggle('is-urgent', urgent);
+  cardEl.classList.toggle('is-warning', warning);
+  noteEl.classList.toggle('is-urgent', urgent);
+
+  if (daysLeft === 0) {
+    noteEl.innerHTML = '<i class="bi bi-exclamation-triangle"></i><span><strong>Срок VPS закончился.</strong> Проверь статус сервера и продли его в OneDash.</span>';
+  } else if (urgent) {
+    noteEl.innerHTML = `<i class="bi bi-exclamation-triangle"></i><span><strong>Осталось ${daysLeft} ${_vpsRuPlural(daysLeft, 'день', 'дня', 'дней')}.</strong> Продли VPS, чтобы сайт и API не остановились.</span>`;
+  }
+}
 
 let _nuLoaded    = false;
 let _nuAllRecent = [];  // все за последние 24ч
@@ -19481,11 +19719,11 @@ async function rngSelectAbility(ab) {
 
 function _rngIsSonicSensor() {
   return (/deadlock/i.test(_rngAgent) && /sonic|sensor|звуков|сенсор|датчик/i.test(_rngAbility))
-    || (/sage/i.test(_rngAgent) && /barrier|стен/i.test(_rngAbility));
+    || (/sage/i.test(_rngAgent) && /barrier|барьер|стен/i.test(_rngAbility));
 }
 
 function _rngRectShapeKind() {
-  return /sage/i.test(_rngAgent) && /barrier|стен/i.test(_rngAbility) ? 'wall_sections' : 'sensor_rect';
+  return /sage/i.test(_rngAgent) && /barrier|барьер|стен/i.test(_rngAbility) ? 'wall_sections' : 'sensor_rect';
 }
 
 function _rngShapeAxisWidth() {
