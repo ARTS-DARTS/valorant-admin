@@ -19294,29 +19294,52 @@ window.openUserProfilePanel = openUserProfilePanel;
 // ── Storage stats ─────────────────────────────────────────────────────────────
 async function loadStorageStats() {
   try {
-    const withVideo = await countDocsSafe(collection(db, 'lineups'), [where('video_url', '!=', null)], 0);
+    const [withVideo, token] = await Promise.all([
+      countDocsSafe(collection(db, 'lineups'), [where('video_url', '!=', null)], 0),
+      auth.currentUser?.getIdToken(),
+    ]);
     document.getElementById('selectel-storage-val').textContent = `${withVideo} видео`;
     document.getElementById('selectel-storage-val').classList.remove('an-loading');
     document.getElementById('selectel-storage-sub').textContent = `count-запрос, без чтения лайнапов`;
 
-    document.querySelector('#cloudinary-storage-card .an-val').textContent = '—';
-    document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
-    document.getElementById('cloudinary-storage-sub').textContent = 'Нужен агрегат screenshot_stats';
-
-    const estMb = 0;
-    const limitMb = 25 * 1024;
-    const pctStore = Math.min((estMb / limitMb) * 100, 100).toFixed(1);
-    document.getElementById('cloudinary-storage-bar').style.width = `${pctStore}%`;
-
-    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = `~${estMb < 1024 ? estMb.toFixed(0) + ' MB' : (estMb/1024).toFixed(2) + ' GB'}`;
-    document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
-    document.getElementById('cloudinary-credits-bar').style.width = `${pctStore}%`;
-    document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctStore}% из 25 GB`;
-  } catch(_) {
-    ['selectel-storage-val','#cloudinary-storage-card .an-val','#cloudinary-bandwidth-card .an-val'].forEach(sel => {
-      const el = sel.startsWith('#') ? document.querySelector(sel) : document.getElementById(sel);
-      if (el) { el.textContent = 'Ошибка'; el.classList.remove('an-loading'); }
+    if (!token) throw new Error('Требуется авторизация администратора');
+    const response = await fetch('https://vlineups.ru/api/admin/cloudinary-usage', {
+      headers:{ Authorization:`Bearer ${token}` },
+      cache:'no-store',
     });
+    const stats = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(stats.error || `Cloudinary API: ${response.status}`);
+
+    const screenshotCount = Number(stats.screenshot_count) || 0;
+    const storageBytes = Number(stats.storage_bytes) || 0;
+    const storageMb = storageBytes / (1024 * 1024);
+    const limitMb = 25 * 1024;
+    const pctStore = Math.min((storageMb / limitMb) * 100, 100);
+    const displaySize = storageMb < 1024
+      ? `${storageMb.toFixed(storageMb < 10 ? 1 : 0)} MB`
+      : `${(storageMb / 1024).toFixed(2)} GB`;
+
+    document.querySelector('#cloudinary-storage-card .an-val').textContent = `${screenshotCount} скринов`;
+    document.querySelector('#cloudinary-storage-card .an-val').classList.remove('an-loading');
+    document.getElementById('cloudinary-storage-sub').textContent = `папка lineups_screenshots`;
+    document.getElementById('cloudinary-storage-bar').style.width = `${pctStore.toFixed(2)}%`;
+
+    document.querySelector('#cloudinary-bandwidth-card .an-val').textContent = displaySize;
+    document.querySelector('#cloudinary-bandwidth-card .an-val').classList.remove('an-loading');
+    document.getElementById('cloudinary-credits-bar').style.width = `${pctStore.toFixed(2)}%`;
+    document.getElementById('cloudinary-bandwidth-sub').textContent = `${pctStore.toFixed(2)}% из 25 GB`;
+  } catch(error) {
+    const cloudinaryValues = [
+      document.querySelector('#cloudinary-storage-card .an-val'),
+      document.querySelector('#cloudinary-bandwidth-card .an-val'),
+    ];
+    cloudinaryValues.forEach(el => {
+      if (el) { el.textContent = 'Недоступно'; el.classList.remove('an-loading'); }
+    });
+    document.getElementById('cloudinary-storage-sub').textContent =
+      error.message === 'cloudinary_credentials_missing'
+        ? 'Добавь CLOUDINARY_API_KEY/SECRET на VPS'
+        : error.message;
   }
 }
 window.saveUserName       = saveUserName;
