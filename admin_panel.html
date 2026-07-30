@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">firebase-admin-auth-v1 | 2026-07-30 14:45</span>
+  <span class="admin-version" id="admin-build-version">operations-circuit-v1 | 2026-07-30 15:10</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -1037,7 +1037,11 @@
         <div class="form-title">СРОКИ И ДОСТУПЫ</div>
         <p>Календарь продлений и ротаций. Секретные значения здесь не хранятся и не показываются.</p>
       </div>
-      <button class="btn" id="expiry-refresh" type="button"><i class="bi bi-arrow-clockwise"></i> Проверить сейчас</button>
+      <div class="expiry-head-actions">
+        <button class="btn" id="expiry-backup" type="button"><i class="bi bi-download"></i> Резервная копия</button>
+        <button class="btn" id="expiry-health" type="button"><i class="bi bi-activity"></i> Проверить контур</button>
+        <button class="btn" id="expiry-refresh" type="button"><i class="bi bi-arrow-clockwise"></i> Обновить сроки</button>
+      </div>
     </div>
     <div class="expiry-summary" id="expiry-summary" aria-label="Сводка по срокам">
       <article data-tone="danger"><strong id="expiry-count-danger">—</strong><span>Срочно</span><small>истекло, отсутствует или ≤ 14 дней</small></article>
@@ -1049,10 +1053,21 @@
       <i class="bi bi-shield-lock"></i>
       <div><strong>Правило безопасности</strong><span>Вносите только дату, отметку наличия и заметку. Никогда не вставляйте сюда ключ, пароль или токен.</span></div>
     </div>
+    <section class="service-circuit" id="service-circuit" hidden>
+      <div class="service-circuit-head">
+        <div><strong>Контур сервисов</strong><span id="service-circuit-time">Проверка не запускалась</span></div>
+        <button class="btn" id="expiry-push-test" type="button"><i class="bi bi-bell"></i> Отправить тестовый push</button>
+      </div>
+      <div class="service-circuit-line" id="service-circuit-line"></div>
+    </section>
     <div id="expiry-groups" class="expiry-groups">
       <div class="expiry-loading">Открой вкладку для проверки сроков…</div>
     </div>
     <div class="expiry-checked" id="expiry-checked">—</div>
+    <details class="expiry-history">
+      <summary>История изменений <span id="expiry-history-count">0</span></summary>
+      <div id="expiry-history-list"><div class="expiry-loading">Изменений пока нет</div></div>
+    </details>
   </div>
 
   <!-- Duels tab -->
@@ -1418,9 +1433,9 @@
           <div id="rng-sensor-editor" style="display:none;margin-bottom:16px;padding:14px;border-radius:var(--r);border:1px solid rgba(79,195,247,.5);background:var(--surface2);">
             <div id="rng-shape-editor-title" style="font-size:10px;color:#65dcff;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Редактор звукового сенсора</div>
             <label id="rng-shape-width-label" style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Расстояние между белой и красной точками</label>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.02" max="0.8" step="0.002" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.02" max="0.8" step="0.002" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-width" type="range" min="0.002" max="0.8" step="0.001" value="0.12" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-width-value" type="number" min="0.002" max="0.8" step="0.001" value="0.12" class="finput" style="width:78px;font-size:12px;"></div>
             <label id="rng-shape-height-label" style="display:block;font-size:10px;color:var(--text2);margin-bottom:5px;">Высота прямоугольника</label>
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-height" type="range" min="0.02" max="0.35" step="0.002" value="0.08" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-height-value" type="number" min="0.02" max="0.35" step="0.002" value="0.08" class="finput" style="width:78px;font-size:12px;"></div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;"><input id="rng-shape-height" type="range" min="0.002" max="0.35" step="0.001" value="0.08" style="flex:1;accent-color:#65dcff;"><input id="rng-shape-height-value" type="number" min="0.002" max="0.35" step="0.001" value="0.08" class="finput" style="width:78px;font-size:12px;"></div>
             <div id="rng-shape-editor-help" style="font-size:10px;color:var(--text2);line-height:1.5;"><b style="color:#fff;">Белая точка</b> — середина левой стороны.<br><b style="color:#ff6b78;">Красная точка</b> — середина правой стороны. Прямоугольник всегда строится между точками.</div>
           </div>
 
@@ -1442,6 +1457,7 @@
           </div>
 
           <div id="rng-map-container" style="position:relative;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;cursor:crosshair;aspect-ratio:1/1;max-width:580px;user-select:none;">
+            <div id="rng-map-viewport" style="position:absolute;inset:0;transform-origin:0 0;will-change:transform;">
             <img id="rng-map-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;pointer-events:none;" src="" alt="">
             <img id="rng-shot-img" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;pointer-events:none;display:none;transform-origin:center;transition:opacity .1s;" src="" alt="">
             <svg id="rng-svg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:auto;" xmlns="http://www.w3.org/2000/svg">
@@ -1461,15 +1477,20 @@
                 <circle id="rng-sensor-rotate" cx="0" cy="0" r="8" fill="#ff5967" stroke="#ffd1d5" stroke-width="2" style="pointer-events:all;cursor:grab;touch-action:none;"/>
               </g>
             </svg>
+            </div>
             <!-- Hint overlay when no map -->
             <div id="rng-map-hint" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text2);pointer-events:none;">
               <div style="font-size:32px;opacity:0.3;">🗺️</div>
               <div style="font-size:12px;">Выбери карту</div>
             </div>
+            <div style="position:absolute;right:8px;top:8px;display:flex;gap:5px;z-index:3;">
+              <button id="rng-guides-toggle" type="button" class="btn" style="padding:5px 8px;font-size:10px;background:rgba(8,15,27,.88);">Скрыть точки</button>
+              <button id="rng-view-reset" type="button" class="btn" style="padding:5px 8px;font-size:10px;background:rgba(8,15,27,.88);">100%</button>
+            </div>
           </div>
 
           <div style="font-size:10px;color:var(--text2);margin-top:6px;">
-            <span id="rng-map-help">Кликни на карту чтобы переместить центр круга</span>
+            <span id="rng-map-help">Колесо — масштаб. Средняя кнопка — перемещение.</span>
           </div>
 
           <!-- Screenshot overlay -->
@@ -3286,6 +3307,15 @@ function renderExpiryItems(payload) {
   badge.hidden = danger === 0;
   document.getElementById('expiry-checked').textContent =
     `Проверено ${billingDate(payload.checked_at, true)} · автоматические даты домена и SSL обновляются при каждой проверке`;
+  const history = Array.isArray(payload.history) ? payload.history : [];
+  document.getElementById('expiry-history-count').textContent = history.length;
+  document.getElementById('expiry-history-list').innerHTML = history.length
+    ? history.map(entry => `<div class="expiry-history-row">
+        <span>${billingDate(entry.changed_at, true)}</span>
+        <strong>${esc(expiryItems.find(item => item.id === entry.item_id)?.name || entry.item_id)}</strong>
+        <small>${entry.expires_at ? `срок до ${billingDate(entry.expires_at)}` : 'срок не задан'} · ${esc(entry.changed_by || 'admin')}</small>
+      </div>`).join('')
+    : '<div class="expiry-loading">Изменений пока нет</div>';
   const groups = new Map();
   expiryItems.forEach(item => {
     if (!groups.has(item.group)) groups.set(item.group, []);
@@ -3338,7 +3368,88 @@ async function loadExpirationsAdmin() {
   }
 }
 
+function renderServiceCircuit(payload) {
+  const panel = document.getElementById('service-circuit');
+  panel.hidden = false;
+  document.getElementById('service-circuit-time').textContent = `Проверено ${billingDate(payload.checked_at, true)}`;
+  document.getElementById('service-circuit-line').innerHTML = (payload.checks || []).map(check => `
+    <article class="service-node ${check.ok ? 'is-ok' : check.configured === false ? 'is-waiting' : 'is-error'}">
+      <i></i><strong>${esc(check.name)}</strong>
+      <span>${check.ok ? 'Работает' : check.id === 'robokassa' && !check.configured ? 'Ждём данные' : 'Требует внимания'}</span>
+      ${Number.isFinite(check.latency_ms) ? `<small>${check.latency_ms} мс</small>` : ''}
+    </article>`).join('');
+}
+
+async function runServiceHealth() {
+  const button = document.getElementById('expiry-health');
+  button.disabled = true;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/health`, {
+      headers:{ Authorization:`Bearer ${token}` }, cache:'no-store',
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    renderServiceCircuit(payload);
+    toast(payload.ok ? 'Контур работает' : 'Проверка завершена: есть замечания', payload.ok ? 's' : 'i');
+  } catch (error) {
+    toast(`Проверка не выполнена: ${error.message}`, 'e');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function sendHealthPush() {
+  if (!confirm('Отправить тестовый push на текущий административный аккаунт?')) return;
+  const button = document.getElementById('expiry-push-test');
+  button.disabled = true;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/health`, {
+      method:'POST',
+      headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' },
+      body:JSON.stringify({ action:'push_test' }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    toast(payload.recipients ? `Push отправлен: ${payload.recipients}` : 'OneSignal принял тест, активное устройство не найдено', payload.recipients ? 's' : 'i');
+  } catch (error) {
+    toast(`Push-тест не прошёл: ${error.message}`, 'e');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function downloadConfigBackup() {
+  const button = document.getElementById('expiry-backup');
+  button.disabled = true;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/config-backup`, {
+      headers:{ Authorization:`Bearer ${token}` }, cache:'no-store',
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `vlineups-config-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    toast('Резервная копия скачана', 's');
+  } catch (error) {
+    toast(`Не удалось создать копию: ${error.message}`, 'e');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 document.getElementById('expiry-refresh')?.addEventListener('click', loadExpirationsAdmin);
+document.getElementById('expiry-health')?.addEventListener('click', runServiceHealth);
+document.getElementById('expiry-push-test')?.addEventListener('click', sendHealthPush);
+document.getElementById('expiry-backup')?.addEventListener('click', downloadConfigBackup);
 document.getElementById('expiry-groups')?.addEventListener('click', event => {
   const edit = event.target.closest('[data-expiry-edit]');
   if (edit) {
@@ -19381,17 +19492,130 @@ let _rngRotateX = 0.62;
 let _rngRotateY = 0.5;
 let _rngShapeDrag = '';
 let _rngShapeDragged = false;
+let _rngViewZoom = 1;
+let _rngViewPanX = 0;
+let _rngViewPanY = 0;
+let _rngGuidesHidden = false;
 let _rngRows    = [];
 let _rngSortCol = 'map';
 let _rngSortDir = 'asc';
+const RNG_EDITOR_DRAFT_KEY = 'vl_admin_range_editor_draft_v1';
+let _rngDraftRestored = false;
 
 async function loadRangesTab() {
   await _ensureIconsLoaded();
   _rngBuildMapSelector();
   _rngBuildAgentGrid();
   if (!_rngInited) { _rngWireEvents(); _rngInited = true; }
+  if (!_rngDraftRestored) {
+    _rngDraftRestored = true;
+    await _rngRestoreDraft();
+  }
   rngLoadAnimationConfig();
   rngLoadList();
+}
+
+function _rngShapeLimits(key) {
+  const wall = _rngRectShapeKind() === 'wall_sections';
+  if (key === 'width') return wall ? { min:.002, max:.2, step:.001 } : { min:.02, max:.8, step:.002 };
+  return wall ? { min:.002, max:.15, step:.001 } : { min:.02, max:.35, step:.002 };
+}
+
+function _rngApplyShapeInputLimits() {
+  ['width','height'].forEach(key => {
+    const limits = _rngShapeLimits(key);
+    ['rng-shape-' + key, 'rng-shape-' + key + '-value'].forEach(id => {
+      const input = document.getElementById(id);
+      input.min = limits.min;
+      input.max = limits.max;
+      input.step = limits.step;
+    });
+  });
+}
+
+function _rngSaveDraft() {
+  const map = document.getElementById('rng-map')?.value || '';
+  if (!map || !_rngAgent || !_rngAbility) return;
+  try {
+    localStorage.setItem(RNG_EDITOR_DRAFT_KEY, JSON.stringify({
+      map, agent:_rngAgent, ability:_rngAbility,
+      cx:_rngCx, cy:_rngCy, rotateX:_rngRotateX, rotateY:_rngRotateY,
+      width:_rngShapeWidth, height:_rngShapeHeight, rotation:_rngShapeRotation,
+      radius:Number(document.getElementById('rng-slider')?.value || 0),
+      viewZoom:_rngViewZoom, viewPanX:_rngViewPanX, viewPanY:_rngViewPanY,
+      guidesHidden:_rngGuidesHidden,
+      savedAt:Date.now(),
+    }));
+  } catch (_) {}
+}
+
+async function _rngRestoreDraft() {
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(RNG_EDITOR_DRAFT_KEY) || 'null'); } catch (_) {}
+  if (!draft?.map || !draft?.agent || !draft?.ability || !MAP_IMAGES[draft.map]) return;
+  if (!AGENT_ABILITIES[draft.agent]?.includes(draft.ability)) return;
+  const mapSelect = document.getElementById('rng-map');
+  mapSelect.value = draft.map;
+  mapSelect.dispatchEvent(new Event('change'));
+  rngSelectAgent(draft.agent);
+  await rngSelectAbility(draft.ability);
+  const widthLimits = _rngShapeLimits('width');
+  const heightLimits = _rngShapeLimits('height');
+  _rngCx = Math.max(0, Math.min(1, Number(draft.cx) || .5));
+  _rngCy = Math.max(0, Math.min(1, Number(draft.cy) || .5));
+  _rngRotateX = Math.max(0, Math.min(1, Number(draft.rotateX) || .5));
+  _rngRotateY = Math.max(0, Math.min(1, Number(draft.rotateY) || .5));
+  _rngShapeWidth = Math.max(widthLimits.min, Math.min(widthLimits.max, Number(draft.width) || widthLimits.min));
+  _rngShapeHeight = Math.max(heightLimits.min, Math.min(heightLimits.max, Number(draft.height) || heightLimits.min));
+  _rngShapeRotation = Number.isFinite(Number(draft.rotation)) ? Number(draft.rotation) : 0;
+  _rngViewZoom = Math.max(1, Math.min(8, Number(draft.viewZoom) || 1));
+  _rngViewPanX = Number(draft.viewPanX) || 0;
+  _rngViewPanY = Number(draft.viewPanY) || 0;
+  _rngGuidesHidden = draft.guidesHidden === true;
+  document.getElementById('rng-shape-width').value = _rngShapeWidth;
+  document.getElementById('rng-shape-width-value').value = _rngShapeWidth.toFixed(3);
+  document.getElementById('rng-shape-height').value = _rngShapeHeight;
+  document.getElementById('rng-shape-height-value').value = _rngShapeHeight.toFixed(3);
+  if (Number.isFinite(Number(draft.radius))) document.getElementById('rng-slider').value = Number(draft.radius);
+  _rngApplyViewTransform();
+  _rngApplyGuidesVisibility();
+  rngUpdateCircle();
+  _rngUpdateApplyInfo();
+  _rngSaveDraft();
+  toast('Черновик редактора восстановлен', 's');
+}
+
+function _rngClampViewPan() {
+  const container=document.getElementById('rng-map-container');
+  const size=container?.clientWidth || 580;
+  const minPan=size-size*_rngViewZoom;
+  _rngViewPanX=Math.max(minPan,Math.min(0,_rngViewPanX));
+  _rngViewPanY=Math.max(minPan,Math.min(0,_rngViewPanY));
+}
+
+function _rngApplyViewTransform() {
+  _rngClampViewPan();
+  const viewport=document.getElementById('rng-map-viewport');
+  if(viewport)viewport.style.transform=`translate(${_rngViewPanX}px,${_rngViewPanY}px) scale(${_rngViewZoom})`;
+  const reset=document.getElementById('rng-view-reset');
+  if(reset)reset.textContent=`${Math.round(_rngViewZoom*100)}%`;
+}
+
+function _rngApplyGuidesVisibility() {
+  ['rng-sensor-pivot','rng-sensor-rotate','rng-sensor-axis'].forEach(id=>{
+    const element=document.getElementById(id);
+    if(element)element.style.visibility=_rngGuidesHidden?'hidden':'visible';
+  });
+  const button=document.getElementById('rng-guides-toggle');
+  if(button)button.textContent=_rngGuidesHidden?'Показать точки':'Скрыть точки';
+}
+
+function _rngMapPointFromClient(clientX,clientY) {
+  const rect=document.getElementById('rng-map-container').getBoundingClientRect();
+  return {
+    x:Math.max(0,Math.min(1,(clientX-rect.left-_rngViewPanX)/(rect.width*_rngViewZoom))),
+    y:Math.max(0,Math.min(1,(clientY-rect.top-_rngViewPanY)/(rect.height*_rngViewZoom))),
+  };
 }
 
 function _rngAnimationMs(value, fallback, min, max) {
@@ -19448,7 +19672,7 @@ async function rngSaveAnimationConfig() {
 function _rngWireEvents() {
   document.getElementById('rng-animation-save').addEventListener('click', rngSaveAnimationConfig);
 
-  document.getElementById('rng-map').addEventListener('change', function() {
+  document.getElementById('rng-map').addEventListener('change', async function() {
     const map = this.value;
     const img  = document.getElementById('rng-map-img');
     const hint = document.getElementById('rng-map-hint');
@@ -19459,30 +19683,35 @@ function _rngWireEvents() {
       img.src = ''; hint.style.display = 'flex'; lbl.textContent = 'выберите карту и агента';
     }
     _rngUpdateApplyInfo();
-    _rngLoadSelectedConfig();
+    await _rngLoadSelectedConfig();
+    _rngSaveDraft();
   });
 
-  document.getElementById('rng-slider').addEventListener('input', rngUpdateCircle);
+  document.getElementById('rng-slider').addEventListener('input', () => {
+    rngUpdateCircle();
+    _rngSaveDraft();
+  });
 
   document.getElementById('rng-value').addEventListener('input', function() {
     const v = Math.max(0, Math.min(0.3, parseFloat(this.value) || 0));
     document.getElementById('rng-slider').value = v;
     rngUpdateCircle();
+    _rngSaveDraft();
   });
 
   const bindShapeSize = (key) => {
     const slider = document.getElementById(`rng-shape-${key}`);
     const input = document.getElementById(`rng-shape-${key}-value`);
     const update = value => {
-      const max = key === 'width' ? 0.8 : 0.35;
-      const v = Math.max(.02, Math.min(max, parseFloat(value) || .02));
+      const limits = _rngShapeLimits(key);
+      const v = Math.max(limits.min, Math.min(limits.max, parseFloat(value) || limits.min));
       if (key === 'width') {
         _rngShapeWidth = v;
         const rad=_rngShapeRotation*Math.PI/180,axisWidth=_rngShapeAxisWidth();
         _rngRotateX=Math.max(0,Math.min(1,_rngCx+Math.cos(rad)*axisWidth));
         _rngRotateY=Math.max(0,Math.min(1,_rngCy+Math.sin(rad)*axisWidth));
       } else _rngShapeHeight = v;
-      slider.value = v; input.value = v.toFixed(3); rngUpdateCircle(); _rngUpdateApplyInfo();
+      slider.value = v; input.value = v.toFixed(3); rngUpdateCircle(); _rngUpdateApplyInfo(); _rngSaveDraft();
     };
     slider.addEventListener('input', () => update(slider.value));
     input.addEventListener('input', () => update(input.value));
@@ -19490,8 +19719,7 @@ function _rngWireEvents() {
   bindShapeSize('width'); bindShapeSize('height');
 
   const shapePoint = event => {
-    const r = document.getElementById('rng-map-container').getBoundingClientRect();
-    return { x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)), y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height)) };
+    return _rngMapPointFromClient(event.clientX,event.clientY);
   };
   document.getElementById('rng-sensor-pivot').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='pivot'; _rngShapeDragged=false; document.body.style.userSelect='none'; });
   document.getElementById('rng-sensor-rotate').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); _rngShapeDrag='rotate'; _rngShapeDragged=false; document.body.style.userSelect='none'; });
@@ -19503,13 +19731,13 @@ function _rngWireEvents() {
     _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
     const draggedAxisWidth=Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy);
     _rngShapeWidth=_rngRectShapeKind()==='wall_sections'
-      ? Math.max(.01,Math.min(.2,draggedAxisWidth/4))
+      ? Math.max(.002,Math.min(.2,draggedAxisWidth/4))
       : Math.max(.02,Math.min(.8,draggedAxisWidth));
     document.getElementById('rng-shape-width').value=_rngShapeWidth;
     document.getElementById('rng-shape-width-value').value=_rngShapeWidth.toFixed(3);
     rngUpdateCircle();
   });
-  const finishShapeDrag=() => { if (_rngShapeDrag) { _rngShapeDrag=''; document.body.style.userSelect=''; _rngUpdateApplyInfo(); } };
+  const finishShapeDrag=() => { if (_rngShapeDrag) { _rngShapeDrag=''; document.body.style.userSelect=''; _rngUpdateApplyInfo(); _rngSaveDraft(); } };
   window.addEventListener('pointerup', finishShapeDrag);
   window.addEventListener('pointercancel', finishShapeDrag);
 
@@ -19523,6 +19751,53 @@ function _rngWireEvents() {
     return si && si.src && si.style.display !== 'none';
   };
   const mapCont = document.getElementById('rng-map-container');
+  let _rngViewPanned=false;
+  mapCont.addEventListener('wheel', event => {
+    if (!document.getElementById('rng-map')?.value) return;
+    event.preventDefault();
+    const rect=mapCont.getBoundingClientRect();
+    const localX=event.clientX-rect.left,localY=event.clientY-rect.top;
+    const contentX=(localX-_rngViewPanX)/_rngViewZoom;
+    const contentY=(localY-_rngViewPanY)/_rngViewZoom;
+    const nextZoom=Math.max(1,Math.min(8,_rngViewZoom*Math.exp(-event.deltaY*.0015)));
+    _rngViewPanX=localX-contentX*nextZoom;
+    _rngViewPanY=localY-contentY*nextZoom;
+    _rngViewZoom=nextZoom;
+    _rngApplyViewTransform();
+    _rngSaveDraft();
+  },{passive:false});
+  let viewPanning=false,viewPanStartX=0,viewPanStartY=0,viewPanOriginX=0,viewPanOriginY=0;
+  mapCont.addEventListener('pointerdown', event => {
+    if (event.button!==1) return;
+    event.preventDefault();
+    viewPanning=true;_rngViewPanned=false;
+    viewPanStartX=event.clientX;viewPanStartY=event.clientY;
+    viewPanOriginX=_rngViewPanX;viewPanOriginY=_rngViewPanY;
+    mapCont.setPointerCapture?.(event.pointerId);
+    mapCont.style.cursor='grabbing';
+  });
+  mapCont.addEventListener('pointermove', event => {
+    if(!viewPanning)return;
+    const dx=event.clientX-viewPanStartX,dy=event.clientY-viewPanStartY;
+    if(Math.abs(dx)>2||Math.abs(dy)>2)_rngViewPanned=true;
+    _rngViewPanX=viewPanOriginX+dx;_rngViewPanY=viewPanOriginY+dy;
+    _rngApplyViewTransform();
+  });
+  const finishViewPan=event=>{
+    if(!viewPanning)return;
+    viewPanning=false;mapCont.releasePointerCapture?.(event.pointerId);mapCont.style.cursor='crosshair';
+    _rngSaveDraft();
+  };
+  mapCont.addEventListener('pointerup',finishViewPan);
+  mapCont.addEventListener('pointercancel',finishViewPan);
+  document.getElementById('rng-view-reset').addEventListener('click',event=>{
+    event.stopPropagation();
+    _rngViewZoom=1;_rngViewPanX=0;_rngViewPanY=0;_rngApplyViewTransform();_rngSaveDraft();
+  });
+  document.getElementById('rng-guides-toggle').addEventListener('click',event=>{
+    event.stopPropagation();
+    _rngGuidesHidden=!_rngGuidesHidden;_rngApplyGuidesVisibility();_rngSaveDraft();
+  });
   document.getElementById('rng-center-dot').addEventListener('pointerdown', function(e) {
     if (_rngIsSonicSensor()) return;
     e.preventDefault();
@@ -19534,10 +19809,10 @@ function _rngWireEvents() {
   });
   window.addEventListener('pointermove', function(e) {
     if (!_circleDragging) return;
-    const r = mapCont.getBoundingClientRect();
     _circleDragged = true;
-    _rngCx = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-    _rngCy = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+    const point=_rngMapPointFromClient(e.clientX,e.clientY);
+    _rngCx = point.x;
+    _rngCy = point.y;
     rngUpdateCircle();
   });
   const finishCircleDrag = () => {
@@ -19545,10 +19820,12 @@ function _rngWireEvents() {
     _circleDragging = false;
     document.body.style.userSelect = '';
     _rngUpdateApplyInfo();
+    _rngSaveDraft();
   };
   window.addEventListener('pointerup', finishCircleDrag);
   window.addEventListener('pointercancel', finishCircleDrag);
   mapCont.addEventListener('mousedown', function(e) {
+    if (e.button!==0) return;
     if (e.target.closest?.('#rng-center-dot,#rng-sensor-pivot,#rng-sensor-rotate')) return;
     if (!_shotActive()) return;
     e.preventDefault();
@@ -19577,12 +19854,14 @@ function _rngWireEvents() {
   });
 
   mapCont.addEventListener('click', function(e) {
+    if (_rngViewPanned) { _rngViewPanned=false; return; }
     if (_circleDragged) { _circleDragged=false; return; }
     if (_rngShapeDragged) { _rngShapeDragged=false; return; }
     if (_shotDragged) { _shotDragged = false; return; }
-    const r = this.getBoundingClientRect();
-    _rngCx = (e.clientX - r.left) / r.width;
-    _rngCy = (e.clientY - r.top)  / r.height;
+    if (_rngIsSonicSensor()) return;
+    const point=_rngMapPointFromClient(e.clientX,e.clientY);
+    _rngCx = point.x;
+    _rngCy = point.y;
     _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
     _rngShapeWidth=Math.max(.02,Math.min(.8,Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy)));
     rngUpdateCircle();
@@ -19718,6 +19997,7 @@ async function rngSelectAbility(ab) {
   });
   const sensor = _rngIsSonicSensor();
   const wall = _rngRectShapeKind() === 'wall_sections';
+  _rngApplyShapeInputLimits();
   if (wall) {
     _rngShapeWidth = .04;
     _rngShapeHeight = .032;
@@ -19737,11 +20017,12 @@ async function rngSelectAbility(ab) {
   document.getElementById('rng-radius-editor').style.display = sensor ? 'none' : '';
   document.getElementById('rng-sensor-editor').style.display = sensor ? '' : 'none';
   document.getElementById('rng-map-help').textContent = sensor
-    ? 'Белую точку тяни для перемещения. Красную — для вращения прямоугольника.'
-    : 'Кликни на карту чтобы переместить центр круга';
+    ? 'Колесо — масштаб. Средняя кнопка — панорама. Белая точка перемещает, красная поворачивает.'
+    : 'Колесо — масштаб. Средняя кнопка — панорама. Клик перемещает центр круга.';
   await _rngLoadSelectedConfig();
   rngUpdateCircle();
   _rngUpdateApplyInfo();
+  _rngSaveDraft();
 }
 
 function _rngIsSonicSensor() {
@@ -19767,9 +20048,10 @@ async function _rngLoadSelectedConfig() {
     const data=snap.data();
     if (_rngIsSonicSensor()) {
       _rngShapeWidth=_rngRectShapeKind()==='wall_sections'
-        ? Math.max(.01,Math.min(.2,Number(data.shape_block_width)||Number(data.shape_width)/4||.04))
+        ? Math.max(.002,Math.min(.2,Number(data.shape_block_width)||Number(data.shape_width)/4||.04))
         : Math.max(.02,Math.min(.8,Number(data.shape_width)||.12));
-      _rngShapeHeight=Math.max(.02,Math.min(.35,Number(data.shape_height)||.08));
+      const heightLimits=_rngShapeLimits('height');
+      _rngShapeHeight=Math.max(heightLimits.min,Math.min(heightLimits.max,Number(data.shape_height)||.08));
       _rngShapeRotation=Number(data.shape_rotation)||0;
       const pivot=Array.isArray(data.points)?data.points.find(p=>p?.role==='pivot')||data.points[0]:null;
       const rotation=Array.isArray(data.points)?data.points.find(p=>p?.role==='rotation')||data.points[1]:null;
@@ -19778,7 +20060,7 @@ async function _rngLoadSelectedConfig() {
         _rngRotateX=Number(rotation.x); _rngRotateY=Number(rotation.y);
         const storedAxisWidth=Math.hypot(_rngRotateX-_rngCx,_rngRotateY-_rngCy);
         _rngShapeWidth=_rngRectShapeKind()==='wall_sections'
-          ? Math.max(.01,Math.min(.2,storedAxisWidth/4))
+          ? Math.max(.002,Math.min(.2,storedAxisWidth/4))
           : Math.max(.02,Math.min(.8,storedAxisWidth));
         _rngShapeRotation=Math.atan2(_rngRotateY-_rngCy,_rngRotateX-_rngCx)*180/Math.PI;
       } else { const rad=_rngShapeRotation*Math.PI/180, axisWidth=_rngShapeAxisWidth(); _rngRotateX=_rngCx+Math.cos(rad)*axisWidth; _rngRotateY=_rngCy+Math.sin(rad)*axisWidth; }
