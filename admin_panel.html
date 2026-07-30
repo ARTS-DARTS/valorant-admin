@@ -56,7 +56,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">site-daily-activity-v1 | 2026-07-27 08:54</span>
+  <span class="admin-version" id="admin-build-version">account-deletions-v1 | 2026-07-30 06:20</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -787,7 +787,8 @@
           <div class="an-card"><div class="an-val an-loading" id="nu-today">…</div><div class="an-lbl">Новые сегодня</div></div>
           <div class="an-card"><div class="an-val an-loading" id="nu-week">…</div><div class="an-lbl">Новые 7д</div></div>
           <div class="an-card"><div class="an-val an-loading" id="nu-month">…</div><div class="an-lbl">Новые 30д</div></div>
-          <div class="an-card" title="Количество документов в коллекции users"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего профилей</div></div>
+          <div class="an-card" title="Только существующие документы users. Удалённые аккаунты уже исключены"><div class="an-val an-loading" id="nu-total">…</div><div class="an-lbl">Всего профилей</div></div>
+          <div class="an-card" title="Количество зафиксированных удалений в deleted_accounts за весь период"><div class="an-val an-loading" id="nu-deleted-total">…</div><div class="an-lbl">Удалено за всё время</div></div>
           <div class="an-card" title="Профили, получившие подтверждение: ручная отметка или 5+ просмотренных лайнапов"><div class="an-val an-loading" id="nu-confirmed-profiles">…</div><div class="an-lbl">Подтверждённые профили</div></div>
           <div class="an-card" title="Всего профилей минус подтверждённые"><div class="an-val an-loading" id="nu-account-gap">…</div><div class="an-lbl">Акки / неактив</div></div>
           <div class="an-card" title="Профили с last_seen за 24 часа"><div class="an-val an-loading" id="nu-active-24h">…</div><div class="an-lbl">Актив 24ч</div></div>
@@ -816,7 +817,13 @@
           <div id="subs-agent-list" style="display:grid;gap:7px;"></div>
         </div>
         <div class="an-chart-box" style="margin-top:14px;">
-          <div class="dlabel" style="margin-bottom:8px;">Новые регистрации по дням</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+            <div class="dlabel" id="nu-chart-title">Новые регистрации по дням</div>
+            <div style="display:flex;gap:6px;">
+              <button class="an-tab-btn active" type="button" data-nu-chart-mode="registrations" onclick="_nuSetChartMode('registrations')">Регистрация</button>
+              <button class="an-tab-btn" type="button" data-nu-chart-mode="deletions" onclick="_nuSetChartMode('deletions')">Удаление</button>
+            </div>
+          </div>
           <div class="an-chart-wrap" id="nu-chart-wrap">
             <svg id="nu-chart" width="100%" style="display:block;"></svg>
             <div class="an-tip" id="nu-tip" style="display:none;"></div>
@@ -13748,6 +13755,31 @@ window._nuOpenFullUserProfile = async function(uid) {
   document.getElementById('user-profile-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
+let _nuChartMode = 'registrations';
+let _nuChartData = { days: [], registrations: {}, deletions: {} };
+
+window._nuSetChartMode = function(mode) {
+  _nuChartMode = mode === 'deletions' ? 'deletions' : 'registrations';
+  document.querySelectorAll('[data-nu-chart-mode]').forEach(button => {
+    button.classList.toggle('active', button.dataset.nuChartMode === _nuChartMode);
+  });
+  const title = document.getElementById('nu-chart-title');
+  if (title) {
+    title.textContent = _nuChartMode === 'deletions'
+      ? 'Удалённые аккаунты по дням'
+      : 'Новые регистрации по дням';
+  }
+  const days = _nuChartData.days || [];
+  if (!days.length) return;
+  const isDeletions = _nuChartMode === 'deletions';
+  const source = isDeletions ? _nuChartData.deletions : _nuChartData.registrations;
+  drawInteractiveChart('nu-chart', 'nu-tip', [{
+    name: isDeletions ? 'Удалено' : 'Регистраций',
+    data: days.map(day => Number(source?.[day] || 0)),
+    color: isDeletions ? 'var(--red)' : 'var(--green)',
+  }], days);
+};
+
 async function loadNewUsersAnalytics() {
   _nuLoaded = true;
   const now    = Date.now();
@@ -13759,8 +13791,10 @@ async function loadNewUsersAnalytics() {
 
   try {
     const usersRef = collection(db, 'users');
+    const deletedRef = collection(db, 'deleted_accounts');
     const [
       realTotal,
+      deletedTotal,
       nuToday,
       nuWeek,
       nuMonth,
@@ -13771,6 +13805,7 @@ async function loadNewUsersAnalytics() {
       confirmedByViews,
     ] = await Promise.all([
       countDocs(usersRef),
+      countDocsSafe(deletedRef, [], 0),
       countDocs(usersRef, [where('created_at', '>=', new Date(new Date().setHours(0, 0, 0, 0)))]),
       countDocs(usersRef, [where('created_at', '>=', d7)]),
       countDocs(usersRef, [where('created_at', '>=', d30)]),
@@ -13786,16 +13821,31 @@ async function loadNewUsersAnalytics() {
     const confirmedProfiles = Math.max(confirmedByFlag, confirmedByViews);
     let nuPassword = 0, nuGoogle = 0, nuYandex = 0;
     const nuByDay = {};
-    days.forEach(d => { nuByDay[d] = 0; });
+    const deletedByDay = {};
+    days.forEach(d => {
+      nuByDay[d] = 0;
+      deletedByDay[d] = 0;
+    });
     _nuAllRecent = [];
 
-    const dayCounts = await Promise.all(days.map(day => {
-      const from = new Date(`${day}T00:00:00`);
-      const to = new Date(from);
-      to.setDate(to.getDate() + 1);
-      return countDocsSafe(usersRef, [where('created_at', '>=', from), where('created_at', '<', to)], 0);
-    }));
-    days.forEach((day, index) => { nuByDay[day] = dayCounts[index] || 0; });
+    const [dayCounts, deletedDayCounts] = await Promise.all([
+      Promise.all(days.map(day => {
+        const from = new Date(`${day}T00:00:00`);
+        const to = new Date(from);
+        to.setDate(to.getDate() + 1);
+        return countDocsSafe(usersRef, [where('created_at', '>=', from), where('created_at', '<', to)], 0);
+      })),
+      Promise.all(days.map(day => {
+        const from = new Date(`${day}T00:00:00`);
+        const to = new Date(from);
+        to.setDate(to.getDate() + 1);
+        return countDocsSafe(deletedRef, [where('deleted_at', '>=', from), where('deleted_at', '<', to)], 0);
+      })),
+    ]);
+    days.forEach((day, index) => {
+      nuByDay[day] = dayCounts[index] || 0;
+      deletedByDay[day] = deletedDayCounts[index] || 0;
+    });
 
     const recentSnap = await getDocs(query(
       usersRef,
@@ -13820,6 +13870,7 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-month').textContent       = nuMonth;
     const inactiveAccounts = Math.max(0, Number(realTotal || 0) - confirmedProfiles);
     document.getElementById('nu-total').textContent       = realTotal;
+    document.getElementById('nu-deleted-total').textContent = deletedTotal;
     document.getElementById('nu-confirmed-profiles').textContent = confirmedProfiles;
     document.getElementById('nu-account-gap').textContent = inactiveAccounts;
     document.getElementById('nu-active-24h').textContent  = active24h;
@@ -13831,7 +13882,8 @@ async function loadNewUsersAnalytics() {
     document.getElementById('nu-24h-count').textContent   = _nuAllRecent.length >= ADMIN_USERS_RECENT_LIST_LIMIT ? `${_nuAllRecent.length}+` : _nuAllRecent.length;
     document.getElementById('nu-stat-cards').querySelectorAll('.an-loading').forEach(el => el.classList.remove('an-loading'));
 
-    drawInteractiveChart('nu-chart', 'nu-tip', [{ name: 'Регистраций', data: days.map(d => nuByDay[d]), color: 'var(--green)' }], days);
+    _nuChartData = { days, registrations: nuByDay, deletions: deletedByDay };
+    _nuSetChartMode(_nuChartMode);
 
     _nuFilter = 'all';
     document.querySelectorAll('[data-nu-filter]').forEach(b => b.classList.toggle('active', b.dataset.nuFilter === 'all'));
@@ -18665,10 +18717,22 @@ async function unbanUserAccount(uid, name) {
 async function deleteUserAccount(uid, name) {
   if (!confirm(`УДАЛИТЬ аккаунт ${name}? Это действие необратимо!`)) return;
   if (!confirm(`Подтверди ещё раз: удалить ${name} навсегда?`)) return;
-  await auditDeleteDoc('users', uid, { reason: 'user_profile_delete_account', snapshot: { uid, displayName: name } });
+  const userRef = doc(db, 'users', uid);
+  const deletedRef = doc(db, 'deleted_accounts', uid);
+  const userSnapshot = await getDoc(userRef);
+  const batch = writeBatch(db);
+  batch.set(deletedRef, {
+    deleted_at: serverTimestamp(),
+    created_at: userSnapshot.data()?.created_at || null,
+    reason: 'Удалён администратором',
+    source: 'admin_panel',
+  }, { merge: true });
+  batch.delete(userRef);
+  await batch.commit();
   toast(`Аккаунт ${name} удалён 🗑`, 'w');
   addAuditLog(`Удалён аккаунт: ${name} (${uid})`);
   document.getElementById('user-profile-panel').style.display = 'none';
+  _nuLoaded = false;
 }
 
 async function sendMessageToUser(uid, name) {
