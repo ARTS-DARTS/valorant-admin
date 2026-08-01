@@ -13675,15 +13675,17 @@ async function togglePioneer(uid, currentIsBeta, name, panelId) {
   const newVal = !currentIsBeta;
   if (!confirm(`${newVal ? 'Выдать' : 'Снять'} награду Pioneer для ${name}?`)) return;
   try {
+    const notifyUser = newVal && shouldNotifyBadgeGrant(uid);
     await updateDoc(doc(db, 'users', uid), { is_beta: newVal });
+    const notification = notifyUser ? await notifyBadgeGrant(uid, 'pioneer') : null;
     const admin = admins.find(item => item.uid === uid);
     if (admin) admin.is_beta = newVal;
     renderAdmins();
     renderModerators();
     const panel = document.getElementById(panelId);
     if (panel) await _renderUserProfileInto(uid, panel);
-    addAuditLog(`${newVal ? 'Выдана' : 'Снята'} награда Pioneer пользователю ${uid}`);
-    toast(`${newVal ? '⚡ Pioneer выдан' : 'Pioneer снят'} для ${name}`, 's');
+    addAuditLog(`${newVal ? 'Выдана' : 'Снята'} награда Pioneer пользователю ${uid}${notifyUser ? ' · уведомление отправлено' : ''}`);
+    toast(`${newVal ? '⚡ Pioneer выдан' : 'Pioneer снят'} для ${name}${notification ? notification.toastSuffix : ''}`, notification?.deliveryError ? 'w' : 's');
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
@@ -19275,6 +19277,10 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
                       </button>`;
             }).join('')}
           </div>
+          <label for="badge-notify-${uid}" style="display:inline-flex;align-items:center;gap:7px;margin-top:10px;color:var(--text2);font-size:11px;cursor:pointer;user-select:none;">
+            <input id="badge-notify-${uid}" type="checkbox" checked style="accent-color:#22d3ee;">
+            Отправить уведомление?
+          </label>
         </div>
 
 
@@ -19377,6 +19383,120 @@ async function loadUserBadges(uid) {
 const BADGE_EMOJI = { pioneer:'🚀', youtuber:'🎥', twitch:'🟣', tiktok:'🎵', sponsor:'💎', unlimited:'⚡' };
 const BADGE_COLOR = { pioneer:'#FF4655', youtuber:'#FF0000', twitch:'#9147FF', tiktok:'#69C9D0', sponsor:'#FFD700', unlimited:'#22D3EE' };
 const BADGE_LABEL = { pioneer:'Pioneer', youtuber:'YouTube', twitch:'Twitch', tiktok:'TikTok', sponsor:'Sponsor', unlimited:'Безлимит' };
+const BADGE_NOTIFICATION_BODY = {
+  pioneer: 'Поздравляем! Вы получили статус одного из первых участников VLineups. Бейдж Pioneer теперь отмечает ваш профиль.',
+  youtuber: 'Поздравляем! Ваш профиль отмечен бейджем YouTube — теперь пользователи видят ваш статус автора контента.',
+  twitch: 'Поздравляем! Ваш профиль отмечен бейджем Twitch — теперь пользователи видят ваш статус стримера.',
+  tiktok: 'Поздравляем! Ваш профиль отмечен бейджем TikTok — теперь пользователи видят ваш статус автора контента.',
+  sponsor: 'Поздравляем и спасибо за поддержку VLineups! В вашем профиле появился отличительный бейдж Sponsor.',
+  unlimited: 'Поздравляем! Теперь вы можете отправлять лайнапы без ожидания между загрузками. Защитные антиспам-лимиты продолжают действовать.',
+};
+const BADGE_NOTIFICATION_TRANSLATIONS = {
+  en: {
+    label: { pioneer:'Pioneer', youtuber:'YouTube', twitch:'Twitch', tiktok:'TikTok', sponsor:'Sponsor', unlimited:'Unlimited' },
+    title: label => `You received the “${label}” badge`,
+    body: {
+      pioneer: 'Congratulations! You are one of the first VLineups members. The Pioneer badge now highlights your profile.',
+      youtuber: 'Congratulations! Your profile now has the YouTube badge, so other users can see your creator status.',
+      twitch: 'Congratulations! Your profile now has the Twitch badge, so other users can see your streamer status.',
+      tiktok: 'Congratulations! Your profile now has the TikTok badge, so other users can see your creator status.',
+      sponsor: 'Congratulations, and thank you for supporting VLineups! Your profile now has the distinctive Sponsor badge.',
+      unlimited: 'Congratulations! You can now submit lineups without waiting between uploads. Anti-spam safety limits still apply.',
+    },
+  },
+  tr: {
+    label: { pioneer:'Pioneer', youtuber:'YouTube', twitch:'Twitch', tiktok:'TikTok', sponsor:'Sponsor', unlimited:'Sınırsız' },
+    title: label => `“${label}” rozeti size verildi`,
+    body: {
+      pioneer: 'Tebrikler! VLineups’ın ilk üyelerinden birisiniz. Pioneer rozeti artık profilinizi öne çıkarıyor.',
+      youtuber: 'Tebrikler! Profilinize YouTube rozeti eklendi; diğer kullanıcılar içerik üreticisi durumunuzu görebilir.',
+      twitch: 'Tebrikler! Profilinize Twitch rozeti eklendi; diğer kullanıcılar yayıncı durumunuzu görebilir.',
+      tiktok: 'Tebrikler! Profilinize TikTok rozeti eklendi; diğer kullanıcılar içerik üreticisi durumunuzu görebilir.',
+      sponsor: 'Tebrikler ve VLineups’a desteğiniz için teşekkürler! Profilinize özel Sponsor rozeti eklendi.',
+      unlimited: 'Tebrikler! Artık yüklemeler arasında beklemeden lineup gönderebilirsiniz. Spam önleme sınırları uygulanmaya devam eder.',
+    },
+  },
+  es: {
+    label: { pioneer:'Pioneer', youtuber:'YouTube', twitch:'Twitch', tiktok:'TikTok', sponsor:'Sponsor', unlimited:'Sin límites' },
+    title: label => `Has recibido la insignia «${label}»`,
+    body: {
+      pioneer: '¡Felicidades! Eres uno de los primeros miembros de VLineups. La insignia Pioneer ahora destaca tu perfil.',
+      youtuber: '¡Felicidades! Tu perfil ahora tiene la insignia YouTube para que los demás vean que eres creador de contenido.',
+      twitch: '¡Felicidades! Tu perfil ahora tiene la insignia Twitch para que los demás vean que eres streamer.',
+      tiktok: '¡Felicidades! Tu perfil ahora tiene la insignia TikTok para que los demás vean que eres creador de contenido.',
+      sponsor: '¡Felicidades y gracias por apoyar VLineups! Tu perfil ahora tiene la insignia distintiva Sponsor.',
+      unlimited: '¡Felicidades! Ya puedes enviar lineups sin esperar entre cargas. Los límites de seguridad contra spam siguen activos.',
+    },
+  },
+  pt: {
+    label: { pioneer:'Pioneer', youtuber:'YouTube', twitch:'Twitch', tiktok:'TikTok', sponsor:'Sponsor', unlimited:'Ilimitado' },
+    title: label => `Você recebeu o badge “${label}”`,
+    body: {
+      pioneer: 'Parabéns! Você é um dos primeiros membros do VLineups. O badge Pioneer agora destaca o seu perfil.',
+      youtuber: 'Parabéns! Seu perfil agora tem o badge YouTube para que outros usuários vejam seu status de criador.',
+      twitch: 'Parabéns! Seu perfil agora tem o badge Twitch para que outros usuários vejam seu status de streamer.',
+      tiktok: 'Parabéns! Seu perfil agora tem o badge TikTok para que outros usuários vejam seu status de criador.',
+      sponsor: 'Parabéns e obrigado por apoiar o VLineups! Seu perfil agora tem o badge especial Sponsor.',
+      unlimited: 'Parabéns! Agora você pode enviar lineups sem esperar entre uploads. Os limites de segurança contra spam continuam ativos.',
+    },
+  },
+};
+
+function shouldNotifyBadgeGrant(uid) {
+  return document.getElementById('badge-notify-' + uid)?.checked !== false;
+}
+
+async function notifyBadgeGrant(uid, type) {
+  const label = BADGE_LABEL[type] || type;
+  const emoji = BADGE_EMOJI[type] || '⭐';
+  const title = `${emoji} Вам выдали бейдж «${label}»`;
+  const body = BADGE_NOTIFICATION_BODY[type] || `Поздравляем! В вашем профиле появился бейдж «${label}».`;
+  const translations = {
+    ru: { title, body },
+    ...Object.fromEntries(Object.entries(BADGE_NOTIFICATION_TRANSLATIONS).map(([locale, copy]) => [locale, {
+      title: `${emoji} ${copy.title(copy.label[type] || label)}`,
+      body: copy.body[type] || copy.body.pioneer,
+    }])),
+  };
+  let siteError = null;
+  try {
+    await writeUserNotification(uid, {
+      title,
+      body,
+      translations,
+      type: 'badge_granted',
+      badge_type: type,
+      badge_label: label,
+    });
+  } catch (error) {
+    siteError = error;
+    console.warn('badge site notification failed:', error);
+  }
+  try {
+    const pushResult = await sendPushNotification({
+      title,
+      body,
+      translations,
+      type: 'badge_granted',
+      targetUid: uid,
+      data: { badge_type: type, badge_label: label },
+    });
+    return {
+      deliveryError: !!siteError,
+      toastSuffix: siteError
+        ? ` · push отправлен на устройств: ${Number(pushResult?.recipients || 0)}, уведомление на сайте не записалось`
+        : ` · уведомление отправлено, push-устройств: ${Number(pushResult?.recipients || 0)}`,
+    };
+  } catch (error) {
+    console.warn('badge push failed:', error);
+    return {
+      deliveryError: true,
+      toastSuffix: siteError
+        ? ' · бейдж выдан, но уведомление и push не отправились'
+        : ' · уведомление на сайте отправлено, push недоступен',
+    };
+  }
+}
 
 function renderUserBadges(uid, badges) {
   const el = document.getElementById('badges-list-' + uid);
@@ -19413,12 +19533,14 @@ async function grantBadge(uid, type) {
   if (existing.some(b => b.type === type)) { toast(`Бейдж ${type} уже выдан`, 'w'); return; }
 
   const badge = { type, url: url || null, granted_by: auth.currentUser?.uid, granted_at: new Date() };
+  const notifyUser = shouldNotifyBadgeGrant(uid);
   const patch = { badges: [...existing, badge] };
   if (type === 'unlimited') patch.cooldown_exempt = true;
   await setDoc(ref, patch, { merge: true });
+  const notification = notifyUser ? await notifyBadgeGrant(uid, type) : null;
 
-  toast(`Бейдж ${BADGE_EMOJI[type] || ''} ${type} выдан ✅`, 's');
-  addAuditLog(`Выдан бейдж ${type} пользователю ${uid}${url ? ' → ' + url : ''}`);
+  toast(`Бейдж ${BADGE_EMOJI[type] || ''} ${BADGE_LABEL[type] || type} выдан ✅${notification ? notification.toastSuffix : ' · тихо'}`, notification?.deliveryError ? 'w' : 's');
+  addAuditLog(`Выдан бейдж ${type} пользователю ${uid}${url ? ' → ' + url : ''}${notifyUser ? ' · уведомление отправлено' : ' · без уведомления'}`);
   loadUserBadges(uid);
 }
 
