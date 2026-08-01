@@ -19012,19 +19012,21 @@ window.adminToggleTrainingTask = adminToggleTrainingTask;
 
 async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false } = {}) {
   try {
-    const [userDoc, privateDoc, statsDoc, authDoc] = await Promise.all([
+    const [userDoc, privateDoc, statsDoc, authDoc, notificationChannelsDoc] = await Promise.all([
       getDoc(doc(db, 'users', uid)),
       forceTrainingRefresh
         ? getDocFromServer(doc(db, 'user_private', uid))
         : getDoc(doc(db, 'user_private', uid)),
       getDoc(doc(db, 'user_stats', uid)),
       getDoc(doc(db, 'user_auth_links', uid)),
+      getDoc(doc(db, 'users', uid, 'notification_settings', 'channels')),
     ]);
     if (!userDoc.exists()) { panel.innerHTML = '<div style="color:var(--red);">Пользователь не найден</div>'; return; }
     const publicUser = userDoc.data() || {};
     const privateUser = privateDoc.data() || {};
     const statsUser = statsDoc.data() || {};
     const authUser = authDoc.data() || {};
+    const notificationChannels = notificationChannelsDoc.data() || {};
     const u = { ...publicUser, ...statsUser, ...privateUser, ...authUser };
     u.name = publicUser.display_name || publicUser.name || statsUser.display_name || '';
     u.approved_lineups = Math.max(
@@ -19066,16 +19068,45 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
     const hasPassword = u.password_linked === true
       || Array.isArray(u.firebase_providers) && u.firebase_providers.includes('password')
       || !!u.user_email && !u.user_email.includes('google');
-    const pushExplicitlyDisabled = u.push_enabled === false
-      || u.notifications_enabled === false
-      || String(u.push_permission || u.notification_permission || '').toLowerCase() === 'denied';
-    const pushRegistrationKnown = !!(u.fcm_token || u.onesignal_id || u.push_subscription_id);
-    const pushLabel = pushExplicitlyDisabled
-      ? 'Push: отключён пользователем'
-      : pushRegistrationKnown ? 'Push: устройство зарегистрировано' : 'Push: нет данных';
-    const pushColor = pushExplicitlyDisabled ? 'var(--red)' : pushRegistrationKnown ? 'var(--green)' : 'var(--text2)';
-    const pushBackground = pushExplicitlyDisabled ? 'rgba(239,68,68,.1)' : pushRegistrationKnown ? 'rgba(34,197,94,.12)' : 'var(--surface2)';
-    const pushBorder = pushExplicitlyDisabled ? 'rgba(239,68,68,.3)' : pushRegistrationKnown ? 'rgba(34,197,94,.25)' : 'var(--border)';
+    const siteNotificationsEnabled = notificationChannels.site_notifications_enabled !== false;
+    const siteStatusKnown = notificationChannelsDoc.exists();
+    const siteLabel = siteStatusKnown
+      ? (siteNotificationsEnabled ? 'Сайт: уведомления работают' : 'Сайт: уведомления выключены')
+      : 'Сайт: доступны';
+    const siteColor = siteNotificationsEnabled ? 'var(--green)' : 'var(--red)';
+    const siteBackground = siteNotificationsEnabled ? 'rgba(34,197,94,.12)' : 'rgba(239,68,68,.1)';
+    const siteBorder = siteNotificationsEnabled ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.3)';
+    const pushPermission = String(notificationChannels.push_permission || '').toLowerCase();
+    const pushSubscribed = notificationChannels.push_subscribed === true;
+    const pushPromptRequested = notificationChannels.push_prompt_requested === true;
+    let pushLabel = 'Push: статус ещё не получен';
+    let pushTitle = 'Пользователь ещё не открывал сайт после добавления диагностики push.';
+    let pushTone = 'neutral';
+    if (pushPermission === 'denied') {
+      pushLabel = 'Push: запрещены пользователем';
+      pushTitle = 'Пользователь нажал «Запретить» в запросе браузера или отключил уведомления в настройках сайта.';
+      pushTone = 'danger';
+    } else if (pushPermission === 'unsupported') {
+      pushLabel = 'Push: не поддерживаются';
+      pushTitle = 'Этот браузер или устройство не поддерживает web push.';
+      pushTone = 'danger';
+    } else if (pushPermission === 'default') {
+      pushLabel = pushPromptRequested ? 'Push: выбор не сделан' : 'Push: разрешение не запрашивалось';
+      pushTitle = pushPromptRequested
+        ? 'Запрос показывался, но пользователь не выбрал «Разрешить» или «Запретить».'
+        : 'Сайт ещё не показывал этому пользователю запрос на разрешение push.';
+    } else if (pushPermission === 'granted' && pushSubscribed) {
+      pushLabel = 'Push: подключены';
+      pushTitle = 'Браузер разрешил уведомления, активная push-подписка устройства найдена.';
+      pushTone = 'success';
+    } else if (pushPermission === 'granted') {
+      pushLabel = 'Push: разрешены, но не подключены';
+      pushTitle = 'Разрешение браузера есть, но активная push-подписка устройства не найдена.';
+      pushTone = 'warning';
+    }
+    const pushColor = pushTone === 'success' ? 'var(--green)' : pushTone === 'danger' ? 'var(--red)' : pushTone === 'warning' ? 'var(--orange)' : 'var(--text2)';
+    const pushBackground = pushTone === 'success' ? 'rgba(34,197,94,.12)' : pushTone === 'danger' ? 'rgba(239,68,68,.1)' : pushTone === 'warning' ? 'rgba(249,115,22,.1)' : 'var(--surface2)';
+    const pushBorder = pushTone === 'success' ? 'rgba(34,197,94,.25)' : pushTone === 'danger' ? 'rgba(239,68,68,.3)' : pushTone === 'warning' ? 'rgba(249,115,22,.3)' : 'var(--border)';
     const createdAt   = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
     const isBanned    = !!u.is_banned;
     const lastSeenTs  = u.last_seen?.toDate?.() ?? null;
@@ -19276,7 +19307,8 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
               { icon: 'bi-key-fill', label: 'Пароль', ok: hasPassword },
             ].map(({ icon, label, ok }) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};display:inline-flex;align-items:center;gap:5px;"><i class="bi ${icon}"></i>${label} ${ok?'✓':'✗'}</span>`).join('')
             }
-            <span title="Статус разрешения Android виден только при явном сохранённом отказе" style="font-size:11px;padding:3px 10px;border-radius:20px;background:${pushBackground};color:${pushColor};border:1px solid ${pushBorder};display:inline-flex;align-items:center;gap:5px;"><i class="bi bi-bell-fill"></i>${pushLabel}</span>
+            <span title="Внутренние уведомления в колокольчике сайта. Они не зависят от разрешения браузера." style="font-size:11px;padding:3px 10px;border-radius:20px;background:${siteBackground};color:${siteColor};border:1px solid ${siteBorder};display:inline-flex;align-items:center;gap:5px;"><i class="bi bi-bell"></i>${siteLabel}</span>
+            <span title="${esc(pushTitle)}" style="font-size:11px;padding:3px 10px;border-radius:20px;background:${pushBackground};color:${pushColor};border:1px solid ${pushBorder};display:inline-flex;align-items:center;gap:5px;"><i class="bi bi-phone-vibrate-fill"></i>${pushLabel}</span>
           </div>
         </div>
 
