@@ -620,6 +620,7 @@
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="an-tab-btn active" data-an-tab="ads">📺 Реклама</button>
           <button class="an-tab-btn" data-an-tab="activity">👥 Активность</button>
+          <button class="an-tab-btn" data-an-tab="moderators">🛡 Модераторы</button>
           <button class="an-tab-btn" data-an-tab="training">🎓 Обучение</button>
           <button class="an-tab-btn" data-an-tab="users">🆕 Пользователи</button>
           <button class="an-tab-btn" data-an-tab="content">📋 Контент</button>
@@ -721,6 +722,32 @@
           </div>
         </section>
         </div>
+      </div>
+
+      <!-- ── Модераторы ── -->
+      <div id="an-section-moderators" class="an-section" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+          <div>
+            <div class="form-title" style="margin:0;">🛡 АКТИВНОСТЬ МОДЕРАТОРОВ — последние 30 дней</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:5px;">Принятые задания, завершённые проверки, доработки и заполнение параметров.</div>
+          </div>
+          <div class="an-live">журнал действий модерации</div>
+        </div>
+        <div class="an-cards" id="moderator-stat-cards">
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Активных модераторов</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Взято в работу</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Выполнено заданий</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Разобрано лайнапов</div></div>
+          <div class="an-card"><div class="an-val an-loading">…</div><div class="an-lbl">Сейчас в работе</div></div>
+        </div>
+        <div class="notif-table-head" style="margin-top:18px;"><div class="dlabel">По каждому модератору</div><span>«Разобрано» = доработано или отклонено</span></div>
+        <div class="notif-table-wrap">
+          <table class="notif-table">
+            <thead><tr><th>Модератор</th><th>Взял в работу</th><th>Разобрал лайнапов</th><th>Другие работы</th><th>Выполнил всего</th><th>Сейчас в работе</th><th>Последняя активность</th></tr></thead>
+            <tbody id="moderator-activity-rows"><tr><td colspan="7" class="state">Открой раздел, чтобы загрузить данные</td></tr></tbody>
+          </table>
+        </div>
+        <div style="font-size:11px;color:var(--text2);margin-top:10px;">Учёт принятия заданий и доработок ведётся с момента запуска этого журнала. Ранее зафиксированные отклонения и проверки параметров также входят в статистику.</div>
       </div>
 
       <!-- ── Активность ── -->
@@ -2821,6 +2848,7 @@ import {
   normalizeContentCategory,
 } from './admin/content_categories.mjs?v=2026-07-23-selectel-signer-v1';
 import { createAdminUpdateWatcher } from './admin/update_watcher.mjs?v=2026-07-23-selectel-signer-v1';
+import { createWebErrorReporter } from './admin/web_error_reporter.mjs?v=2026-08-01-web-errors-v1';
 import {
   escapeHtml as esc,
   formatCoordinate as fmtNum,
@@ -2886,6 +2914,17 @@ const adminUpdateWatcher = createAdminUpdateWatcher({
   fetchFn: (...args) => fetch(...args),
   saveDraft: () => saveAdminAddDraftNow(),
 });
+const webErrorReporter = createWebErrorReporter({
+  windowRef: window,
+  consoleRef: console,
+  getUser: () => auth.currentUser,
+  getBuildVersion: () => currentAdminBuildVersion(),
+  writeError: data => addDoc(collection(db, 'app_errors'), {
+    ...data,
+    timestamp: serverTimestamp(),
+  }),
+});
+webErrorReporter.install();
 
 function currentAdminBuildVersion() {
   return adminUpdateWatcher.currentVersion();
@@ -2916,6 +2955,7 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   currentUser = user;
+  webErrorReporter.flush();
   startSiteOnlineCounter();
   document.getElementById('user-name').textContent = user.displayName || user.email;
   const _prov = user.providerData[0]?.providerId ?? '';
@@ -5826,7 +5866,7 @@ window._msgSendReply = async function(id) {
     if (sendPush && targetUid) {
       _ncTargetUid = targetUid;
       try {
-        await sendPushNotification({
+        const pushResult = await sendPushNotification({
           title: '💬 Ответ от администратора',
           body:  reply.length > 100 ? reply.slice(0, 97) + '…' : reply,
           type:  'feedback_reply',
@@ -6965,13 +7005,13 @@ async function sendPollCreatedPush({ pollId, question, audience }) {
     data:{ poll_id:pollId },
   };
   if (audience !== 'admins') {
-    await sendPushNotification({
+    const result = await sendPushNotification({
       ...payload,
       allowAll:true,
       // OneSignal supports an exclusive ">" app-version filter.
       minAndroidVersionCode:736791,
     });
-    return;
+    return { result, audience:'устройства, прошедшие фильтр версии опросов' };
   }
 
   const admins = await getDocs(query(collection(db, 'users'), where('role', '==', 'admin')));
@@ -6980,8 +7020,12 @@ async function sendPollCreatedPush({ pollId, question, audience }) {
   ));
   const failed = results.filter(result => result.status === 'rejected');
   if (failed.length) {
-    throw new Error(`не доставлено администраторам: ${failed.length}`);
+    throw new Error(`OneSignal отклонил запросы для администраторов: ${failed.length}`);
   }
+  const recipients = results
+    .filter(result => result.status === 'fulfilled')
+    .reduce((sum, result) => sum + Number(result.value?.recipients || 0), 0);
+  return { result:{ recipients }, audience:`администраторы (${admins.size} профилей)` };
 }
 
 document.getElementById('poll-create-btn')?.addEventListener('click', async () => {
@@ -7022,8 +7066,9 @@ document.getElementById('poll-create-btn')?.addEventListener('click', async () =
     });
     await batch.commit();
     let pushError = null;
+    let pushReport = null;
     try {
-      await sendPollCreatedPush({
+      pushReport = await sendPollCreatedPush({
         pollId:pollRef.id,
         question,
         audience,
@@ -7040,7 +7085,7 @@ document.getElementById('poll-create-btn')?.addEventListener('click', async () =
       status.textContent = 'Опрос запущен, но push не ушёл: ' + pushError.message;
     } else {
       status.style.color = 'var(--green)';
-      status.textContent = 'Опрос запущен, push отправлен.';
+      status.textContent = `Опрос запущен. ${pushAcceptedSummary(pushReport.result, pushReport.audience)}.`;
     }
     await loadPollsTab();
   } catch (error) {
@@ -7458,19 +7503,19 @@ document.getElementById('duel-create-btn').addEventListener('click', async () =>
       createdBy: uid,
     });
     if (isScheduled) {
-      st.textContent = `✅ Дуэль запланирована на ${startsAt.toLocaleString('ru-RU')}. Push будет отправлен при старте.`;
+      st.textContent = `✅ Дуэль запланирована на ${startsAt.toLocaleString('ru-RU')}. При старте система запросит push через OneSignal.`;
       toast('Дуэль добавлена в расписание без отправки push', 's');
     } else {
       try {
-        await sendPushNotification({
+        const pushResult = await sendPushNotification({
           title: '⚔️ Новая дуэль!',
           body: 'Проголосуй за лучший лайнап — дуэль уже идёт',
           type: 'duel',
           allowAll: true,
           requiredTag: 'duel_notifications',
         });
-        st.textContent = '✅ Дуэль запущена, push отправлен!';
-        toast('Дуэль создана, push отправлен', 's');
+        st.textContent = `✅ Дуэль запущена. ${pushAcceptedSummary(pushResult, 'устройства с подпиской на уведомления о дуэлях')}`;
+        toast(pushAcceptedSummary(pushResult, 'подписчики дуэлей'), pushResult.recipients ? 's' : 'i');
       } catch (pushErr) {
         st.textContent = '✅ Дуэль запущена, но push не ушёл: ' + pushErr.message;
         toast('Дуэль создана, но push не ушёл: ' + pushErr.message, 'e');
@@ -8367,12 +8412,17 @@ function lineupReviewerMeta(l, rejected = l?.status === 'rejected') {
   let role = rejected
     ? (l?.rejected_by_role || '')
     : (l?.moderated_by_role || l?.edited_by_moderator_role || l?.hot_confirmed_by_role || '');
+  // Сохранённая роль могла устареть или быть записана старой версией админки.
+  // Для текущего вошедшего пользователя источник истины — актуальная роль,
+  // уже проверенная при входе по users/{uid}.
   if (uid && uid === currentUser?.uid) role = currentUserRole;
-  const roleLabel = role === 'admin' ? 'АДМИНИСТРАТОРОМ'
+  const roleLabel = role === 'admin'
+    ? 'АДМИНИСТРАТОРОМ'
     : role === 'moderator' ? 'МОДЕРАТОРОМ' : 'ПРОВЕРЯЮЩИМ';
-  const sectionLabel = role === 'admin' ? 'Проверка администратором'
+  const sectionLabel = role === 'admin'
+    ? 'Проверка администратором'
     : role === 'moderator' ? 'Проверка модератором' : 'Проверка';
-  return { name, roleLabel, sectionLabel };
+  return { uid, name, role, roleLabel, sectionLabel };
 }
 
 function cardHtml(l) {
@@ -8385,7 +8435,6 @@ function cardHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid || l.edited_by_moderator_uid || l.edited_at || l.moderator_template_completed);
-  const moderatorName = l.moderated_by_name || l.edited_by_moderator_name || l.hot_confirmed_by_name || '';
   const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
   const reviewer = lineupReviewerMeta(l, moderatorRejected);
@@ -8402,7 +8451,7 @@ function cardHtml(l) {
     <div class="linfo">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
         <span class="badge ${bc}" style="font-size:9px;padding:2px 6px;">${bl}</span>
-        ${l.status === 'approved' && moderatorReviewed ? `<span style="color:#38bdf8;font-size:9px;font-weight:800;">🛡 одобрил: ${esc(moderatorName || 'не указан')}</span>` : ''}
+        ${l.status === 'approved' && moderatorReviewed ? `<span style="color:#38bdf8;font-size:9px;font-weight:800;">🛡 одобрил: ${esc(reviewer.name || 'не указан')}</span>` : ''}
         ${l.is_exclusive ? '<span style="color:#f59e0b;font-size:10px;">👑</span>' : ''}
       </div>
       <div class="ltitle">${esc(l.title ?? '—')}</div>
@@ -8594,7 +8643,6 @@ function detailHtml(l) {
     archived: ['b-archived', 'АРХИВ'],
   };
   const moderatorReviewed = !!(l.moderated_by_uid || l.moderated_by_name || l.moderated_at || l.rejected_by_uid || l.edited_by_moderator_uid || l.edited_at || l.moderator_template_completed);
-  const moderatorName = l.moderated_by_name || l.edited_by_moderator_name || l.hot_confirmed_by_name || '';
   const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
   const reviewer = lineupReviewerMeta(l, moderatorRejected);
@@ -8621,7 +8669,7 @@ function detailHtml(l) {
   </div>
   <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end;">
     <span class="badge ${bc}" style="flex-shrink:0;">${bl}</span>
-    ${l.status === 'approved' && moderatorReviewed ? `<span style="color:#38bdf8;font-size:10px;font-weight:800;">🛡 одобрил: ${esc(moderatorName || 'не указан')}</span>` : ''}
+    ${l.status === 'approved' && moderatorReviewed ? `<span style="color:#38bdf8;font-size:10px;font-weight:800;">🛡 одобрил: ${esc(reviewer.name || 'не указан')}</span>` : ''}
   </div>
 </div>
 <div class="editor-primary-actions">${lineupActionButtonsHtml(l, true)}</div>
@@ -8827,10 +8875,10 @@ async function loadNotificationStaffUids() {
 
 async function notifyModeratorsNewWork(items = []) {
   const lineupsToReview = items.filter(item => item?.id);
-  if (!lineupsToReview.length) return { moderators:0, pushSent:0 };
+  if (!lineupsToReview.length) return { moderators:0, pushRequestsAccepted:0, recipients:0 };
   const moderatorsSnap = await getDocs(query(collection(db, 'users'), where('role', '==', 'moderator')));
   const moderatorUids = moderatorsSnap.docs.map(user => user.id).filter(Boolean);
-  if (!moderatorUids.length) return { moderators:0, pushSent:0 };
+  if (!moderatorUids.length) return { moderators:0, pushRequestsAccepted:0, recipients:0 };
   const count = lineupsToReview.length;
   const first = lineupsToReview[0] || {};
   const title = count === 1 ? '🛡 Новая работа на модерации' : `🛡 Новых заданий: ${count}`;
@@ -8854,7 +8902,12 @@ async function notifyModeratorsNewWork(items = []) {
     title, body, type:'moderation_work', targetUid:uid,
     data:{ lineup_id:first.id || '', lineup_ids:lineupIds.join(','), total:String(count) },
   })));
-  return { moderators:moderatorUids.length, pushSent:pushResults.filter(result => result.status === 'fulfilled').length };
+  const accepted = pushResults.filter(result => result.status === 'fulfilled');
+  return {
+    moderators:moderatorUids.length,
+    pushRequestsAccepted:accepted.length,
+    recipients:accepted.reduce((sum, result) => sum + Number(result.value?.recipients || 0), 0),
+  };
 }
 
 function rangeConfigId(map, agent, ability) {
@@ -8939,7 +8992,7 @@ async function notifySubscribersBatch(rawLineups) {
     let normalized = (Array.isArray(rawLineups) ? rawLineups : [rawLineups])
       .map(normalizeLineupForNotification)
       .filter(Boolean);
-    if (!normalized.length) return { subscribers: 0, pushSent: 0, pushFailed: 0 };
+    if (!normalized.length) return { subscribers:0, pushRequestsAccepted:0, pushRequestsFailed:0, recipients:0 };
 
     const accessSnap = await getDoc(doc(db, 'settings', 'category_access'));
     const access = accessSnap.exists() ? accessSnap.data() : {};
@@ -8950,7 +9003,7 @@ async function notifySubscribersBatch(rawLineups) {
     normalized = normalized.filter(lineup => modes.get(lineup.id) !== 'none');
     if (!normalized.length) {
       console.info('notifySubscribers: category access blocks all notifications');
-      return { subscribers: 0, pushSent: 0, pushFailed: 0, suppressed: true };
+      return { subscribers:0, pushRequestsAccepted:0, pushRequestsFailed:0, recipients:0, suppressed:true };
     }
     const staffOnly = normalized.some(lineup => modes.get(lineup.id) === 'staff');
     const staffUids = staffOnly ? await loadNotificationStaffUids() : new Set();
@@ -8973,7 +9026,7 @@ async function notifySubscribersBatch(rawLineups) {
 
     if (!byUser.size) {
       console.info('notifySubscribers: no subscribers for published lineups');
-      return { subscribers: 0, pushSent: 0, pushFailed: 0 };
+      return { subscribers:0, pushRequestsAccepted:0, pushRequestsFailed:0, recipients:0 };
     }
 
     const batch = writeBatch(db);
@@ -9020,17 +9073,22 @@ async function notifySubscribersBatch(rawLineups) {
         },
       })
     ));
-    const pushSent = pushResults.filter(r => r.status === 'fulfilled').length;
-    const pushFailed = pushResults.length - pushSent;
-    if (pushFailed) {
+    const accepted = pushResults.filter(r => r.status === 'fulfilled');
+    const pushRequestsFailed = pushResults.length - accepted.length;
+    if (pushRequestsFailed) {
       console.warn('notifySubscribers push failed:', pushResults.filter(r => r.status === 'rejected').map(r => r.reason?.message || r.reason));
     }
-    const result = { subscribers: byUser.size, pushSent, pushFailed };
+    const result = {
+      subscribers:byUser.size,
+      pushRequestsAccepted:accepted.length,
+      pushRequestsFailed,
+      recipients:accepted.reduce((sum, item) => sum + Number(item.value?.recipients || 0), 0),
+    };
     console.info('notifySubscribers:', result);
     return result;
   } catch (e) {
     console.warn('notifySubscribers:', e.message);
-    return { subscribers: 0, pushSent: 0, pushFailed: 0, error: e.message };
+    return { subscribers:0, pushRequestsAccepted:0, pushRequestsFailed:0, recipients:0, error:e.message };
   }
 }
 
@@ -9167,6 +9225,7 @@ async function notifyLineupAuthorRejected(uid, lineup, reason) {
   await addDoc(collection(db, 'feedback'), {
     text: title,
     category: 'причина',
+    source: 'lineup_rejection',
     username: lineup?.submitted_by || lineup?.author || '',
     user_id: uid,
     lineup_id: lineup?.id || '',
@@ -13805,7 +13864,7 @@ document.getElementById('cl-publish-btn')?.addEventListener('click', async () =>
           type:  'changelog',
           allowAll: true,
         });
-        toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430 \u0438 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 \u043f\u0443\u0448\u0435\u043c \u2705', 's');
+        toast(`Новость опубликована. ${pushAcceptedSummary(pushResult, 'все доступные push-устройства')}`, pushResult.recipients ? 's' : 'i');
       } catch (pushErr) {
         toast('\u041d\u043e\u0432\u043e\u0441\u0442\u044c \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u0430, \u043d\u043e \u043f\u0443\u0448 \u043d\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d: ' + pushErr.message, 'e');
       }
@@ -14001,17 +14060,100 @@ document.getElementById('ev-clear')?.addEventListener('click', () => {
   document.getElementById('ev-body').value = '';
   document.getElementById('ev-status').textContent = '';
 });
+
+let _moderatorAnalyticsLoaded = false;
+
+function moderatorLogTime(value) {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.seconds === 'number') return value.seconds * 1000;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function moderatorActivityLabel(timestamp) {
+  if (!timestamp) return '—';
+  return new Date(timestamp).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+}
+
+async function loadModeratorAnalytics(force = false) {
+  if (_moderatorAnalyticsLoaded && !force) return;
+  _moderatorAnalyticsLoaded = true;
+  const rowsHost = document.getElementById('moderator-activity-rows');
+  const cardsHost = document.getElementById('moderator-stat-cards');
+  if (rowsHost) rowsHost.innerHTML = '<tr><td colspan="7" class="state">Загрузка активности…</td></tr>';
+  try {
+    const cutoff = new Date(Date.now() - 30 * 864e5);
+    const [moderatorsSnap, logsSnap, claimsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'users'), where('role', '==', 'moderator'))),
+      getDocs(query(collection(db, 'moderator_logs'), where('created_at', '>=', cutoff), orderBy('created_at', 'desc'), limit(2000))),
+      getDocs(query(collection(db, 'moderation_claims'), limit(100))),
+    ]);
+    const stats = new Map();
+    const ensure = (uid, name = '') => {
+      const key = uid || `name:${name || 'unknown'}`;
+      if (!stats.has(key)) stats.set(key, { uid, name:name || 'Не указан', claimed:0, lineups:0, other:0, completed:0, current:0, last:0 });
+      const item = stats.get(key);
+      if (name && (!item.name || item.name === 'Не указан')) item.name = name;
+      return item;
+    };
+    moderatorsSnap.docs.forEach(userDoc => {
+      const user = userDoc.data() || {};
+      ensure(userDoc.id, user.displayName || user.username || user.email || userDoc.id);
+    });
+    logsSnap.docs.forEach(logDoc => {
+      const log = logDoc.data() || {};
+      const item = ensure(log.moderator_uid || '', log.moderator_name || log.by_name || log.moderator_uid || 'Не указан');
+      const action = String(log.action || '');
+      if (action === 'claim') item.claimed += 1;
+      if (action === 'complete_lineup' || action === 'reject') item.lineups += 1;
+      if (action === 'complete_metadata') item.other += 1;
+      if (['complete_lineup', 'reject', 'complete_metadata'].includes(action)) item.completed += 1;
+      item.last = Math.max(item.last, moderatorLogTime(log.created_at));
+    });
+    const now = Date.now();
+    claimsSnap.docs.forEach(claimDoc => {
+      const claim = claimDoc.data() || {};
+      if (moderatorLogTime(claim.expires_at) <= now) return;
+      ensure(claimDoc.id, claim.moderator_name || claimDoc.id).current += 1;
+    });
+    const list = [...stats.values()].sort((a,b) => b.completed - a.completed || b.claimed - a.claimed || a.name.localeCompare(b.name, 'ru'));
+    const totals = list.reduce((sum, item) => ({
+      claimed:sum.claimed + item.claimed,
+      completed:sum.completed + item.completed,
+      lineups:sum.lineups + item.lineups,
+      current:sum.current + item.current,
+    }), { claimed:0, completed:0, lineups:0, current:0 });
+    const active = list.filter(item => item.claimed || item.completed || item.current).length;
+    if (cardsHost) cardsHost.innerHTML = [
+      [active, 'Активных модераторов'], [totals.claimed, 'Взято в работу'],
+      [totals.completed, 'Выполнено заданий'], [totals.lineups, 'Разобрано лайнапов'],
+      [totals.current, 'Сейчас в работе'],
+    ].map(([value,label]) => `<div class="an-card"><div class="an-val">${value}</div><div class="an-lbl">${label}</div></div>`).join('');
+    if (rowsHost) rowsHost.innerHTML = list.map(item => `<tr>
+      <td><b>${esc(item.name)}</b><small>${esc(item.uid || 'UID не указан')}</small></td>
+      <td>${item.claimed}</td><td>${item.lineups}</td><td>${item.other}</td><td><strong>${item.completed}</strong></td>
+      <td>${item.current ? '<span class="notif-chip">🔒 ' + item.current + '</span>' : '0'}</td><td>${moderatorActivityLabel(item.last)}</td>
+    </tr>`).join('') || '<tr><td colspan="7" class="state">Модераторы пока не найдены</td></tr>';
+  } catch (error) {
+    _moderatorAnalyticsLoaded = false;
+    if (rowsHost) rowsHost.innerHTML = `<tr><td colspan="7" class="state" style="color:var(--red)">Ошибка загрузки: ${esc(error.message)}</td></tr>`;
+    toast('Ошибка аналитики модераторов: ' + error.message, 'e');
+  }
+}
+
 // ── Analytics sub-tabs ───────────────────────────────────────────────────────
 document.querySelectorAll('[data-an-tab]').forEach(btn => {
   btn.addEventListener('click', () => {
     const tab = btn.dataset.anTab;
     document.querySelectorAll('[data-an-tab]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['ads','activity','online','training','users','content','notifications','storage','vps'].forEach(id => {
+    ['ads','activity','moderators','online','training','users','content','notifications','storage','vps'].forEach(id => {
       const el = document.getElementById('an-section-' + id);
       if (el) el.style.display = (id === tab) ? 'block' : 'none';
     });
     if (tab === 'training' && !trainingAnalyticsLoaded) loadTrainingAnalytics();
+    if (tab === 'moderators') loadModeratorAnalytics();
     if (tab === 'users' && !_nuLoaded) loadNewUsersAnalytics();
     if (tab === 'notifications') loadNotificationAnalytics();
     if (tab === 'vps') renderVpsAnalytics();
@@ -14062,6 +14204,11 @@ document.getElementById('analytics-refresh-btn')?.addEventListener('click', asyn
   if (notificationsVisible) {
     _notificationAnalyticsLoaded = false;
     await loadNotificationAnalytics(true);
+  }
+  const moderatorsVisible = document.getElementById('an-section-moderators')?.style.display !== 'none';
+  if (moderatorsVisible) {
+    _moderatorAnalyticsLoaded = false;
+    await loadModeratorAnalytics(true);
   }
   const onlineVisible = document.getElementById('an-section-online')?.style.display !== 'none';
   if (onlineVisible) await loadSiteOnlineCount();
@@ -14259,7 +14406,13 @@ async function loadAgentSubscriptionAnalytics() {
     };
 
     try {
-      const subSnap = await getDocs(collectionGroup(db, 'subscriptions'));
+      // Firestore rules only expose agent subscriptions to collection-group
+      // reads. The discriminator must be part of the query or rules reject
+      // the entire result set, even when every existing document is an agent.
+      const subSnap = await getDocs(query(
+        collectionGroup(db, 'subscriptions'),
+        where('type', '==', 'agent'),
+      ));
       subSnap.forEach(subDoc => {
         const uid = subDoc.ref.parent?.parent?.id || '';
         addSub(uid, subDoc.data() || {});
@@ -16171,7 +16324,7 @@ async function nbPublish() {
       author_uid: auth.currentUser?.uid || null,
     });
     try {
-      await sendPushNotification({
+      const pushResult = await sendPushNotification({
         title,
         body: 'Открой приложение, чтобы посмотреть обновление.',
         type: 'news_banner',
@@ -16179,8 +16332,8 @@ async function nbPublish() {
         data: { banner_id: bannerRef.id, version, target_version: target.version },
       });
       const targetLabel = target.version ? `для версии ${target.version}` : 'для всех версий';
-      status.textContent = `✅ Банер опубликован ${targetLabel}, push отправлен`;
-      toast(`Новостной банер опубликован ${targetLabel}`, 's');
+      status.textContent = `✅ Банер опубликован ${targetLabel}. ${pushAcceptedSummary(pushResult, 'все доступные push-устройства; версия ограничивает только показ банера')}`;
+      toast(`Банер опубликован ${targetLabel}; push-аудитория не фильтровалась по версии`, pushResult.recipients ? 's' : 'i');
     } catch (pushErr) {
       status.textContent = '✅ Банер опубликован, но push не ушёл: ' + pushErr.message;
       toast('Банер опубликован, push не ушёл: ' + pushErr.message, 'e');
@@ -16245,10 +16398,17 @@ async function sendPushNotification({ title, body, translations, type, targetUid
     target: pushData.target,
     audience: uid ? 'personal' : 'broadcast',
     recipients: Number(result.recipients || 0),
+    provider_status: 'accepted',
     sent_at: serverTimestamp(),
     created_by: currentUser?.uid || null,
   }, { merge:true });
   return { ...result, campaign_id: campaignId };
+}
+
+function pushAcceptedSummary(result, audience) {
+  const recipients = Number(result?.recipients || 0);
+  const target = audience || 'аудитория OneSignal';
+  return `OneSignal принял запрос → ${target} · найдено устройств: ${recipients}`;
 }
 
 const TRAINING_ANALYTICS_CATEGORIES = [
@@ -16636,9 +16796,10 @@ document.querySelectorAll('.nc-btn').forEach(btn => {
     btn.disabled = true;
     _ncSetStatus(id, true, 'Отправка…');
     try {
-      await sendPushNotification({ ...preset, allowAll: _ncAllowAll() });
-      _ncSetStatus(id, true, _ncTargetName ? `✅ Отправлено → ${_ncTargetName}` : '✅ Отправлено всем');
-      toast(_ncTargetName ? `${preset.title} → ${_ncTargetName} ✅` : `Отправлено всем: ${preset.title}`, 's');
+      const result = await sendPushNotification({ ...preset, allowAll: _ncAllowAll() });
+      const audience = _ncTargetName ? _ncTargetName : 'все доступные push-устройства';
+      _ncSetStatus(id, true, `✅ ${pushAcceptedSummary(result, audience)}`);
+      toast(pushAcceptedSummary(result, audience), result.recipients ? 's' : 'i');
     } catch (e) {
       _ncSetStatus(id, false, `❌ ${e.message}`);
       toast('Ошибка: ' + e.message, 'e');
@@ -16657,9 +16818,10 @@ document.getElementById('notif-cl-btn')?.addEventListener('click', async () => {
   btn.disabled = true;
   _ncSetStatus('changelog', true, 'Отправка…');
   try {
-    await sendPushNotification({ title, body, type: 'changelog', allowAll: _ncAllowAll() });
-    _ncSetStatus('changelog', true, '✅ Отправлено — придёт даже при закрытом приложении');
-    toast(_ncTargetName ? `Отправлено: ${_ncTargetName} ✅` : 'Отправлено всем пользователям ✅', 's');
+    const result = await sendPushNotification({ title, body, type: 'changelog', allowAll: _ncAllowAll() });
+    const audience = _ncTargetName ? _ncTargetName : 'все доступные push-устройства';
+    _ncSetStatus('changelog', true, `✅ ${pushAcceptedSummary(result, audience)}. Доставка не гарантирована.`);
+    toast(pushAcceptedSummary(result, audience), result.recipients ? 's' : 'i');
   } catch (e) {
     _ncSetStatus('changelog', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
@@ -17354,11 +17516,12 @@ async function _loSendRewardTest() {
       update.easter_notify_tapper_claimed_at = null;
     }
     await updateDoc(userRef, update);
+    let rewardPushResult = null;
     if (push) {
       const body = grant
         ? `Тест награды: +5 к счётчику лайнапов. Сейчас: ${after}.`
         : 'Тест шторки уровня без начисления лайнапов.';
-      await sendPushNotification({
+      rewardPushResult = await sendPushNotification({
         title: '🎁 Тест награды',
         body,
         type: 'lineups_approved_batch',
@@ -17381,8 +17544,13 @@ async function _loSendRewardTest() {
     const fresh = await getDoc(userRef);
     _loTestUser = { id: fresh.id, ...(fresh.data() || {}) };
     _loSelectTestUser(_loTestUser);
-    _ncSetStatus('level-test', true, `✅ Готово. Было ${before}, стало ${after}. Уровень: ${level.name}`);
-    toast('Тест награды отправлен', 's');
+    const actions = [
+      grant ? 'награда начислена' : '',
+      resetEaster ? 'пасхальная награда сброшена' : '',
+      push ? `push принят OneSignal, найдено устройств: ${Number(rewardPushResult?.recipients || 0)}` : 'push не запрашивался',
+    ].filter(Boolean);
+    _ncSetStatus('level-test', true, `✅ Готово: ${actions.join(' · ')}. Было ${before}, стало ${after}. Уровень: ${level.name}`);
+    toast(`Тест выполнен: ${actions.join(' · ')}`, 's');
   } catch (e) {
     _ncSetStatus('level-test', false, `❌ ${e.message}`);
     toast('Ошибка теста награды: ' + e.message, 'e');
@@ -17530,7 +17698,7 @@ async function sendDuelOverlayTest() {
   try {
     const active = _doActiveDuel || await loadActiveDuelOverlayTest();
     if (!active?.id) throw new Error('Нет активной дуэли для теста');
-    await sendPushNotification({
+    const result = await sendPushNotification({
       title: '⚔️ Тест шторки дуэли',
       body: 'Открой приложение: тебя ждёт дуэль лайнапов.',
       type: 'duel',
@@ -17540,8 +17708,8 @@ async function sendDuelOverlayTest() {
         test_duel_sheet: '1',
       },
     });
-    _ncSetStatus('duel-overlay', true, `✅ Тест отправлен → ${targetName || targetUid}`);
-    toast('Тест шторки дуэли отправлен', 's');
+    _ncSetStatus('duel-overlay', true, `✅ ${pushAcceptedSummary(result, targetName || targetUid)}`);
+    toast(pushAcceptedSummary(result, targetName || targetUid), result.recipients ? 's' : 'i');
   } catch (e) {
     _ncSetStatus('duel-overlay', false, `❌ ${e.message}`);
     toast('Ошибка теста шторки дуэли: ' + e.message, 'e');
@@ -17585,7 +17753,7 @@ document.getElementById('bn-test-agent')?.addEventListener('click', async () => 
   btn.disabled = true;
   _ncSetStatus('banner-test', true, 'Отправка теста…');
   try {
-    await sendPushNotification({
+    const result = await sendPushNotification({
       title: 'Поступили новые лайнапы!',
       body: `Поступило ${bnPlural(total)} по подпискам`,
       type: 'new_lineups_batch',
@@ -17604,8 +17772,9 @@ document.getElementById('bn-test-agent')?.addEventListener('click', async () => 
       type: 'content',
       source: 'agent_lineup_banner_test',
     }).catch(() => {});
-    _ncSetStatus('banner-test', true, _ncTargetName ? `✅ Тест банера → ${_ncTargetName}` : '✅ Тест банера отправлен всем');
-    toast(_ncTargetName ? `Тест банера → ${_ncTargetName}` : 'Тест банера отправлен всем', 's');
+    const audience = _ncTargetName ? _ncTargetName : 'все доступные push-устройства';
+    _ncSetStatus('banner-test', true, `✅ ${pushAcceptedSummary(result, audience)}`);
+    toast(pushAcceptedSummary(result, audience), result.recipients ? 's' : 'i');
   } catch (e) {
     _ncSetStatus('banner-test', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');
@@ -17684,8 +17853,12 @@ document.getElementById('fu-push-btn')?.addEventListener('click', async () => {
       maxAndroidVersionCode: latestVersionCode,
       allowAll: true,
     });
-    _ncSetStatus('forceupdate', true, `✅ Отправлено пользователям без актуальной версии ${latestVersion}`);
-    toast(`Пуш отправлен пользователям без версии ${latestVersion}`, 's');
+    const personal = !!_ncTargetUid;
+    const audience = personal
+      ? `${_ncTargetName || _ncTargetUid} (персонально; версия не проверялась)`
+      : `устройства с OneSignal app_version < ${latestVersionCode}`;
+    _ncSetStatus('forceupdate', true, `✅ ${pushAcceptedSummary(result, audience)}. Доставка не гарантирована.`);
+    toast(pushAcceptedSummary(result, audience), result.recipients ? 's' : 'i');
   } catch (e) {
     _ncSetStatus('forceupdate', false, `❌ ${e.message}`);
     toast('Ошибка: ' + e.message, 'e');

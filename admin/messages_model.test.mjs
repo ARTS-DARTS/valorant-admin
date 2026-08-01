@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   buildMessageConversations,
   filterMessageConversations,
+  isAdminThreadMessageRead,
   isMessageNew,
   lastThreadMessage,
   messageThread,
@@ -48,8 +49,33 @@ test('adds a missing original message to a modern thread', () => {
   );
 });
 
+test('calculates read receipts per admin message', () => {
+  const conversation = {
+    user_read_at: 25,
+    thread: [
+      { from: 'admin', text: 'Прочитано открытием', ts: 20 },
+      { from: 'admin', text: 'Прочитано ответом', ts: 30 },
+      { from: 'user', text: 'Ответ', ts: 40 },
+      { from: 'admin', text: 'Ещё не прочитано', ts: 50 },
+    ],
+  };
+  assert.equal(
+    isAdminThreadMessageRead(conversation, conversation.thread[0]),
+    true,
+  );
+  assert.equal(
+    isAdminThreadMessageRead(conversation, conversation.thread[1]),
+    true,
+  );
+  assert.equal(
+    isAdminThreadMessageRead(conversation, conversation.thread[3]),
+    false,
+  );
+});
+
 test('does not invent a user message for an admin-initiated chat', () => {
   const thread = messageThread({
+    id: 'admin_chat_u1',
     source: 'admin_message',
     text: 'Сообщение от администратора',
     created_at: 10,
@@ -60,12 +86,31 @@ test('does not invent a user message for an admin-initiated chat', () => {
   ]);
   assert.deepEqual(
     messageThread({
+      id: 'admin_chat_u1',
       source: 'admin_message',
       text: 'Чат с администрацией',
       thread: [],
     }),
     [],
   );
+});
+
+test('restores original feedback misclassified as an admin message after reply', () => {
+  const thread = messageThread({
+    id: 'legacy_feedback_1',
+    source: 'admin_message',
+    text: 'Думаю, можно закреплять вот тут сверху по середине.',
+    created_at: 10,
+    thread: [{ from: 'admin', text: 'Отличная идея.', ts: 20 }],
+  });
+  assert.deepEqual(thread, [
+    {
+      from: 'user',
+      text: 'Думаю, можно закреплять вот тут сверху по середине.',
+      ts: 10,
+    },
+    { from: 'admin', text: 'Отличная идея.', ts: 20 },
+  ]);
 });
 
 test('merges moderator application feedback by user and deduplicates thread', () => {
