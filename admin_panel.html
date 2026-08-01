@@ -2148,6 +2148,7 @@
     <button class="filter-btn" data-log-filter="flutter">Flutter</button>
     <button class="filter-btn" data-log-filter="dart">Dart</button>
     <button class="filter-btn" data-log-filter="caught">Операции</button>
+    <button class="filter-btn" data-log-filter="user-site">🌐 Пользовательский сайт</button>
     <button class="filter-btn" data-log-filter="admin-site">🖥 Админ-сайт</button>
     <button class="filter-btn" data-log-filter="manual">Другие</button>
   </div>
@@ -18231,14 +18232,14 @@ async function loadLogsTab() {
   list.innerHTML = '<div class="state"><div class="an-loading">Загружаем логи…</div></div>';
   try {
     const constraints = [orderBy('timestamp', 'desc'), limit(200)];
-    if (_logsFilter === 'admin-site') constraints.push(where('platform', '==', 'web'));
+    if (_logsFilter === 'admin-site' || _logsFilter === 'user-site') constraints.push(where('platform', '==', 'web'));
     else if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
     let snap;
     try {
       snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
       _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
-      const missingIndex = _logsFilter === 'admin-site' && /requires an index|failed-precondition/i.test(String(error?.message || error));
+      const missingIndex = (_logsFilter === 'admin-site' || _logsFilter === 'user-site') && /requires an index|failed-precondition/i.test(String(error?.message || error));
       if (!missingIndex) throw error;
       snap = await getDocs(query(collection(db, 'app_errors'), where('platform', '==', 'web'), limit(500)));
       _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
@@ -18433,9 +18434,9 @@ function _renderLogs() {
   const items = _logsFilter === 'all'
     ? _logsCache
     : _logsFilter === 'admin-site'
-      ? _logsCache.filter(l => String(l.platform || '').toLowerCase() === 'web' && (
-          l.source_app === 'admin_panel' || /valorant-admin/i.test(String(l.page_url || ''))
-        ))
+      ? _logsCache.filter(_isAdminSiteLog)
+      : _logsFilter === 'user-site'
+        ? _logsCache.filter(_isUserSiteLog)
       : _logsCache.filter(l => l.type === _logsFilter);
 
   if (!items.length) {
@@ -18455,7 +18456,7 @@ function _renderLogs() {
       : '—';
     const typeClass = `log-type-${String(log.platform || '').toLowerCase() === 'web' ? 'web' : (log.type || 'manual')}`;
     const typeLabel = String(log.platform || '').toLowerCase() === 'web'
-      ? (log.source_app === 'admin_panel' || /valorant-admin/i.test(String(log.page_url || '')) ? 'ADMIN WEB' : 'WEB')
+      ? (_isAdminSiteLog(log) ? 'ADMIN WEB' : _isUserSiteLog(log) ? 'USER WEB' : 'WEB')
       : (log.type || 'other').toUpperCase();
     const msg = (log.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -18549,6 +18550,19 @@ function _adminAuditCategory(entry) {
   if (/lineup|lineup_|radius|map_|category|ability|weapon|defense/.test(action)) return 'lineup';
   if (/user|account|role|badge|password|nickname|pioneer|ban|feedback|application/.test(action)) return 'user';
   return 'settings';
+}
+
+function _isAdminSiteLog(log) {
+  return String(log.platform || '').toLowerCase() === 'web' && (
+    log.source_app === 'admin_panel' || /valorant-admin/i.test(String(log.page_url || log.url || ''))
+  );
+}
+
+function _isUserSiteLog(log) {
+  if (String(log.platform || '').toLowerCase() !== 'web' || _isAdminSiteLog(log)) return false;
+  return log.source === 'upload_site' || /(^|\.)vlineups\.ru/i.test((() => {
+    try { return new URL(String(log.url || log.page_url || '')).hostname; } catch (_) { return ''; }
+  })());
 }
 
 function _renderAdminAuditLogs() {
@@ -18743,7 +18757,7 @@ document.querySelectorAll('[data-log-filter]').forEach(btn => {
     document.querySelectorAll('[data-log-filter]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     _logsFilter = btn.dataset.logFilter;
-    if (_logsCache.length) {
+    if (_logsCache.length && _logsFilter !== 'admin-site' && _logsFilter !== 'user-site') {
       _renderLogs();
     } else {
       loadLogsTab();
