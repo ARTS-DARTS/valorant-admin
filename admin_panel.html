@@ -19265,13 +19265,13 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
                     onclick="togglePioneer('${uid}',${u.is_beta === true},'${esc(u.name||u.displayName||'')}','${_panelId}')">
               ${u.is_beta === true ? '⚡ Снять Pioneer' : '⚡ Выдать Pioneer'}
             </button>
-            ${['youtuber','twitch','tiktok','sponsor'].map(type => {
+            ${['youtuber','twitch','tiktok','sponsor','unlimited'].map(type => {
               const col = BADGE_COLOR[type] || '#888';
               const emo = BADGE_EMOJI[type] || '⭐';
-              return `<button onclick="grantBadge('${uid}','${type}')"
+              return `<button onclick="grantBadge('${uid}','${type}')" title="${type === 'unlimited' ? 'Полностью отключает КД между загрузками лайнапов' : 'Выдать бейдж ' + (BADGE_LABEL[type] || type)}"
                         style="font-size:11px;padding:4px 12px;border-radius:20px;border:2px solid ${col};background:${col}22;color:${col};cursor:pointer;font-weight:700;transition:.15s;"
                         onmouseover="this.style.background='${col}44'" onmouseout="this.style.background='${col}22'">
-                        ${emo} ${type}
+                        ${emo} ${BADGE_LABEL[type] || type}
                       </button>`;
             }).join('')}
           </div>
@@ -19374,8 +19374,9 @@ async function loadUserBadges(uid) {
   return badges;
 }
 
-const BADGE_EMOJI = { pioneer:'🚀', youtuber:'🎥', twitch:'🟣', tiktok:'🎵', sponsor:'💎' };
-const BADGE_COLOR = { pioneer:'#FF4655', youtuber:'#FF0000', twitch:'#9147FF', tiktok:'#69C9D0', sponsor:'#FFD700' };
+const BADGE_EMOJI = { pioneer:'🚀', youtuber:'🎥', twitch:'🟣', tiktok:'🎵', sponsor:'💎', unlimited:'⚡' };
+const BADGE_COLOR = { pioneer:'#FF4655', youtuber:'#FF0000', twitch:'#9147FF', tiktok:'#69C9D0', sponsor:'#FFD700', unlimited:'#22D3EE' };
+const BADGE_LABEL = { pioneer:'Pioneer', youtuber:'YouTube', twitch:'Twitch', tiktok:'TikTok', sponsor:'Sponsor', unlimited:'Безлимит' };
 
 function renderUserBadges(uid, badges) {
   const el = document.getElementById('badges-list-' + uid);
@@ -19385,9 +19386,9 @@ function renderUserBadges(uid, badges) {
     return;
   }
   el.innerHTML = badges.map(b => `
-    <div style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;border:1px solid ${BADGE_COLOR[b.type] || '#888'};background:${BADGE_COLOR[b.type] || '#888'}22;">
+    <div title="${b.type === 'unlimited' ? 'КД на загрузку отключён' : ''}" style="display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;border:1px solid ${BADGE_COLOR[b.type] || '#888'};background:${BADGE_COLOR[b.type] || '#888'}22;">
       <span>${BADGE_EMOJI[b.type] || '⭐'}</span>
-      <span style="font-size:11px;color:${BADGE_COLOR[b.type] || '#ccc'};">${b.type}</span>
+      <span style="font-size:11px;color:${BADGE_COLOR[b.type] || '#ccc'};">${BADGE_LABEL[b.type] || b.type}</span>
       <span onclick="revokeBadge('${uid}','${b.type}')" style="cursor:pointer;color:var(--text2);margin-left:2px;font-size:12px;" title="Убрать">✕</span>
     </div>
   `).join('');
@@ -19412,7 +19413,9 @@ async function grantBadge(uid, type) {
   if (existing.some(b => b.type === type)) { toast(`Бейдж ${type} уже выдан`, 'w'); return; }
 
   const badge = { type, url: url || null, granted_by: auth.currentUser?.uid, granted_at: new Date() };
-  await setDoc(ref, { badges: [...existing, badge] }, { merge: true });
+  const patch = { badges: [...existing, badge] };
+  if (type === 'unlimited') patch.cooldown_exempt = true;
+  await setDoc(ref, patch, { merge: true });
 
   toast(`Бейдж ${BADGE_EMOJI[type] || ''} ${type} выдан ✅`, 's');
   addAuditLog(`Выдан бейдж ${type} пользователю ${uid}${url ? ' → ' + url : ''}`);
@@ -19426,7 +19429,10 @@ async function revokeBadge(uid, type) {
   const snap = await getDoc(ref);
   if (!snap.exists()) return;
   const badges = (snap.data().badges || []).filter(b => b.type !== type);
-  await setDoc(ref, { badges }, { merge: false });
+  await setDoc(ref, {
+    badges,
+    cooldown_exempt: badges.some(b => b.type === 'unlimited'),
+  }, { merge: false });
 
   toast(`Бейдж ${type} удалён`, 'w');
   addAuditLog(`Удалён бейдж ${type} у пользователя ${uid}`);
