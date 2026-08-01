@@ -19002,6 +19002,16 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
     const hasPassword = u.password_linked === true
       || Array.isArray(u.firebase_providers) && u.firebase_providers.includes('password')
       || !!u.user_email && !u.user_email.includes('google');
+    const pushExplicitlyDisabled = u.push_enabled === false
+      || u.notifications_enabled === false
+      || String(u.push_permission || u.notification_permission || '').toLowerCase() === 'denied';
+    const pushRegistrationKnown = !!(u.fcm_token || u.onesignal_id || u.push_subscription_id);
+    const pushLabel = pushExplicitlyDisabled
+      ? 'Push: отключён пользователем'
+      : pushRegistrationKnown ? 'Push: устройство зарегистрировано' : 'Push: нет данных';
+    const pushColor = pushExplicitlyDisabled ? 'var(--red)' : pushRegistrationKnown ? 'var(--green)' : 'var(--text2)';
+    const pushBackground = pushExplicitlyDisabled ? 'rgba(239,68,68,.1)' : pushRegistrationKnown ? 'rgba(34,197,94,.12)' : 'var(--surface2)';
+    const pushBorder = pushExplicitlyDisabled ? 'rgba(239,68,68,.3)' : pushRegistrationKnown ? 'rgba(34,197,94,.25)' : 'var(--border)';
     const createdAt   = u.created_at?.toDate?.()?.toLocaleDateString('ru-RU') ?? '—';
     const isBanned    = !!u.is_banned;
     const lastSeenTs  = u.last_seen?.toDate?.() ?? null;
@@ -19200,9 +19210,9 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
             ${[
               { icon: 'bi-envelope-fill', label: 'Email', ok: !!u.user_email },
               { icon: 'bi-key-fill', label: 'Пароль', ok: hasPassword },
-              { icon: 'bi-bell-fill', label: 'Push', ok: !!u.fcm_token },
             ].map(({ icon, label, ok }) => `<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:${ok?'rgba(34,197,94,.12)':'var(--surface2)'};color:${ok?'var(--green)':'var(--text2)'};border:1px solid ${ok?'rgba(34,197,94,.25)':'var(--border)'};display:inline-flex;align-items:center;gap:5px;"><i class="bi ${icon}"></i>${label} ${ok?'✓':'✗'}</span>`).join('')
             }
+            <span title="Статус разрешения Android виден только при явном сохранённом отказе" style="font-size:11px;padding:3px 10px;border-radius:20px;background:${pushBackground};color:${pushColor};border:1px solid ${pushBorder};display:inline-flex;align-items:center;gap:5px;"><i class="bi bi-bell-fill"></i>${pushLabel}</span>
           </div>
         </div>
 
@@ -19212,9 +19222,8 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
             <div style="font-size:13px;color:${verifClr};font-weight:600;">${verifDot} ${verifLabel}</div>
             ${!isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">План: минимум ${REQUIRED_VIEWS} просмотренных лайнапов за ${TRIAL_DAYS} дней после регистрации. Предупреждения уходят за 3 дня и за 1 день до удаления.</div>` : ''}
             ${!isTrialPassed && (u.trial_warning_3d_sent_at || u.trial_warning_1d_sent_at) ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Оповещения: ${u.trial_warning_3d_sent_at ? '3д ✓ ' : ''}${u.trial_warning_1d_sent_at ? '1д ✓' : ''}</div>` : ''}
-            ${!isManualVerif && isTrialPassed ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;">Можно подтвердить вручную для надёжности</div>` : ''}
           </div>
-          ${!isManualVerif ? `<button class="btn btn-approve" onclick="verifyUserAccount('${uid}','${esc(u.name||'')}','${_panelId}')" style="font-size:12px;padding:7px 14px;flex-shrink:0;">✅ Подтвердить</button>` : ''}
+          ${!isTrialPassed ? `<button class="btn btn-approve" onclick="verifyUserAccount('${uid}','${esc(u.name||'')}','${_panelId}')" style="font-size:12px;padding:7px 14px;flex-shrink:0;">✅ Подтвердить вручную</button>` : ''}
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
