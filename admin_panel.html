@@ -3579,6 +3579,7 @@ document.addEventListener('visibilitychange', () => {
     _afkListenerTimer = setTimeout(_suspendRealtimeListeners, 60000);
   } else {
     if (_afkListenerTimer) { clearTimeout(_afkListenerTimer); _afkListenerTimer = null; }
+    void adminUpdateWatcher.check();
     _resumeRealtimeForActiveTab();
   }
 });
