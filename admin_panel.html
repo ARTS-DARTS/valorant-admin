@@ -2111,8 +2111,23 @@
     </div>
   </details>
 
+  <section class="admin-audit-panel">
+    <div class="logs-toolbar" style="margin-bottom:10px;">
+      <span style="font-size:15px;font-weight:700;color:var(--text);">📋 Аудит действий администраторов</span>
+      <div style="flex:1;"></div>
+      <button class="btn" id="admin-audit-refresh-btn" style="border:1px solid var(--border);color:var(--text2);padding:6px 14px;font-size:12px;">🔄 Обновить</button>
+    </div>
+    <div class="logs-filter-row" id="admin-audit-filters">
+      <button class="filter-btn active" data-admin-audit-filter="all">Все действия</button>
+      <button class="filter-btn" data-admin-audit-filter="lineup">Лайнапы</button>
+      <button class="filter-btn" data-admin-audit-filter="user">Пользователи</button>
+      <button class="filter-btn" data-admin-audit-filter="settings">Настройки</button>
+    </div>
+    <div id="admin-audit-list"><div class="state">Загрузка аудита…</div></div>
+  </section>
+
   <div class="logs-toolbar">
-    <span style="font-size:15px;font-weight:700;color:var(--text);">⚠️ Логи / Ошибки</span>
+    <span style="font-size:15px;font-weight:700;color:var(--text);">⚠️ Ошибки приложений и сайтов</span>
     <div style="flex:1;"></div>
     <button class="btn" id="logs-refresh-btn" style="border:1px solid var(--border);color:var(--text2);padding:6px 14px;font-size:12px;">🔄 Обновить</button>
     <button class="btn" id="logs-export-btn" style="border:1px solid #38bdf8;color:#38bdf8;padding:6px 14px;font-size:12px;">⬇ Скачать отчёт</button>
@@ -2123,7 +2138,7 @@
     <button class="filter-btn" data-log-filter="flutter">Flutter</button>
     <button class="filter-btn" data-log-filter="dart">Dart</button>
     <button class="filter-btn" data-log-filter="caught">Операции</button>
-    <button class="filter-btn" data-log-filter="web">Web</button>
+    <button class="filter-btn" data-log-filter="admin-site">🖥 Админ-сайт</button>
     <button class="filter-btn" data-log-filter="manual">Другие</button>
   </div>
   <div id="logs-list"></div>
@@ -18046,6 +18061,8 @@ document.getElementById('dtp-save-btn')?.addEventListener('click', () => {
 
 // ── Logs tab ──────────────────────────────────────────────────────────────────
 let _logsFilter = 'all';
+let _adminAuditFilter = 'all';
+let _adminAuditCache = [];
 let _logsCache  = [];
 let _logsUsers  = {};
 let _logsRenderedGroups = {};
@@ -18101,18 +18118,19 @@ document.getElementById('cron-panel')?.addEventListener('toggle', e => {
 });
 
 async function loadLogsTab() {
+  void loadAdminAuditLogs();
   const list = document.getElementById('logs-list');
   list.innerHTML = '<div class="state"><div class="an-loading">Загружаем логи…</div></div>';
   try {
     const constraints = [orderBy('timestamp', 'desc'), limit(200)];
-    if (_logsFilter === 'web') constraints.push(where('platform', '==', 'web'));
+    if (_logsFilter === 'admin-site') constraints.push(where('platform', '==', 'web'));
     else if (_logsFilter !== 'all') constraints.push(where('type', '==', _logsFilter));
     let snap;
     try {
       snap = await getDocs(query(collection(db, 'app_errors'), ...constraints));
       _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (error) {
-      const missingIndex = _logsFilter === 'web' && /requires an index|failed-precondition/i.test(String(error?.message || error));
+      const missingIndex = _logsFilter === 'admin-site' && /requires an index|failed-precondition/i.test(String(error?.message || error));
       if (!missingIndex) throw error;
       snap = await getDocs(query(collection(db, 'app_errors'), where('platform', '==', 'web'), limit(500)));
       _logsCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
@@ -18306,8 +18324,10 @@ function _renderLogs() {
   const list = document.getElementById('logs-list');
   const items = _logsFilter === 'all'
     ? _logsCache
-    : _logsFilter === 'web'
-      ? _logsCache.filter(l => String(l.platform || '').toLowerCase() === 'web')
+    : _logsFilter === 'admin-site'
+      ? _logsCache.filter(l => String(l.platform || '').toLowerCase() === 'web' && (
+          l.source_app === 'admin_panel' || /valorant-admin/i.test(String(l.page_url || ''))
+        ))
       : _logsCache.filter(l => l.type === _logsFilter);
 
   if (!items.length) {
@@ -18326,7 +18346,9 @@ function _renderLogs() {
       ? log.timestamp.toDate().toLocaleString('ru-RU')
       : '—';
     const typeClass = `log-type-${String(log.platform || '').toLowerCase() === 'web' ? 'web' : (log.type || 'manual')}`;
-    const typeLabel = String(log.platform || '').toLowerCase() === 'web' ? 'WEB' : (log.type || 'other').toUpperCase();
+    const typeLabel = String(log.platform || '').toLowerCase() === 'web'
+      ? (log.source_app === 'admin_panel' || /valorant-admin/i.test(String(log.page_url || '')) ? 'ADMIN WEB' : 'WEB')
+      : (log.type || 'other').toUpperCase();
     const msg = (log.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const stack = (log.stack || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const uid = _logUid(log);
@@ -18413,6 +18435,56 @@ async function _deleteLogGroup(groupDomId, btn) {
 }
 
 document.getElementById('logs-refresh-btn').addEventListener('click', loadLogsTab);
+
+function _adminAuditCategory(entry) {
+  const action = String(entry.action || entry.message || '').toLowerCase();
+  if (/lineup|lineup_|radius|map_|category|ability|weapon|defense/.test(action)) return 'lineup';
+  if (/user|account|role|badge|password|nickname|pioneer|ban|feedback|application/.test(action)) return 'user';
+  return 'settings';
+}
+
+function _renderAdminAuditLogs() {
+  const host = document.getElementById('admin-audit-list');
+  if (!host) return;
+  const items = _adminAuditFilter === 'all'
+    ? _adminAuditCache
+    : _adminAuditCache.filter(entry => _adminAuditCategory(entry) === _adminAuditFilter);
+  if (!items.length) {
+    host.innerHTML = '<div class="state">Действий в этой категории пока нет</div>';
+    return;
+  }
+  host.innerHTML = `<div class="admin-audit-table"><table><thead><tr>
+    <th>Время</th><th>Администратор</th><th>Действие</th><th>Детали</th>
+  </tr></thead><tbody>${items.map(entry => {
+    const date = entry.at?.toDate?.();
+    const when = date ? date.toLocaleString('ru-RU') : '—';
+    const action = entry.message || entry.action || 'Действие';
+    const details = entry.data ? JSON.stringify(entry.data, null, 2) : '';
+    return `<tr><td>${esc(when)}</td><td><b>${esc(entry.by_name || '—')}</b><small>${esc(entry.by_uid || '')}</small></td>
+      <td><span class="notif-chip">${esc(action)}</span></td><td>${details ? `<details><summary>Показать</summary><pre>${esc(details)}</pre></details>` : '—'}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+
+async function loadAdminAuditLogs() {
+  const host = document.getElementById('admin-audit-list');
+  if (!host) return;
+  host.innerHTML = '<div class="state">Загрузка аудита…</div>';
+  try {
+    const snap = await getDocs(query(collection(db, 'admin_log'), orderBy('at', 'desc'), limit(300)));
+    _adminAuditCache = snap.docs.map(item => ({ id:item.id, ...item.data() }));
+    _renderAdminAuditLogs();
+  } catch (error) {
+    host.innerHTML = `<div class="state" style="color:var(--red)">Ошибка загрузки аудита: ${esc(error.message)}</div>`;
+  }
+}
+
+document.getElementById('admin-audit-refresh-btn')?.addEventListener('click', loadAdminAuditLogs);
+document.querySelectorAll('[data-admin-audit-filter]').forEach(button => button.addEventListener('click', () => {
+  document.querySelectorAll('[data-admin-audit-filter]').forEach(item => item.classList.remove('active'));
+  button.classList.add('active');
+  _adminAuditFilter = button.dataset.adminAuditFilter || 'all';
+  _renderAdminAuditLogs();
+}));
 
 function _exportLogValue(value) {
   if (value?.toDate) return value.toDate().toISOString();

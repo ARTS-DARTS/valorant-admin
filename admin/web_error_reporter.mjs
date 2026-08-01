@@ -47,6 +47,7 @@ export function createWebErrorReporter({
       const user = getUser();
       await writeError({
         type: 'web', platform: 'web', level,
+        source_app: 'admin_panel',
         message: String(message).slice(0, 8000), stack: String(stack || '').slice(0, 16000),
         operation: source, fingerprint, uid: user?.uid || '',
         build_version: getBuildVersion(), page_url: windowRef.location?.href || '',
