@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-08-01-log-section-tabs-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-08-01-bulk-selection-v1">
 </head>
 <body>
 
@@ -212,6 +212,7 @@
               <button class="btn" data-bulk-action="moderate" style="font-size:10px;padding:5px 7px;border-color:#38bdf8;color:#38bdf8;">🛡 На модерку</button>
               <button class="btn btn-approve" data-bulk-action="approve" style="font-size:10px;padding:5px 7px;">🔥 Пирожки</button>
               <button class="btn btn-archive" data-bulk-action="archive" style="font-size:10px;padding:5px 7px;">📦 Архив</button>
+              <button class="btn btn-delete" data-bulk-action="delete" style="font-size:10px;padding:5px 7px;">🗑 Удалить</button>
             </div>
           </div>
           <div class="list-panel-scroll">
@@ -8081,7 +8082,10 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
   const action = button.dataset.bulkAction;
   const ids = [..._selectedIds];
   const label = action === 'moderate' ? 'на модерку' : action === 'approve' ? 'в «Пирожки»' : 'в архив';
-  if (!confirm(`Отправить ${ids.length} лайнапов ${label}?`)) return;
+  const confirmation = action === 'delete'
+    ? `Удалить выбранные лайнапы (${ids.length})? Это необратимо.`
+    : `Отправить ${ids.length} лайнапов ${label}?`;
+  if (!confirm(confirmation)) return;
   button.disabled = true;
   try {
     const hotNotificationsByAuthor = new Map();
@@ -8103,13 +8107,20 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         }
         await writeAudit(id, 'hot');
         patchStatus(id, 'hot');
-      } else {
+      } else if (action === 'archive') {
         const snap = await getDoc(doc(db, 'lineups', id));
         const lineup = snap.exists() ? { id, ...snap.data() } : (lineups.find(item => item.id === id) || { id });
         await updateDoc(doc(db, 'lineups', id), { status: 'archived' });
         await applyApprovedStatusDelta(lineup, 'archived', { reason: 'lineup_archived_bulk' });
         await writeAudit(id, 'archived');
         patchStatus(id, 'archived');
+      } else if (action === 'delete') {
+        const snap = await getDoc(doc(db, 'lineups', id));
+        const lineup = snap.exists() ? { id, ...snap.data() } : (lineups.find(item => item.id === id) || { id });
+        await applyApprovedStatusDelta(lineup, 'deleted', { reason: 'lineup_deleted_bulk' });
+        await writeAudit(id, 'deleted');
+        await auditDeleteDoc('lineups', id, { reason: 'lineup_bulk_delete', snapshot: lineup });
+        lineups = lineups.filter(item => item.id !== id);
       }
     }
     if (action === 'moderate') await notifyModeratorsNewWork(moderationWork);
@@ -8138,9 +8149,15 @@ document.getElementById('bulk-selection-bar')?.addEventListener('click', async e
         await markerBatch.commit();
       }
     }
-    _selectedIds.clear(); _lastSelectedIndex = -1; _selectionAnchorId = ''; renderList();
-    toast(`${ids.length} лайнапов обработано`, 's');
-  } catch (e) { toast('Ошибка массового действия: ' + e.message, 'e'); }
+    _selectedIds.clear(); _lastSelectedIndex = -1; _selectionAnchorId = ''; _selectedId = null;
+    renderList();
+    initMapPanel();
+    toast(action === 'delete' ? `Удалено лайнапов: ${ids.length}` : `${ids.length} лайнапов обработано`, action === 'delete' ? 'e' : 's');
+  } catch (e) {
+    renderList();
+    initMapPanel();
+    toast('Ошибка массового действия: ' + e.message, 'e');
+  }
   finally { button.disabled = false; }
 });
 
@@ -8388,6 +8405,7 @@ function renderList() {
   if (!fl.length) {
     listEl.innerHTML = `<div class="state">${contentMeta().empty}</div>`;
     if (cntEl) cntEl.textContent = `0 ${contentMeta().plural}`;
+    updateBulkSelectionUi();
     return;
   }
   listEl.innerHTML = fl.map(cardHtml).join('');
@@ -8400,6 +8418,7 @@ function renderList() {
     const card = document.getElementById('lcard-' + _selectedId);
     if (card) card.classList.add('selected');
   }
+  updateBulkSelectionUi();
 }
 
 function lineupSubmittedDate(l) {
@@ -8756,10 +8775,31 @@ let _selectedId = null;
 function updateBulkSelectionUi() {
   document.querySelectorAll('#lineup-list .lcard').forEach(card =>
     card.classList.toggle('selected', _selectedIds.has(card.dataset.id)));
+  document.querySelector('.list-two-col')?.classList.toggle('multi-selection', _selectedIds.size > 1);
   const bar = document.getElementById('bulk-selection-bar');
   if (bar) bar.style.display = _selectedIds.size ? 'flex' : 'none';
   const count = document.getElementById('bulk-selection-count');
   if (count) count.textContent = _selectedIds.size ? `Выбрано: ${_selectedIds.size}` : '';
+  if (_selectedIds.size > 1) {
+    cleanupInteractiveMap(document.getElementById('edMapContainer'));
+    const empty = document.getElementById('editor-empty');
+    const content = document.getElementById('editor-content');
+    if (empty) {
+      empty.style.display = '';
+      const text = empty.querySelector('p');
+      if (text) text.textContent = `Выбрано лайнапов: ${_selectedIds.size}. Используй массовые действия слева.`;
+    }
+    if (content) { content.style.display = 'none'; content.innerHTML = ''; }
+  } else if (_selectedIds.size === 0 && !_selectedId) {
+    const empty = document.getElementById('editor-empty');
+    const content = document.getElementById('editor-content');
+    if (empty) {
+      empty.style.display = '';
+      const text = empty.querySelector('p');
+      if (text) text.textContent = `Выбери ${contentMeta().label} слева`;
+    }
+    if (content) { content.style.display = 'none'; content.innerHTML = ''; }
+  }
 }
 
 function selectLineup(id, rangeSelect = false) {
@@ -8778,6 +8818,7 @@ function selectLineup(id, rangeSelect = false) {
   if (!_selectionAnchorId) _selectionAnchorId = id;
   _selectedId = id;
   updateBulkSelectionUi();
+  if (_selectedIds.size > 1) return;
   const l = lineups.find(l => l.id === id);
   if (!l) return;
   document.getElementById('editor-empty').style.display = 'none';
