@@ -14452,6 +14452,7 @@ async function loadAgentSubscriptionAnalytics() {
       const subSnap = await getDocs(query(
         collectionGroup(db, 'subscriptions'),
         where('type', '==', 'agent'),
+        orderBy('agent', 'asc'),
       ));
       subSnap.forEach(subDoc => {
         const uid = subDoc.ref.parent?.parent?.id || '';
