@@ -8483,6 +8483,7 @@ function cardHtml(l) {
       <div class="lmeta">
         <span>🗺 ${esc(l.map ?? '')}</span>
         <span>🎭 ${esc(l.agent ?? '')}</span>
+        ${(l.submitted_by || l.author) ? `<span title="Автор лайнапа">👤 ${esc(l.submitted_by || l.author)}</span>` : ''}
         ${submitted.short ? `<span title="${esc(submitted.full)}">🕒 ${esc(submitted.short)}</span>` : ''}
       </div>
     </div>
