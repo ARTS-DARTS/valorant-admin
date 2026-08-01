@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-07-30-pacman-dots-v3">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-08-01-admin-audit-cards-v1">
 </head>
 <body>
 
@@ -18453,16 +18453,30 @@ function _renderAdminAuditLogs() {
     host.innerHTML = '<div class="state">Действий в этой категории пока нет</div>';
     return;
   }
-  host.innerHTML = `<div class="admin-audit-table"><table><thead><tr>
-    <th>Время</th><th>Администратор</th><th>Действие</th><th>Детали</th>
-  </tr></thead><tbody>${items.map(entry => {
+  host.innerHTML = `<div class="admin-audit-cards">${items.map((entry, index) => {
     const date = entry.at?.toDate?.();
     const when = date ? date.toLocaleString('ru-RU') : '—';
     const action = entry.message || entry.action || 'Действие';
     const details = entry.data ? JSON.stringify(entry.data, null, 2) : '';
-    return `<tr><td>${esc(when)}</td><td><b>${esc(entry.by_name || '—')}</b><small>${esc(entry.by_uid || '')}</small></td>
-      <td><span class="notif-chip">${esc(action)}</span></td><td>${details ? `<details><summary>Показать</summary><pre>${esc(details)}</pre></details>` : '—'}</td></tr>`;
-  }).join('')}</tbody></table></div>`;
+    const category = _adminAuditCategory(entry);
+    const categoryLabel = category === 'lineup' ? 'ЛАЙНАП' : category === 'user' ? 'ПОЛЬЗОВАТЕЛЬ' : 'НАСТРОЙКИ';
+    const detailsId = `admin-audit-details-${index}`;
+    return `<div class="log-card admin-audit-card">
+      <div class="log-head">
+        <span class="log-type log-type-web">${categoryLabel}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="log-msg">${esc(action)}</div>
+          <div class="log-meta">
+            <span>🕐 ${esc(when)}</span>
+            <span title="${esc(entry.by_uid || '')}">👤 ${esc(entry.by_name || 'Не указан')}${entry.by_uid ? ` · ${esc(entry.by_uid.slice(0,8))}…` : ''}</span>
+            <span>ID: ${esc(entry.id.slice(0,10))}…</span>
+          </div>
+        </div>
+        ${details ? `<button class="log-stack-toggle" type="button" onclick="document.getElementById('${detailsId}')?.classList.toggle('open')">Детали</button>` : ''}
+      </div>
+      ${details ? `<div class="log-stack" id="${detailsId}"><pre>${esc(details)}</pre></div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
 }
 
 async function loadAdminAuditLogs() {
