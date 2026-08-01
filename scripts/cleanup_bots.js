@@ -155,7 +155,17 @@ async function run() {
     .where('created_at', '<', threshold)
     .get();
 
-  const stats = { total: snap.size, cleared: 0, warned: 0, deleted: 0, errors: 0 };
+  const stats = {
+    total: snap.size,
+    cleared: 0,
+    countdownCleared: 0,
+    confirmed: 0,
+    confirmedAfterWarning: 0,
+    warned: 0,
+    deleted: 0,
+    errors: 0,
+  };
+  const confirmedAfterWarningUsers = [];
 
   for (const doc of snap.docs) {
     const uid = doc.id;
@@ -166,6 +176,8 @@ async function run() {
     const approvedLineups = Number(u.approved_lineups || 0);
     const deletionDay     = u.deletion_day     || 0;
     const trialDays       = trialDaysForUser(u);
+    const warningDays = [3, 2, 1].filter(days => !!u[`trial_warning_${days}d_sent_at`]);
+    const pushOkDays = warningDays.filter(days => u[`trial_warning_${days}d_push_ok`] === true);
 
     // Пользователи до 20.06.2026 — до начала трекинга lineups_viewed, считать верифицированными
     const regDate         = u.created_at?.toDate?.() ?? null;
@@ -174,20 +186,40 @@ async function run() {
     // Защищённый пользователь — сбросить countdown если был
     if (viewed >= REQUIRED_VIEWS || verified || approvedLineups > 0 || isPreTracking) {
       const clear = {};
+      const countdownWasCleared = deletionDay > 0;
+      const becameVerified = !verified && (viewed >= REQUIRED_VIEWS || approvedLineups > 0 || isPreTracking);
+      const verificationReason = approvedLineups > 0
+        ? 'approved_lineups'
+        : isPreTracking ? 'pre_tracking_user' : 'viewed_5_lineups';
       if (deletionDay > 0) {
         clear.deletion_day = admin.firestore.FieldValue.delete();
         clear.trial_days_left = admin.firestore.FieldValue.delete();
       }
-      if (!verified && (viewed >= REQUIRED_VIEWS || approvedLineups > 0 || isPreTracking)) {
+      if (becameVerified) {
         clear.verified_not_fake = true;
         clear.verified_at = admin.firestore.FieldValue.serverTimestamp();
-        clear.verification_reason = approvedLineups > 0
-          ? 'approved_lineups'
-          : isPreTracking ? 'pre_tracking_user' : 'viewed_5_lineups';
+        clear.verification_reason = verificationReason;
       }
       if (Object.keys(clear).length) {
         await doc.ref.update(clear);
         stats.cleared++;
+        if (countdownWasCleared) stats.countdownCleared++;
+        if (becameVerified) {
+          stats.confirmed++;
+          if (warningDays.length > 0) {
+            stats.confirmedAfterWarning++;
+            confirmedAfterWarningUsers.push({
+              uid,
+              name: String(u.name || u.username || 'Без имени'),
+              lineups_viewed: viewed,
+              approved_lineups: approvedLineups,
+              reason: verificationReason,
+              warning_days: warningDays,
+              push_ok_days: pushOkDays,
+              confirmed_at: admin.firestore.Timestamp.fromDate(now),
+            });
+          }
+        }
       }
       continue;
     }
@@ -202,6 +234,7 @@ async function run() {
       if (deletionDay > 0) {
         await doc.ref.update({ deletion_day: admin.firestore.FieldValue.delete() });
         stats.cleared++;
+        stats.countdownCleared++;
       }
       continue;
     }
@@ -290,10 +323,11 @@ async function run() {
     }
   }
 
-  const summary = `✅ Всего кандидатов: ${stats.total} | Предупреждено: ${stats.warned} | Удалено: ${stats.deleted} | Сброшено: ${stats.cleared} | Ошибок: ${stats.errors}`;
+  const summary = `✅ Всего кандидатов: ${stats.total} | Предупреждено: ${stats.warned} | Удалено: ${stats.deleted} | Подтверждено: ${stats.confirmed} | После предупреждений: ${stats.confirmedAfterWarning} | Таймер очищен: ${stats.countdownCleared} | Ошибок: ${stats.errors}`;
   console.log('\n' + summary);
 
   // Пишем результат в Firestore для отображения в браузере
+  const loggedConfirmedUsers = confirmedAfterWarningUsers.slice(0, 500);
   await db.collection('cron_logs').add({
     type:         'cleanup_bots',
     triggered_by: process.env.GITHUB_EVENT_NAME || 'schedule',
@@ -304,8 +338,13 @@ async function run() {
       warned:  stats.warned,
       deleted: stats.deleted,
       cleared: stats.cleared,
+      countdown_cleared: stats.countdownCleared,
+      confirmed: stats.confirmed,
+      confirmed_after_warning: stats.confirmedAfterWarning,
       errors:  stats.errors,
     },
+    confirmed_after_warning_users: loggedConfirmedUsers,
+    confirmed_after_warning_truncated: Math.max(0, confirmedAfterWarningUsers.length - loggedConfirmedUsers.length),
     ok: stats.errors === 0,
   });
 }
