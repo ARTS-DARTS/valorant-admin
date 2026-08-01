@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">operations-circuit-v1 | 2026-07-30 15:10</span>
+  <span class="admin-version" id="admin-build-version">reviewer-role-v1 | 2026-08-01</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -8357,6 +8357,24 @@ function lineupSubmittedMeta(l) {
   return { short: ago ? `${when} · ${ago}` : when, full: when };
 }
 
+function lineupReviewerMeta(l, rejected = l?.status === 'rejected') {
+  const uid = rejected
+    ? (l?.rejected_by_uid || '')
+    : (l?.moderated_by_uid || l?.edited_by_moderator_uid || l?.hot_confirmed_by_uid || '');
+  const name = rejected
+    ? (l?.rejected_by_name || '')
+    : (l?.moderated_by_name || l?.edited_by_moderator_name || l?.hot_confirmed_by_name || '');
+  let role = rejected
+    ? (l?.rejected_by_role || '')
+    : (l?.moderated_by_role || l?.edited_by_moderator_role || l?.hot_confirmed_by_role || '');
+  if (uid && uid === currentUser?.uid) role = currentUserRole;
+  const roleLabel = role === 'admin' ? 'АДМИНИСТРАТОРОМ'
+    : role === 'moderator' ? 'МОДЕРАТОРОМ' : 'ПРОВЕРЯЮЩИМ';
+  const sectionLabel = role === 'admin' ? 'Проверка администратором'
+    : role === 'moderator' ? 'Проверка модератором' : 'Проверка';
+  return { name, roleLabel, sectionLabel };
+}
+
 function cardHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
@@ -8370,11 +8388,12 @@ function cardHtml(l) {
   const moderatorName = l.moderated_by_name || l.edited_by_moderator_name || l.hot_confirmed_by_name || '';
   const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
+  const reviewer = lineupReviewerMeta(l, moderatorRejected);
   const cardClass = moderatorApproved ? 'moderator-approved' : moderatorRejected ? 'moderator-rejected' : '';
   const [bc, bl] = moderatorApproved
-    ? ['b-moderator-approved', '🛡 ПРОВЕРЕНО МОДЕРАТОРОМ · ОДОБРЕНО']
+    ? ['b-moderator-approved', `🛡 ПРОВЕРЕНО ${reviewer.roleLabel} · ОДОБРЕНО`]
     : moderatorRejected
-    ? ['b-moderator-rejected', '🛡 ПРОВЕРЕНО МОДЕРАТОРОМ · ОТКЛОНЕНО']
+    ? ['b-moderator-rejected', `🛡 ПРОВЕРЕНО ${reviewer.roleLabel} · ОТКЛОНЕНО`]
     : (badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()]);
   const submitted = lineupSubmittedMeta(l);
   return `
@@ -8578,10 +8597,11 @@ function detailHtml(l) {
   const moderatorName = l.moderated_by_name || l.edited_by_moderator_name || l.hot_confirmed_by_name || '';
   const moderatorApproved = moderatorReviewed && (l.status === 'hot' || (!!l.edited_by_moderator_uid && l.status === 'pending'));
   const moderatorRejected = moderatorReviewed && l.status === 'rejected';
+  const reviewer = lineupReviewerMeta(l, moderatorRejected);
   const [bc, bl] = moderatorApproved
-    ? ['b-moderator-approved', '🛡 ПРОВЕРЕНО МОДЕРАТОРОМ · ОДОБРЕНО']
+    ? ['b-moderator-approved', `🛡 ПРОВЕРЕНО ${reviewer.roleLabel} · ОДОБРЕНО`]
     : moderatorRejected
-    ? ['b-moderator-rejected', '🛡 ПРОВЕРЕНО МОДЕРАТОРОМ · ОТКЛОНЕНО']
+    ? ['b-moderator-rejected', `🛡 ПРОВЕРЕНО ${reviewer.roleLabel} · ОТКЛОНЕНО`]
     : (badgeMap[l.status] ?? ['b-pending', (l.status ?? '?').toUpperCase()]);
   const submitted = lineupSubmittedMeta(l);
   const shots = Array.isArray(l.screenshots) ? l.screenshots : [];
@@ -8612,7 +8632,7 @@ function detailHtml(l) {
 ${l.description ? `<div class="section"><div class="dlabel">Описание</div><div class="dval">${esc(l.description)}</div></div>` : ''}
 <div class="dgrid">
   ${l.hot_confirmed_by_name ? `<div class="dfield" style="grid-column:1/-1;border-color:#f59e0b;background:rgba(245,158,11,.08);"><div class="dlabel">Подтверждение в «Пирожки»</div><div class="dval" style="color:#fbbf24;font-weight:800;">🔥 Подтверждено${l.hot_confirmed_by_role ? ` · ${l.hot_confirmed_by_role === 'moderator' ? 'модератором' : 'администратором'}` : ''} · ${esc(l.hot_confirmed_by_name)}</div></div>` : ''}
-  ${moderatorReviewed ? `<div class="dfield" style="grid-column:1/-1;border-color:${moderatorRejected ? '#ef4444' : '#38bdf8'};background:${moderatorRejected ? 'rgba(239,68,68,.08)' : 'rgba(56,189,248,.08)'};"><div class="dlabel">Проверка модератором</div><div class="dval" style="color:${moderatorRejected ? '#ff6b75' : '#38bdf8'};font-weight:800;">🛡 ${moderatorRejected ? 'Отклонил' : 'Одобрил'}: ${esc((moderatorRejected ? l.rejected_by_name : moderatorName) || 'не указан')}</div></div>` : ''}
+  ${moderatorReviewed ? `<div class="dfield" style="grid-column:1/-1;border-color:${moderatorRejected ? '#ef4444' : '#38bdf8'};background:${moderatorRejected ? 'rgba(239,68,68,.08)' : 'rgba(56,189,248,.08)'};"><div class="dlabel">${reviewer.sectionLabel}</div><div class="dval" style="color:${moderatorRejected ? '#ff6b75' : '#38bdf8'};font-weight:800;">🛡 ${moderatorRejected ? 'Отклонил' : 'Одобрил'}: ${esc(reviewer.name || 'не указан')}</div></div>` : ''}
   <div class="dfield"><div class="dlabel">Категория</div> <div class="dval">${esc(contentMeta(contentCategoryOf(l)).title)}</div></div>
   <div class="dfield"><div class="dlabel">Сложность</div> <div class="dval">${esc(lineupDifficultyLabel(l.difficulty))}</div></div>
   <div class="dfield"><div class="dlabel">Сторона раунда</div> <div class="dval">${l.round_side === 'defense' ? 'Защита' : l.round_side === 'attack' ? 'Атака' : l.round_side === 'any' ? 'Любая' : 'Не указана (legacy)'}</div></div>
@@ -9350,6 +9370,7 @@ async function rejectLineup(id) {
       rejected_at: serverTimestamp(),
       rejected_by_uid: currentUser?.uid || null,
       rejected_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
+      rejected_by_role: currentUserRole || 'admin',
     });
     const snap = await getDoc(ref);
     const lineup = snap.exists() ? { id, ...snap.data() } : localLineup;
