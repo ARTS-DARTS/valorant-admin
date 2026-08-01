@@ -12,6 +12,7 @@
   --primary-dim: rgba(255,70,85,.12);
   --text: #e2e8f0;
   --text2: #748297;
+  --sidebar-text: #909bac;
   --border: rgba(255,255,255,.07);
   --border2: rgba(255,255,255,.12);
   --green: #22c55e;
@@ -87,7 +88,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .sidebar-section-label {
   padding: 16px 16px 4px;
   font-size: 9px; font-weight: 700; letter-spacing: 1.8px;
-  color: var(--text2); text-transform: uppercase;
+  color: var(--sidebar-text); text-transform: uppercase;
 }
 .sidebar-divider { height: 1px; background: var(--border); margin: 6px 12px; }
 
@@ -98,7 +99,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
   padding: 9px 12px; border-radius: 6px;
   border: none; border-left: none;
   font-weight: 500; font-size: 13px; letter-spacing: 0;
-  color: var(--text2); background: transparent;
+  color: var(--sidebar-text); background: transparent;
   text-align: left; width: 100%; cursor: pointer;
   transition: background .15s, color .15s;
 }
@@ -106,7 +107,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 .tab.active { background: var(--primary-dim); color: var(--primary); font-weight: 700; }
 .tab.has-unread:not(.active) { background: rgba(255,70,85,.12); color: var(--primary); }
 .tab.has-unread:not(.active) .bi { opacity: 1; }
-.tab .bi { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; opacity: .8; }
+.tab .bi { font-size: 15px; flex-shrink: 0; width: 18px; text-align: center; opacity: .96; }
 .tab.active .bi { opacity: 1; }
 
 /* ── Main content area ── */
