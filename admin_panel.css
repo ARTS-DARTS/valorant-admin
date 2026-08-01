@@ -1018,6 +1018,12 @@ body.presence-profile-open { overflow: hidden; }
 .log-stack pre { font-size: 11px; color: var(--text2); white-space: pre-wrap; word-break: break-all; line-height: 1.5; margin: 0; }
 .logs-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .logs-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.logs-section-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 20px; padding:6px; width:max-content; max-width:calc(100% - 40px); border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.logs-section-tabs button { border:1px solid transparent; border-radius:8px; padding:9px 15px; background:transparent; color:var(--text2); font-size:12px; font-weight:800; cursor:pointer; }
+.logs-section-tabs button:hover { color:var(--text); background:var(--surface2); }
+.logs-section-tabs button.active { color:#fff; border-color:rgba(255,70,85,.55); background:var(--primary); box-shadow:0 5px 16px rgba(255,70,85,.18); }
+.logs-section[hidden] { display:none !important; }
+#logs-section-errors { margin:16px 20px; }
 .admin-audit-panel { margin-bottom:18px; padding:16px; border:1px solid var(--border); border-radius:var(--r); background:var(--surface); }
 .admin-audit-cards { display:flex; flex-direction:column; gap:9px; max-height:520px; overflow:auto; padding-right:3px; }
 .admin-audit-card { flex:0 0 auto; }
