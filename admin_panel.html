@@ -14091,6 +14091,13 @@ function moderatorActivityLabel(timestamp) {
   return new Date(timestamp).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
 }
 
+function moderatorProfileName(user) {
+  return String(
+    user?.display_name || user?.name || user?.nickname || user?.username ||
+    user?.displayName || user?.email || ''
+  ).trim();
+}
+
 async function loadModeratorAnalytics(force = false) {
   if (_moderatorAnalyticsLoaded && !force) return;
   _moderatorAnalyticsLoaded = true;
@@ -14114,11 +14121,11 @@ async function loadModeratorAnalytics(force = false) {
     };
     moderatorsSnap.docs.forEach(userDoc => {
       const user = userDoc.data() || {};
-      ensure(userDoc.id, user.displayName || user.username || user.email || userDoc.id);
+      ensure(userDoc.id, moderatorProfileName(user));
     });
     logsSnap.docs.forEach(logDoc => {
       const log = logDoc.data() || {};
-      const item = ensure(log.moderator_uid || '', log.moderator_name || log.by_name || log.moderator_uid || 'Не указан');
+      const item = ensure(log.moderator_uid || '', log.moderator_name || log.by_name || '');
       const action = String(log.action || '');
       if (action === 'claim') item.claimed += 1;
       if (action === 'complete_lineup' || action === 'reject') item.lineups += 1;
@@ -14130,8 +14137,15 @@ async function loadModeratorAnalytics(force = false) {
     claimsSnap.docs.forEach(claimDoc => {
       const claim = claimDoc.data() || {};
       if (moderatorLogTime(claim.expires_at) <= now) return;
-      ensure(claimDoc.id, claim.moderator_name || claimDoc.id).current += 1;
+      ensure(claimDoc.id, claim.moderator_name || '').current += 1;
     });
+    await Promise.all([...stats.values()].filter(item => item.uid).map(async item => {
+      try {
+        const profile = await getDoc(doc(db, 'users', item.uid));
+        const actualName = profile.exists() ? moderatorProfileName(profile.data()) : '';
+        if (actualName) item.name = actualName;
+      } catch (_) {}
+    }));
     const list = [...stats.values()].sort((a,b) => b.completed - a.completed || b.claimed - a.claimed || a.name.localeCompare(b.name, 'ru'));
     const totals = list.reduce((sum, item) => ({
       claimed:sum.claimed + item.claimed,
