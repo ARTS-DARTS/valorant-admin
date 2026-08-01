@@ -19013,6 +19013,10 @@ window.adminToggleTrainingTask = adminToggleTrainingTask;
 
 async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false } = {}) {
   try {
+    const optionalDoc = promise => promise.catch(error => {
+      console.warn('Optional user profile document unavailable', error);
+      return null;
+    });
     const [userDoc, privateDoc, statsDoc, authDoc, notificationChannelsDoc] = await Promise.all([
       getDoc(doc(db, 'users', uid)),
       forceTrainingRefresh
@@ -19020,14 +19024,14 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
         : getDoc(doc(db, 'user_private', uid)),
       getDoc(doc(db, 'user_stats', uid)),
       getDoc(doc(db, 'user_auth_links', uid)),
-      getDoc(doc(db, 'users', uid, 'notification_settings', 'channels')),
+      optionalDoc(getDoc(doc(db, 'users', uid, 'notification_settings', 'channels'))),
     ]);
     if (!userDoc.exists()) { panel.innerHTML = '<div style="color:var(--red);">Пользователь не найден</div>'; return; }
     const publicUser = userDoc.data() || {};
     const privateUser = privateDoc.data() || {};
     const statsUser = statsDoc.data() || {};
     const authUser = authDoc.data() || {};
-    const notificationChannels = notificationChannelsDoc.data() || {};
+    const notificationChannels = notificationChannelsDoc?.data?.() || {};
     const u = { ...publicUser, ...statsUser, ...privateUser, ...authUser };
     u.name = publicUser.display_name || publicUser.name || statsUser.display_name || '';
     u.approved_lineups = Math.max(
@@ -19070,7 +19074,7 @@ async function _renderUserProfileInto(uid, panel, { forceTrainingRefresh = false
       || Array.isArray(u.firebase_providers) && u.firebase_providers.includes('password')
       || !!u.user_email && !u.user_email.includes('google');
     const siteNotificationsEnabled = notificationChannels.site_notifications_enabled !== false;
-    const siteStatusKnown = notificationChannelsDoc.exists();
+    const siteStatusKnown = notificationChannelsDoc?.exists?.() === true;
     const siteLabel = siteStatusKnown
       ? (siteNotificationsEnabled ? 'Сайт: уведомления работают' : 'Сайт: уведомления выключены')
       : 'Сайт: доступны';
