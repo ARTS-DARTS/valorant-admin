@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-08-02-frame-drawing-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-08-02-video-edit-preview-v1">
 </head>
 <body>
 
@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">frame-drawing-v1 | 2026-08-02</span>
+  <span class="admin-version" id="admin-build-version">video-edit-preview-v1 | 2026-08-02</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -2890,6 +2890,15 @@ import {
   messageTimestamp as _msgThreadTs,
   pendingModeratorApplications,
 } from './admin/messages_model.mjs?v=2026-07-30-message-receipts-v1';
+import {
+  adminActiveFootageAt,
+  adminEffectOutputStart,
+  adminVideoOutputDuration,
+  adminVideoSegmentAt,
+  adminZoomStateAt,
+  drawAdminFreezeAnnotations,
+  normalizeAdminVideoEdit,
+} from './admin/video_edit_preview.mjs?v=2026-08-02-video-edit-preview-v1';
 import {
   clamp01 as _msClamp01,
   cloneCollisionObjects as _mgCloneObjects,
@@ -8703,6 +8712,286 @@ function lineupDifficultyLabel(value) {
   return ({ easy: 'Легко', medium: 'Средне', hard: 'Сложно' })[String(value || '').trim().toLowerCase()] || 'Не указана';
 }
 
+function _adminVideoEffectCount(edit) {
+  if (!edit || typeof edit !== 'object') return 0;
+  return (Array.isArray(edit.freezeFrames) ? edit.freezeFrames.length : 0) +
+    (Array.isArray(edit.zoomKeyframes) ? edit.zoomKeyframes.length : 0) +
+    (Array.isArray(edit.footageOverlays) ? edit.footageOverlays.length : 0);
+}
+
+function _adminEditedVideoHtml(lineup, maxHeight = 300) {
+  const edit = lineup?.video_edit;
+  if (!edit || typeof edit !== 'object') {
+    return `<video src="${esc(lineup.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:${maxHeight}px;display:block;"></video>`;
+  }
+  const effects = _adminVideoEffectCount(edit);
+  return `<div class="admin-edited-video" data-admin-edited-video>
+    <div class="admin-edited-video-stage" style="--admin-video-max-height:${maxHeight}px">
+      <div class="admin-edited-video-base">
+        <video class="admin-edited-video-source" src="${esc(lineup.video_url)}" preload="metadata" crossorigin="anonymous" playsinline></video>
+        <canvas class="admin-edited-video-drawing" aria-hidden="true"></canvas>
+      </div>
+      <video class="admin-edited-video-footage" crossorigin="anonymous" preload="auto" playsinline muted></video>
+      <canvas class="admin-edited-video-chroma" aria-hidden="true"></canvas>
+      <div class="admin-edited-video-badge"><i></i> Монтаж автора${effects ? ` · ${effects}` : ''}</div>
+    </div>
+    <div class="admin-edited-video-controls">
+      <button type="button" data-admin-video-play aria-label="Воспроизвести">▶</button>
+      <input type="range" min="0" max="1000" step="1" value="0" data-admin-video-scrubber aria-label="Позиция смонтированного видео">
+      <span data-admin-video-time>0:00 / 0:00</span>
+      <button type="button" data-admin-video-mute aria-label="Выключить звук">🔊</button>
+    </div>
+  </div>`;
+}
+
+function _adminVideoTime(value) {
+  const seconds = Math.max(0, Number(value) || 0);
+  return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+}
+
+function _adminZoomPan(anchorX, anchorY, scale, width, height) {
+  if (!width || !height || scale <= 1) return { x:0, y:0 };
+  const rawX = width / 2 - anchorX / 100 * width;
+  const rawY = height / 2 - anchorY / 100 * height;
+  const maxX = width * (scale - 1) / (2 * scale);
+  const maxY = height * (scale - 1) / (2 * scale);
+  return {
+    x:Math.max(-maxX, Math.min(maxX, rawX)),
+    y:Math.max(-maxY, Math.min(maxY, rawY)),
+  };
+}
+
+function _bindAdminEditedVideoPreviews(scope, lineup) {
+  if (!scope || !lineup?.video_edit) return;
+  scope.querySelectorAll('[data-admin-edited-video]').forEach(root => {
+    root._adminVideoCleanup?.();
+    const stage = root.querySelector('.admin-edited-video-stage');
+    const base = root.querySelector('.admin-edited-video-base');
+    const video = root.querySelector('.admin-edited-video-source');
+    const drawing = root.querySelector('.admin-edited-video-drawing');
+    const footageVideo = root.querySelector('.admin-edited-video-footage');
+    const footageCanvas = root.querySelector('.admin-edited-video-chroma');
+    const playButton = root.querySelector('[data-admin-video-play]');
+    const scrubber = root.querySelector('[data-admin-video-scrubber]');
+    const timeLabel = root.querySelector('[data-admin-video-time]');
+    const muteButton = root.querySelector('[data-admin-video-mute]');
+    if (!stage || !base || !video || !drawing || !playButton || !scrubber || !timeLabel) return;
+
+    let edit = null;
+    let outputTime = 0;
+    let outputDuration = 0;
+    let playing = false;
+    let playbackStartedAt = 0;
+    let playbackStartOutput = 0;
+    let animationFrame = 0;
+    let activeFootageId = '';
+    let lastChromaAt = 0;
+    let chromaFailed = false;
+    const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => render()) : null;
+    resizeObserver?.observe(stage);
+
+    const resizeDrawing = () => {
+      const density = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      const width = Math.max(1, Math.round(stage.clientWidth * density));
+      const height = Math.max(1, Math.round(stage.clientHeight * density));
+      if (drawing.width !== width || drawing.height !== height) {
+        drawing.width = width;
+        drawing.height = height;
+      }
+    };
+
+    const applyZoom = () => {
+      const state = adminZoomStateAt(edit, video.duration, outputTime);
+      if (!state.clip) {
+        base.style.transform = '';
+        return;
+      }
+      const clip = state.clip;
+      const scaleX = 1 + (Number(clip.scaleX || 1) - 1) * state.mix;
+      const scaleY = 1 + (Number(clip.scaleY || 1) - 1) * state.mix;
+      const scale = Math.max(1, scaleX, scaleY);
+      const anchorX = 50 + (Number(clip.anchorX ?? 50) - 50) * state.mix;
+      const anchorY = 50 + (Number(clip.anchorY ?? 50) - 50) * state.mix;
+      const pan = _adminZoomPan(anchorX, anchorY, scale, stage.clientWidth, stage.clientHeight);
+      const posX = Number(clip.posX || 0) * state.mix;
+      const posY = Number(clip.posY || 0) * state.mix;
+      const rotation = Number(clip.rotation || 0) * state.mix;
+      base.style.transform = `scale(${scale}) translate(${pan.x + posX}px,${pan.y + posY}px) rotate(${rotation}deg)`;
+    };
+
+    const chromaColor = value => {
+      const match = /^#([0-9a-f]{6})$/i.exec(String(value || '#00ff00'));
+      const hex = match ? match[1] : '00ff00';
+      return { r:parseInt(hex.slice(0,2),16), g:parseInt(hex.slice(2,4),16), b:parseInt(hex.slice(4,6),16) };
+    };
+
+    const renderChroma = (clip, now) => {
+      if (!clip?.chromaKey?.enabled || chromaFailed || !footageVideo.videoWidth || !footageVideo.videoHeight || now - lastChromaAt < 66) return;
+      lastChromaAt = now;
+      const scale = Math.min(1, 640 / footageVideo.videoWidth, 360 / footageVideo.videoHeight);
+      const width = Math.max(1, Math.round(footageVideo.videoWidth * scale));
+      const height = Math.max(1, Math.round(footageVideo.videoHeight * scale));
+      footageCanvas.width = width;
+      footageCanvas.height = height;
+      const ctx = footageCanvas.getContext('2d', { willReadFrequently:true });
+      if (!ctx) return;
+      try {
+        ctx.drawImage(footageVideo, 0, 0, width, height);
+        const frame = ctx.getImageData(0, 0, width, height);
+        const key = chromaColor(clip.chromaKey.color);
+        const strength = Math.max(0, Math.min(1, Number(clip.chromaKey.strength ?? .5)));
+        const tolerance = 18 + strength * 160;
+        const feather = 18 + strength * 54;
+        for (let i = 0; i < frame.data.length; i += 4) {
+          const dr = frame.data[i] - key.r;
+          const dg = frame.data[i + 1] - key.g;
+          const db = frame.data[i + 2] - key.b;
+          const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+          if (distance <= tolerance) frame.data[i + 3] = 0;
+          else if (distance <= tolerance + feather) frame.data[i + 3] = Math.round(frame.data[i + 3] * ((distance - tolerance) / feather));
+        }
+        ctx.putImageData(frame, 0, 0);
+        footageCanvas.classList.add('show');
+        footageVideo.classList.add('chroma-source');
+      } catch (error) {
+        chromaFailed = true;
+        footageCanvas.classList.remove('show');
+        footageVideo.classList.remove('chroma-source');
+        console.warn('Admin chroma preview failed', error);
+      }
+    };
+
+    const applyFootage = now => {
+      const clip = adminActiveFootageAt(edit, video.duration, outputTime);
+      if (!clip) {
+        activeFootageId = '';
+        footageVideo.pause();
+        footageVideo.classList.remove('show', 'chroma-source');
+        footageCanvas.classList.remove('show');
+        return;
+      }
+      if (activeFootageId !== clip.id) {
+        activeFootageId = clip.id;
+        chromaFailed = false;
+        footageVideo.src = clip.url;
+      }
+      const width = `${Math.round(Number(clip.scale || .35) * 10000) / 100}%`;
+      [footageVideo, footageCanvas].forEach(element => {
+        element.style.left = `${clip.posX}%`;
+        element.style.top = `${clip.posY}%`;
+        element.style.width = width;
+      });
+      footageVideo.classList.add('show');
+      footageVideo.muted = clip.muted !== false;
+      const localTime = Math.max(0, outputTime - adminEffectOutputStart(clip, edit, video.duration));
+      if (Number.isFinite(localTime) && Math.abs((footageVideo.currentTime || 0) - localTime) > .15) {
+        try { footageVideo.currentTime = localTime; } catch (_) {}
+      }
+      if (playing && footageVideo.paused) footageVideo.play().catch(() => {});
+      if (!playing && !footageVideo.paused) footageVideo.pause();
+      if (clip.chromaKey?.enabled) renderChroma(clip, now);
+      else {
+        footageCanvas.classList.remove('show');
+        footageVideo.classList.remove('chroma-source');
+      }
+    };
+
+    const render = (now = performance.now()) => {
+      if (!edit || !Number.isFinite(video.duration)) return;
+      outputTime = Math.max(0, Math.min(outputDuration, outputTime));
+      const segment = adminVideoSegmentAt(edit, video.duration, outputTime);
+      if (segment) {
+        const sourceTime = segment.type === 'freeze'
+          ? segment.sourceAt
+          : segment.sourceStart + Math.max(0, outputTime - segment.outputStart);
+        if (Math.abs((video.currentTime || 0) - sourceTime) > .1) {
+          try { video.currentTime = sourceTime; } catch (_) {}
+        }
+        if (segment.type === 'freeze') video.pause();
+        else if (playing && video.paused) video.play().catch(() => {});
+        resizeDrawing();
+        const ctx = drawing.getContext('2d');
+        ctx?.clearRect(0, 0, drawing.width, drawing.height);
+        if (segment.type === 'freeze' && segment.annotations?.length) {
+          drawAdminFreezeAnnotations(ctx, segment.annotations, drawing.width, drawing.height);
+          drawing.classList.add('show');
+        } else drawing.classList.remove('show');
+      }
+      applyZoom();
+      applyFootage(now);
+      scrubber.value = outputDuration ? String(Math.round(outputTime / outputDuration * 1000)) : '0';
+      timeLabel.textContent = `${_adminVideoTime(outputTime)} / ${_adminVideoTime(outputDuration)}`;
+      playButton.textContent = playing ? '❚❚' : '▶';
+      playButton.setAttribute('aria-label', playing ? 'Пауза' : 'Воспроизвести');
+    };
+
+    const stop = () => {
+      playing = false;
+      video.pause();
+      footageVideo.pause();
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      render();
+    };
+
+    const tick = now => {
+      animationFrame = 0;
+      if (!root.isConnected) { stop(); return; }
+      if (!playing) return;
+      outputTime = playbackStartOutput + (now - playbackStartedAt) / 1000;
+      if (outputTime >= outputDuration) {
+        outputTime = outputDuration;
+        stop();
+        return;
+      }
+      render(now);
+      animationFrame = requestAnimationFrame(tick);
+    };
+
+    const toggle = () => {
+      if (!edit || !outputDuration) return;
+      if (playing) { stop(); return; }
+      if (outputTime >= outputDuration - .02) outputTime = 0;
+      playing = true;
+      playbackStartOutput = outputTime;
+      playbackStartedAt = performance.now();
+      render(playbackStartedAt);
+      animationFrame = requestAnimationFrame(tick);
+    };
+
+    playButton.addEventListener('click', toggle);
+    stage.addEventListener('click', event => {
+      if (event.target.closest('button,input')) return;
+      toggle();
+    });
+    scrubber.addEventListener('input', () => {
+      stop();
+      outputTime = Number(scrubber.value || 0) / 1000 * outputDuration;
+      render();
+    });
+    muteButton?.addEventListener('click', () => {
+      video.muted = !video.muted;
+      muteButton.textContent = video.muted ? '🔇' : '🔊';
+      muteButton.setAttribute('aria-label', video.muted ? 'Включить звук' : 'Выключить звук');
+    });
+    video.addEventListener('loadedmetadata', () => {
+      edit = normalizeAdminVideoEdit(lineup.video_edit, video.duration);
+      outputDuration = adminVideoOutputDuration(edit, video.duration);
+      video.muted = edit.audio.muted;
+      video.volume = Math.max(0, Math.min(1, edit.audio.volume));
+      if (muteButton) muteButton.textContent = video.muted ? '🔇' : '🔊';
+      render();
+    }, { once:true });
+    video.addEventListener('error', () => root.classList.add('load-error'));
+    root._adminVideoCleanup = () => {
+      stop();
+      resizeObserver?.disconnect();
+      footageVideo.removeAttribute('src');
+      footageVideo.load();
+    };
+  });
+}
+
 function detailHtml(l) {
   const badgeMap = {
     pending:  ['b-pending',  'НА ПРОВЕРКЕ'],
@@ -8765,7 +9054,7 @@ ${l.description ? `<div class="section"><div class="dlabel">Описание</di
 ${_lineupAbilitySummaryHtml(l)}
 ${lineupMapPreviewHtml('ed', 320)}
 ${l.video_url ? `<div class="section"><div class="dlabel">Видео</div>
-  <video src="${esc(l.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:300px;display:block;"></video>
+  ${_adminEditedVideoHtml(l, 300)}
 </div>` : ''}
 ${shots.length ? `<div class="section"><div class="dlabel">Скриншоты (${shots.length})</div>
   <div class="ss-grid">${shots.map(u => `
@@ -8833,6 +9122,7 @@ function selectLineup(id, rangeSelect = false) {
   const content = document.getElementById('editor-content');
   content.style.display = 'block';
   cleanupInteractiveMap(document.getElementById('edMapContainer'));
+  content.querySelectorAll('[data-admin-edited-video]').forEach(player => player._adminVideoCleanup?.());
   content.innerHTML = `
     <div class="editor-columns">
       <div class="editor-main">${detailHtml(l)}</div>
@@ -8848,6 +9138,7 @@ function selectLineup(id, rangeSelect = false) {
     </div>
   `;
   hydrateLineupDetailMap(l);
+  _bindAdminEditedVideoPreviews(content, l);
   loadAuditLog(id);
 }
 
@@ -15787,7 +16078,7 @@ function _renderLineupDetail(l) {
         </div></div>`;
     } else {
       videoHtml = `<div class="section"><div class="dlabel">Видео</div>
-        <video src="${esc(l.video_url)}" controls preload="metadata" crossorigin="anonymous" style="width:100%;border-radius:var(--r);background:#000;max-height:280px;display:block;"></video>
+        ${_adminEditedVideoHtml(l, 280)}
       </div>`;
     }
   }
@@ -15873,6 +16164,7 @@ function _renderLineupDetail(l) {
 
   const overlay = document.getElementById('lineup-detail-overlay');
   overlay.style.display = 'flex';
+  _bindAdminEditedVideoPreviews(document.getElementById('lineup-detail-card'), l);
 
   renderInteractiveMap(l);
   initMapInteraction(document.getElementById('dcMapContainer'));
@@ -15883,6 +16175,7 @@ function _renderLineupDetail(l) {
     if (c?._cleanupInteraction)  { c._cleanupInteraction(); c._cleanupInteraction = null; }
     const inner = c?.querySelector('.dc-map-inner');
     if (inner) inner.style.transform = '';
+    document.querySelectorAll('#lineup-detail-card [data-admin-edited-video]').forEach(player => player._adminVideoCleanup?.());
     overlay.style.display = 'none';
   }
 

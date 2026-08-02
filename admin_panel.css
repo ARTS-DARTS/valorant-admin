@@ -538,6 +538,33 @@ input:checked + .toggle-slider:before { transform:translateX(16px); }
   .vfe-saving-dot { animation:none; }
 }
 
+/* Saved upload-site montage preview */
+.admin-edited-video { overflow:hidden; border:1px solid var(--border); border-radius:var(--r); background:#03060b; }
+.admin-edited-video-stage { position:relative; overflow:hidden; width:100%; max-height:var(--admin-video-max-height,300px); background:#000; cursor:pointer; line-height:0; }
+.admin-edited-video-base { position:relative; width:100%; transform-origin:50% 50%; will-change:transform; }
+.admin-edited-video-source { display:block; width:100%; max-height:var(--admin-video-max-height,300px); object-fit:contain; background:#000; }
+.admin-edited-video-drawing { position:absolute; inset:0; z-index:4; display:none; width:100%; height:100%; pointer-events:none; }
+.admin-edited-video-drawing.show { display:block; }
+.admin-edited-video-footage,.admin-edited-video-chroma { position:absolute; z-index:7; left:50%; top:50%; display:none; height:auto; max-width:none; max-height:none; object-fit:contain; background:transparent; transform:translate(-50%,-50%); pointer-events:none; }
+.admin-edited-video-footage.show,.admin-edited-video-chroma.show { display:block; }
+.admin-edited-video-footage.chroma-source { opacity:0; }
+.admin-edited-video-badge { position:absolute; z-index:12; left:10px; top:10px; display:flex; align-items:center; gap:6px; padding:5px 8px; border:1px solid rgba(0,212,255,.45); border-radius:999px; background:rgba(3,8,16,.78); color:#67d9ff; font-size:9px; font-weight:900; line-height:1; letter-spacing:.45px; text-transform:uppercase; pointer-events:none; backdrop-filter:blur(6px); }
+.admin-edited-video-badge i { width:6px; height:6px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px rgba(34,197,94,.8); }
+.admin-edited-video-controls { display:flex; align-items:center; gap:8px; padding:8px 10px; background:linear-gradient(180deg,#111827,#0d1420); }
+.admin-edited-video-controls button { flex:0 0 auto; min-width:32px; height:28px; border:1px solid var(--border2); border-radius:6px; background:var(--surface2); color:var(--text); cursor:pointer; font-size:11px; }
+.admin-edited-video-controls button:hover { border-color:#67d9ff; color:#67d9ff; }
+.admin-edited-video-controls input { flex:1; min-width:80px; accent-color:var(--primary); cursor:pointer; }
+.admin-edited-video-controls span { flex:0 0 auto; min-width:78px; color:var(--text2); font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace; white-space:nowrap; }
+.admin-edited-video.load-error .admin-edited-video-stage::after { content:'Не удалось загрузить видео'; position:absolute; inset:0; z-index:20; display:grid; place-items:center; background:rgba(4,8,16,.88); color:var(--red); font-size:12px; font-weight:800; }
+@media (max-width:560px) {
+  .admin-edited-video-badge { left:7px; top:7px; }
+  .admin-edited-video-controls { gap:5px; padding:7px; }
+  .admin-edited-video-controls span { min-width:68px; font-size:9px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .admin-edited-video-base { will-change:auto; }
+}
+
 /* ── Author field + dictionary panel ── */
 .author-wrap { position: relative; }
 
