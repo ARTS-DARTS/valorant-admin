@@ -1,3 +1,16 @@
+import {
+  advanceVideoTimelinePlayback,
+  buildVideoTimelineSegments,
+  outputTimeToScrubberValue,
+  scrubberValueToOutputTime,
+  sourceTimeToOutputTime,
+  videoTimelineActiveFootageAt,
+  videoTimelineEffectOutputStart,
+  videoTimelineOutputDuration,
+  videoTimelineSegmentAt,
+  videoTimelineZoomStateAt,
+} from './video_timeline_core.mjs?v=2026-08-02-video-timeline-core-v1';
+
 const clamp = (value, min, max) => Math.max(min, Math.min(max, Number(value) || 0));
 
 export function normalizeAdminVideoEdit(value, sourceDuration = 0) {
@@ -59,75 +72,47 @@ export function normalizeAdminVideoEdit(value, sourceDuration = 0) {
 
 export function buildAdminVideoSegments(editValue, sourceDuration = 0) {
   const edit = normalizeAdminVideoEdit(editValue, sourceDuration);
-  const segments = [];
-  let sourceCursor = edit.trimStart;
-  edit.freezeFrames.forEach(freeze => {
-    if (freeze.at > sourceCursor) {
-      segments.push({ type: 'video', sourceStart: sourceCursor, sourceEnd: freeze.at, duration: freeze.at - sourceCursor });
-    }
-    segments.push({ type: 'freeze', id: freeze.id, sourceAt: freeze.at, duration: freeze.duration, annotations: freeze.annotations });
-    sourceCursor = freeze.at;
-  });
-  if (sourceCursor < edit.trimEnd) {
-    segments.push({ type: 'video', sourceStart: sourceCursor, sourceEnd: edit.trimEnd, duration: edit.trimEnd - sourceCursor });
-  }
-  let outputStart = 0;
-  return segments.map(segment => {
-    const result = { ...segment, outputStart };
-    outputStart += segment.duration;
-    return result;
-  });
+  return buildVideoTimelineSegments(edit, sourceDuration);
 }
 
 export function adminVideoOutputDuration(editValue, sourceDuration = 0) {
-  return buildAdminVideoSegments(editValue, sourceDuration).reduce((total, segment) => total + segment.duration, 0);
+  return videoTimelineOutputDuration(normalizeAdminVideoEdit(editValue, sourceDuration), sourceDuration);
 }
 
 export function adminVideoSegmentAt(editValue, sourceDuration, outputTime) {
-  const segments = buildAdminVideoSegments(editValue, sourceDuration);
-  const time = Math.max(0, Number(outputTime) || 0);
-  return segments.find((segment, index) => {
-    const end = segment.outputStart + segment.duration;
-    return time >= segment.outputStart && (time < end || index === segments.length - 1);
-  }) || segments.at(-1) || null;
+  return videoTimelineSegmentAt(normalizeAdminVideoEdit(editValue, sourceDuration), sourceDuration, outputTime);
 }
 
 export function adminSourceToOutputTime(editValue, sourceDuration, sourceTime) {
   const edit = normalizeAdminVideoEdit(editValue, sourceDuration);
-  let output = Math.max(0, Number(sourceTime || 0) - edit.trimStart);
-  edit.freezeFrames.forEach(freeze => {
-    if (freeze.at < Number(sourceTime || 0)) output += freeze.duration;
-  });
-  return output;
+  return sourceTimeToOutputTime(edit, sourceDuration, sourceTime);
 }
 
 export function adminEffectOutputStart(item, editValue, sourceDuration) {
-  const explicit = Number(item?.outputAt);
-  return Number.isFinite(explicit)
-    ? Math.max(0, explicit)
-    : adminSourceToOutputTime(editValue, sourceDuration, item?.at || 0);
+  const edit = normalizeAdminVideoEdit(editValue, sourceDuration);
+  return videoTimelineEffectOutputStart(item, edit, sourceDuration);
 }
 
 export function adminZoomStateAt(editValue, sourceDuration, outputTime) {
   const edit = normalizeAdminVideoEdit(editValue, sourceDuration);
-  const clip = edit.zoomKeyframes.slice().reverse().find(item => {
-    const start = adminEffectOutputStart(item, edit, sourceDuration);
-    return outputTime >= start && outputTime <= start + item.duration;
-  }) || null;
-  if (!clip) return { clip: null, mix: 0 };
-  const start = adminEffectOutputStart(clip, edit, sourceDuration);
-  const local = clamp(outputTime - start, 0, clip.duration);
-  const ramp = Math.max(0.08, Math.min(0.4, clip.duration / 2));
-  const linear = clamp(Math.min(local / ramp, (clip.duration - local) / ramp), 0, 1);
-  return { clip, mix: linear * linear * (3 - 2 * linear) };
+  return videoTimelineZoomStateAt(edit, sourceDuration, outputTime);
 }
 
 export function adminActiveFootageAt(editValue, sourceDuration, outputTime) {
   const edit = normalizeAdminVideoEdit(editValue, sourceDuration);
-  return edit.footageOverlays.slice().reverse().find(item => {
-    const start = adminEffectOutputStart(item, edit, sourceDuration);
-    return outputTime >= start && outputTime <= start + item.duration;
-  }) || null;
+  return videoTimelineActiveFootageAt(edit, sourceDuration, outputTime);
+}
+
+export function adminScrubberToOutputTime(value, maximum, outputDuration) {
+  return scrubberValueToOutputTime(value, maximum, outputDuration);
+}
+
+export function adminOutputTimeToScrubberValue(outputTime, maximum, outputDuration) {
+  return outputTimeToScrubberValue(outputTime, maximum, outputDuration);
+}
+
+export function adminTimelinePlaybackPosition(startOutputTime, elapsedMilliseconds, outputDuration) {
+  return advanceVideoTimelinePlayback(startOutputTime, elapsedMilliseconds, outputDuration);
 }
 
 export function drawAdminFreezeAnnotations(ctx, value, width, height) {

@@ -37,3 +37,11 @@ test('drawing canvas supports pointer input and reduced motion', async () => {
   assert.match(css, /\.vfe-canvas[^}]*touch-action:none/);
   assert.match(css, /@media \(prefers-reduced-motion:reduce\)/);
 });
+
+test('video frame editor uses the shared scrubber conversion', async () => {
+  const root = new URL('../', import.meta.url);
+  const html = await readFile(new URL('admin_panel.html', root), 'utf8');
+  assert.match(html, /adminOutputTimeToScrubberValue\(vid\.currentTime/);
+  assert.match(html, /vid\.currentTime = adminScrubberToOutputTime\(scrub\.value/);
+  assert.match(html, /vid\.addEventListener\('durationchange', syncVideoFrameDuration\)/);
+});

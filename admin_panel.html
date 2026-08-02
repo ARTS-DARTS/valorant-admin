@@ -2893,6 +2893,9 @@ import {
 import {
   adminActiveFootageAt,
   adminEffectOutputStart,
+  adminOutputTimeToScrubberValue,
+  adminScrubberToOutputTime,
+  adminTimelinePlaybackPosition,
   adminVideoOutputDuration,
   adminVideoSegmentAt,
   adminZoomStateAt,
@@ -8977,7 +8980,7 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
       }
       applyZoom();
       applyFootage(now);
-      scrubber.value = outputDuration ? String(Math.round(outputTime / outputDuration * 1000)) : '0';
+      scrubber.value = String(adminOutputTimeToScrubberValue(outputTime, Number(scrubber.max || 1000), outputDuration));
       timeLabel.textContent = `${_adminVideoTime(outputTime)} / ${_adminVideoTime(outputDuration)}`;
       playButton.textContent = playing ? '❚❚' : '▶';
       playButton.setAttribute('aria-label', playing ? 'Пауза' : 'Воспроизвести');
@@ -8996,9 +8999,9 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
       animationFrame = 0;
       if (!root.isConnected) { stop(); return; }
       if (!playing) return;
-      outputTime = playbackStartOutput + (now - playbackStartedAt) / 1000;
-      if (outputTime >= outputDuration) {
-        outputTime = outputDuration;
+      const playback = adminTimelinePlaybackPosition(playbackStartOutput, now - playbackStartedAt, outputDuration);
+      outputTime = playback.outputTime;
+      if (playback.ended) {
         stop();
         return;
       }
@@ -9023,8 +9026,13 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
       toggle();
     });
     scrubber.addEventListener('input', () => {
+      const nextOutputTime = adminScrubberToOutputTime(
+        scrubber.value,
+        Number(scrubber.max || 1000),
+        outputDuration,
+      );
       stop();
-      outputTime = Number(scrubber.value || 0) / 1000 * outputDuration;
+      outputTime = nextOutputTime;
       render();
     });
     muteButton?.addEventListener('click', () => {
@@ -13785,13 +13793,20 @@ function _initVfe(prefix, onRemove, onCapture) {
 
   vid.addEventListener('timeupdate', () => {
     if (!vid.duration) return;
-    if (scrub) scrub.value = (vid.currentTime / vid.duration) * 100;
+    if (scrub) scrub.value = String(adminOutputTimeToScrubberValue(vid.currentTime, Number(scrub.max || 100), vid.duration));
     if (time)  time.textContent = fmt(vid.currentTime) + ' / ' + fmt(vid.duration);
   });
   vid.addEventListener('play',  () => { if (play) play.textContent = '⏸'; });
   vid.addEventListener('pause', () => { if (play) play.textContent = '▶'; });
-  vid.addEventListener('loadedmetadata', () => { if (time && vid.duration) time.textContent = '0:00 / ' + fmt(vid.duration); });
-  scrub?.addEventListener('input', () => { if (vid.duration) vid.currentTime = (scrub.value / 100) * vid.duration; });
+  const syncVideoFrameDuration = () => {
+    if (time && Number.isFinite(vid.duration) && vid.duration > 0) time.textContent = '0:00 / ' + fmt(vid.duration);
+  };
+  vid.addEventListener('loadedmetadata', syncVideoFrameDuration);
+  vid.addEventListener('durationchange', syncVideoFrameDuration);
+  syncVideoFrameDuration();
+  scrub?.addEventListener('input', () => {
+    if (vid.duration) vid.currentTime = adminScrubberToOutputTime(scrub.value, Number(scrub.max || 100), vid.duration);
+  });
   play?.addEventListener('click', () => vid.paused ? vid.play() : vid.pause());
   rem?.addEventListener('click', onRemove);
   cap?.addEventListener('click', startDrawing);

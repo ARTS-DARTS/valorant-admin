@@ -47,6 +47,10 @@ test('admin player binds saved video_edit instead of a raw video only', async ()
   assert.match(html, /video\.addEventListener\('durationchange', initializeTimeline\)/);
   assert.match(html, /savedDuration = Number\(lineup\.video_edit\?\.trimEnd\)/);
   assert.match(html, /if \(!edit \|\| !sourceDuration\) return/);
+  const scrubberHandler = html.slice(html.indexOf("scrubber.addEventListener('input'"), html.indexOf("muteButton?.addEventListener", html.indexOf("scrubber.addEventListener('input'")));
+  assert.ok(scrubberHandler.indexOf('const nextOutputTime') < scrubberHandler.indexOf('stop();'));
+  assert.match(scrubberHandler, /outputTime = nextOutputTime/);
+  assert.match(html, /const playback = adminTimelinePlaybackPosition\(playbackStartOutput/);
   assert.match(html, /initializeTimeline\(\);/);
   assert.match(css, /\.admin-edited-video-stage/);
 });
