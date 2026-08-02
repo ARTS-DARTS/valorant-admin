@@ -8780,6 +8780,7 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
     let edit = null;
     let outputTime = 0;
     let outputDuration = 0;
+    let sourceDuration = 0;
     let playing = false;
     let playbackStartedAt = 0;
     let playbackStartOutput = 0;
@@ -8801,7 +8802,7 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
     };
 
     const applyZoom = () => {
-      const state = adminZoomStateAt(edit, video.duration, outputTime);
+      const state = adminZoomStateAt(edit, sourceDuration, outputTime);
       if (!state.clip) {
         base.style.transform = '';
         return;
@@ -8862,7 +8863,7 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
     };
 
     const applyFootage = now => {
-      const clip = adminActiveFootageAt(edit, video.duration, outputTime);
+      const clip = adminActiveFootageAt(edit, sourceDuration, outputTime);
       if (!clip) {
         activeFootageId = '';
         footageVideo.pause();
@@ -8883,7 +8884,7 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
       });
       footageVideo.classList.add('show');
       footageVideo.muted = clip.muted !== false;
-      const localTime = Math.max(0, outputTime - adminEffectOutputStart(clip, edit, video.duration));
+      const localTime = Math.max(0, outputTime - adminEffectOutputStart(clip, edit, sourceDuration));
       if (Number.isFinite(localTime) && Math.abs((footageVideo.currentTime || 0) - localTime) > .15) {
         try { footageVideo.currentTime = localTime; } catch (_) {}
       }
@@ -8897,9 +8898,9 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
     };
 
     const render = (now = performance.now()) => {
-      if (!edit || !Number.isFinite(video.duration)) return;
+      if (!edit || !sourceDuration) return;
       outputTime = Math.max(0, Math.min(outputDuration, outputTime));
-      const segment = adminVideoSegmentAt(edit, video.duration, outputTime);
+      const segment = adminVideoSegmentAt(edit, sourceDuration, outputTime);
       if (segment) {
         const sourceTime = segment.type === 'freeze'
           ? segment.sourceAt
@@ -8974,16 +8975,15 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
       muteButton.textContent = video.muted ? '🔇' : '🔊';
       muteButton.setAttribute('aria-label', video.muted ? 'Включить звук' : 'Выключить звук');
     });
-    let initializedSourceDuration = 0;
     const initializeTimeline = () => {
       const mediaDuration = Number(video.duration);
       const savedDuration = Number(lineup.video_edit?.trimEnd);
-      const sourceDuration = Number.isFinite(mediaDuration) && mediaDuration > 0
+      const nextSourceDuration = Number.isFinite(mediaDuration) && mediaDuration > 0
         ? mediaDuration
         : savedDuration;
-      if (!Number.isFinite(sourceDuration) || sourceDuration <= 0) return false;
-      if (edit && Math.abs(initializedSourceDuration - sourceDuration) < .001) return true;
-      initializedSourceDuration = sourceDuration;
+      if (!Number.isFinite(nextSourceDuration) || nextSourceDuration <= 0) return false;
+      if (edit && Math.abs(sourceDuration - nextSourceDuration) < .001) return true;
+      sourceDuration = nextSourceDuration;
       edit = normalizeAdminVideoEdit(lineup.video_edit, sourceDuration);
       outputDuration = adminVideoOutputDuration(edit, sourceDuration);
       video.muted = edit.audio.muted;

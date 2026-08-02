@@ -46,6 +46,7 @@ test('admin player binds saved video_edit instead of a raw video only', async ()
   assert.match(html, /drawAdminFreezeAnnotations/);
   assert.match(html, /video\.addEventListener\('durationchange', initializeTimeline\)/);
   assert.match(html, /savedDuration = Number\(lineup\.video_edit\?\.trimEnd\)/);
+  assert.match(html, /if \(!edit \|\| !sourceDuration\) return/);
   assert.match(html, /initializeTimeline\(\);/);
   assert.match(css, /\.admin-edited-video-stage/);
 });
