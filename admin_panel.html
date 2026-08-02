@@ -8269,11 +8269,67 @@ document.getElementById('lineup-filter-reset')?.addEventListener('click', () => 
   renderList();
 });
 
-// ── Lineups list (manual refresh) ─────────────────────────────────────────────
+// ── Lineups list + lightweight moderation event sync ──────────────────────────
 let _lineupsUnsub = null;
 let _lineupsReady = false;
+let _lineupRefreshChain = Promise.resolve();
+const _moderationSyncActions = new Set(['reject', 'complete_lineup', 'save_progress', 'complete_metadata']);
+
+async function refreshLineupFromModerationEvent(lineupId) {
+  if (_activeTab !== 'list' || document.hidden || !lineupId) return;
+  try {
+    const snap = await getDoc(doc(db, 'lineups', lineupId));
+    const index = lineups.findIndex(item => item.id === lineupId);
+    if (!snap.exists()) {
+      if (index !== -1) lineups.splice(index, 1);
+    } else {
+      const updated = { id:snap.id, ...snap.data() };
+      if (index === -1) lineups.unshift(updated);
+      else lineups[index] = updated;
+    }
+    renderList();
+    initMapPanel();
+    if (_selectedId === lineupId && snap.exists()) selectLineup(lineupId);
+  } catch (error) {
+    console.warn('Moderation lineup sync failed', lineupId, error?.message || error);
+  }
+}
+
+function startLineupsRealtime() {
+  stopLineupsRealtime();
+  let knownLogIds = new Set();
+  let primed = false;
+  const eventsQuery = query(
+    collection(db, 'moderator_logs'),
+    orderBy('created_at', 'desc'),
+    limit(10),
+  );
+  _lineupsUnsub = onSnapshot(eventsQuery, { includeMetadataChanges:true }, snap => {
+    // Do not replay historical moderation actions from the local Firestore
+    // cache. The initial lineups query already contains their final state.
+    if (!primed) {
+      if (snap.metadata.fromCache) return;
+      knownLogIds = new Set(snap.docs.map(item => item.id));
+      primed = true;
+      return;
+    }
+    const currentIds = new Set(snap.docs.map(item => item.id));
+    const freshEvents = snap.docs
+      .filter(item => !knownLogIds.has(item.id))
+      .map(item => item.data() || {})
+      .filter(item => _moderationSyncActions.has(String(item.action || '')) && String(item.lineup_id || ''))
+      .reverse();
+    knownLogIds = currentIds;
+    freshEvents.forEach(event => {
+      const lineupId = String(event.lineup_id || '');
+      _lineupRefreshChain = _lineupRefreshChain.then(() => refreshLineupFromModerationEvent(lineupId));
+    });
+  }, error => console.warn('Moderation events listener failed', error?.message || error));
+}
 
 async function loadLineups() {
+  stopLineupsRealtime();
+  _lineupsReady = false;
   lineups = [];
   document.getElementById('lineup-list').innerHTML = '<div class="state">Загрузка…</div>';
   try {
@@ -8301,6 +8357,7 @@ async function loadLineups() {
         if (content) { content.style.display = 'none'; content.innerHTML = ''; }
       }
     }
+    startLineupsRealtime();
   } catch (e) {
     document.getElementById('lineup-list').innerHTML =
       `<div class="state" style="color:var(--red)">Ошибка загрузки: ${esc(e.message)}<br>
