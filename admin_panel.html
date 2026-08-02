@@ -2327,7 +2327,7 @@
       </div>
       <div style="display:grid;grid-template-columns:minmax(160px,2fr) minmax(130px,1fr) auto;gap:8px;align-items:end;margin-bottom:10px;">
         <div><label class="flabel">Название позиции</label><input class="finput" id="ms-position-name" maxlength="36" placeholder="A Main, Mid, Garage…" style="background:var(--bg);"></div>
-        <div><label class="flabel">Режим показа</label><select class="finput" id="ms-position-level" style="background:var(--bg);"><option value="site">Основная (A/B/C)</option><option value="main">Основная позиция</option><option value="full">Подробная позиция</option></select></div>
+        <div><label class="flabel">Режим показа</label><select class="finput" id="ms-position-level" style="background:var(--bg);"><option value="site">Основная (A/B/C)</option><option value="main">Основная позиция</option><option value="full" selected>Подробная позиция</option></select></div>
         <button id="ms-position-add" type="button" class="btn btn-save" style="font-size:12px;">+ Добавить позицию</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
@@ -3884,7 +3884,7 @@ function _msCloneSiteLabels(labels) {
       label: String(item?.label || '').trim(),
       x: Math.max(0, Math.min(1, Number(item?.x))),
       y: Math.max(0, Math.min(1, Number(item?.y))),
-      level: ['site', 'main', 'full'].includes(item?.level) ? item.level : (/^[ABC]$/i.test(String(item?.label || '').trim()) ? 'site' : 'main'),
+      level: ['site', 'main', 'full'].includes(item?.level) ? item.level : (/^[ABC]$/i.test(String(item?.label || '').trim()) ? 'site' : 'full'),
     }))
     .filter(item => item.label && Number.isFinite(item.x) && Number.isFinite(item.y));
 }
@@ -4026,7 +4026,7 @@ function _msRenderSiteLabelEditor() {
   if (xInput) { xInput.disabled = !selected; xInput.value = selected ? selected.x.toFixed(3) : ''; }
   if (yInput) { yInput.disabled = !selected; yInput.value = selected ? selected.y.toFixed(3) : ''; }
   if (nameInput) nameInput.value = selected?.label || '';
-  if (levelInput) levelInput.value = selected?.level || 'main';
+  if (levelInput) levelInput.value = selected?.level || 'full';
   const status = document.getElementById('ms-site-label-status');
   if (status) status.textContent = selected
     ? `${_msCurrentMapName()} · ${selected.label}: X ${selected.x.toFixed(3)}, Y ${selected.y.toFixed(3)}`
@@ -4737,14 +4737,14 @@ function setSiteOnlineAutoRefresh(enabled) {
   const selected = _msDraftSiteLabels()[_msSelectedSiteLabel];
   if (!selected) return;
   selected.label = String(document.getElementById('ms-position-name')?.value || '').trim() || selected.label;
-  selected.level = document.getElementById('ms-position-level')?.value || 'main';
+  selected.level = document.getElementById('ms-position-level')?.value || 'full';
   _msRenderSiteLabelEditor(); _msScheduleRedraw();
 }));
 document.getElementById('ms-position-add')?.addEventListener('click', () => {
   const name = String(document.getElementById('ms-position-name')?.value || '').trim();
   if (!name) return toast('Введи английское название позиции', 'i');
   const labels = _msDraftSiteLabels();
-  labels.push({ id: `label-${Date.now()}`, label: name, level: document.getElementById('ms-position-level')?.value || 'main', x: .5, y: .5 });
+  labels.push({ id: `label-${Date.now()}`, label: name, level: document.getElementById('ms-position-level')?.value || 'full', x: .5, y: .5 });
   _msSelectedSiteLabel = labels.length - 1; _msRenderSiteLabelEditor(); _msScheduleRedraw();
 });
 document.querySelectorAll('.ms-spawn-side').forEach(btn => btn.addEventListener('click', () => { _msSelectedSpawnSide = btn.dataset.side; _msRenderSpawnEditor(); }));
