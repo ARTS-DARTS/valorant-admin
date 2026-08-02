@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-08-01-bulk-selection-v2">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-08-02-frame-drawing-v1">
 </head>
 <body>
 
@@ -66,7 +66,7 @@
       <i class="bi bi-triangle-fill logo-icon"></i>
       VALORANT <span>LINEUPS</span>
       <span style="font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text2);margin-left:4px;">ADMIN</span>
-  <span class="admin-version" id="admin-build-version">reviewer-role-v1 | 2026-08-01</span>
+  <span class="admin-version" id="admin-build-version">frame-drawing-v1 | 2026-08-02</span>
     </div>
     <div class="header-right">
       <span id="user-provider-icon" style="font-size:16px;"></span>
@@ -13169,13 +13169,48 @@ function uploadVideoToSelectel(file, onProgress) {
 // ── Video frame editor helpers ────────────────────────────────────────────────
 function _buildVfeHtml(prefix, videoSrc) {
   return `<div class="vfe-wrap">
-    <video id="${prefix}-vid" crossorigin="anonymous" src="${esc(videoSrc)}" preload="auto"></video>
+    <div class="vfe-stage">
+      <video id="${prefix}-vid" crossorigin="anonymous" src="${esc(videoSrc)}" preload="auto"></video>
+      <canvas class="vfe-canvas" id="${prefix}-vcanvas" tabindex="0" aria-label="Рисование на стоп-кадре"></canvas>
+    </div>
     <div class="vfe-controls">
-      <button class="vfe-play" id="${prefix}-vplay">▶</button>
+      <button type="button" class="vfe-play" id="${prefix}-vplay" aria-label="Воспроизвести видео">▶</button>
       <input type="range" class="vfe-scrub" id="${prefix}-vscrub" min="0" max="100" step="0.1" value="0">
       <span class="vfe-time" id="${prefix}-vtime">0:00</span>
-      <button class="vfe-cap" id="${prefix}-vcap">📷 Кадр</button>
-      <button class="vfe-rem" id="${prefix}-vrem">✕ Удалить</button>
+      <button type="button" class="vfe-cap" id="${prefix}-vcap">📷 Кадр</button>
+      <button type="button" class="vfe-rem" id="${prefix}-vrem">✕ Удалить</button>
+    </div>
+    <div class="vfe-draw-panel" id="${prefix}-vdraw" aria-hidden="true">
+      <div class="vfe-draw-panel-inner">
+        <div class="vfe-draw-toolbar" role="toolbar" aria-label="Инструменты рисования">
+          <div class="vfe-tool-group">
+            <button type="button" class="vfe-tool active" data-vfe-tool="brush" aria-pressed="true"><i class="bi bi-brush"></i> Кисть</button>
+            <button type="button" class="vfe-tool" data-vfe-tool="line" aria-pressed="false"><i class="bi bi-slash-lg"></i> Линия</button>
+          </div>
+          <div class="vfe-tool-group vfe-colors" aria-label="Цвет линии">
+            <button type="button" class="vfe-color active" data-vfe-color="#00d4ff" style="--vfe-swatch:#00d4ff" aria-label="Голубой" aria-pressed="true"></button>
+            <button type="button" class="vfe-color" data-vfe-color="#ffe66d" style="--vfe-swatch:#ffe66d" aria-label="Жёлтый" aria-pressed="false"></button>
+            <button type="button" class="vfe-color" data-vfe-color="#ff4655" style="--vfe-swatch:#ff4655" aria-label="Красный" aria-pressed="false"></button>
+            <button type="button" class="vfe-color" data-vfe-color="#ffffff" style="--vfe-swatch:#ffffff" aria-label="Белый" aria-pressed="false"></button>
+          </div>
+          <div class="vfe-tool-group vfe-widths" aria-label="Толщина линии">
+            <button type="button" class="vfe-width" data-vfe-width="3" aria-label="Тонкая линия" aria-pressed="false"><span style="--vfe-dot:3px"></span></button>
+            <button type="button" class="vfe-width active" data-vfe-width="6" aria-label="Средняя линия" aria-pressed="true"><span style="--vfe-dot:6px"></span></button>
+            <button type="button" class="vfe-width" data-vfe-width="11" aria-label="Толстая линия" aria-pressed="false"><span style="--vfe-dot:11px"></span></button>
+          </div>
+          <div class="vfe-tool-group vfe-history">
+            <button type="button" class="vfe-tool" id="${prefix}-vundo" disabled><i class="bi bi-arrow-counterclockwise"></i> Отменить</button>
+            <button type="button" class="vfe-tool vfe-clear" id="${prefix}-vclear" disabled><i class="bi bi-trash3"></i> Очистить</button>
+          </div>
+        </div>
+        <div class="vfe-draw-footer">
+          <span class="vfe-draw-hint"><i class="bi bi-crosshair"></i> Рисуй прямо на кадре</span>
+          <div class="vfe-draw-actions">
+            <button type="button" class="vfe-draw-cancel" id="${prefix}-vcancel">Отмена</button>
+            <button type="button" class="vfe-draw-apply" id="${prefix}-vapply"><i class="bi bi-check2"></i> Добавить кадр</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>`;
 }
@@ -13187,8 +13222,203 @@ function _initVfe(prefix, onRemove, onCapture) {
   const time  = document.getElementById(prefix+'-vtime');
   const cap   = document.getElementById(prefix+'-vcap');
   const rem   = document.getElementById(prefix+'-vrem');
+  const canvas = document.getElementById(prefix+'-vcanvas');
+  const drawPanel = document.getElementById(prefix+'-vdraw');
+  const undo = document.getElementById(prefix+'-vundo');
+  const clear = document.getElementById(prefix+'-vclear');
+  const cancel = document.getElementById(prefix+'-vcancel');
+  const apply = document.getElementById(prefix+'-vapply');
   if (!vid) return;
+  const wrap = vid.closest('.vfe-wrap');
+  const drawCtx = canvas?.getContext('2d');
+  let drawingMode = false;
+  let pointerDown = false;
+  let activePointerId = null;
+  let activeCommand = null;
+  let selectedTool = 'brush';
+  let selectedColor = '#00d4ff';
+  let selectedWidth = 6;
+  let commands = [];
+  let savingFrame = false;
   const fmt = t => { const m = Math.floor(t/60), s = Math.floor(t%60); return m+':'+(s<10?'0':'')+s; };
+
+  function drawCommand(ctx, command) {
+    const points = command.points;
+    if (!points.length) return;
+    ctx.save();
+    ctx.strokeStyle = command.color;
+    ctx.fillStyle = command.color;
+    ctx.lineWidth = command.width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const isDot = points.length === 1 || (points.length === 2 && points[0].x === points[1].x && points[0].y === points[1].y);
+    if (isDot) {
+      ctx.beginPath();
+      ctx.arc(points[0].x, points[0].y, command.width / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function repaintDrawing() {
+    if (!canvas || !drawCtx) return;
+    drawCtx.clearRect(0, 0, canvas.width, canvas.height);
+    commands.forEach(command => drawCommand(drawCtx, command));
+    const hasCommands = commands.length > 0;
+    if (undo) undo.disabled = !hasCommands || savingFrame;
+    if (clear) clear.disabled = !hasCommands || savingFrame;
+  }
+
+  function canvasPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height,
+    };
+  }
+
+  function outputLineWidth() {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / Math.max(rect.width, 1);
+    const scaleY = canvas.height / Math.max(rect.height, 1);
+    return selectedWidth * ((scaleX + scaleY) / 2);
+  }
+
+  function setDrawingMode(active) {
+    drawingMode = active;
+    pointerDown = false;
+    activePointerId = null;
+    activeCommand = null;
+    wrap?.classList.toggle('is-drawing', active);
+    drawPanel?.classList.toggle('is-open', active);
+    drawPanel?.setAttribute('aria-hidden', String(!active));
+    canvas?.setAttribute('aria-hidden', String(!active));
+    if (play) play.disabled = active;
+    if (scrub) scrub.disabled = active;
+    if (cap) cap.disabled = active;
+    if (rem) rem.disabled = active;
+    if (!active) {
+      commands = [];
+      repaintDrawing();
+      return;
+    }
+    requestAnimationFrame(() => canvas?.focus({ preventScroll: true }));
+  }
+
+  function startDrawing() {
+    if (!canvas || !vid.videoWidth || vid.readyState < 2) {
+      toast('Дождись загрузки кадра видео', 'i');
+      return;
+    }
+    vid.pause();
+    canvas.width = vid.videoWidth;
+    canvas.height = vid.videoHeight;
+    commands = [];
+    repaintDrawing();
+    setDrawingMode(true);
+  }
+
+  wrap?.querySelectorAll('[data-vfe-tool]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedTool = button.dataset.vfeTool;
+      wrap.querySelectorAll('[data-vfe-tool]').forEach(item => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+      canvas?.focus({ preventScroll: true });
+    });
+  });
+  wrap?.querySelectorAll('[data-vfe-color]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedColor = button.dataset.vfeColor;
+      wrap.querySelectorAll('[data-vfe-color]').forEach(item => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+      canvas?.focus({ preventScroll: true });
+    });
+  });
+  wrap?.querySelectorAll('[data-vfe-width]').forEach(button => {
+    button.addEventListener('click', () => {
+      selectedWidth = Number(button.dataset.vfeWidth) || 6;
+      wrap.querySelectorAll('[data-vfe-width]').forEach(item => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+      canvas?.focus({ preventScroll: true });
+    });
+  });
+
+  canvas?.addEventListener('pointerdown', event => {
+    if (!drawingMode || savingFrame) return;
+    event.preventDefault();
+    pointerDown = true;
+    activePointerId = event.pointerId;
+    canvas.setPointerCapture(event.pointerId);
+    const point = canvasPoint(event);
+    activeCommand = {
+      type: selectedTool,
+      color: selectedColor,
+      width: outputLineWidth(),
+      points: selectedTool === 'line' ? [point, point] : [point],
+    };
+    commands.push(activeCommand);
+    repaintDrawing();
+  });
+  canvas?.addEventListener('pointermove', event => {
+    if (!pointerDown || event.pointerId !== activePointerId || !activeCommand) return;
+    event.preventDefault();
+    const point = canvasPoint(event);
+    if (activeCommand.type === 'line') {
+      activeCommand.points[1] = point;
+    } else {
+      const previous = activeCommand.points[activeCommand.points.length - 1];
+      if (Math.hypot(point.x - previous.x, point.y - previous.y) >= activeCommand.width * 0.15) {
+        activeCommand.points.push(point);
+      }
+    }
+    repaintDrawing();
+  });
+  const finishStroke = event => {
+    if (!pointerDown || event.pointerId !== activePointerId) return;
+    pointerDown = false;
+    activePointerId = null;
+    activeCommand = null;
+    repaintDrawing();
+  };
+  canvas?.addEventListener('pointerup', finishStroke);
+  canvas?.addEventListener('pointercancel', finishStroke);
+  canvas?.addEventListener('keydown', event => {
+    if (!drawingMode) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      commands.pop();
+      repaintDrawing();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setDrawingMode(false);
+    }
+  });
+  undo?.addEventListener('click', () => {
+    commands.pop();
+    repaintDrawing();
+    canvas?.focus({ preventScroll: true });
+  });
+  clear?.addEventListener('click', () => {
+    commands = [];
+    repaintDrawing();
+    canvas?.focus({ preventScroll: true });
+  });
+  cancel?.addEventListener('click', () => setDrawingMode(false));
+
   vid.addEventListener('timeupdate', () => {
     if (!vid.duration) return;
     if (scrub) scrub.value = (vid.currentTime / vid.duration) * 100;
@@ -13200,19 +13430,28 @@ function _initVfe(prefix, onRemove, onCapture) {
   scrub?.addEventListener('input', () => { if (vid.duration) vid.currentTime = (scrub.value / 100) * vid.duration; });
   play?.addEventListener('click', () => vid.paused ? vid.play() : vid.pause());
   rem?.addEventListener('click', onRemove);
-  cap?.addEventListener('click', async () => {
-    if (!vid.videoWidth || vid.readyState < 2) { toast('Дождись загрузки кадра видео', 'i'); return; }
-    cap.disabled = true; cap.textContent = '⏳';
+  cap?.addEventListener('click', startDrawing);
+  apply?.addEventListener('click', async () => {
+    if (!drawingMode || savingFrame) return;
+    savingFrame = true;
+    const applyLabel = apply.innerHTML;
+    apply.disabled = true;
+    apply.innerHTML = '<span class="vfe-saving-dot"></span> Сохранение…';
+    repaintDrawing();
     try {
       vid.pause();
-      await new Promise(r => setTimeout(r, 50));
-      const canvas = document.createElement('canvas');
-      canvas.width = vid.videoWidth; canvas.height = vid.videoHeight;
-      canvas.getContext('2d').drawImage(vid, 0, 0);
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+      const output = document.createElement('canvas');
+      output.width = vid.videoWidth;
+      output.height = vid.videoHeight;
+      const outputCtx = output.getContext('2d');
+      outputCtx.drawImage(vid, 0, 0, output.width, output.height);
+      outputCtx.drawImage(canvas, 0, 0, output.width, output.height);
+      const blob = await new Promise(res => output.toBlob(res, 'image/jpeg', 0.9));
       if (!blob) throw new Error('Не удалось создать изображение из кадра');
+      const hadDrawing = commands.length > 0;
       await onCapture(blob);
-      toast('Кадр добавлен ✅', 's');
+      setDrawingMode(false);
+      toast(hadDrawing ? 'Кадр с рисунком добавлен ✅' : 'Кадр добавлен ✅', 's');
     } catch (e) {
       if (e.message !== 'canceled') {
         const msg = e.name === 'SecurityError'
@@ -13221,7 +13460,10 @@ function _initVfe(prefix, onRemove, onCapture) {
         toast(msg, 'e');
       }
     } finally {
-      cap.disabled = false; cap.textContent = '📷 Кадр';
+      savingFrame = false;
+      apply.disabled = false;
+      apply.innerHTML = applyLabel;
+      repaintDrawing();
     }
   });
 }
