@@ -8974,14 +8974,30 @@ function _bindAdminEditedVideoPreviews(scope, lineup) {
       muteButton.textContent = video.muted ? '🔇' : '🔊';
       muteButton.setAttribute('aria-label', video.muted ? 'Включить звук' : 'Выключить звук');
     });
-    video.addEventListener('loadedmetadata', () => {
-      edit = normalizeAdminVideoEdit(lineup.video_edit, video.duration);
-      outputDuration = adminVideoOutputDuration(edit, video.duration);
+    let initializedSourceDuration = 0;
+    const initializeTimeline = () => {
+      const mediaDuration = Number(video.duration);
+      const savedDuration = Number(lineup.video_edit?.trimEnd);
+      const sourceDuration = Number.isFinite(mediaDuration) && mediaDuration > 0
+        ? mediaDuration
+        : savedDuration;
+      if (!Number.isFinite(sourceDuration) || sourceDuration <= 0) return false;
+      if (edit && Math.abs(initializedSourceDuration - sourceDuration) < .001) return true;
+      initializedSourceDuration = sourceDuration;
+      edit = normalizeAdminVideoEdit(lineup.video_edit, sourceDuration);
+      outputDuration = adminVideoOutputDuration(edit, sourceDuration);
       video.muted = edit.audio.muted;
       video.volume = Math.max(0, Math.min(1, edit.audio.volume));
       if (muteButton) muteButton.textContent = video.muted ? '🔇' : '🔊';
+      root.classList.remove('load-error');
       render();
-    }, { once:true });
+      return true;
+    };
+    video.addEventListener('loadedmetadata', initializeTimeline);
+    video.addEventListener('durationchange', initializeTimeline);
+    // The element is inserted before this binder runs. Chrome can load cached
+    // metadata in that gap, so loadedmetadata has already fired by this point.
+    initializeTimeline();
     video.addEventListener('error', () => root.classList.add('load-error'));
     root._adminVideoCleanup = () => {
       stop();
