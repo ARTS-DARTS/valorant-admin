@@ -165,7 +165,7 @@ async function run() {
     deleted: 0,
     errors: 0,
   };
-  const confirmedAfterWarningUsers = [];
+  const confirmedUsers = [];
 
   for (const doc of snap.docs) {
     const uid = doc.id;
@@ -206,18 +206,20 @@ async function run() {
         if (countdownWasCleared) stats.countdownCleared++;
         if (becameVerified) {
           stats.confirmed++;
+          const confirmedUser = {
+            uid,
+            name: String(u.name || u.username || 'Без имени'),
+            lineups_viewed: viewed,
+            approved_lineups: approvedLineups,
+            reason: verificationReason,
+            after_warning: warningDays.length > 0,
+            warning_days: warningDays,
+            push_ok_days: pushOkDays,
+            confirmed_at: admin.firestore.Timestamp.fromDate(now),
+          };
+          confirmedUsers.push(confirmedUser);
           if (warningDays.length > 0) {
             stats.confirmedAfterWarning++;
-            confirmedAfterWarningUsers.push({
-              uid,
-              name: String(u.name || u.username || 'Без имени'),
-              lineups_viewed: viewed,
-              approved_lineups: approvedLineups,
-              reason: verificationReason,
-              warning_days: warningDays,
-              push_ok_days: pushOkDays,
-              confirmed_at: admin.firestore.Timestamp.fromDate(now),
-            });
           }
         }
       }
@@ -327,7 +329,9 @@ async function run() {
   console.log('\n' + summary);
 
   // Пишем результат в Firestore для отображения в браузере
-  const loggedConfirmedUsers = confirmedAfterWarningUsers.slice(0, 500);
+  const loggedConfirmedUsers = confirmedUsers.slice(0, 500);
+  const confirmedAfterWarningUsers = confirmedUsers.filter(user => user.after_warning);
+  const loggedConfirmedAfterWarningUsers = confirmedAfterWarningUsers.slice(0, 500);
   await db.collection('cron_logs').add({
     type:         'cleanup_bots',
     triggered_by: process.env.GITHUB_EVENT_NAME || 'schedule',
@@ -343,8 +347,10 @@ async function run() {
       confirmed_after_warning: stats.confirmedAfterWarning,
       errors:  stats.errors,
     },
-    confirmed_after_warning_users: loggedConfirmedUsers,
-    confirmed_after_warning_truncated: Math.max(0, confirmedAfterWarningUsers.length - loggedConfirmedUsers.length),
+    confirmed_users: loggedConfirmedUsers,
+    confirmed_users_truncated: Math.max(0, confirmedUsers.length - loggedConfirmedUsers.length),
+    confirmed_after_warning_users: loggedConfirmedAfterWarningUsers,
+    confirmed_after_warning_truncated: Math.max(0, confirmedAfterWarningUsers.length - loggedConfirmedAfterWarningUsers.length),
     ok: stats.errors === 0,
   });
 }

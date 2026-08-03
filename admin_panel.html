@@ -18828,10 +18828,15 @@ async function loadCronLogs() {
       const bg = ok ? 'rgba(34,197,94,.08)' : 'rgba(239,68,68,.08)';
       const border = ok ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.3)';
       const s = r.stats || {};
-      const confirmedUsers = Array.isArray(r.confirmed_after_warning_users)
+      const hasAllConfirmedUserDetails = Array.isArray(r.confirmed_users);
+      const legacyConfirmedAfterWarningUsers = Array.isArray(r.confirmed_after_warning_users)
         ? r.confirmed_after_warning_users
         : [];
-      const confirmedAfterWarning = Number(s.confirmed_after_warning ?? confirmedUsers.length ?? 0);
+      const confirmedUsers = hasAllConfirmedUserDetails
+        ? r.confirmed_users
+        : legacyConfirmedAfterWarningUsers;
+      const confirmedAfterWarning = Number(s.confirmed_after_warning ?? legacyConfirmedAfterWarningUsers.length ?? 0);
+      const confirmedTotal = Number(s.confirmed ?? confirmedUsers.length ?? 0);
       const hasDetailedCleanupStats = s.confirmed !== undefined || s.countdown_cleared !== undefined;
       const cleanupStatsHtml = hasDetailedCleanupStats
         ? `&nbsp;·&nbsp; Подтверждено: <b style="color:var(--green)">${s.confirmed??0}</b>
@@ -18846,7 +18851,9 @@ async function loadCronLogs() {
       const confirmedRows = confirmedUsers.map(user => {
         const uid = String(user.uid || '');
         const name = String(user.name || 'Без имени');
-        const warningDays = Array.isArray(user.warning_days) ? user.warning_days.join(', ') : '—';
+        const warningDayValues = Array.isArray(user.warning_days) ? user.warning_days : [];
+        const warningDays = warningDayValues.join(', ');
+        const confirmedAfterWarning = user.after_warning === true || warningDayValues.length > 0;
         const pushOkDays = Array.isArray(user.push_ok_days) && user.push_ok_days.length
           ? user.push_ok_days.join(', ')
           : 'нет подтверждения';
@@ -18856,17 +18863,24 @@ async function loadCronLogs() {
         return `<div style="display:grid;grid-template-columns:minmax(150px,1fr) minmax(220px,2fr) auto;gap:8px 14px;align-items:center;padding:8px 0;border-top:1px solid var(--border);">
           <div><b style="color:var(--text)">${esc(name)}</b><div style="color:var(--text2);font:10px monospace;overflow-wrap:anywhere;">${esc(uid)}</div></div>
           <div style="color:var(--text2);line-height:1.5;">
-            ${esc(reasonLabels[user.reason] || user.reason || 'автоподтверждение')} · просмотров: <b>${Number(user.lineups_viewed||0)}</b> · одобрено: <b>${Number(user.approved_lineups||0)}</b><br>
-            Предупреждения: за ${esc(warningDays)} дн. · push принят OneSignal: ${esc(pushOkDays)} · ${esc(confirmedAt)}
+            <span style="color:${confirmedAfterWarning ? '#65dcff' : 'var(--green)'};font-weight:700;">${confirmedAfterWarning ? 'После предупреждения' : 'Без предупреждения'}</span>
+            · ${esc(reasonLabels[user.reason] || user.reason || 'автоподтверждение')} · просмотров: <b>${Number(user.lineups_viewed||0)}</b> · одобрено: <b>${Number(user.approved_lineups||0)}</b><br>
+            ${confirmedAfterWarning ? `Предупреждения: за ${esc(warningDays)} дн. · push принят OneSignal: ${esc(pushOkDays)} · ` : ''}${esc(confirmedAt)}
           </div>
           <button class="btn" type="button" onclick="openUserProfilePanel(${esc(JSON.stringify(uid))})" style="padding:5px 9px;font-size:10px;">Профиль</button>
         </div>`;
       }).join('');
-      const truncated = Number(r.confirmed_after_warning_truncated || 0);
-      const confirmedDetailsHtml = confirmedAfterWarning > 0
+      const truncated = Number(hasAllConfirmedUserDetails
+        ? r.confirmed_users_truncated
+        : r.confirmed_after_warning_truncated) || 0;
+      const detailsTotal = hasAllConfirmedUserDetails ? confirmedTotal : confirmedAfterWarning;
+      const missingLegacyDetails = !hasAllConfirmedUserDetails
+        ? Math.max(0, confirmedTotal - confirmedAfterWarning)
+        : 0;
+      const confirmedDetailsHtml = detailsTotal > 0
         ? `<details style="margin-top:8px;padding-top:7px;border-top:1px solid ${border};">
-            <summary style="cursor:pointer;color:#65dcff;font-weight:700;">Кто подтвердился после предупреждений: ${confirmedAfterWarning}</summary>
-            <div style="margin-top:5px;">${confirmedRows || '<div style="color:var(--text2);padding:7px 0;">Подробности в этом старом логе не сохранены.</div>'}${truncated ? `<div style="color:#facc15;padding-top:7px;">Ещё ${truncated} пользователей не помещены в лог.</div>` : ''}</div>
+            <summary style="cursor:pointer;color:#65dcff;font-weight:700;">${hasAllConfirmedUserDetails ? 'Кто автоматически подтверждён' : 'Кто подтвердился после предупреждений'}: ${detailsTotal}</summary>
+            <div style="margin-top:5px;">${confirmedRows || '<div style="color:var(--text2);padding:7px 0;">Подробности в этом старом логе не сохранены.</div>'}${truncated ? `<div style="color:#facc15;padding-top:7px;">Ещё ${truncated} пользователей не помещены в лог.</div>` : ''}${missingLegacyDetails ? `<div style="color:#facc15;padding-top:7px;">В этом старом логе не сохранены имена ещё ${missingLegacyDetails} подтверждённых без предупреждения.</div>` : ''}</div>
           </details>`
         : '';
       return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:10px 14px;font-size:12px;">
