@@ -7,7 +7,7 @@
   <link rel="icon" type="image/svg+xml" href="admin_favicon.svg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="admin_panel.css?v=2026-08-02-video-edit-preview-v1">
+  <link rel="stylesheet" href="admin_panel.css?v=2026-08-06-billing-pages-v1">
 </head>
 <body>
 
@@ -1021,19 +1021,27 @@
       </div>
       <button class="btn" id="billing-refresh" type="button"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
     </div>
-    <h4>Реальные покупки</h4>
-    <div class="billing-admin-stats">
-      <div class="an-card"><div class="an-val" id="billing-live-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
-      <div class="an-card"><div class="an-val" id="billing-live-gross">—</div><div class="an-lbl">Получено</div></div>
-      <div class="an-card"><div class="an-val" id="billing-live-reversals">—</div><div class="an-lbl">Возвратов</div></div>
-      <div class="an-card"><div class="an-val" id="billing-live-net">—</div><div class="an-lbl">Итого</div></div>
+    <nav class="billing-mode-nav" aria-label="Тип покупок">
+      <button type="button" id="billing-mode-live" class="active" aria-pressed="true">
+        <i class="bi bi-cash-stack"></i><span>Реальные покупки</span>
+      </button>
+      <button type="button" id="billing-mode-test" aria-pressed="false">
+        <i class="bi bi-beaker"></i><span>Тестовые покупки</span>
+      </button>
+    </nav>
+    <div class="billing-page-title">
+      <div>
+        <span id="billing-page-kicker">БОЕВОЙ КОНТУР</span>
+        <h3 id="billing-page-title">Реальные покупки</h3>
+        <p id="billing-page-description">Только фактические списания и реальные заказы Robokassa.</p>
+      </div>
+      <strong id="billing-page-mode-badge">LIVE</strong>
     </div>
-    <h4>Тестовые покупки</h4>
     <div class="billing-admin-stats">
-      <div class="an-card"><div class="an-val" id="billing-test-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
-      <div class="an-card"><div class="an-val" id="billing-test-gross">—</div><div class="an-lbl">Получено</div></div>
-      <div class="an-card"><div class="an-val" id="billing-test-reversals">—</div><div class="an-lbl">Возвратов</div></div>
-      <div class="an-card"><div class="an-val" id="billing-test-net">—</div><div class="an-lbl">Итого</div></div>
+      <div class="an-card"><div class="an-val" id="billing-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
+      <div class="an-card"><div class="an-val" id="billing-gross">—</div><div class="an-lbl">Получено</div></div>
+      <div class="an-card"><div class="an-val" id="billing-reversals">—</div><div class="an-lbl">Возвратов</div></div>
+      <div class="an-card"><div class="an-val" id="billing-net">—</div><div class="an-lbl">Итого</div></div>
     </div>
     <div class="billing-health-grid" aria-label="Состояние платёжного контура">
       <div><span class="billing-health-dot" id="billing-health-dot"></span><strong id="billing-health-label">Проверяем контур…</strong><small id="billing-health-detail">—</small></div>
@@ -1050,7 +1058,7 @@
         <option value="failed">Не прошёл</option>
         <option value="reversed">Возвращён</option>
       </select>
-      <span>Последние 40 заказов · без realtime и полного сканирования</span>
+      <span id="billing-list-description">Последние 40 реальных заказов · без смешивания с тестовыми</span>
       <button class="btn" id="billing-export" type="button"><i class="bi bi-download"></i> CSV</button>
     </div>
     <div class="billing-admin-table-wrap">
@@ -3245,6 +3253,32 @@ let billingCursor = '';
 let billingNextCursor = '';
 let billingCursorHistory = [];
 let billingVisibleOrders = [];
+let billingMode = 'live';
+let billingLoadGeneration = 0;
+
+function setBillingMode(mode) {
+  if (!['live', 'test'].includes(mode)) return;
+  billingMode = mode;
+  const isTest = mode === 'test';
+  const liveButton = document.getElementById('billing-mode-live');
+  const testButton = document.getElementById('billing-mode-test');
+  liveButton?.classList.toggle('active', !isTest);
+  testButton?.classList.toggle('active', isTest);
+  liveButton?.setAttribute('aria-pressed', String(!isTest));
+  testButton?.setAttribute('aria-pressed', String(isTest));
+  const pageTitle = document.querySelector('.billing-page-title');
+  pageTitle?.classList.toggle('test', isTest);
+  document.getElementById('billing-page-kicker').textContent = isTest ? 'ПЕСОЧНИЦА ROBOKASSA' : 'БОЕВОЙ КОНТУР';
+  document.getElementById('billing-page-title').textContent = isTest ? 'Тестовые покупки' : 'Реальные покупки';
+  document.getElementById('billing-page-description').textContent = isTest
+    ? 'Только тестовые операции. Эти суммы не являются выручкой.'
+    : 'Только фактические списания и реальные заказы Robokassa.';
+  document.getElementById('billing-page-mode-badge').textContent = isTest ? 'TEST' : 'LIVE';
+  document.getElementById('billing-list-description').textContent = isTest
+    ? 'Последние 40 тестовых заказов · реальные платежи здесь не показываются'
+    : 'Последние 40 реальных заказов · без смешивания с тестовыми';
+  loadBillingAdmin({ reset:true });
+}
 
 function billingMoney(value) {
   return new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB' })
@@ -3261,6 +3295,8 @@ function billingDate(value, withTime = false) {
 async function loadBillingAdmin({ reset = false } = {}) {
   const body = document.getElementById('billing-orders-body');
   const refresh = document.getElementById('billing-refresh');
+  const requestedMode = billingMode;
+  const loadGeneration = ++billingLoadGeneration;
   if (!body || !auth.currentUser) return;
   if (reset) {
     billingPage = 1;
@@ -3274,20 +3310,18 @@ async function loadBillingAdmin({ reset = false } = {}) {
     const token = await auth.currentUser.getIdToken();
     const status = document.getElementById('billing-status-filter')?.value || 'all';
     const cursorPart = billingCursor ? `&cursor=${encodeURIComponent(billingCursor)}` : '';
-    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/billing?limit=40&status=${encodeURIComponent(status)}${cursorPart}`, {
+    const response = await fetch(`${BILLING_API_ORIGIN}/api/admin/billing?limit=40&mode=${encodeURIComponent(requestedMode)}&status=${encodeURIComponent(status)}${cursorPart}`, {
       headers:{ Authorization:`Bearer ${token}` }, cache:'no-store',
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    if (requestedMode !== billingMode || loadGeneration !== billingLoadGeneration) return;
     const overview = payload.overview || {};
-    const live = overview.live || {};
-    const test = overview.test || {};
-    for (const [prefix, values] of [['live', live], ['test', test]]) {
-      document.getElementById(`billing-${prefix}-purchases`).textContent = Number(values.purchases_total) || 0;
-      document.getElementById(`billing-${prefix}-gross`).textContent = billingMoney(values.gross_minor);
-      document.getElementById(`billing-${prefix}-reversals`).textContent = Number(values.reversals_total) || 0;
-      document.getElementById(`billing-${prefix}-net`).textContent = billingMoney(values.net_minor);
-    }
+    const values = overview[requestedMode] || {};
+    document.getElementById('billing-purchases').textContent = Number(values.purchases_total) || 0;
+    document.getElementById('billing-gross').textContent = billingMoney(values.gross_minor);
+    document.getElementById('billing-reversals').textContent = Number(values.reversals_total) || 0;
+    document.getElementById('billing-net').textContent = billingMoney(values.net_minor);
     const monitoring = payload.monitoring || {};
     const problems = (Number(monitoring.stuck_pending) || 0) + (Number(monitoring.requires_review) || 0);
     const healthDot = document.getElementById('billing-health-dot');
@@ -3315,18 +3349,19 @@ async function loadBillingAdmin({ reset = false } = {}) {
         : 'Не выдан';
       const review = BILLING_REVIEW_LABELS[order.review_reason] || order.review_reason || '';
       return `<tr>
-        <td><strong>№ ${esc(order.id)}</strong><small>${billingDate(order.created_at, true)}${order.test_mode ? ' · TEST' : ''}</small></td>
+        <td><strong>№ ${esc(order.id)}</strong><small>${billingDate(order.created_at, true)}</small></td>
         <td><strong>${esc(person)}</strong><small>${esc(secondary || '')}</small></td>
         <td><strong>${esc(order.plan_id)}</strong><small>${Number(order.months) || 0} мес.</small></td>
-        <td><strong>${billingMoney(order.amount_minor)}</strong>${order.test_mode ? '<small>ТЕСТОВЫЕ ДЕНЬГИ</small>' : '<small>РЕАЛЬНЫЙ ПЛАТЁЖ</small>'}</td>
+        <td><strong>${billingMoney(order.amount_minor)}</strong><small>${requestedMode === 'test' ? 'ТЕСТОВЫЕ ДЕНЬГИ' : 'РЕАЛЬНЫЙ ПЛАТЁЖ'}</small></td>
         <td><span class="billing-status billing-status-${esc(order.status)}">${esc(BILLING_STATUS_LABELS[order.status] || order.status)}</span>${review ? `<small class="billing-review-note">${esc(review)}</small>` : ''}</td>
         <td><strong>${access}</strong><small>${esc(order.entitlement_status || '')}</small></td>
       </tr>`;
     }).join('') : '<tr><td colspan="6" class="billing-admin-state">Заказов с таким статусом нет</td></tr>';
   } catch (error) {
+    if (loadGeneration !== billingLoadGeneration) return;
     body.innerHTML = `<tr><td colspan="6" class="billing-admin-state billing-admin-error">Ошибка: ${esc(error.message)}</td></tr>`;
   } finally {
-    if (refresh) refresh.disabled = false;
+    if (refresh && loadGeneration === billingLoadGeneration) refresh.disabled = false;
   }
 }
 
@@ -3346,12 +3381,14 @@ function exportBillingCsv() {
   const url = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;
-  link.download = `vlineups-payments-page-${billingPage}.csv`;
+  link.download = `vlineups-payments-${billingMode}-page-${billingPage}.csv`;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 document.getElementById('billing-refresh')?.addEventListener('click', () => loadBillingAdmin({ reset:true }));
+document.getElementById('billing-mode-live')?.addEventListener('click', () => setBillingMode('live'));
+document.getElementById('billing-mode-test')?.addEventListener('click', () => setBillingMode('test'));
 document.getElementById('billing-status-filter')?.addEventListener('change', () => loadBillingAdmin({ reset:true }));
 document.getElementById('billing-export')?.addEventListener('click', exportBillingCsv);
 document.getElementById('billing-next')?.addEventListener('click', () => {
