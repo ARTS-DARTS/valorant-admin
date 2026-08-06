@@ -1021,12 +1021,19 @@
       </div>
       <button class="btn" id="billing-refresh" type="button"><i class="bi bi-arrow-clockwise"></i> Обновить</button>
     </div>
+    <h4>Реальные покупки</h4>
     <div class="billing-admin-stats">
-      <div class="an-card"><div class="an-val" id="billing-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
-      <div class="an-card"><div class="an-val" id="billing-gross">—</div><div class="an-lbl">Получено</div></div>
-      <div class="an-card"><div class="an-val" id="billing-reversals">—</div><div class="an-lbl">Возвратов</div></div>
-      <div class="an-card"><div class="an-val" id="billing-net">—</div><div class="an-lbl">Итого</div></div>
-      <div class="an-card"><div class="an-val" id="billing-test-gross">—</div><div class="an-lbl">Тестовые оплаты (последние заказы)</div></div>
+      <div class="an-card"><div class="an-val" id="billing-live-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
+      <div class="an-card"><div class="an-val" id="billing-live-gross">—</div><div class="an-lbl">Получено</div></div>
+      <div class="an-card"><div class="an-val" id="billing-live-reversals">—</div><div class="an-lbl">Возвратов</div></div>
+      <div class="an-card"><div class="an-val" id="billing-live-net">—</div><div class="an-lbl">Итого</div></div>
+    </div>
+    <h4>Тестовые покупки</h4>
+    <div class="billing-admin-stats">
+      <div class="an-card"><div class="an-val" id="billing-test-purchases">—</div><div class="an-lbl">Успешных покупок</div></div>
+      <div class="an-card"><div class="an-val" id="billing-test-gross">—</div><div class="an-lbl">Получено</div></div>
+      <div class="an-card"><div class="an-val" id="billing-test-reversals">—</div><div class="an-lbl">Возвратов</div></div>
+      <div class="an-card"><div class="an-val" id="billing-test-net">—</div><div class="an-lbl">Итого</div></div>
     </div>
     <div class="billing-health-grid" aria-label="Состояние платёжного контура">
       <div><span class="billing-health-dot" id="billing-health-dot"></span><strong id="billing-health-label">Проверяем контур…</strong><small id="billing-health-detail">—</small></div>
@@ -3273,13 +3280,14 @@ async function loadBillingAdmin({ reset = false } = {}) {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
     const overview = payload.overview || {};
-    document.getElementById('billing-purchases').textContent = Number(overview.purchases_total) || 0;
-    document.getElementById('billing-gross').textContent = billingMoney(overview.gross_minor);
-    document.getElementById('billing-reversals').textContent = Number(overview.reversals_total) || 0;
-    document.getElementById('billing-net').textContent = billingMoney(overview.net_minor);
-    const paymentTotals = payload.payment_totals || {};
-    document.getElementById('billing-test-gross').textContent =
-      `${billingMoney(paymentTotals.test_gross_minor)} · ${Number(paymentTotals.test_purchases) || 0} шт.`;
+    const live = overview.live || {};
+    const test = overview.test || {};
+    for (const [prefix, values] of [['live', live], ['test', test]]) {
+      document.getElementById(`billing-${prefix}-purchases`).textContent = Number(values.purchases_total) || 0;
+      document.getElementById(`billing-${prefix}-gross`).textContent = billingMoney(values.gross_minor);
+      document.getElementById(`billing-${prefix}-reversals`).textContent = Number(values.reversals_total) || 0;
+      document.getElementById(`billing-${prefix}-net`).textContent = billingMoney(values.net_minor);
+    }
     const monitoring = payload.monitoring || {};
     const problems = (Number(monitoring.stuck_pending) || 0) + (Number(monitoring.requires_review) || 0);
     const healthDot = document.getElementById('billing-health-dot');
