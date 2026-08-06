@@ -1026,6 +1026,7 @@
       <div class="an-card"><div class="an-val" id="billing-gross">—</div><div class="an-lbl">Получено</div></div>
       <div class="an-card"><div class="an-val" id="billing-reversals">—</div><div class="an-lbl">Возвратов</div></div>
       <div class="an-card"><div class="an-val" id="billing-net">—</div><div class="an-lbl">Итого</div></div>
+      <div class="an-card"><div class="an-val" id="billing-test-gross">—</div><div class="an-lbl">Тестовые оплаты (последние заказы)</div></div>
     </div>
     <div class="billing-health-grid" aria-label="Состояние платёжного контура">
       <div><span class="billing-health-dot" id="billing-health-dot"></span><strong id="billing-health-label">Проверяем контур…</strong><small id="billing-health-detail">—</small></div>
@@ -3276,6 +3277,9 @@ async function loadBillingAdmin({ reset = false } = {}) {
     document.getElementById('billing-gross').textContent = billingMoney(overview.gross_minor);
     document.getElementById('billing-reversals').textContent = Number(overview.reversals_total) || 0;
     document.getElementById('billing-net').textContent = billingMoney(overview.net_minor);
+    const paymentTotals = payload.payment_totals || {};
+    document.getElementById('billing-test-gross').textContent =
+      `${billingMoney(paymentTotals.test_gross_minor)} · ${Number(paymentTotals.test_purchases) || 0} шт.`;
     const monitoring = payload.monitoring || {};
     const problems = (Number(monitoring.stuck_pending) || 0) + (Number(monitoring.requires_review) || 0);
     const healthDot = document.getElementById('billing-health-dot');
@@ -3296,15 +3300,17 @@ async function loadBillingAdmin({ reset = false } = {}) {
     body.innerHTML = orders.length ? orders.map(order => {
       const person = order.user_name || order.user_email || order.uid || '—';
       const secondary = order.user_email && order.user_email !== person ? order.user_email : order.uid;
-      const access = order.access_until
-        ? `${esc(order.entitlement_plan_id || order.plan_id)} · до ${billingDate(order.access_until)}`
+      const access = order.order_access_until
+        ? `${esc(order.plan_id)} · по заказу до ${billingDate(order.order_access_until)}`
+        : order.access_until
+        ? `${esc(order.entitlement_plan_id || order.plan_id)} · текущий до ${billingDate(order.access_until)}`
         : 'Не выдан';
       const review = BILLING_REVIEW_LABELS[order.review_reason] || order.review_reason || '';
       return `<tr>
         <td><strong>№ ${esc(order.id)}</strong><small>${billingDate(order.created_at, true)}${order.test_mode ? ' · TEST' : ''}</small></td>
         <td><strong>${esc(person)}</strong><small>${esc(secondary || '')}</small></td>
         <td><strong>${esc(order.plan_id)}</strong><small>${Number(order.months) || 0} мес.</small></td>
-        <td><strong>${billingMoney(order.amount_minor)}</strong></td>
+        <td><strong>${billingMoney(order.amount_minor)}</strong>${order.test_mode ? '<small>ТЕСТОВЫЕ ДЕНЬГИ</small>' : '<small>РЕАЛЬНЫЙ ПЛАТЁЖ</small>'}</td>
         <td><span class="billing-status billing-status-${esc(order.status)}">${esc(BILLING_STATUS_LABELS[order.status] || order.status)}</span>${review ? `<small class="billing-review-note">${esc(review)}</small>` : ''}</td>
         <td><strong>${access}</strong><small>${esc(order.entitlement_status || '')}</small></td>
       </tr>`;
