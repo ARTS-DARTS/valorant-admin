@@ -162,7 +162,13 @@
             <div style="font-weight:700;color:#f97316;font-size:13px;">🔥 Горячие пирожки</div>
             <div id="hot-buns-desc" style="font-size:11px;color:var(--text2);margin-top:2px;">лайнапы ждут финального подтверждения</div>
           </div>
-          <button class="btn btn-publish" onclick="publishAllHot()" style="padding:8px 16px;font-size:12px;font-weight:700;">✅ Опубликовать все</button>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end;">
+            <label for="hot-publish-silent" title="Лайнапы будут опубликованы без внутренних уведомлений и push" style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:11px;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="hot-publish-silent" style="width:15px;height:15px;accent-color:#f97316;cursor:pointer;">
+              🔕 Тихо: без уведомлений и push
+            </label>
+            <button class="btn btn-publish" onclick="publishAllHot()" style="padding:8px 16px;font-size:12px;font-weight:700;">✅ Опубликовать все</button>
+          </div>
         </div>
       </div>
 
@@ -9837,7 +9843,11 @@ async function publishLineup(id, userId) {
 async function publishAllHot() {
   const hotList = lineups.filter(l => l.status === 'hot');
   if (!hotList.length) { toast('Нет лайнапов в горячих пирожках', 'i'); return; }
-  if (!confirm(`Финально опубликовать все ${hotList.length} лайнапов из «Горячих пирожков»?\nОни сразу станут видны пользователям.`)) return;
+  const silent = document.getElementById('hot-publish-silent')?.checked === true;
+  const notificationWarning = silent
+    ? '\n\nТихий режим: внутренние уведомления и push отправлены не будут.'
+    : '\n\nПодписчики и авторы получат уведомления.';
+  if (!confirm(`Финально опубликовать все ${hotList.length} лайнапов из «Горячих пирожков»?\nОни сразу станут видны пользователям.${notificationWarning}`)) return;
   try {
     const publishable = [];
     for (const l of hotList) {
@@ -9853,6 +9863,7 @@ async function publishAllHot() {
       published_by_uid: currentUser?.uid || null,
       published_by_name: currentUser?.displayName || currentUser?.email || 'Admin',
       published_by_role: currentUserRole || 'admin',
+      notifications_suppressed: silent,
     };
     if (currentPatchVersion) updateData.patch_version = currentPatchVersion;
     const b = writeBatch(db);
@@ -9873,15 +9884,24 @@ async function publishAllHot() {
           }
         }
       } catch (_) {}
-      writeAudit(l.id, 'approved', { status: { from: l.status || 'unknown', to: 'approved' } }).catch(() => {});
+      writeAudit(l.id, 'approved', {
+        status: { from: l.status || 'unknown', to: 'approved' },
+        notifications_suppressed: silent,
+      }).catch(() => {});
       patchStatus(l.id, 'approved');
     }
-    const subResult = await notifySubscribersBatch(publishedLineups);
-    console.info('publishAll subscriber notifications:', subResult);
+    if (!silent) {
+      const subResult = await notifySubscribersBatch(publishedLineups);
+      console.info('publishAll subscriber notifications:', subResult);
+    } else {
+      console.info('publishAll subscriber notifications suppressed by admin');
+    }
     for (const [authorUid, approvedLineups] of authorGroups.entries()) {
       updateAuthorApprovedLineups(authorUid, approvedLineups.length, { reason: 'lineups_published_batch' }).catch(() => {});
-      const authorResult = await notifyLineupAuthorApprovedBatch(authorUid, approvedLineups).catch(e => ({ ok: false, error: e.message }));
-      console.info('publishAll author notification:', { authorUid, count: approvedLineups.length, authorResult });
+      if (!silent) {
+        const authorResult = await notifyLineupAuthorApprovedBatch(authorUid, approvedLineups).catch(e => ({ ok: false, error: e.message }));
+        console.info('publishAll author notification:', { authorUid, count: approvedLineups.length, authorResult });
+      }
     }
     // Батч-обновление счётчиков: считаем дельты, пишем одним вызовом
     const statsDelta = {};
@@ -9904,7 +9924,12 @@ async function publishAllHot() {
         }
       });
     }
-    toast(`Опубликовано ${publishable.length} лайнапов 🚀`, 's');
+    toast(
+      silent
+        ? `Тихо опубликовано ${publishable.length} лайнапов · уведомления и push отключены 🔕`
+        : `Опубликовано ${publishable.length} лайнапов 🚀`,
+      's',
+    );
   } catch (e) { toast('Ошибка: ' + e.message, 'e'); }
 }
 
