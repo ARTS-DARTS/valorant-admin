@@ -14,6 +14,7 @@
  */
 
 const admin = require('firebase-admin');
+const { deleteAuthUserIfPresent } = require('./cleanup_auth');
 
 const SERVICE_ACCOUNT  = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 const OS_APP_ID        = process.env.ONESIGNAL_APP_ID;
@@ -142,7 +143,7 @@ async function archiveAndDelete(uid, u) {
   await db.collection('users').doc(uid).delete();
 
   // 4. Удаляем Firebase Auth аккаунт
-  await auth.deleteUser(uid);
+  await deleteAuthUserIfPresent(auth, uid);
 }
 
 // ── Основная логика ──────────────────────────────────────────────────────────

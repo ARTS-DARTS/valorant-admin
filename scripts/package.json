@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "cleanup": "node cleanup_bots.js"
+    "cleanup": "node cleanup_bots.js",
+    "test": "node --test cleanup_auth.test.js"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0"
